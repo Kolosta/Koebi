@@ -1,0 +1,52 @@
+name: Claude Code
+
+# Mention @claude in an issue, a pull request comment or a review to delegate work to Claude
+# Code (implementation, investigation, fixes). Claude follows CLAUDE.md and .claude/.
+#
+# Disabled until configured: install the Claude GitHub App (`/install-github-app` in Claude
+# Code), add the CLAUDE_CODE_OAUTH_TOKEN (or ANTHROPIC_API_KEY) secret, then set the repository
+# variable CLAUDE_CODE_ENABLED=true. See docs/ai/claude-code.md.
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, assigned]
+
+permissions:
+  contents: read
+
+jobs:
+  claude:
+    if: >-
+      vars.CLAUDE_CODE_ENABLED == 'true' && (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      )
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      # Let Claude build and test like a contributor (GPU tests skip without a GPU).
+      - uses: ./.github/actions/setup-linux-deps
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        with:
+          cache-key: claude
+      - uses: anthropics/claude-code-action@16f9f71ab9c490faf367f94dd294897edc25be33 # v1.0.261
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: --max-turns 40

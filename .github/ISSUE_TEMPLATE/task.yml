@@ -1,0 +1,27 @@
+name: Engineering task
+description: Refactoring, technical debt, tooling, CI or documentation work.
+labels: ["status: needs-triage"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: The outcome, and why it matters now.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and acceptance criteria
+      placeholder: |
+        - [ ] ...
+        - [ ] Tests / docs updated
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [core, gpu, render, platform, app, tests, ci, tooling, docs, ai]
+    validations:
+      required: true

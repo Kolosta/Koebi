@@ -1,0 +1,11 @@
+# Owners are requested for review automatically. Order matters: the last match wins.
+*                       @Kolosta
+
+# Safety-critical code (unsafe, GPU synchronization) and project governance.
+/crates/koebi-gpu/      @Kolosta
+/crates/koebi-platform/ @Kolosta
+/.github/               @Kolosta
+/.claude/               @Kolosta
+/CLAUDE.md              @Kolosta
+/deny.toml              @Kolosta
+/docs/adr/              @Kolosta

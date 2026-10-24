@@ -1,0 +1,38 @@
+name: Nightly
+
+# Checks that can break without any code change (new security advisories), slower analyses
+# (Miri) and fresh installable builds. Runs on the default branch (develop).
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  advisories:
+    name: Security advisories
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        with:
+          command: check advisories
+
+  miri:
+    name: Miri (undefined behaviour in pure-Rust crates)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install nightly with Miri
+        run: rustup toolchain install nightly --profile minimal --component miri
+      - name: Run koebi-core under Miri
+        run: cargo +nightly miri test -p koebi-core
+
+  package:
+    name: Package
+    uses: ./.github/workflows/package.yml
+    secrets: inherit
+    with:
+      retention-days: 7

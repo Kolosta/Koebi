@@ -1,0 +1,62 @@
+name: PR policy
+
+# Gitflow and commit conventions for pull requests. Required status check: "PR policy result".
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  gitflow:
+    name: Gitflow branch rules
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        with:
+          cache-key: xtask
+      # Branch names come from the PR author: pass them through the environment, never
+      # interpolate them into the script.
+      - run: cargo xtask gitflow-check --head "$HEAD_REF" --base "$BASE_REF"
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+
+  title:
+    name: Conventional PR title
+    runs-on: ubuntu-24.04
+    steps:
+      # Squash merges use the PR title as the commit message on develop.
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            test
+            docs
+            build
+            ci
+            chore
+            revert
+            style
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+[^.]$
+          subjectPatternError: |
+            The subject "{subject}" must start with a lowercase letter and not end with a period.
+
+  policy-result:
+    name: PR policy result
+    if: always()
+    needs: [gitflow, title]
+    runs-on: ubuntu-24.04
+    steps:
+      - env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: echo "$RESULTS" | jq -e 'all(.[]; .result == "success")' > /dev/null

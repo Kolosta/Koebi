@@ -1,0 +1,30 @@
+name: Feature request
+description: Propose a new capability or an improvement.
+labels: ["type: feature", "status: needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what blocks you today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: API sketch, UI mock-up or behaviour description.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Impact
+      options:
+        - label: Needs a new dependency (requires an ADR)
+        - label: Changes a public API or the architecture (requires an ADR)
+        - label: Affects rendering output (golden images will change)

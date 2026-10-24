@@ -1,0 +1,48 @@
+# actions/labeler configuration (v5+ format). Labels are created by scripts/github/setup-repository.sh.
+
+"area: core":
+  - changed-files:
+      - any-glob-to-any-file: crates/koebi-core/**
+"area: gpu":
+  - changed-files:
+      - any-glob-to-any-file: crates/koebi-gpu/**
+"area: render":
+  - changed-files:
+      - any-glob-to-any-file: crates/koebi-render/**
+"area: platform":
+  - changed-files:
+      - any-glob-to-any-file: crates/koebi-platform/**
+"area: app":
+  - changed-files:
+      - any-glob-to-any-file: apps/**
+"area: tests":
+  - changed-files:
+      - any-glob-to-any-file: ["crates/koebi-testkit/**", "**/tests/**"]
+"area: ci":
+  - changed-files:
+      - any-glob-to-any-file: .github/**
+"area: docs":
+  - changed-files:
+      - any-glob-to-any-file: ["docs/**", "*.md"]
+"area: tooling":
+  - changed-files:
+      - any-glob-to-any-file: ["xtask/**", ".githooks/**", ".cargo/**", ".config/**"]
+"area: ai":
+  - changed-files:
+      - any-glob-to-any-file: [".claude/**", "CLAUDE.md"]
+"platform: android":
+  - changed-files:
+      - any-glob-to-any-file: platform/android/**
+"platform: ios":
+  - changed-files:
+      - any-glob-to-any-file: platform/ios/**
+"platform: macos":
+  - changed-files:
+      - any-glob-to-any-file: platform/macos/**
+
+"type: feature":
+  - head-branch: ["^feature/"]
+"type: bug":
+  - head-branch: ["^bugfix/", "^hotfix/"]
+"release":
+  - head-branch: ["^release/", "^hotfix/"]
