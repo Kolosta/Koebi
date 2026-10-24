@@ -17,9 +17,10 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
 
+# bash -eo pipefail, plus an error annotation with the relevant output when a step fails.
 defaults:
   run:
-    shell: bash
+    shell: bash .github/scripts/ci-step.sh {0}
 
 jobs:
   desktop:

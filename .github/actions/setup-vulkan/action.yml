@@ -38,6 +38,7 @@ runs:
         VERSION: ${{ steps.sdk.outputs.version }}
       run: |
         set -euo pipefail
+        trap 'echo "::error title=Vulkan SDK (Linux)::failed: $BASH_COMMAND"' ERR
         root="$HOME/vulkan-sdk"
         if [ -z "$(find "$root" -path '*/x86_64/bin/glslc' -print -quit 2>/dev/null)" ]; then
           mkdir -p "$root"
@@ -56,6 +57,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+        trap 'echo "::error title=lavapipe (Linux)::failed: $BASH_COMMAND"' ERR
         sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers
         echo "VK_DRIVER_FILES=$(ls /usr/share/vulkan/icd.d/lvp_icd.*.json | head -n1)" >> "$GITHUB_ENV"
 
@@ -73,22 +75,27 @@ runs:
         VERSION: ${{ steps.sdk.outputs.version }}
       run: |
         $ErrorActionPreference = 'Stop'
-        $cache = Join-Path $HOME 'vulkan-sdk-installer'
-        $installer = Join-Path $cache "vulkansdk-$env:VERSION.exe"
-        if (-not (Test-Path $installer)) {
-          New-Item -ItemType Directory -Force $cache | Out-Null
-          Invoke-WebRequest -UseBasicParsing -OutFile $installer `
-            -Uri "https://sdk.lunarg.com/sdk/download/$env:VERSION/windows/vulkansdk-windows-X64-$env:VERSION.exe"
+        try {
+          $cache = Join-Path $HOME 'vulkan-sdk-installer'
+          $installer = Join-Path $cache "vulkansdk-$env:VERSION.exe"
+          if (-not (Test-Path $installer)) {
+            New-Item -ItemType Directory -Force $cache | Out-Null
+            Invoke-WebRequest -UseBasicParsing -OutFile $installer `
+              -Uri "https://sdk.lunarg.com/sdk/download/$env:VERSION/windows/vulkansdk-windows-X64-$env:VERSION.exe"
+          }
+          $root = "C:\VulkanSDK\$env:VERSION"
+          $process = Start-Process -FilePath $installer -Wait -NoNewWindow -PassThru `
+            -ArgumentList '--root', $root, '--accept-licenses', '--default-answer', '--confirm-command', 'install'
+          if ($process.ExitCode -ne 0 -or -not (Test-Path "$root\Bin\glslc.exe")) {
+            throw "Vulkan SDK installation failed (exit code $($process.ExitCode))"
+          }
+          "VULKAN_SDK=$root" >> $env:GITHUB_ENV
+          "$root\Bin" >> $env:GITHUB_PATH
+          "VK_ADD_LAYER_PATH=$root\Bin" >> $env:GITHUB_ENV
+        } catch {
+          Write-Output "::error title=Vulkan SDK (Windows)::$($_.Exception.Message)"
+          throw
         }
-        $root = "C:\VulkanSDK\$env:VERSION"
-        $process = Start-Process -FilePath $installer -Wait -NoNewWindow -PassThru `
-          -ArgumentList '--root', $root, '--accept-licenses', '--default-answer', '--confirm-command', 'install'
-        if ($process.ExitCode -ne 0 -or -not (Test-Path "$root\Bin\glslc.exe")) {
-          throw "Vulkan SDK installation failed (exit code $($process.ExitCode))"
-        }
-        "VULKAN_SDK=$root" >> $env:GITHUB_ENV
-        "$root\Bin" >> $env:GITHUB_PATH
-        "VK_ADD_LAYER_PATH=$root\Bin" >> $env:GITHUB_ENV
     - name: Cache Mesa (Windows)
       if: runner.os == 'Windows' && inputs.software-driver == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -102,14 +109,22 @@ runs:
         MESA_VERSION: ${{ inputs.mesa-version }}
       run: |
         $ErrorActionPreference = 'Stop'
-        $mesa = Join-Path $HOME 'mesa'
-        if (-not (Test-Path "$mesa\x64\vulkan_lvp.dll")) {
-          $archive = Join-Path $env:RUNNER_TEMP 'mesa.7z'
-          Invoke-WebRequest -UseBasicParsing -OutFile $archive `
-            -Uri "https://github.com/pal1000/mesa-dist-win/releases/download/$env:MESA_VERSION/mesa3d-$env:MESA_VERSION-release-msvc.7z"
-          7z x $archive "-o$mesa" x64 -y | Out-Null
+        try {
+          $mesa = Join-Path $HOME 'mesa'
+          if (-not (Test-Path "$mesa\x64\vulkan_lvp.dll")) {
+            $archive = Join-Path $env:RUNNER_TEMP 'mesa.7z'
+            Invoke-WebRequest -UseBasicParsing -OutFile $archive `
+              -Uri "https://github.com/pal1000/mesa-dist-win/releases/download/$env:MESA_VERSION/mesa3d-$env:MESA_VERSION-release-msvc.7z"
+            7z x $archive "-o$mesa" x64 -y | Out-Null
+          }
+          if (-not (Test-Path "$mesa\x64\lvp_icd.x86_64.json")) {
+            throw "lvp_icd.x86_64.json not found in $mesa\x64: $((Get-ChildItem "$mesa\x64" -Name) -join ', ')"
+          }
+          "VK_DRIVER_FILES=$mesa\x64\lvp_icd.x86_64.json" >> $env:GITHUB_ENV
+        } catch {
+          Write-Output "::error title=lavapipe (Windows)::$($_.Exception.Message)"
+          throw
         }
-        "VK_DRIVER_FILES=$mesa\x64\lvp_icd.x86_64.json" >> $env:GITHUB_ENV
 
     # --- macOS: official installer into the home directory; MoltenVK as the driver ----------
     - name: Cache the Vulkan SDK (macOS)
@@ -126,6 +141,7 @@ runs:
         IOS: ${{ inputs.ios }}
       run: |
         set -euo pipefail
+        trap 'echo "::error title=Vulkan SDK (macOS)::failed: $BASH_COMMAND"' ERR
         root="$HOME/VulkanSDK/$VERSION"
         if [ ! -d "$root/macOS/lib" ]; then
           curl -fsSL --retry 3 -o "$RUNNER_TEMP/vulkansdk.zip" \
