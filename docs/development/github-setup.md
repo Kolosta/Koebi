@@ -72,13 +72,33 @@ bash scripts/github/setup-project.sh       # safe to re-run
 
 The script creates the project (fields Priority, Area and Size next to the built-in Status),
 links it to the repository, makes it public, adds every open issue and sets Priority and Area
-from the labels. Two settings exist only in the web interface; the script prints them:
+from the labels. It also creates the views:
 
-- Workflows: enable "Auto-add to project" with the filter `is:issue is:open`, so new issues
-  join the board.
-- Views: add a Board view grouped by Status and a Roadmap view by milestone.
+| View | Layout | Shows |
+|---|---|---|
+| Board | kanban, one column per Status | the work in progress |
+| Backlog | table, sorted by priority | open issues without a milestone |
+| By milestone | table, grouped by milestone | the roadmap, release by release |
+| Good first issues | table | open `good first issue` and `help wanted` issues |
+
+One setting exists only in the web interface, and the script reminds it: in the project's
+Workflows, enable "Auto-add to project" with the filter `is:issue is:open`, so new issues join
+the board. "Item closed" and "Pull request merged" already move items to Done.
 
 Re-run the script after creating issues in bulk; "Auto-add" covers the rest.
+
+### Projects, milestones and labels
+
+They complement each other:
+
+- **Labels** classify an issue in its repository: type, area, platform, priority,
+  `good first issue`.
+- **Milestones** say which release an issue targets; an issue has at most one, and the
+  milestone page shows the progress of that release.
+- **The project** organizes the work across issues, pull requests and even repositories, with
+  its own fields (Status, Size), views (board, tables, roadmap), filters, sorting and
+  automation. Labels and milestones appear in it as fields, so views can filter and group by
+  them. An issue can belong to several projects.
 
 ## Verifying
 
