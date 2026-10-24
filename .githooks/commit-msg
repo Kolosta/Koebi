@@ -1,0 +1,3 @@
+#!/bin/sh
+# Enforces Conventional Commits. Installed by `cargo xtask install-hooks`.
+exec cargo xtask commit-msg "$1"

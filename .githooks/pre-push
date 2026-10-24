@@ -1,0 +1,15 @@
+#!/bin/sh
+# Enforces gitflow branch naming and blocks direct pushes to main/develop (the server-side
+# rulesets reject them anyway). Installed by `cargo xtask install-hooks`.
+while read -r local_ref _local_sha remote_ref _remote_sha; do
+    case "$remote_ref" in
+        refs/heads/main | refs/heads/develop)
+            echo "pre-push: never push to ${remote_ref#refs/heads/} directly; open a pull request." >&2
+            exit 1
+            ;;
+        refs/heads/*)
+            cargo xtask gitflow-check --head "${remote_ref#refs/heads/}" || exit 1
+            ;;
+    esac
+done
+exit 0
