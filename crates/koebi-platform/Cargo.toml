@@ -1,0 +1,23 @@
+[package]
+name = "koebi-platform"
+description = "Koebi platform layer: SDL3 windows, events, app lifecycle and Vulkan surfaces."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[dependencies]
+ash.workspace = true
+koebi-core.workspace = true
+sdl3-sys.workspace = true
+
+# SDL is linked statically everywhere except Android, where SDL's Java glue loads
+# `libSDL3.so` itself and needs its JNI symbols exported from that shared library.
+[target.'cfg(not(target_os = "android"))'.dependencies]
+sdl3-sys = { workspace = true, features = ["link-static"] }
+
+[lints]
+workspace = true
