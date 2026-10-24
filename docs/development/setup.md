@@ -77,7 +77,7 @@ Koebi can use.
 ## Android and iOS
 
 See [platforms.md](platforms.md): Android needs the NDK, cargo-ndk and a JDK; iOS needs Xcode
-and the iOS component of the Vulkan SDK.
+and a static MoltenVK build from the MoltenVK releases.
 
 ## First steps
 
@@ -116,5 +116,5 @@ Vulkan SDK:
 3. Run the GPU tests with validation (`KOEBI_VALIDATION=required`), then open a pull request.
 
 Mesa for Windows CI (lavapipe) is pinned by the `mesa-version` input of
-`.github/actions/setup-vulkan`. Dependabot proposes updates for Cargo, GitHub Actions and
-Gradle every week.
+`.github/actions/setup-vulkan`, and MoltenVK for iOS by `.github/moltenvk-version`. Dependabot
+proposes updates for Cargo, GitHub Actions and Gradle every week.

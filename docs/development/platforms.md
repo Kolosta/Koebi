@@ -42,6 +42,11 @@ How it fits together:
 - `cargo xtask android` builds `libkoebi.so` (the `koebi` library as a `cdylib`) and
   `libSDL3.so` per ABI with cargo-ndk, copies them into `app/src/main/jniLibs/`, copies SDL's
   Java glue from the locked `sdl3-src` crate, then runs Gradle.
+- SDL is compiled by CMake through `platform/android/cmake/android.toolchain.cmake`, which
+  fixes the processor names `sdl3-sys` passes and delegates to the NDK. xtask selects it with
+  `TARGET_CMAKE_TOOLCHAIN_FILE`; set that variable yourself when you run `cargo ndk` directly.
+- On Windows, install [Ninja](https://ninja-build.org): xtask sets `CMAKE_GENERATOR=Ninja`,
+  because CMake's default Visual Studio generator cannot target Android.
 - `KoebiActivity` extends `SDLActivity`, loads `SDL3` then `koebi`, and SDL calls the exported
   `SDL_main`, which runs the same `App` as on desktop.
 - Arguments can be passed with an intent extra:
@@ -57,17 +62,24 @@ The Gradle project in `platform/android/` can be opened in Android Studio after 
 
 ## iOS
 
-Requirements: macOS with Xcode, the Vulkan SDK with its iOS component (MoltenVK.xcframework),
-and the Rust targets.
+Requirements: macOS with Xcode, the Rust targets, and a static `MoltenVK.xcframework` with
+simulator slices. The Vulkan SDK's iOS component only has device slices, so use the MoltenVK
+release pinned in `.github/moltenvk-version`:
 
 ```sh
 rustup target add aarch64-apple-ios aarch64-apple-ios-sim
+version="$(cat .github/moltenvk-version)"
+mkdir -p ~/moltenvk && cd ~/moltenvk
+curl -fLO "https://github.com/KhronosGroup/MoltenVK/releases/download/v$version/MoltenVK-all.tar"
+tar -xf MoltenVK-all.tar MoltenVK/MoltenVK/static/MoltenVK.xcframework
+export KOEBI_MOLTENVK_XCFRAMEWORK=~/moltenvk/MoltenVK/MoltenVK/static/MoltenVK.xcframework
+cd -
 cargo xtask ios --run               # simulator build, install and launch (120 frames)
 cargo xtask ios --release --device  # device build, ad-hoc signed
 ```
 
-- `crates/koebi-gpu/build.rs` links MoltenVK statically from the xcframework found through
-  `KOEBI_MOLTENVK_XCFRAMEWORK` or `VULKAN_SDK`.
+- `crates/koebi-gpu/build.rs` links MoltenVK statically from `KOEBI_MOLTENVK_XCFRAMEWORK`
+  (falling back to the Vulkan SDK's iOS component for device builds).
 - `cargo xtask ios` wraps the binary in `Koebi.app` with `platform/ios/Info.plist` and signs it
   ad hoc.
 - To run on a device, sign the bundle with your development identity and an embedded
