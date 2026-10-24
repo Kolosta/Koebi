@@ -56,7 +56,9 @@ fn main() {
     };
 
     println!("cargo::rustc-link-search=native={}", slice.display());
-    println!("cargo::rustc-link-lib=static=MoltenVK");
+    // `-bundle`: the simulator slice is a universal (arm64 + x86_64) archive, which rustc
+    // cannot copy into the rlib; the final link (ld64) reads it directly instead.
+    println!("cargo::rustc-link-lib=static:-bundle=MoltenVK");
     println!("cargo::rustc-link-lib=c++");
     for framework in [
         "Foundation",
