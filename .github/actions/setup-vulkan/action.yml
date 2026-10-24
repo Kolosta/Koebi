@@ -56,10 +56,16 @@ runs:
         set -euo pipefail
         trap 'echo "::error title=lavapipe (Linux)::failed: $BASH_COMMAND"' ERR
         sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers
-        # Name the 64-bit manifest explicitly: a 32-bit one may be installed next to it.
-        icd=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
-        if [ ! -f "$icd" ]; then
-          echo "::error title=lavapipe (Linux)::$icd not found; available: $(ls /usr/share/vulkan/icd.d | tr '\n' ' ')"
+        # Recent Mesa ships an architecture-independent manifest; older releases suffix it.
+        icd=""
+        for candidate in lvp_icd.json lvp_icd.x86_64.json; do
+          if [ -f "/usr/share/vulkan/icd.d/$candidate" ]; then
+            icd="/usr/share/vulkan/icd.d/$candidate"
+            break
+          fi
+        done
+        if [ -z "$icd" ]; then
+          echo "::error title=lavapipe (Linux)::no lavapipe manifest; available: $(ls /usr/share/vulkan/icd.d | tr '\n' ' ')"
           exit 1
         fi
         echo "VK_DRIVER_FILES=$icd" >> "$GITHUB_ENV"
@@ -170,6 +176,9 @@ runs:
       if: inputs.software-driver == 'true' || runner.os == 'macOS'
       shell: bash
       run: |
+        # Composite steps run with `bash -e`: a failing vulkaninfo must not end the step before
+        # its output is reported. Only "no device listed" is an error.
+        set +e
         set -uo pipefail
         tool="$(command -v vulkaninfo || command -v vulkaninfoSDK || true)"
         if [ -z "$tool" ]; then
@@ -177,7 +186,9 @@ runs:
           exit 0
         fi
         output="$("$tool" --summary 2>&1)"
+        status=$?
         echo "$output"
+        echo "vulkaninfo exit status: $status"
         devices="$(printf '%s\n' "$output" | sed -nE 's/^[[:space:]]*deviceName[[:space:]]*=[[:space:]]*//p' | tr -d '\r' | paste -sd ',' -)"
         if [ -z "$devices" ]; then
           message="$(printf '%s\n' "$output" | tail -n 40 | awk 'BEGIN { ORS = "%0A" } { gsub(/%/, "%25"); gsub(/\r/, ""); print }')"
