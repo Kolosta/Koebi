@@ -1,5 +1,27 @@
 # Koebi documentation
 
+## Reading the documentation
+
+The documentation is plain Markdown, next to the code it describes. There is nothing to build
+or serve.
+
+- **On GitHub**: browse [`docs/`](https://github.com/Kolosta/Koebi/tree/develop/docs). GitHub
+  renders the Markdown and the Mermaid diagrams.
+- **In VS Code**: open a `.md` file and press `Ctrl+Shift+V` (preview) or `Ctrl+K V` (preview
+  beside the source). Diagrams need the "Markdown Preview Mermaid Support" extension
+  (`bierner.markdown-mermaid`).
+- **API reference**: generated from the doc comments of every crate:
+
+  ```sh
+  cargo doc --workspace --no-deps --open
+  ```
+
+  The pages land in `target/doc/` and open in the browser. CI builds them with
+  `-D warnings`, so broken links or missing docs fail the build.
+
+Start with the [architecture overview](architecture/overview.md), then the guide for the area
+you work on.
+
 ## Architecture
 
 - [Overview](architecture/overview.md): layers, crates, frame lifecycle, ownership.

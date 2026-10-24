@@ -43,7 +43,8 @@ platform/              Android project, Apple bundle templates
 
 ## Quick start
 
-Install Rust ([rustup](https://rustup.rs)), a C compiler, CMake and the
+Running a release package only needs a GPU driver with Vulkan 1.2. To build from source,
+install Rust ([rustup](https://rustup.rs)), a C compiler, CMake and the
 [Vulkan SDK](https://vulkan.lunarg.com/sdk/home) (details per OS in
 [setup.md](docs/development/setup.md)), then:
 
@@ -65,6 +66,9 @@ cargo xtask help                # everything else
 ```
 
 ## Documentation
+
+The docs are Markdown files: read them on GitHub or in your editor, and generate the API
+reference with `cargo doc --workspace --no-deps --open` ([how](docs/README.md)).
 
 - [Architecture overview](docs/architecture/overview.md) and
   [decision records](docs/adr/README.md)
