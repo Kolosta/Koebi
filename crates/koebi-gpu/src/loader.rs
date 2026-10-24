@@ -13,7 +13,7 @@
 
 use ash::vk;
 
-use crate::{Error, Result};
+use crate::Result;
 
 /// Environment variable overriding the Vulkan library path for every Koebi process.
 pub const LIBRARY_ENV: &str = "KOEBI_VULKAN_LIBRARY";
@@ -33,7 +33,14 @@ impl VulkanLibrary {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::LibraryNotFound`] listing every candidate and why it failed.
+    /// Returns [`crate::Error::LibraryNotFound`] listing every candidate and why it failed.
+    #[cfg_attr(
+        target_os = "ios",
+        expect(
+            clippy::unnecessary_wraps,
+            reason = "infallible on iOS (static MoltenVK), fallible everywhere else"
+        )
+    )]
     pub fn open_default() -> Result<Self> {
         #[cfg(target_os = "ios")]
         {
@@ -51,7 +58,7 @@ impl VulkanLibrary {
                     Err(error) => tried.push(format!("{candidate}: {error}")),
                 }
             }
-            Err(Error::LibraryNotFound { tried })
+            Err(crate::Error::LibraryNotFound { tried })
         }
     }
 
@@ -59,8 +66,8 @@ impl VulkanLibrary {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::LibraryNotFound`] if the library cannot be opened, or
-    /// [`Error::MissingEntryPoint`] if it does not export `vkGetInstanceProcAddr`.
+    /// Returns [`crate::Error::LibraryNotFound`] if the library cannot be opened, or
+    /// [`crate::Error::MissingEntryPoint`] if it does not export `vkGetInstanceProcAddr`.
     pub fn open(path: &str) -> Result<Self> {
         let get_instance_proc_addr = sys::open(path)?;
         Ok(Self {
@@ -179,7 +186,8 @@ mod sys {
     }
 }
 
-#[cfg(all(unix, not(target_os = "ios")))]
+// Also used on iOS, where `VulkanLibrary::open` can load a bundled loader or framework.
+#[cfg(unix)]
 mod sys {
     use std::ffi::{CStr, CString, c_char, c_int, c_void};
 
@@ -246,7 +254,6 @@ mod tests {
         }
     }
 
-    #[cfg(not(target_os = "ios"))]
     #[test]
     fn opening_a_missing_library_is_a_recoverable_error() {
         let error = VulkanLibrary::open("koebi-definitely-missing-library").unwrap_err();
