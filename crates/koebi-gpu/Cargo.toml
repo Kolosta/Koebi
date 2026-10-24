@@ -1,0 +1,21 @@
+[package]
+name = "koebi-gpu"
+description = "Koebi's Vulkan render hardware interface (RHI): thin, explicit, safe by construction."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+build = "build.rs"
+
+[dependencies]
+ash.workspace = true
+koebi-core.workspace = true
+
+[dev-dependencies]
+koebi-testkit.workspace = true
+
+[lints]
+workspace = true
