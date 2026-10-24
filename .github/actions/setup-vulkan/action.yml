@@ -3,11 +3,13 @@ description: >
   Installs the LunarG Vulkan SDK pinned in .github/vulkan-sdk-version (loader, validation layers,
   glslc, spirv-val), exactly like a developer machine. Optionally installs a software Vulkan
   driver (Mesa lavapipe) on GPU-less Linux and Windows runners; macOS runners use MoltenVK on
-  their Metal device. Ends by checking that the loader sees a device.
+  their Metal device. Jobs that need a device check that the loader sees one.
 
 inputs:
-  software-driver:
-    description: Install and select Mesa's lavapipe software driver (Linux, Windows).
+  device:
+    description: >
+      The job runs GPU work: select Mesa's lavapipe software driver on Linux and Windows (no GPU
+      on hosted runners; macOS runners use MoltenVK) and check that the loader sees a device.
     default: "false"
   mesa-version:
     description: mesa-dist-win release providing lavapipe on Windows.
@@ -50,7 +52,7 @@ runs:
         echo "LD_LIBRARY_PATH=$sdk/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
         echo "VK_ADD_LAYER_PATH=$sdk/share/vulkan/explicit_layer.d" >> "$GITHUB_ENV"
     - name: Install lavapipe (Linux)
-      if: runner.os == 'Linux' && inputs.software-driver == 'true'
+      if: runner.os == 'Linux' && inputs.device == 'true'
       shell: bash
       run: |
         set -euo pipefail
@@ -106,13 +108,13 @@ runs:
           throw
         }
     - name: Cache Mesa (Windows)
-      if: runner.os == 'Windows' && inputs.software-driver == 'true'
+      if: runner.os == 'Windows' && inputs.device == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/mesa
         key: mesa-windows-${{ inputs.mesa-version }}
     - name: Install lavapipe (Windows)
-      if: runner.os == 'Windows' && inputs.software-driver == 'true'
+      if: runner.os == 'Windows' && inputs.device == 'true'
       shell: pwsh
       env:
         MESA_VERSION: ${{ inputs.mesa-version }}
@@ -173,7 +175,7 @@ runs:
 
     # --- Every OS: the loader must see at least one device -------------------------------------
     - name: Verify the Vulkan environment
-      if: inputs.software-driver == 'true' || runner.os == 'macOS'
+      if: inputs.device == 'true'
       shell: bash
       run: |
         # Composite steps run with `bash -e`: a failing vulkaninfo must not end the step before
@@ -184,6 +186,11 @@ runs:
         if [ -z "$tool" ]; then
           echo "::warning title=Vulkan environment::vulkaninfo not found, cannot verify the driver"
           exit 0
+        fi
+        # On macOS, vulkaninfo finds the SDK's loader through the dynamic linker path, as the
+        # SDK's setup-env.sh sets it (Koebi itself opens the loader by its full path).
+        if [ "$RUNNER_OS" = "macOS" ]; then
+          export DYLD_LIBRARY_PATH="$VULKAN_SDK/lib${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
         fi
         output="$("$tool" --summary 2>&1)"
         status=$?

@@ -143,7 +143,7 @@ jobs:
         uses: ./.github/actions/setup-linux-deps
       - uses: ./.github/actions/setup-vulkan
         with:
-          software-driver: "true"
+          device: "true"
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
           cache-key: test

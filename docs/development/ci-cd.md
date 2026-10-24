@@ -33,7 +33,16 @@ updated by Dependabot. The Vulkan SDK version comes from `.github/vulkan-sdk-ver
 | CI result | Linux | aggregates every job: the required check |
 
 GPU drivers in CI: Mesa lavapipe on Linux (Ubuntu package) and Windows (mesa-dist-win), MoltenVK
-on macOS. `KOEBI_REQUIRE_GPU=1` turns any GPU skip into a failure.
+on macOS. `KOEBI_REQUIRE_GPU=1` turns any GPU skip into a failure. Two details matter:
+
+- The Vulkan loader ignores `VK_DRIVER_FILES` in elevated processes, and Windows runners run as
+  administrator, so `.github/actions/setup-vulkan` also registers lavapipe under
+  `HKLM\SOFTWARE\Khronos\Vulkan\Drivers`.
+- Jobs that need a device (`device: "true"`) end the setup with `vulkaninfo --summary` and fail
+  early, with its output as an annotation, when no device is visible.
+
+The same lavapipe build runs locally for debugging: extract mesa-dist-win and point
+`VK_DRIVER_FILES` at its `lvp_icd.x86_64.json` (Windows) before running the tests.
 
 Every `run:` step goes through `.github/scripts/ci-step.sh` (`defaults.run.shell`): it behaves
 like GitHub's `bash -eo pipefail` and, when the step fails, publishes the relevant error lines
