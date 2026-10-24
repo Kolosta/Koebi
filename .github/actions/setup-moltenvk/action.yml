@@ -1,0 +1,39 @@
+name: Set up MoltenVK for iOS
+description: >
+  Downloads the MoltenVK release pinned in .github/moltenvk-version and exports
+  KOEBI_MOLTENVK_XCFRAMEWORK: the static MoltenVK.xcframework, with device and simulator slices,
+  that crates/koebi-gpu/build.rs links into iOS builds. The Vulkan SDK's iOS component only
+  ships device slices.
+
+runs:
+  using: composite
+  steps:
+    - name: Read the pinned MoltenVK version
+      id: version
+      shell: bash
+      run: echo "version=$(tr -d '[:space:]' < "$GITHUB_WORKSPACE/.github/moltenvk-version")" >> "$GITHUB_OUTPUT"
+
+    - name: Cache MoltenVK
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/moltenvk
+        key: moltenvk-static-${{ steps.version.outputs.version }}
+
+    - name: Install MoltenVK
+      shell: bash
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        set -euo pipefail
+        trap 'echo "::error title=MoltenVK::failed: $BASH_COMMAND"' ERR
+        root="$HOME/moltenvk/$VERSION"
+        framework="$root/MoltenVK/MoltenVK/static/MoltenVK.xcframework"
+        if [ ! -d "$framework" ]; then
+          mkdir -p "$root"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/MoltenVK-all.tar" \
+            "https://github.com/KhronosGroup/MoltenVK/releases/download/v$VERSION/MoltenVK-all.tar"
+          tar -xf "$RUNNER_TEMP/MoltenVK-all.tar" -C "$root" MoltenVK/MoltenVK/static/MoltenVK.xcframework
+          rm "$RUNNER_TEMP/MoltenVK-all.tar"
+        fi
+        ls "$framework"
+        echo "KOEBI_MOLTENVK_XCFRAMEWORK=$framework" >> "$GITHUB_ENV"
