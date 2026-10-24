@@ -1,0 +1,88 @@
+# CI/CD
+
+All workflows live in `.github/workflows/`. Third-party actions are pinned by commit SHA and
+updated by Dependabot. The Vulkan SDK version comes from `.github/vulkan-sdk-version`.
+
+## Workflows
+
+| Workflow | Trigger | Purpose |
+|---|---|---|
+| `ci.yml` | pushes to `main`/`develop`, pull requests into them | quality gate on every platform |
+| `pr-policy.yml` | pull request events | gitflow branch rules, Conventional PR title |
+| `package.yml` | called by CI, Nightly and Release | release builds of every platform |
+| `release.yml` | pushes to `main` | tag, GitHub Release, back-merge pull request |
+| `nightly.yml` | every night, manual | security advisories, Miri, fresh packages |
+| `labeler.yml` | pull requests | area labels from changed paths |
+| `claude.yml` | `@claude` mentions (opt-in) | Claude Code answers or implements on GitHub |
+| `claude-code-review.yml` | pull requests (opt-in) | automated Claude Code review |
+
+## CI jobs
+
+| Job | Runs on | What |
+|---|---|---|
+| Detect changes | Linux | skips heavy jobs for pull requests touching only docs or AI config |
+| Format | Linux | `cargo fmt --check` |
+| Lint | Linux | clippy pedantic `-D warnings`, rustdoc `-D warnings` |
+| Dependencies | Linux | `cargo deny check` (licenses, bans, advisories, sources) |
+| Spelling | Linux | typos |
+| Shaders | Linux | committed SPIR-V matches the GLSL (`cargo xtask shaders --check`) |
+| Test (Linux, Windows, macOS) | each OS | build, all tests with validation required, doctests |
+| Android | Linux + emulator | Android clippy, APK, test binaries and APK smoke test on an emulator |
+| iOS | macOS + simulator | iOS clippy, device build, tests and app smoke test in a simulator |
+| Package | all | release artifacts (pushes only) |
+| CI result | Linux | aggregates every job: the required check |
+
+GPU drivers in CI: Mesa lavapipe on Linux (Ubuntu package) and Windows (mesa-dist-win), MoltenVK
+on macOS. `KOEBI_REQUIRE_GPU=1` turns any GPU skip into a failure.
+
+Test failures are annotated on the pull request from the JUnit report. Golden-image
+differences are uploaded as `golden-failures-<OS>` artifacts.
+
+## Required checks
+
+The rulesets require exactly two checks:
+
+- `CI result` (from `ci.yml`), green when every CI job succeeded or was skipped on purpose;
+- `PR policy result` (from `pr-policy.yml`).
+
+A new CI job must be added to the `needs` list of `ci-result`. Renaming these two jobs breaks
+merging until the rulesets are updated.
+
+## Delivery
+
+Every push to `main` runs `release.yml`:
+
+1. **Plan**: reads the workspace version; if tag `vX.Y.Z` exists, stops.
+2. **Package**: builds Windows (zip), Linux (tar.gz), macOS (universal `Koebi.app`, zip),
+   Android (release APK) and iOS (simulator app, unsigned device app).
+3. **Publish**: generates notes with git-cliff, creates the tag and the GitHub Release with all
+   artifacts, and opens the back-merge pull request into develop.
+
+Pushes to `develop` also build packages (14-day artifacts), so a broken release build is
+caught before a release branch exists.
+
+### Signing
+
+- Android: without secrets, the release APK is signed with the debug key (installable, not
+  publishable). For store builds, add repository secrets `KOEBI_ANDROID_KEYSTORE_BASE64`,
+  `KOEBI_ANDROID_KEYSTORE_PASSWORD`, `KOEBI_ANDROID_KEY_ALIAS`, `KOEBI_ANDROID_KEY_PASSWORD`.
+- iOS: device builds are ad-hoc signed; re-sign them with a distribution identity and a
+  provisioning profile to install or publish them.
+- macOS: bundles are ad-hoc signed; notarization needs an Apple Developer ID (future work).
+
+## Debugging a failing run
+
+```sh
+gh run list --branch develop --limit 5
+gh run view <run-id> --log-failed
+```
+
+In Claude Code, `/ci-debug` does this in a forked context and returns a diagnosis. Reproduce
+locally with `cargo xtask ci`, or with the platform commands in [platforms.md](platforms.md).
+
+## Security of workflows
+
+- Workflow-level `permissions: contents: read`; jobs widen only what they need.
+- Untrusted values (branch names, PR titles, comments) reach scripts through `env:`, never
+  through `${{ }}` interpolation inside `run:`.
+- `pull_request_target` is used only by the labeler, which never checks out pull request code.
