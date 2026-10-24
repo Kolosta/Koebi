@@ -141,6 +141,9 @@ impl AppContext {
     /// Loads the Vulkan library through SDL. `library = None` uses SDL's default search;
     /// pass `koebi_gpu::loader::preferred_library_path()` to honor Koebi's overrides.
     ///
+    /// Call it before [`Self::create_window`]: creating the first Vulkan window otherwise
+    /// makes SDL load its default library, ignoring `library`.
+    ///
     /// # Errors
     ///
     /// Returns the SDL error when no Vulkan loader can be opened.

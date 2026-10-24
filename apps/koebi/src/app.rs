@@ -238,6 +238,16 @@ impl App for KoebiApp {
             IterationRate::WaitEvent
         });
 
+        // Load Vulkan before creating the window: otherwise SDL loads its default library when
+        // the first Vulkan window is created, which fails where the loader is not on the system
+        // search path (the Vulkan SDK on macOS).
+        let library = koebi_gpu::loader::preferred_library_path();
+        let vulkan = context.load_vulkan(library.as_deref()).map_err(|error| {
+            AppError::new(
+                exit_code::UNSUPPORTED,
+                format!("Vulkan is not available: {error}"),
+            )
+        })?;
         let window = context
             .create_window(&WindowDesc::default())
             .map_err(|error| {
@@ -246,13 +256,6 @@ impl App for KoebiApp {
                     format!("cannot create the window: {error}"),
                 )
             })?;
-        let library = koebi_gpu::loader::preferred_library_path();
-        let vulkan = context.load_vulkan(library.as_deref()).map_err(|error| {
-            AppError::new(
-                exit_code::UNSUPPORTED,
-                format!("Vulkan is not available: {error}"),
-            )
-        })?;
         let gpu = Gpu::new(&window, &vulkan, options.present_mode)?;
         koebi_core::info!(
             "window {}x{} px, scale {:.2}",
