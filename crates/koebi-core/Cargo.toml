@@ -1,0 +1,13 @@
+[package]
+name = "koebi-core"
+description = "Koebi foundation layer: geometry, color science and logging. Dependency-free."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
