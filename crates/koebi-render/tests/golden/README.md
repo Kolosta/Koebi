@@ -4,9 +4,18 @@ Reference renders used by [`../regression.rs`](../regression.rs). Each test rend
 offscreen on the GPU, reads the pixels back and compares them with the PNG of the same name.
 See [testing.md](../../../../docs/development/testing.md#golden-images).
 
+These images test the renderer library, not the application. The scene is defined in the
+test itself (`showcase_scene()`), so changing what the application draws
+(`apps/koebi/src/scene.rs`) never affects them. They fail only when the renderer draws this
+scene differently: a shader, blending, color conversion or scaling change. Intended changes
+are blessed and reviewed; unintended ones are regressions. The application is covered by the
+end-to-end test, which launches it and checks that it presents frames without validation
+errors.
+
 ## The showcase scene
 
-A miniature of the application's card, chosen to exercise most of the renderer in one image:
+A miniature of the application's card plus a translucent overlay that the application does
+not draw, chosen to exercise most of the renderer in one image:
 
 | Element | Exercises |
 |---|---|
