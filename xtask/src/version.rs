@@ -85,14 +85,20 @@ pub(crate) fn set(text: &str) -> Result<()> {
     let path = util::workspace_root().join("Cargo.toml");
     let manifest = std::fs::read_to_string(&path)?;
     let current: Version = read_workspace_version(&manifest)?.parse()?;
-    if version <= current {
+    if version == current {
+        // The first release ships the version the workspace already has.
+        println!("Cargo.toml is already at {version}");
+        return Ok(());
+    }
+    if version < current {
         return Err(format!("{version} must be greater than the current {current}").into());
     }
     std::fs::write(&path, replace_workspace_version(&manifest, version)?)?;
     util::run(util::cargo().args(["update", "--workspace"]))?;
     println!(
-        "version {current} -> {version}\nnext: update CHANGELOG.md (git cliff --tag v{version}), \
-         commit `chore(release): {version}` and open the PR to main"
+        "version {current} -> {version}\nnext: `git cliff --tag v{version} -o CHANGELOG.md`, \
+         commit `chore(release): {version}`, `cargo xtask release-check --head <branch>`, \
+         then open the pull request to main"
     );
     Ok(())
 }
