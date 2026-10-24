@@ -66,26 +66,32 @@ area and size, grouped by milestones (`v0.1.0 Foundation`, `v0.2.0 Text`...). Cr
 project needs the `project` scope, which `gh auth login` does not request by default:
 
 ```sh
-gh auth login -h github.com -s project     # once; opens the browser
-bash scripts/github/setup-project.sh       # safe to re-run
+gh auth login -h github.com -p https -w -s project   # once; opens the browser
+bash scripts/github/setup-project.sh                 # safe to re-run
 ```
 
-The script creates the project (fields Priority, Area and Size next to the built-in Status),
-links it to the repository, makes it public, adds every open issue and sets Priority and Area
-from the labels. It also creates the views:
+The first run creates the project: public, linked to the repository, with the fields Priority
+and Area (colored like the labels) and Size next to the built-in Status, and every open issue
+with Priority and Area taken from its labels. It also creates the views:
 
 | View | Layout | Shows |
 |---|---|---|
 | Board | kanban, one column per Status | the work in progress |
-| Backlog | table, sorted by priority | open issues without a milestone |
-| By milestone | table, grouped by milestone | the roadmap, release by release |
+| Backlog | table, sorted by priority | open issues without a milestone: what remains to triage |
+| By milestone | table, grouped by milestone | every open issue, release by release, unplanned last |
+| All items | table, sorted by priority | everything, done included, with every field |
 | Good first issues | table | open `good first issue` and `help wanted` issues |
+
+Later runs only add what is missing (fields, views, new issues): views, colors, field values
+and the README edited in the web interface are kept. Views created by hand (a roadmap, "My
+items"...) live only in the project.
 
 One setting exists only in the web interface, and the script reminds it: in the project's
 Workflows, enable "Auto-add to project" with the filter `is:issue is:open`, so new issues join
 the board. "Item closed" and "Pull request merged" already move items to Done.
 
-Re-run the script after creating issues in bulk; "Auto-add" covers the rest.
+Large issues are split into sub-issues: the parent shows their progress, and the project's
+"Auto-add sub-issues to project" workflow adds them to the board.
 
 ### Projects, milestones and labels
 
