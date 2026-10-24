@@ -44,20 +44,42 @@ echo "::endgroup::"
 echo "::group::APK smoke test"
 apk="$(ls "$root"/platform/android/app/build/outputs/apk/debug/*.apk | head -n1)"
 adb install -r -g "$apk"
-adb logcat -c
-# adb joins its arguments into one remote command line: quote the extra for that shell too.
-adb shell am start -W -n "$package/.KoebiActivity" --es koebi.args "'--frames 120'"
-outcome=timeout
-log=""
-for _ in $(seq 1 120); do
-    log="$(adb logcat -d -s koebi:V SDL:V AndroidRuntime:E DEBUG:V)"
-    if grep -qE "Koebi exits after|Finished main function|FATAL|Fatal signal" <<< "$log"; then
-        outcome=finished
+# Wake and unlock the screen: a paused activity never gets a surface.
+adb shell input keyevent KEYCODE_WAKEUP || true
+adb shell wm dismiss-keyguard || true
+
+# Launches Koebi for 120 frames and leaves its log in $log and the wait result in $outcome.
+smoke_run() {
+    adb logcat -c
+    # adb joins its arguments into one remote command line: quote the extra for that shell too.
+    adb shell am start -W -n "$package/.KoebiActivity" --es koebi.args "'--frames 120'"
+    outcome=timeout
+    log=""
+    for _ in $(seq 1 120); do
+        log="$(adb logcat -d -s koebi:V SDL:V AndroidRuntime:E DEBUG:V)"
+        if grep -qE "Koebi exits after|Finished main function|activity finished|FATAL|Fatal signal" <<< "$log"; then
+            outcome=finished
+            break
+        fi
+        sleep 1
+    done
+    echo "$log"
+}
+
+# A freshly booted emulator sometimes relaunches the activity while the system settles; SDL
+# refuses a second activity in the same process and exits. Retry once from a clean state.
+for attempt in 1 2; do
+    smoke_run
+    if grep -qE "presented 120 frames|Vulkan is not available|GPU initialization failed" <<< "$log"; then
         break
     fi
-    sleep 1
+    if [ "$attempt" -eq 1 ]; then
+        echo "::warning title=Android smoke test::first launch did not render ($outcome), retrying once"
+        adb shell am force-stop "$package"
+        sleep 5
+    fi
 done
-echo "$log"
+
 if grep -q "presented 120 frames (validation: 0 errors" <<< "$log"; then
     echo "APK smoke test passed"
 elif grep -qE "Vulkan is not available|GPU initialization failed" <<< "$log"; then
