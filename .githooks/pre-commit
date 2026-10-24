@@ -1,0 +1,6 @@
+#!/bin/sh
+# Rejects commits with unformatted Rust code. Installed by `cargo xtask install-hooks`.
+if ! cargo fmt --all --check >/dev/null 2>&1; then
+    echo "pre-commit: Rust code is not formatted. Run \`cargo fmt --all\` and stage the result." >&2
+    exit 1
+fi
