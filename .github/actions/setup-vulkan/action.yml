@@ -3,14 +3,11 @@ description: >
   Installs the LunarG Vulkan SDK pinned in .github/vulkan-sdk-version (loader, validation layers,
   glslc, spirv-val), exactly like a developer machine. Optionally installs a software Vulkan
   driver (Mesa lavapipe) on GPU-less Linux and Windows runners; macOS runners use MoltenVK on
-  their Metal device.
+  their Metal device. Ends by checking that the loader sees a device.
 
 inputs:
   software-driver:
     description: Install and select Mesa's lavapipe software driver (Linux, Windows).
-    default: "false"
-  ios:
-    description: Also install the iOS component (MoltenVK.xcframework) on macOS.
     default: "false"
   mesa-version:
     description: mesa-dist-win release providing lavapipe on Windows.
@@ -59,7 +56,13 @@ runs:
         set -euo pipefail
         trap 'echo "::error title=lavapipe (Linux)::failed: $BASH_COMMAND"' ERR
         sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers
-        echo "VK_DRIVER_FILES=$(ls /usr/share/vulkan/icd.d/lvp_icd.*.json | head -n1)" >> "$GITHUB_ENV"
+        # Name the 64-bit manifest explicitly: a 32-bit one may be installed next to it.
+        icd=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+        if [ ! -f "$icd" ]; then
+          echo "::error title=lavapipe (Linux)::$icd not found; available: $(ls /usr/share/vulkan/icd.d | tr '\n' ' ')"
+          exit 1
+        fi
+        echo "VK_DRIVER_FILES=$icd" >> "$GITHUB_ENV"
 
     # --- Windows: official installer (registers the loader and layers), lavapipe from Mesa ---
     - name: Cache the Vulkan SDK installer (Windows)
@@ -117,10 +120,16 @@ runs:
               -Uri "https://github.com/pal1000/mesa-dist-win/releases/download/$env:MESA_VERSION/mesa3d-$env:MESA_VERSION-release-msvc.7z"
             7z x $archive "-o$mesa" x64 -y | Out-Null
           }
-          if (-not (Test-Path "$mesa\x64\lvp_icd.x86_64.json")) {
+          $icd = "$mesa\x64\lvp_icd.x86_64.json"
+          if (-not (Test-Path $icd)) {
             throw "lvp_icd.x86_64.json not found in $mesa\x64: $((Get-ChildItem "$mesa\x64" -Name) -join ', ')"
           }
-          "VK_DRIVER_FILES=$mesa\x64\lvp_icd.x86_64.json" >> $env:GITHUB_ENV
+          # The loader ignores VK_DRIVER_FILES in elevated processes (the runner is an
+          # administrator) and reads the drivers registered in HKLM instead.
+          $key = 'HKLM:\SOFTWARE\Khronos\Vulkan\Drivers'
+          if (-not (Test-Path $key)) { New-Item -Path $key -Force | Out-Null }
+          New-ItemProperty -Path $key -Name $icd -PropertyType DWord -Value 0 -Force | Out-Null
+          "VK_DRIVER_FILES=$icd" >> $env:GITHUB_ENV
         } catch {
           Write-Output "::error title=lavapipe (Windows)::$($_.Exception.Message)"
           throw
@@ -132,13 +141,12 @@ runs:
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/VulkanSDK
-        key: vulkan-sdk-macos-${{ steps.sdk.outputs.version }}-ios-${{ inputs.ios }}
+        key: vulkan-sdk-macos-${{ steps.sdk.outputs.version }}
     - name: Install the Vulkan SDK (macOS)
       if: runner.os == 'macOS'
       shell: bash
       env:
         VERSION: ${{ steps.sdk.outputs.version }}
-        IOS: ${{ inputs.ios }}
       run: |
         set -euo pipefail
         trap 'echo "::error title=Vulkan SDK (macOS)::failed: $BASH_COMMAND"' ERR
@@ -148,14 +156,32 @@ runs:
             "https://sdk.lunarg.com/sdk/download/$VERSION/mac/vulkansdk-macos-$VERSION.zip"
           unzip -q -o "$RUNNER_TEMP/vulkansdk.zip" -d "$RUNNER_TEMP/vulkansdk"
           app="$(find "$RUNNER_TEMP/vulkansdk" -maxdepth 2 -name '*.app' -print -quit)"
-          components="com.lunarg.vulkan.core"
-          if [ "$IOS" = "true" ]; then components="$components com.lunarg.vulkan.ios"; fi
           "$app/Contents/MacOS/$(basename "$app" .app)" --root "$root" --accept-licenses \
-            --default-answer --confirm-command install $components
+            --default-answer --confirm-command install com.lunarg.vulkan.core
         fi
         sdk="$root/macOS"
         echo "VULKAN_SDK=$sdk" >> "$GITHUB_ENV"
         echo "$sdk/bin" >> "$GITHUB_PATH"
         echo "VK_ADD_LAYER_PATH=$sdk/share/vulkan/explicit_layer.d" >> "$GITHUB_ENV"
         echo "VK_DRIVER_FILES=$sdk/share/vulkan/icd.d/MoltenVK_icd.json" >> "$GITHUB_ENV"
-        echo "MoltenVK frameworks:"; find "$root" -maxdepth 4 -name 'MoltenVK.xcframework' -print || true
+
+    # --- Every OS: the loader must see at least one device -------------------------------------
+    - name: Verify the Vulkan environment
+      if: inputs.software-driver == 'true' || runner.os == 'macOS'
+      shell: bash
+      run: |
+        set -uo pipefail
+        tool="$(command -v vulkaninfo || command -v vulkaninfoSDK || true)"
+        if [ -z "$tool" ]; then
+          echo "::warning title=Vulkan environment::vulkaninfo not found, cannot verify the driver"
+          exit 0
+        fi
+        output="$("$tool" --summary 2>&1)"
+        echo "$output"
+        devices="$(printf '%s\n' "$output" | sed -nE 's/^[[:space:]]*deviceName[[:space:]]*=[[:space:]]*//p' | tr -d '\r' | paste -sd ',' -)"
+        if [ -z "$devices" ]; then
+          message="$(printf '%s\n' "$output" | tail -n 40 | awk 'BEGIN { ORS = "%0A" } { gsub(/%/, "%25"); gsub(/\r/, ""); print }')"
+          echo "::error title=Vulkan environment::no Vulkan device found%0A$message"
+          exit 1
+        fi
+        echo "::notice title=Vulkan devices::$devices"
