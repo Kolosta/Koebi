@@ -35,8 +35,11 @@ updated by Dependabot. The Vulkan SDK version comes from `.github/vulkan-sdk-ver
 GPU drivers in CI: Mesa lavapipe on Linux (Ubuntu package) and Windows (mesa-dist-win), MoltenVK
 on macOS. `KOEBI_REQUIRE_GPU=1` turns any GPU skip into a failure.
 
-Test failures are annotated on the pull request from the JUnit report. Golden-image
-differences are uploaded as `golden-failures-<OS>` artifacts.
+Every `run:` step goes through `.github/scripts/ci-step.sh` (`defaults.run.shell`): it behaves
+like GitHub's `bash -eo pipefail` and, when the step fails, publishes the relevant error lines
+(compiler errors, panics, CMake errors, test failures) as an annotation. Failing tests are also
+annotated from the JUnit report. Most failures can be understood from the run summary without
+opening the logs. Golden-image differences are uploaded as `golden-failures-<OS>` artifacts.
 
 ## Required checks
 
