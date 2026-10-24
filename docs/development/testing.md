@@ -73,6 +73,10 @@ The renderer has two references today, described in
 [`crates/koebi-render/tests/golden/README.md`](../../crates/koebi-render/tests/golden/README.md):
 the same "showcase" scene at scale 1 (`showcase.png`) and at scale 2 (`showcase_2x.png`).
 
+Golden tests render scenes written for the test, not the application's screen: changing what
+the application shows does not break them, and they do not check its look. They break only
+when the renderer draws the same scene differently.
+
 - References live in `tests/golden/` of the crate; keep images small (at most 320x240).
 - `Tolerance::new(max_channel_delta, max_differing_pixels)` absorbs anti-aliasing differences
   between rasterizers: channel differences up to `max_channel_delta` are ignored, and at most
