@@ -1,7 +1,25 @@
 # Development setup
 
-Koebi builds with stable Rust, a C toolchain and CMake (SDL3 is compiled from source). The
-Vulkan SDK provides validation layers and the shader compiler.
+## Running Koebi
+
+Users need nothing but a GPU driver with Vulkan 1.2, dynamic rendering and synchronization2
+(standard on drivers of the last few years). Release packages are self-contained: SDL is
+linked into the executable, or shipped inside the APK on Android.
+
+| Platform | Requirement |
+|---|---|
+| Windows 10 or newer | an up-to-date GPU driver (it installs `vulkan-1.dll`) |
+| Linux, X11 or Wayland | the Vulkan loader (`libvulkan1`) and a Vulkan driver (Mesa or NVIDIA) |
+| macOS 11 or newer | nothing: MoltenVK is bundled in `Koebi.app` |
+| Android 8.0 or newer | a device with Vulkan 1.2 (the store filters the others out) |
+| iOS 15 or newer | nothing: MoltenVK is linked into the app |
+
+## Developing Koebi
+
+Building from source needs more. Koebi builds with stable Rust, a C toolchain and CMake (SDL3
+is compiled from source). The Vulkan SDK provides validation layers and the shader compiler.
+Everything below is installed the same way on any machine; CI installs it from scratch on
+fresh runners for every run, which proves the instructions.
 
 | Tool | Needed for | Version |
 |---|---|---|

@@ -60,14 +60,24 @@ blend results. Allow at most 1/255 difference per channel so tests hold on every
 
 ## Golden images
 
+A golden image is a reviewed reference render, committed as a PNG. A regression test renders
+the same scene offscreen, reads the pixels back and compares them with the reference. Unit and
+functional tests check what can be computed by hand; golden tests catch everything else that
+can change silently: anti-aliasing, blending, color conversion, scaling, draw order.
+
 ```rust
 koebi_testkit::assert_golden!(image, "showcase", Tolerance::new(3, 8));
 ```
 
+The renderer has two references today, described in
+[`crates/koebi-render/tests/golden/README.md`](../../crates/koebi-render/tests/golden/README.md):
+the same "showcase" scene at scale 1 (`showcase.png`) and at scale 2 (`showcase_2x.png`).
+
 - References live in `tests/golden/` of the crate; keep images small (at most 320x240).
 - `Tolerance::new(max_channel_delta, max_differing_pixels)` absorbs anti-aliasing differences
-  between rasterizers. Keep it tight.
-- On failure, the actual image and a difference image are written to
+  between rasterizers: channel differences up to `max_channel_delta` are ignored, and at most
+  `max_differing_pixels` pixels may exceed it. Keep it tight.
+- On failure, the actual, expected and difference images are written to
   `target/tmp/golden-failures/`; CI uploads them as an artifact.
 - After an intended visual change, regenerate and review:
 
