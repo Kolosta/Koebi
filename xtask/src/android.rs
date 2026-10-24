@@ -65,6 +65,19 @@ pub(crate) fn run(options: &Options) -> Result<()> {
         if options.release {
             build.arg("--release");
         }
+        // sdl3-sys builds SDL with CMake: route it through the NDK toolchain, with the
+        // processor-name fix described in platform/android/cmake/android.toolchain.cmake.
+        if std::env::var_os("TARGET_CMAKE_TOOLCHAIN_FILE").is_none() {
+            let toolchain = project.join("cmake").join("android.toolchain.cmake");
+            build.env(
+                "TARGET_CMAKE_TOOLCHAIN_FILE",
+                toolchain.to_string_lossy().replace('\\', "/"),
+            );
+        }
+        // CMake's default generator on Windows (Visual Studio) cannot target Android.
+        if cfg!(windows) && std::env::var_os("CMAKE_GENERATOR").is_none() {
+            build.env("CMAKE_GENERATOR", "Ninja");
+        }
         util::run(&mut build)?;
 
         // sdl3-sys copies libSDL3.so next to the crate outputs.
