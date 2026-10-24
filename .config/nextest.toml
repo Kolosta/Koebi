@@ -1,0 +1,29 @@
+# cargo-nextest: https://nexte.st/docs/configuration/
+# Each test runs in its own process: GPU tests cannot leak state into one another.
+
+[profile.default]
+slow-timeout = { period = "30s", terminate-after = 4 }
+
+[profile.ci]
+fail-fast = false
+retries = 0
+slow-timeout = { period = "60s", terminate-after = 5 }
+failure-output = "immediate-final"
+status-level = "fail"
+final-status-level = "slow"
+
+[profile.ci.junit]
+path = "junit.xml"
+report-name = "koebi"
+
+# Software rasterizers (lavapipe) are CPU-bound: limit concurrent GPU-heavy test binaries.
+[test-groups]
+gpu = { max-threads = 2 }
+
+[[profile.default.overrides]]
+filter = "binary(headless) | binary(functional) | binary(regression) | binary(e2e)"
+test-group = "gpu"
+
+[[profile.ci.overrides]]
+filter = "binary(headless) | binary(functional) | binary(regression) | binary(e2e)"
+test-group = "gpu"

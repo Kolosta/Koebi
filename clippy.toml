@@ -1,0 +1,23 @@
+# Tests may unwrap/expect/panic/print freely; library code may not (see workspace lints).
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-dbg-in-tests = true
+allow-print-in-tests = true
+avoid-breaking-exported-api = false
+doc-valid-idents = [
+    "Vulkan",
+    "MoltenVK",
+    "LunarG",
+    "SPIR-V",
+    "SDL3",
+    "OKLab",
+    "OKLCH",
+    "sRGB",
+    "GitHub",
+    "iOS",
+    "macOS",
+    "RenderDoc",
+    "WCAG",
+    "..",
+]

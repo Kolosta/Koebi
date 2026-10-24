@@ -1,0 +1,3 @@
+[alias]
+# Project automation lives in the `xtask` crate (std-only): `cargo xtask help`.
+xtask = "run --package xtask --quiet --"

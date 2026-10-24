@@ -1,0 +1,15 @@
+# Normalize line endings: LF in the repository and in working copies, on every OS.
+* text=auto eol=lf
+
+# Windows scripts need CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary artifacts committed on purpose.
+*.png binary
+*.spv binary
+*.jar binary
+
+# Generated or third-party files collapsed in GitHub diffs.
+Cargo.lock linguist-generated=true
+crates/**/shaders/spirv/*.spv linguist-generated=true

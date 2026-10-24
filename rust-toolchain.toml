@@ -1,0 +1,6 @@
+# Pinned toolchain: contributors, CI and AI agents all build with exactly this compiler.
+# Bump deliberately in a dedicated PR (see docs/development/setup.md#updating-the-toolchain).
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy", "rust-analyzer", "rust-src"]
+profile = "minimal"
