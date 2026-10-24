@@ -85,31 +85,61 @@ on develop, so the title must follow the convention (checked by CI).
 - Required checks: `CI result` and `PR policy result`. Review conversations must be resolved.
 - Approvals required: 0 while the project has one maintainer; raise
   `required_approving_review_count` in `.github/rulesets/*.json` when the team grows.
-- Squash-merge features and bug fixes. The head branch is deleted automatically.
+- Squash-merge features and bug fixes: the commit on develop is the pull request title alone.
+  The head branch is deleted automatically.
+
+## Versioning
+
+Koebi follows [Semantic Versioning](https://semver.org). The version of a release is derived
+from the Conventional Commits since the last tag:
+
+| Commits since the last tag | Before 1.0 | From 1.0 |
+|---|---|---|
+| A breaking change (`!` after the type, or a `BREAKING CHANGE:` footer) | minor | major |
+| At least one `feat` | minor | minor |
+| Anything else | patch | patch |
+
+```sh
+cargo xtask version --next    # prints the next version and why
+```
+
+The workspace version in `Cargo.toml` is the single source of truth: every crate inherits it,
+the Android and Apple packages read it, and the release tag repeats it.
+
+Release tags are named `vX.Y.Z`. They are annotated, created only by the Release workflow
+after a release or hotfix pull request is merged into `main`, and immutable: the
+`release-tags` ruleset forbids deleting or moving them. Never create a release tag by hand.
+
+The changelog is generated from commit titles by [git-cliff](https://git-cliff.org)
+(`cliff.toml`): `feat` lands in "Added", `fix` in "Fixed", and so on. On develop, each squash
+commit is a pull request title, so good titles make a good changelog.
 
 ## Releases
 
-1. Branch `release/X.Y.Z` from an up-to-date develop.
-2. `cargo xtask version X.Y.Z` (updates `Cargo.toml` and `Cargo.lock`).
-3. Update `CHANGELOG.md` (`git cliff --tag vX.Y.Z -o CHANGELOG.md`).
-4. Commit `chore(release): X.Y.Z`, push, open the pull request into `main`.
-5. Only fixes land on the release branch. Merge with a merge commit.
-6. The Release workflow then packages every platform, creates tag `vX.Y.Z` and the GitHub
-   Release, and opens the `main` to `develop` back-merge pull request. Merge it with a merge
-   commit.
+1. Compute the version from an up-to-date develop:
+   `git switch develop && git pull --ff-only && cargo xtask version --next`.
+2. Branch `release/X.Y.Z` from develop.
+3. `cargo xtask version X.Y.Z` (updates `Cargo.toml` and `Cargo.lock`).
+4. `git cliff --tag vX.Y.Z -o CHANGELOG.md`, then commit `chore(release): X.Y.Z`.
+5. `cargo xtask release-check --head release/X.Y.Z`: the branch, `Cargo.toml` and
+   `CHANGELOG.md` agree, the tag does not exist, and the version is at least what the commits
+   require. The PR policy runs the same check.
+6. Push and open the pull request into `main`. Only fixes land on the release branch. Merge
+   with a merge commit.
+7. The Release workflow packages every platform, creates the annotated tag `vX.Y.Z` and the
+   GitHub Release, and opens the `main` to `develop` back-merge pull request. Merge it with a
+   merge commit.
 
-Versions follow [SemVer](https://semver.org). While the version is `0.x`, breaking changes
-bump the minor number.
-
-In Claude Code: `/release X.Y.Z`.
+In Claude Code: `/release` (or `/release X.Y.Z`).
 
 ## Hotfixes
 
-1. Branch `hotfix/X.Y.Z` from `main` (patch version + 1).
+1. Branch `hotfix/X.Y.Z` from `main`: the latest release with the patch number incremented.
 2. Write the regression test, fix, `cargo xtask version X.Y.Z`, update the changelog.
-3. Pull request into `main`, merge commit. Delivery and the back-merge are automatic.
+3. `cargo xtask release-check --head hotfix/X.Y.Z`, then open the pull request into `main` and
+   merge it with a merge commit. Delivery and the back-merge are automatic.
 
-In Claude Code: `/hotfix X.Y.Z`.
+In Claude Code: `/hotfix <description>`.
 
 ## Local hooks
 

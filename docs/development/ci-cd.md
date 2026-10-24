@@ -8,7 +8,7 @@ updated by Dependabot. The Vulkan SDK version comes from `.github/vulkan-sdk-ver
 | Workflow | Trigger | Purpose |
 |---|---|---|
 | `ci.yml` | pushes to `main`/`develop`, pull requests into them | quality gate on every platform |
-| `pr-policy.yml` | pull request events | gitflow branch rules, Conventional PR title |
+| `pr-policy.yml` | pull request events, pushes to `main` | gitflow branch rules, Conventional PR title, release version check |
 | `package.yml` | called by CI, Nightly and Release | release builds of every platform |
 | `release.yml` | pushes to `main` | tag, GitHub Release, back-merge pull request |
 | `nightly.yml` | every night, manual | security advisories, Miri, fresh packages |
@@ -62,13 +62,22 @@ merging until the rulesets are updated.
 
 ## Delivery
 
+Before the merge, the PR policy's **Release version** job runs `cargo xtask release-check` on
+`release/*` and `hotfix/*` pull requests: version, changelog section, unused tag, and a bump
+at least as large as the Conventional Commits require ([gitflow.md](gitflow.md#versioning)).
+
 Every push to `main` runs `release.yml`:
 
 1. **Plan**: reads the workspace version; if tag `vX.Y.Z` exists, stops.
 2. **Package**: builds Windows (zip), Linux (tar.gz), macOS (universal `Koebi.app`, zip),
    Android (release APK) and iOS (simulator app, unsigned device app).
-3. **Publish**: generates notes with git-cliff, creates the tag and the GitHub Release with all
-   artifacts, and opens the back-merge pull request into develop.
+3. **Publish**: generates notes with git-cliff, creates the annotated tag `vX.Y.Z` as
+   `github-actions[bot]`, creates the GitHub Release with all artifacts, and opens the
+   back-merge pull request into develop.
+
+The back-merge pull request is opened with `GITHUB_TOKEN`, which triggers no workflow. Its
+required checks come from `main`'s commit: CI runs on every push to `main`, and so does the
+`PR policy result` job of `pr-policy.yml`.
 
 Pushes to `develop` also build packages (14-day artifacts), so a broken release build is
 caught before a release branch exists.

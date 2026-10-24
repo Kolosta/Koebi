@@ -16,6 +16,7 @@ mod commits;
 mod gitflow;
 mod ios;
 mod package;
+mod release;
 mod shaders;
 mod util;
 mod version;
@@ -37,7 +38,9 @@ Git workflow
   gitflow-check --head <b> [--base <b>]
                                   Validate a branch name, and a pull request target with --base
   commit-msg <file>               Validate a Conventional Commits message (commit-msg hook)
+  version --next                  Print the next SemVer version, from the commits since the last tag
   version <X.Y.Z>                 Set the workspace version (release and hotfix branches)
+  release-check --head <branch>   Check a release/hotfix branch: version, tag, changelog, bump
 
 Packaging
   package [--target <triple>] [--universal]
@@ -89,7 +92,12 @@ fn dispatch(args: &[String]) -> Result<()> {
             let file = rest.first().ok_or("usage: cargo xtask commit-msg <file>")?;
             commits::check_message_file(file.as_ref())
         }
-        "version" => version::set(rest.first().ok_or("usage: cargo xtask version <X.Y.Z>")?),
+        "version" => match rest.first().map(String::as_str) {
+            Some("--next") => release::print_next(),
+            Some(version) => version::set(version),
+            None => Err("usage: cargo xtask version <X.Y.Z | --next>".into()),
+        },
+        "release-check" => release::check(value("--head").ok_or("--head <branch> is required")?),
         "package" => package::run(value("--target"), has("--universal")),
         "android" => android::run(&android::Options {
             release: has("--release"),
