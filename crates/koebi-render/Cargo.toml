@@ -1,0 +1,20 @@
+[package]
+name = "koebi-render"
+description = "Koebi 2D renderer: retained scenes drawn with batched, instanced GPU primitives."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[dependencies]
+koebi-core.workspace = true
+koebi-gpu.workspace = true
+
+[dev-dependencies]
+koebi-testkit.workspace = true
+
+[lints]
+workspace = true

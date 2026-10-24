@@ -1,0 +1,20 @@
+//! Embedded SPIR-V, compiled from `shaders/*.vert|frag` by `cargo xtask shaders`.
+//!
+//! CI recompiles the GLSL with the pinned Vulkan SDK and fails if these binaries are stale.
+
+pub(crate) static RECT_VERT: &[u32] =
+    koebi_gpu::include_spirv!(include_bytes!("../shaders/spirv/rect.vert.spv"));
+pub(crate) static RECT_FRAG: &[u32] =
+    koebi_gpu::include_spirv!(include_bytes!("../shaders/spirv/rect.frag.spv"));
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn embedded_modules_are_spirv() {
+        for module in [RECT_VERT, RECT_FRAG] {
+            assert_eq!(module.first(), Some(&koebi_gpu::SPIRV_MAGIC));
+        }
+    }
+}
