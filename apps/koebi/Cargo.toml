@@ -1,0 +1,34 @@
+[package]
+name = "koebi"
+description = "The Koebi application."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+default-run = "koebi"
+
+# The library holds the whole application so that every platform shares one code path:
+# desktop and iOS call it from `src/main.rs`; Android loads it as `libkoebi.so` (built with
+# `cargo xtask android`, which adds the `cdylib` crate type) and calls its `SDL_main`.
+[lib]
+name = "koebi"
+path = "src/lib.rs"
+
+[[bin]]
+name = "koebi"
+path = "src/main.rs"
+
+[dependencies]
+koebi-core.workspace = true
+koebi-gpu.workspace = true
+koebi-platform.workspace = true
+koebi-render.workspace = true
+
+[dev-dependencies]
+koebi-testkit.workspace = true
+
+[lints]
+workspace = true
