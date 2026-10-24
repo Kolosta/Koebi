@@ -29,8 +29,9 @@ DerivedData/
 CLAUDE.local.md
 .claude/settings.local.json
 
-# Editors and OS
+# Editors and OS: editor configuration is personal
 .idea/
+.vscode/
 *.swp
 .DS_Store
 Thumbs.db
