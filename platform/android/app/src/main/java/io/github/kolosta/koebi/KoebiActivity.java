@@ -15,8 +15,10 @@ public class KoebiActivity extends SDLActivity {
     }
 
     /**
-     * Command-line arguments for Koebi, read from the {@code koebi.args} intent extra, e.g.
-     * {@code adb shell am start -n io.github.kolosta.koebi/.KoebiActivity --es koebi.args "--frames 120"}.
+     * Command-line arguments for Koebi, read from the {@code koebi.args} intent extra and split
+     * on whitespace, e.g.
+     * {@code adb shell am start -n io.github.kolosta.koebi/.KoebiActivity --es koebi.args "'--frames 120'"}
+     * (the inner quotes are for the device's shell, which adb hands the whole command line).
      */
     @Override
     protected String[] getArguments() {
