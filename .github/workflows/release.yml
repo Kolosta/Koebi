@@ -2,9 +2,10 @@ name: Release
 
 # Continuous delivery for gitflow: merging a release/X.Y.Z (or hotfix/X.Y.Z) pull request into
 # main bumps nothing by itself; the version was set on the release branch with
-# `cargo xtask version X.Y.Z`. On every push to main, if tag vX.Y.Z does not exist yet, this
-# workflow builds all platforms, creates the tag and the GitHub Release with the artifacts and
-# generated notes, then opens the back-merge pull request main -> develop.
+# `cargo xtask version X.Y.Z` (computed by `cargo xtask version --next`) and checked by the
+# PR policy (`cargo xtask release-check`). On every push to main, if tag vX.Y.Z does not exist
+# yet, this workflow builds all platforms, creates the annotated tag and the GitHub Release
+# with the artifacts and generated notes, then opens the back-merge pull request into develop.
 on:
   push:
     branches: [main]
@@ -75,13 +76,21 @@ jobs:
       - uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: git-cliff
+      # Before tagging: the notes cover the commits since the previous tag.
       - name: Generate release notes
         run: git cliff --tag "v$VERSION" --unreleased --strip header > RELEASE_NOTES.md
-      - name: Create the tag and the GitHub Release
+      # Release tags are annotated, created only here, and immutable (release-tags ruleset).
+      - name: Create the annotated tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag --annotate "v$VERSION" --message "Koebi $VERSION" "$GITHUB_SHA"
+          git push origin "refs/tags/v$VERSION"
+      - name: Create the GitHub Release
         run: |
           ls -l dist
           gh release create "v$VERSION" dist/* \
-            --target "$GITHUB_SHA" \
+            --verify-tag \
             --title "Koebi $VERSION" \
             --notes-file RELEASE_NOTES.md
       - name: Open the back-merge pull request (main -> develop)
