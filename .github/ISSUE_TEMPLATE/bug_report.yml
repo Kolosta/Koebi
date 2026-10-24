@@ -1,0 +1,42 @@
+name: Bug report
+description: Something renders wrong, crashes or behaves unexpectedly.
+labels: ["type: bug", "status: needs-triage"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Include screenshots for visual problems.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. cargo run -p koebi
+        2. Resize the window to...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      multiple: true
+      options: [Windows, Linux, macOS, Android, iOS]
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and logs
+      description: |
+        Koebi version or commit, GPU and driver, OS version. Run with `KOEBI_LOG=debug KOEBI_VALIDATION=1`
+        and paste the output (it includes the adapter and driver lines).
+      render: text

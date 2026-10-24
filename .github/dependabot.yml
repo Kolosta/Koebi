@@ -1,0 +1,42 @@
+# Dependency updates, always proposed to develop (gitflow). Any new crate also has to pass the
+# cargo-deny allow-list, so Dependabot can never silently grow the dependency graph.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "build(deps)"
+    labels: ["dependencies"]
+    groups:
+      rust-minor-and-patch:
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/setup-vulkan
+      - /.github/actions/setup-linux-deps
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "ci(deps)"
+    labels: ["dependencies", "area: ci"]
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  - package-ecosystem: gradle
+    directory: /platform/android
+    target-branch: develop
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "build(deps)"
+    labels: ["dependencies", "platform: android"]

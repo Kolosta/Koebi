@@ -1,0 +1,145 @@
+name: Set up the Vulkan SDK
+description: >
+  Installs the LunarG Vulkan SDK pinned in .github/vulkan-sdk-version (loader, validation layers,
+  glslc, spirv-val), exactly like a developer machine. Optionally installs a software Vulkan
+  driver (Mesa lavapipe) on GPU-less Linux and Windows runners; macOS runners use MoltenVK on
+  their Metal device.
+
+inputs:
+  software-driver:
+    description: Install and select Mesa's lavapipe software driver (Linux, Windows).
+    default: "false"
+  ios:
+    description: Also install the iOS component (MoltenVK.xcframework) on macOS.
+    default: "false"
+  mesa-version:
+    description: mesa-dist-win release providing lavapipe on Windows.
+    default: "26.2.4"
+
+runs:
+  using: composite
+  steps:
+    - name: Read the pinned SDK version
+      id: sdk
+      shell: bash
+      run: echo "version=$(tr -d '[:space:]' < "$GITHUB_WORKSPACE/.github/vulkan-sdk-version")" >> "$GITHUB_OUTPUT"
+
+    # --- Linux: SDK tarball (x86_64 tree only), lavapipe from Ubuntu's Mesa -------------------
+    - name: Cache the Vulkan SDK (Linux)
+      if: runner.os == 'Linux'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/vulkan-sdk
+        key: vulkan-sdk-linux-${{ steps.sdk.outputs.version }}
+    - name: Install the Vulkan SDK (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      env:
+        VERSION: ${{ steps.sdk.outputs.version }}
+      run: |
+        set -euo pipefail
+        root="$HOME/vulkan-sdk"
+        if [ -z "$(find "$root" -path '*/x86_64/bin/glslc' -print -quit 2>/dev/null)" ]; then
+          mkdir -p "$root"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/vulkansdk.tar.xz" \
+            "https://sdk.lunarg.com/sdk/download/$VERSION/linux/vulkansdk-linux-x86_64-$VERSION.tar.xz"
+          tar -xJf "$RUNNER_TEMP/vulkansdk.tar.xz" -C "$root" --wildcards '*/x86_64/*'
+          rm "$RUNNER_TEMP/vulkansdk.tar.xz"
+        fi
+        sdk="$(dirname "$(dirname "$(find "$root" -path '*/x86_64/bin/glslc' -print -quit)")")"
+        echo "VULKAN_SDK=$sdk" >> "$GITHUB_ENV"
+        echo "$sdk/bin" >> "$GITHUB_PATH"
+        echo "LD_LIBRARY_PATH=$sdk/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+        echo "VK_ADD_LAYER_PATH=$sdk/share/vulkan/explicit_layer.d" >> "$GITHUB_ENV"
+    - name: Install lavapipe (Linux)
+      if: runner.os == 'Linux' && inputs.software-driver == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers
+        echo "VK_DRIVER_FILES=$(ls /usr/share/vulkan/icd.d/lvp_icd.*.json | head -n1)" >> "$GITHUB_ENV"
+
+    # --- Windows: official installer (registers the loader and layers), lavapipe from Mesa ---
+    - name: Cache the Vulkan SDK installer (Windows)
+      if: runner.os == 'Windows'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/vulkan-sdk-installer
+        key: vulkan-sdk-windows-installer-${{ steps.sdk.outputs.version }}
+    - name: Install the Vulkan SDK (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      env:
+        VERSION: ${{ steps.sdk.outputs.version }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $cache = Join-Path $HOME 'vulkan-sdk-installer'
+        $installer = Join-Path $cache "vulkansdk-$env:VERSION.exe"
+        if (-not (Test-Path $installer)) {
+          New-Item -ItemType Directory -Force $cache | Out-Null
+          Invoke-WebRequest -UseBasicParsing -OutFile $installer `
+            -Uri "https://sdk.lunarg.com/sdk/download/$env:VERSION/windows/vulkansdk-windows-X64-$env:VERSION.exe"
+        }
+        $root = "C:\VulkanSDK\$env:VERSION"
+        $process = Start-Process -FilePath $installer -Wait -NoNewWindow -PassThru `
+          -ArgumentList '--root', $root, '--accept-licenses', '--default-answer', '--confirm-command', 'install'
+        if ($process.ExitCode -ne 0 -or -not (Test-Path "$root\Bin\glslc.exe")) {
+          throw "Vulkan SDK installation failed (exit code $($process.ExitCode))"
+        }
+        "VULKAN_SDK=$root" >> $env:GITHUB_ENV
+        "$root\Bin" >> $env:GITHUB_PATH
+        "VK_ADD_LAYER_PATH=$root\Bin" >> $env:GITHUB_ENV
+    - name: Cache Mesa (Windows)
+      if: runner.os == 'Windows' && inputs.software-driver == 'true'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/mesa
+        key: mesa-windows-${{ inputs.mesa-version }}
+    - name: Install lavapipe (Windows)
+      if: runner.os == 'Windows' && inputs.software-driver == 'true'
+      shell: pwsh
+      env:
+        MESA_VERSION: ${{ inputs.mesa-version }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $mesa = Join-Path $HOME 'mesa'
+        if (-not (Test-Path "$mesa\x64\vulkan_lvp.dll")) {
+          $archive = Join-Path $env:RUNNER_TEMP 'mesa.7z'
+          Invoke-WebRequest -UseBasicParsing -OutFile $archive `
+            -Uri "https://github.com/pal1000/mesa-dist-win/releases/download/$env:MESA_VERSION/mesa3d-$env:MESA_VERSION-release-msvc.7z"
+          7z x $archive "-o$mesa" x64 -y | Out-Null
+        }
+        "VK_DRIVER_FILES=$mesa\x64\lvp_icd.x86_64.json" >> $env:GITHUB_ENV
+
+    # --- macOS: official installer into the home directory; MoltenVK as the driver ----------
+    - name: Cache the Vulkan SDK (macOS)
+      if: runner.os == 'macOS'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/VulkanSDK
+        key: vulkan-sdk-macos-${{ steps.sdk.outputs.version }}-ios-${{ inputs.ios }}
+    - name: Install the Vulkan SDK (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      env:
+        VERSION: ${{ steps.sdk.outputs.version }}
+        IOS: ${{ inputs.ios }}
+      run: |
+        set -euo pipefail
+        root="$HOME/VulkanSDK/$VERSION"
+        if [ ! -d "$root/macOS/lib" ]; then
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/vulkansdk.zip" \
+            "https://sdk.lunarg.com/sdk/download/$VERSION/mac/vulkansdk-macos-$VERSION.zip"
+          unzip -q -o "$RUNNER_TEMP/vulkansdk.zip" -d "$RUNNER_TEMP/vulkansdk"
+          app="$(find "$RUNNER_TEMP/vulkansdk" -maxdepth 2 -name '*.app' -print -quit)"
+          components="com.lunarg.vulkan.core"
+          if [ "$IOS" = "true" ]; then components="$components com.lunarg.vulkan.ios"; fi
+          "$app/Contents/MacOS/$(basename "$app" .app)" --root "$root" --accept-licenses \
+            --default-answer --confirm-command install $components
+        fi
+        sdk="$root/macOS"
+        echo "VULKAN_SDK=$sdk" >> "$GITHUB_ENV"
+        echo "$sdk/bin" >> "$GITHUB_PATH"
+        echo "VK_ADD_LAYER_PATH=$sdk/share/vulkan/explicit_layer.d" >> "$GITHUB_ENV"
+        echo "VK_DRIVER_FILES=$sdk/share/vulkan/icd.d/MoltenVK_icd.json" >> "$GITHUB_ENV"
+        echo "MoltenVK frameworks:"; find "$root" -maxdepth 4 -name 'MoltenVK.xcframework' -print || true

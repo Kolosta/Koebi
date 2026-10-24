@@ -1,0 +1,93 @@
+name: Release
+
+# Continuous delivery for gitflow: merging a release/X.Y.Z (or hotfix/X.Y.Z) pull request into
+# main bumps nothing by itself; the version was set on the release branch with
+# `cargo xtask version X.Y.Z`. On every push to main, if tag vX.Y.Z does not exist yet, this
+# workflow builds all platforms, creates the tag and the GitHub Release with the artifacts and
+# generated notes, then opens the back-merge pull request main -> develop.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      release: ${{ steps.plan.outputs.release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: plan
+        run: |
+          version="$(sed -n '/^\[workspace.package\]/,/^\[/ s/^version = "\(.*\)"/\1/p' Cargo.toml)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::v$version is already released; nothing to do"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  package:
+    name: Package
+    needs: plan
+    if: needs.plan.outputs.release == 'true'
+    uses: ./.github/workflows/package.yml
+    secrets: inherit
+    with:
+      retention-days: 30
+
+  publish:
+    name: Publish v${{ needs.plan.outputs.version }}
+    needs: [plan, package]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: koebi-*
+          merge-multiple: true
+          path: dist
+      - uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+        with:
+          tool: git-cliff
+      - name: Generate release notes
+        run: git cliff --tag "v$VERSION" --unreleased --strip header > RELEASE_NOTES.md
+      - name: Create the tag and the GitHub Release
+        run: |
+          ls -l dist
+          gh release create "v$VERSION" dist/* \
+            --target "$GITHUB_SHA" \
+            --title "Koebi $VERSION" \
+            --notes-file RELEASE_NOTES.md
+      - name: Open the back-merge pull request (main -> develop)
+        run: |
+          open="$(gh pr list --base develop --head main --state open --json number --jq 'length')"
+          if [ "$open" = "0" ]; then
+            gh pr create --base develop --head main \
+              --title "chore(release): merge v$VERSION back into develop" \
+              --body "Automated gitflow back-merge after releasing v$VERSION. Merge with a merge commit."
+          fi

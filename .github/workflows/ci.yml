@@ -1,0 +1,304 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Skips the heavy jobs for pull requests that only touch documentation or AI configuration.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.filter.outputs.code || 'true' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            code:
+              - '**/*.rs'
+              - '**/Cargo.toml'
+              - 'Cargo.lock'
+              - 'rust-toolchain.toml'
+              - '.cargo/**'
+              - '.config/**'
+              - 'apps/**'
+              - 'crates/**'
+              - 'xtask/**'
+              - 'platform/**'
+              - '.github/**'
+              - '.githooks/**'
+              - '*.toml'
+
+  fmt:
+    name: Format
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        with:
+          cache: false
+      - run: cargo fmt --all --check
+
+  lint:
+    name: Lint (clippy, docs)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-linux-deps
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        with:
+          cache-key: lint
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Rustdoc
+        run: cargo doc --workspace --no-deps --locked
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+  deny:
+    name: Dependencies (cargo-deny)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        with:
+          command: check
+
+  typos:
+    name: Spelling
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: crate-ci/typos@7f9d0819ca1c008ade73f4b41fa9d258d48f605b # v1.51.1
+
+  shaders:
+    name: Shaders (SPIR-V up to date)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-vulkan
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        with:
+          cache-key: xtask
+      - run: cargo xtask shaders --check
+
+  test:
+    name: Test (${{ matrix.name }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-24.04
+          - name: Windows
+            os: windows-2025
+          - name: macOS
+            os: macos-26
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      # GPU tests must run (never skip) with validation layers that must be present.
+      KOEBI_REQUIRE_GPU: "1"
+      KOEBI_VALIDATION: required
+      KOEBI_LOG: info
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: runner.os == 'Linux'
+        uses: ./.github/actions/setup-linux-deps
+      - uses: ./.github/actions/setup-vulkan
+        with:
+          software-driver: "true"
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        with:
+          cache-key: test
+      - uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+        with:
+          tool: nextest
+      - name: Build
+        run: cargo build --workspace --all-targets --locked
+      - name: Unit, integration, functional, regression and end-to-end tests
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            # Real X11 windows on a virtual display, rendered by lavapipe.
+            xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" \
+              cargo nextest run --workspace --locked --profile ci
+          else
+            cargo nextest run --workspace --locked --profile ci
+          fi
+      - name: Doc tests
+        run: cargo test --workspace --doc --locked
+      - name: Annotate test failures
+        if: always()
+        uses: mikepenz/action-junit-report@6ef3fdcfcd5f0b5d14df3e659ef19b8c6820f93d # v6.6.1
+        with:
+          report_paths: target/nextest/ci/junit.xml
+          check_name: Tests (${{ matrix.name }})
+          annotate_only: true
+          detailed_summary: true
+      - name: Upload golden-image differences
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: golden-failures-${{ matrix.name }}
+          path: target/tmp/golden-failures/
+          if-no-files-found: ignore
+
+  android:
+    name: Android (build, emulator tests, APK)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        with:
+          target: aarch64-linux-android,x86_64-linux-android
+          cache-key: android
+      - uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+        with:
+          tool: cargo-ndk
+      - name: Select the Android NDK
+        run: |
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME" >> "$GITHUB_ENV"
+      - name: Clippy (Android)
+        run: cargo ndk --target arm64-v8a --platform 26 clippy --workspace --exclude xtask --all-targets --locked -- -D warnings
+      - name: Build the APK (arm64-v8a, x86_64)
+        run: cargo xtask android
+      - name: Build the test binaries (x86_64)
+        run: |
+          cargo ndk --target x86_64 --platform 26 test --workspace --exclude xtask --locked --no-run \
+            --message-format=json \
+            | jq -r 'select(.reason == "compiler-artifact" and .profile.test == true and .executable != null) | .executable' \
+            > target/android-test-binaries.txt
+          cat target/android-test-binaries.txt
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Tests and smoke test on the emulator
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash .github/scripts/android-emulator.sh
+      - name: Upload the APK
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: koebi-android-debug-apk
+          path: platform/android/app/build/outputs/apk/debug/*.apk
+          retention-days: 7
+
+  ios:
+    name: iOS (build, simulator tests, app)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-vulkan
+        with:
+          ios: "true"
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        with:
+          target: aarch64-apple-ios,aarch64-apple-ios-sim
+          cache-key: ios
+      - name: Clippy (iOS simulator)
+        run: cargo clippy --workspace --exclude xtask --all-targets --target aarch64-apple-ios-sim --locked -- -D warnings
+      - name: Build for devices
+        run: cargo build --package koebi --target aarch64-apple-ios --locked
+      - name: Boot a simulator
+        id: simulator
+        run: |
+          udid="$(xcrun simctl list devices available | grep -E '^\s+iPhone' | grep -oE '[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}' | head -n1)"
+          test -n "$udid" || { echo "::error::no iPhone simulator available"; exit 1; }
+          xcrun simctl boot "$udid" || true
+          xcrun simctl bootstatus "$udid" -b
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+      - name: Unit and integration tests in the simulator
+        env:
+          CARGO_TARGET_AARCH64_APPLE_IOS_SIM_RUNNER: ${{ github.workspace }}/.github/scripts/ios-simulator-runner.sh
+          KOEBI_SIMULATOR: ${{ steps.simulator.outputs.udid }}
+        run: cargo test --workspace --exclude xtask --target aarch64-apple-ios-sim --locked
+      - name: Smoke test Koebi.app in the simulator
+        run: cargo xtask ios --run
+      - name: Archive the simulator app
+        run: ditto -c -k --keepParent target/aarch64-apple-ios-sim/debug/Koebi.app target/Koebi-ios-simulator.zip
+      - name: Upload the simulator app
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: koebi-ios-simulator-app
+          path: target/Koebi-ios-simulator.zip
+          retention-days: 7
+
+  # Release-mode packages of every platform, built on pushes to develop/main (nightly-style
+  # artifacts that also prove the release pipeline works before a release is cut).
+  package:
+    name: Package
+    needs: changes
+    if: github.event_name != 'pull_request' && needs.changes.outputs.code == 'true'
+    uses: ./.github/workflows/package.yml
+    secrets: inherit
+    with:
+      retention-days: 14
+
+  # The single required status check of the branch rulesets.
+  ci-result:
+    name: CI result
+    if: always()
+    needs: [changes, fmt, lint, deny, typos, shaders, test, android, ios, package]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check every job
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$RESULTS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")' > /dev/null
