@@ -45,12 +45,13 @@ echo "::group::APK smoke test"
 apk="$(ls "$root"/platform/android/app/build/outputs/apk/debug/*.apk | head -n1)"
 adb install -r -g "$apk"
 adb logcat -c
-adb shell am start -W -n "$package/.KoebiActivity" --es koebi.args "--frames 120"
+# adb joins its arguments into one remote command line: quote the extra for that shell too.
+adb shell am start -W -n "$package/.KoebiActivity" --es koebi.args "'--frames 120'"
 outcome=timeout
 log=""
 for _ in $(seq 1 120); do
     log="$(adb logcat -d -s koebi:V SDL:V AndroidRuntime:E DEBUG:V)"
-    if grep -q "Koebi exits after" <<< "$log" || grep -qE "FATAL|Fatal signal" <<< "$log"; then
+    if grep -qE "Koebi exits after|Finished main function|FATAL|Fatal signal" <<< "$log"; then
         outcome=finished
         break
     fi

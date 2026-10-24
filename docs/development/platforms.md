@@ -49,8 +49,9 @@ How it fits together:
   because CMake's default Visual Studio generator cannot target Android.
 - `KoebiActivity` extends `SDLActivity`, loads `SDL3` then `koebi`, and SDL calls the exported
   `SDL_main`, which runs the same `App` as on desktop.
-- Arguments can be passed with an intent extra:
-  `adb shell am start -n io.github.kolosta.koebi/.KoebiActivity --es koebi.args "--frames 120"`.
+- Arguments can be passed with an intent extra. adb hands the whole command line to the
+  device's shell, so quote the value twice:
+  `adb shell am start -n io.github.kolosta.koebi/.KoebiActivity --es koebi.args "'--frames 120'"`.
 - Logs go to logcat with the tag `koebi`: `adb logcat -s koebi`.
 - The app drops its swapchain and surface when it goes to the background and recreates them
   when it returns.
