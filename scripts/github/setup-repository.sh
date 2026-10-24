@@ -36,13 +36,13 @@ gh api -X PATCH "repos/$repo" \
     -F allow_update_branch=true \
     -F delete_branch_on_merge=true \
     -f squash_merge_commit_title=PR_TITLE \
-    -f squash_merge_commit_message=PR_BODY \
+    -f squash_merge_commit_message=BLANK \
     -f merge_commit_title=PR_TITLE \
     -f merge_commit_message=PR_BODY \
     -F has_issues=true \
     -F has_projects=true \
     -F has_wiki=false > /dev/null
-echo "default branch: develop; squash + merge commits allowed; head branches auto-deleted"
+echo "default branch: develop; squash (PR title only) + merge commits allowed; head branches auto-deleted"
 
 step "GitHub Actions permissions"
 gh api -X PUT "repos/$repo/actions/permissions/workflow" \
@@ -79,6 +79,8 @@ type: chore|ededed|Maintenance
 area: core|bfd4f2|koebi-core: math, color, logging
 area: gpu|bfd4f2|koebi-gpu: Vulkan RHI
 area: render|bfd4f2|koebi-render: 2D renderer and shaders
+area: text|bfd4f2|koebi-text: fonts, shaping, glyph atlas
+area: ui|bfd4f2|koebi-ui: layout, widgets, design system
 area: platform|bfd4f2|koebi-platform: SDL3, windows, events
 area: app|bfd4f2|The koebi application
 area: tests|bfd4f2|Tests and koebi-testkit
@@ -116,10 +118,10 @@ gh api -X PATCH "repos/$repo/code-scanning/default-setup" -f state=configured > 
 
 cat << 'NEXT'
 
-Done. Optional next steps:
+Done. Optional next steps (docs/development/github-setup.md):
+  - Project board: gh auth login -h github.com -s project && bash scripts/github/setup-project.sh
   - Claude Code on GitHub: run /install-github-app in Claude Code (adds the app and secret),
     then: gh variable set CLAUDE_CODE_ENABLED --body true
   - Android release signing secrets: KOEBI_ANDROID_KEYSTORE_BASE64, KOEBI_ANDROID_KEYSTORE_PASSWORD,
     KOEBI_ANDROID_KEY_ALIAS, KOEBI_ANDROID_KEY_PASSWORD
-  - A project board: gh auth refresh -s project && gh project create --owner @me --title Koebi
 NEXT
