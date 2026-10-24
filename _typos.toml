@@ -1,0 +1,19 @@
+# typos: https://github.com/crate-ci/typos
+[files]
+extend-exclude = [
+    "*.spv",
+    "*.png",
+    "*.jar",
+    "Cargo.lock",
+    "platform/android/gradlew",
+    "platform/android/gradlew.bat",
+]
+
+[default.extend-words]
+# PNG "Paeth" row filter.
+paeth = "paeth"
+# Apple simulator/device identifier.
+udid = "udid"
+
+[default.extend-identifiers]
+PNGs = "PNGs"

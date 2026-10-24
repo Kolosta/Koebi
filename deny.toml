@@ -1,0 +1,61 @@
+# cargo-deny: https://embarkstudios.github.io/cargo-deny/
+#
+# Enforces the minimal-dependency policy (docs/adr/0003-minimal-dependencies.md): the
+# `[bans] allow` list is exhaustive, so CI fails as soon as any new crate (direct or
+# transitive) enters the graph. Extending it requires an ADR and maintainer approval.
+
+[graph]
+# Resolve the graph for every shipping platform, not only the host.
+targets = [
+    "x86_64-pc-windows-msvc",
+    "x86_64-unknown-linux-gnu",
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-linux-android",
+    "x86_64-linux-android",
+    "aarch64-apple-ios",
+    "aarch64-apple-ios-sim",
+]
+all-features = false
+
+[advisories]
+# RustSec advisories: vulnerabilities, unmaintained and unsound crates fail the build.
+ignore = []
+
+[licenses]
+allow = ["MIT", "Apache-2.0", "Zlib"]
+confidence-threshold = 0.93
+
+[licenses.private]
+# Workspace crates are never published (`publish = false`).
+ignore = true
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+allow-wildcard-paths = true
+allow = [
+    # Runtime: Vulkan bindings and SDL3 bindings.
+    "ash",
+    "sdl3-sys",
+    # Build time only: SDL3 compiled from its pinned sources with CMake.
+    "sdl3-src",
+    "cmake",
+    "cc",
+    "find-msvc-tools",
+    "shlex",
+    "rpkg-config",
+    # Workspace members.
+    "koebi",
+    "koebi-core",
+    "koebi-gpu",
+    "koebi-platform",
+    "koebi-render",
+    "koebi-testkit",
+    "xtask",
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

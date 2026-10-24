@@ -1,0 +1,85 @@
+[workspace]
+resolver = "3"
+members = ["apps/*", "crates/*", "xtask"]
+# `cargo build` / `cargo run` at the root ignore dev tooling (xtask).
+default-members = ["apps/*", "crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+authors = ["Koebi contributors"]
+repository = "https://github.com/Kolosta/Koebi"
+homepage = "https://github.com/Kolosta/Koebi"
+publish = false
+
+[workspace.dependencies]
+# --- Internal crates -------------------------------------------------------------------------
+koebi-core = { path = "crates/koebi-core" }
+koebi-gpu = { path = "crates/koebi-gpu" }
+koebi-platform = { path = "crates/koebi-platform" }
+koebi-render = { path = "crates/koebi-render" }
+koebi-testkit = { path = "crates/koebi-testkit" }
+
+# --- External crates: the COMPLETE allow-list ------------------------------------------------
+# Adding or replacing an external crate requires an ADR (docs/adr/0003-minimal-dependencies.md)
+# and an update of the `[bans] allow` list in deny.toml. CI rejects anything else.
+#
+# Vulkan bindings generated from the registry. No `loaded` feature: the Vulkan loader is opened
+# by koebi-gpu (own loader) or by SDL, so `libloading` is never pulled in.
+ash = { version = "0.38.0", default-features = false, features = ["std", "debug"] }
+# Raw SDL3 bindings. SDL is always compiled from the pinned `sdl3-src` sources (CMake required),
+# which gives identical behaviour on every platform. Linking mode is chosen per target in
+# crates/koebi-platform/Cargo.toml. Subsystems we never use are compiled out.
+sdl3-sys = { version = "0.7.2", default-features = false, features = [
+    "build-from-source",
+    "use-ash-v0-38",
+    "no-sdl-camera",
+    "no-sdl-gpu",
+    "no-sdl-render",
+] }
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+non_ascii_idents = "deny"
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Safety: every unsafe block documents its invariant in a `// SAFETY:` comment.
+undocumented_unsafe_blocks = "deny"
+missing_safety_doc = "deny"
+# Robustness: no silent panics or debugging leftovers in library code.
+unwrap_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+dbg_macro = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+mem_forget = "warn"
+allow_attributes_without_reason = "warn"
+# Pedantic lints that fight graphics code more than they help.
+cast_precision_loss = "allow"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+similar_names = "allow"
+too_many_lines = "allow"
+
+[profile.dev.package."*"]
+# Dependencies (ash, SDL) are optimized even in debug builds: a GPU app must stay interactive.
+opt-level = 2
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+debug = "line-tables-only"
