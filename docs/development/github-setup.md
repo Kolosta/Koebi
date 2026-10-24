@@ -26,7 +26,8 @@ The script:
 
 1. creates `develop` from `main` if missing, and makes it the default branch;
 2. allows squash merges and merge commits, disables rebase merges, deletes head branches after
-   merge, and uses the pull request title and body for merge commits;
+   merge; a squash commit is the pull request title alone, a merge commit takes the title and
+   body;
 3. makes the Actions token read-only by default and lets workflows open pull requests (needed
    for the release back-merge);
 4. creates or updates the rulesets in `.github/rulesets/`;
@@ -57,8 +58,27 @@ gh variable set CLAUDE_CODE_ENABLED --body true
 
 - **Android release signing**: add the four `KOEBI_ANDROID_*` secrets described in
   [ci-cd.md](ci-cd.md#signing).
-- **Project board**: `gh auth refresh -s project` then
-  `gh project create --owner @me --title Koebi`.
+
+## Project board
+
+The public "Koebi" project shows the roadmap: every open issue with its status, priority,
+area and size, grouped by milestones (`v0.1.0 Foundation`, `v0.2.0 Text`...). Creating a
+project needs the `project` scope, which `gh auth login` does not request by default:
+
+```sh
+gh auth login -h github.com -s project     # once; opens the browser
+bash scripts/github/setup-project.sh       # safe to re-run
+```
+
+The script creates the project (fields Priority, Area and Size next to the built-in Status),
+links it to the repository, makes it public, adds every open issue and sets Priority and Area
+from the labels. Two settings exist only in the web interface; the script prints them:
+
+- Workflows: enable "Auto-add to project" with the filter `is:issue is:open`, so new issues
+  join the board.
+- Views: add a Board view grouped by Status and a Roadmap view by milestone.
+
+Re-run the script after creating issues in bulk; "Auto-add" covers the rest.
 
 ## Verifying
 

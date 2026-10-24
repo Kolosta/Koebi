@@ -15,11 +15,22 @@ guide.
 cargo xtask install-hooks
 ```
 
+## Finding work
+
+- The [project board](https://github.com/Kolosta/Koebi/projects) shows the roadmap: each open
+  issue with its status (Todo, In Progress, Done), priority, area and size.
+- [Milestones](https://github.com/Kolosta/Koebi/milestones) group issues by release:
+  `v0.2.0 Text`, `v0.3.0 UI toolkit`, and so on. Issues without a milestone form the backlog.
+- Good starting points carry the `good first issue` or `help wanted` label. Issues labeled
+  `status: needs-adr` start with an [ADR](docs/adr/README.md) pull request.
+- Comment on an issue to claim it before starting, so that nobody duplicates the work.
+
 ## Workflow
 
 Koebi uses [gitflow](docs/development/gitflow.md):
 
-1. Branch from `develop`: `feature/<issue>-<slug>` or `bugfix/<issue>-<slug>`.
+1. Branch from `develop`, named after the issue: `feature/<issue>-<slug>` or
+   `bugfix/<issue>-<slug>`. Move the issue to "In Progress" on the board.
 2. Commit with [Conventional Commits](https://www.conventionalcommits.org):
    `feat(render): add rounded rectangle borders`.
 3. Run the local gate before pushing:
@@ -28,9 +39,11 @@ Koebi uses [gitflow](docs/development/gitflow.md):
    cargo xtask ci
    ```
 
-4. Open a pull request into `develop` and fill in the template. Its title must be a
-   Conventional Commit: it becomes the squash commit.
-5. `CI result` and `PR policy result` must be green, and review conversations resolved.
+4. Open a pull request into `develop`, early as a draft if you like, and fill in the
+   template with `Closes #<issue>`. Its title must be a Conventional Commit: it becomes the
+   squash commit and the changelog entry.
+5. `CI result` and `PR policy result` must be green, and review conversations resolved. The
+   merge closes the issue, which moves to "Done".
 
 Never push to `main` or `develop`; the rulesets reject it anyway.
 
