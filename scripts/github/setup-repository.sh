@@ -76,18 +76,18 @@ type: perf|5319e7|Performance improvement
 type: refactor|c5def5|Internal change without behaviour change
 type: docs|0075ca|Documentation
 type: chore|ededed|Maintenance
-area: core|bfd4f2|koebi-core: math, color, logging
-area: gpu|bfd4f2|koebi-gpu: Vulkan RHI
-area: render|bfd4f2|koebi-render: 2D renderer and shaders
-area: text|bfd4f2|koebi-text: fonts, shaping, glyph atlas
-area: ui|bfd4f2|koebi-ui: layout, widgets, design system
-area: platform|bfd4f2|koebi-platform: SDL3, windows, events
-area: app|bfd4f2|The koebi application
-area: tests|bfd4f2|Tests and koebi-testkit
-area: ci|bfd4f2|GitHub Actions and automation
-area: docs|bfd4f2|docs/ and Markdown
-area: tooling|bfd4f2|xtask, hooks, Cargo configuration
-area: ai|bfd4f2|Claude Code configuration
+area: core|0969da|koebi-core: math, color, logging
+area: gpu|8250df|koebi-gpu: Vulkan RHI
+area: render|bf3989|koebi-render: 2D renderer and shaders
+area: text|e16f24|koebi-text: fonts, shaping, glyph atlas
+area: ui|d4a72c|koebi-ui: layout, widgets, design system
+area: platform|1a7f37|koebi-platform: SDL3, windows, events
+area: app|cf222e|The koebi application
+area: tests|6e7781|Tests and koebi-testkit
+area: ci|6e7781|GitHub Actions and automation
+area: docs|6e7781|docs/ and Markdown
+area: tooling|6e7781|xtask, hooks, Cargo configuration
+area: ai|6e7781|Claude Code configuration
 platform: windows|f9d0c4|Windows-specific
 platform: linux|f9d0c4|Linux-specific
 platform: macos|f9d0c4|macOS-specific
