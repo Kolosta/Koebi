@@ -2,6 +2,7 @@
 # Creates or updates the public "Koebi" GitHub project (Projects v2) and fills it with the
 # repository's open issues; safe to re-run:
 #   - fields Priority, Area and Size next to the built-in Status;
+#   - views Board (kanban by Status), Backlog, By milestone and Good first issues;
 #   - the project linked to the repository (its "Projects" tab) and made public;
 #   - every open issue added, Priority and Area set from its labels.
 #
@@ -35,6 +36,9 @@ Roadmap and work in progress of [Koebi](https://github.com/Kolosta/Koebi).
 - **Priority** and **Area** mirror the `priority: *` and `area: *` labels.
 - **Size**: rough effort, XS (an hour) to XL (several weeks).
 - **Milestones** group issues by release: `v0.2.0 Text`, `v0.3.0 UI toolkit`...
+
+Views: **Board** (kanban by status), **Backlog** (issues without a milestone, by priority),
+**By milestone** (the roadmap, release by release) and **Good first issues**.
 
 Contributing: pick a Todo issue, ideally `good first issue` or `help wanted`, comment to claim it,
 then follow [CONTRIBUTING.md](https://github.com/Kolosta/Koebi/blob/develop/CONTRIBUTING.md).
@@ -100,6 +104,53 @@ area_of() {
     esac
 }
 
+step "views"
+# Field database ids (the views API wants integers) and the names of existing views.
+meta="$(gh api graphql -F login="$owner" -F number="$number" -f query='
+    query($login: String!, $number: Int!) {
+      user(login: $login) {
+        projectV2(number: $number) {
+          fields(first: 50) { nodes { ... on ProjectV2FieldCommon { name databaseId } } }
+          views(first: 50) { nodes { name } }
+        }
+      }
+    }' --jq '.data.user.projectV2 | (.fields.nodes[] | "field|\(.name)|\(.databaseId)"), (.views.nodes[] | "view|\(.name)|")')"
+field_id() { printf '%s\n' "$meta" | awk -F'|' -v n="$1" '$1 == "field" && $2 == n && !found { print $3; found = 1 }'; }
+title_f="$(field_id Title)"
+status_f="$(field_id Status)"
+priority_f="$(field_id Priority)"
+area_f="$(field_id Area)"
+size_f="$(field_id Size)"
+labels_f="$(field_id Labels)"
+milestone_f="$(field_id Milestone)"
+assignees_f="$(field_id Assignees)"
+user_id="$(gh api "users/$owner" --jq .id)"
+
+create_view() { # <name> <JSON body>
+    if printf '%s\n' "$meta" | awk -F'|' -v n="$1" '$1 == "view" && $2 == n { found = 1 } END { exit !found }'; then
+        echo "view $1 exists"
+        return 0
+    fi
+    # The documentation names the path parameter user_id: try the login, then the numeric id.
+    local who
+    for who in "$owner" "$user_id"; do
+        if printf '%s' "$2" | gh api --method POST "users/$who/projectsV2/$number/views" \
+            -H "X-GitHub-Api-Version: 2026-03-10" --input - > /dev/null 2>&1; then
+            echo "created view $1"
+            return 0
+        fi
+    done
+    echo "  could not create view $1 through the API: add it in the web interface"
+}
+create_view "Board" "$(printf '{"name":"Board","layout":"board","vertical_group_by":[%s],"visible_fields":[%s,%s,%s,%s]}' \
+    "$status_f" "$priority_f" "$area_f" "$size_f" "$assignees_f")"
+create_view "Backlog" "$(printf '{"name":"Backlog","layout":"table","filter":"is:open no:milestone","sort_by":[[%s,"asc"]],"visible_fields":[%s,%s,%s,%s,%s,%s]}' \
+    "$priority_f" "$title_f" "$status_f" "$priority_f" "$area_f" "$size_f" "$labels_f")"
+create_view "By milestone" "$(printf '{"name":"By milestone","layout":"table","filter":"is:open","group_by":[%s],"sort_by":[[%s,"asc"]],"visible_fields":[%s,%s,%s,%s,%s,%s]}' \
+    "$milestone_f" "$priority_f" "$title_f" "$status_f" "$priority_f" "$area_f" "$size_f" "$assignees_f")"
+create_view "Good first issues" "$(printf '{"name":"Good first issues","layout":"table","filter":"is:open label:\\"good first issue\\",\\"help wanted\\"","visible_fields":[%s,%s,%s,%s,%s]}' \
+    "$title_f" "$status_f" "$area_f" "$size_f" "$labels_f")"
+
 step "issues"
 gh issue list --repo "$repo" --state open --limit 500 --json url,labels \
     --jq '.[] | "\(.url)|\([.labels[].name] | join(","))"' |
@@ -115,6 +166,7 @@ cat << NEXT
 Done: https://github.com/users/$owner/projects/$number
 Two settings only exist in the web interface (project, then "..." > Settings / Workflows):
   - Workflows > "Auto-add to project": enable it for $repo with the filter "is:issue is:open",
-    so new issues join the board automatically.
-  - Views: add a Board view grouped by Status, and a Roadmap view by Milestone.
+    so new issues join the board automatically ("Item closed" and "Pull request merged"
+    already move items to Done).
+  - The default "View 1" can be deleted or renamed from its tab menu.
 NEXT
