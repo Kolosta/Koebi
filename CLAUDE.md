@@ -15,7 +15,8 @@ Vulkan surface. Performance, precise color control and a clean architecture are 
    maintainer's approval, then an entry in `deny.toml` (CI rejects any unlisted crate).
 2. **Git**: never commit on `main`/`develop`, never push to `main`, never force-push. Work on a
    gitflow branch and open a pull request (`/feature`, `/pr`). Commits and PR titles follow
-   Conventional Commits.
+   Conventional Commits. Humans author every commit: no `Co-Authored-By` trailer, no
+   "Generated with" line or session link in commits, PRs, issues or release notes.
 3. **Done means verified**: run `/check` (or `cargo xtask ci`) before saying a task is finished.
    New behaviour ships with tests at the right level (see Testing); a bug fix starts with a
    failing regression test.

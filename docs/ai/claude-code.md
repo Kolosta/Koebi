@@ -66,6 +66,13 @@ run shell commands with your permissions.
 `git push` to feature branches asks for confirmation by default. Server-side rulesets protect
 `main` and `develop` regardless of local settings.
 
+### Attribution
+
+Commits and pull requests are authored by humans: `attribution` in `.claude/settings.json`
+removes Claude Code's `Co-Authored-By` trailer, "Generated with" line and session link, and
+`CLAUDE.md` states the rule for every agent. Mention AI assistance in the pull request
+template's dedicated section if you want to, never in commit trailers.
+
 ### Plugins
 
 `rust-analyzer-lsp@claude-plugins-official` is enabled for the project. It gives Claude
