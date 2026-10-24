@@ -1,8 +1,10 @@
 //! Links MoltenVK statically on iOS, where no dynamic Vulkan loader exists.
 //!
-//! The static `MoltenVK.xcframework` ships with the LunarG Vulkan SDK for macOS (iOS
-//! component). Set `KOEBI_MOLTENVK_XCFRAMEWORK` to use another copy. Other targets need
-//! nothing here: the Vulkan loader is opened at runtime (see `src/loader.rs`).
+//! Set `KOEBI_MOLTENVK_XCFRAMEWORK` to a static `MoltenVK.xcframework`: the one in
+//! `MoltenVK/MoltenVK/static/` of the `MoltenVK-all.tar` release asset has device and
+//! simulator slices (CI pins the version in `.github/moltenvk-version`). Without the variable,
+//! the iOS component of the Vulkan SDK is used, which only has device slices. Other targets
+//! need nothing here: the Vulkan loader is opened at runtime (see `src/loader.rs`).
 
 use std::env;
 use std::path::{Path, PathBuf};
@@ -23,20 +25,32 @@ fn main() {
 
     let Some(xcframework) = find_xcframework() else {
         println!(
-            "cargo::error=MoltenVK.xcframework not found. Install the Vulkan SDK for macOS with \
-             its iOS component and export VULKAN_SDK, or set KOEBI_MOLTENVK_XCFRAMEWORK."
+            "cargo::error=MoltenVK.xcframework not found. Set KOEBI_MOLTENVK_XCFRAMEWORK to the \
+             static MoltenVK.xcframework of the MoltenVK-all.tar release asset \
+             (https://github.com/KhronosGroup/MoltenVK/releases)."
         );
         return;
     };
     let Some(slice) = find_slice(&xcframework, simulator) else {
+        let slices: Vec<String> = std::fs::read_dir(&xcframework)
+            .map(|entries| {
+                entries
+                    .filter_map(Result::ok)
+                    .map(|entry| entry.file_name().to_string_lossy().into_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
         println!(
-            "cargo::error=no {} slice with libMoltenVK.a in {}",
+            "cargo::error=no {} slice with libMoltenVK.a in {} (found: {}). Set \
+             KOEBI_MOLTENVK_XCFRAMEWORK to the static MoltenVK.xcframework of the MoltenVK-all.tar \
+             release asset (https://github.com/KhronosGroup/MoltenVK/releases).",
             if simulator {
                 "iOS simulator"
             } else {
                 "iOS device"
             },
-            xcframework.display()
+            xcframework.display(),
+            slices.join(", ")
         );
         return;
     };
@@ -74,7 +88,6 @@ fn find_xcframework() -> Option<PathBuf> {
 }
 
 fn find_slice(xcframework: &Path, simulator: bool) -> Option<PathBuf> {
-    // Slices are named like `ios-arm64` and `ios-arm64_x86_64-simulator`.
     std::fs::read_dir(xcframework)
         .ok()?
         .filter_map(Result::ok)
@@ -84,8 +97,20 @@ fn find_slice(xcframework: &Path, simulator: bool) -> Option<PathBuf> {
                 .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or_default();
-            name.starts_with("ios-")
-                && name.ends_with("-simulator") == simulator
-                && path.join("libMoltenVK.a").is_file()
+            is_ios_slice(name, simulator) && path.join("libMoltenVK.a").is_file()
         })
+}
+
+/// Device slices are named like `ios-arm64`, simulator slices like
+/// `ios-arm64_x86_64-simulator`; other variants (`-maccatalyst`) are rejected.
+fn is_ios_slice(name: &str, simulator: bool) -> bool {
+    name.strip_prefix("ios-").is_some_and(|archs| {
+        if simulator {
+            archs
+                .strip_suffix("-simulator")
+                .is_some_and(|archs| !archs.contains('-'))
+        } else {
+            !archs.contains('-')
+        }
+    })
 }
