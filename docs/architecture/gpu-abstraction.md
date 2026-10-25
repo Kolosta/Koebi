@@ -42,8 +42,14 @@ flowchart LR
     ad --> dev[Device]
     dev --> buf[Buffer]
     dev --> tex[Texture]
+    dev --> samp[Sampler]
+    dev --> bgl[BindGroupLayout]
+    bgl --> bg[BindGroup]
+    tex -.kept alive by.-> bg
+    samp -.kept alive by.-> bg
     dev --> sm[ShaderModule]
     dev --> pipe[RenderPipeline]
+    bgl --> pipe
     inst --> surf[Surface]
     surf --> pres[Presenter]
     dev --> pres
@@ -60,10 +66,37 @@ flowchart LR
 - **Device**: one queue for everything (UI workloads are latency-bound), function dispatch for
   1.3/KHR paths, submissions numbered for deferred destruction, a blocking `submit_and_wait`
   for uploads, readback and tests.
-- **Buffer / Texture / ShaderModule / RenderPipeline**: RAII, debug names, validation of
-  descriptions before reaching Vulkan.
+- **Buffer / Texture / Sampler / ShaderModule / RenderPipeline**: RAII, debug names,
+  validation of descriptions before reaching Vulkan.
+- **BindGroupLayout / BindGroup**: descriptor set layouts and descriptor sets (see below).
 - **Presenter**: swapchain (UNORM formats first, FIFO by default), two frames in flight, one
   `render_finished` semaphore per swapchain image, recreation on resize or `OUT_OF_DATE`.
+
+## Bind groups and texture uploads
+
+Shaders read textures through **bind groups**, named after WebGPU's: a `BindGroupLayout` lists
+the bindings of one descriptor set (`layout(set = S, binding = N)`, binding `N` being entry
+`N`), pipelines list the layouts of their sets, and a `BindGroup` fills a layout with
+resources. Only combined image samplers read by fragment shaders exist so far
+(`BindingType::SampledTexture`); other binding types join when a feature needs them.
+
+- **Ownership**: each bind group owns a descriptor pool sized for its one set, so groups are
+  created and dropped independently, and keeps its layout, textures and samplers alive
+  (`Texture` and `Sampler` share their Vulkan objects through an `Arc`). Dropping a texture
+  that a bind group still references cannot free it under the GPU.
+- **Immutability**: a set is written once, at creation. Updating a set that pending command
+  buffers may use is invalid without update-after-bind, so replacing a resource (an atlas that
+  grows) means creating a new group and dropping the old one.
+- **Compatibility**: `RenderPass::set_bind_group` refuses a group whose layout has other
+  entries than the pipeline's set; layouts with identical entries are interchangeable.
+
+Uploads go through host-visible staging buffers: `CommandEncoder::copy_buffer_to_texture`
+copies a region from rows of any pitch, leaving the rest of the texture unchanged, and
+`clear_texture` initializes a texture. Updating a texture that earlier frames sample needs no
+CPU wait: the barrier `ShaderRead → TransferDst` orders the copy after every fragment shader
+submitted before it on the queue, and `TransferDst → ShaderRead` orders the next draws after
+the copy. `TransferDst` waits on every transfer stage, since copies and clears run at
+different ones.
 
 ## Memory
 
@@ -100,6 +133,6 @@ a requirement. Clippy denies unsafe blocks without `// SAFETY:` comments.
 
 - New object kinds: the `/gpu-resource` skill (`.claude/skills/gpu-resource/SKILL.md`).
 - New 2D primitives: the `/render-primitive` skill.
-- Next steps on the roadmap: descriptor indexing (bindless textures) for images and glyph
-  atlases, a pipeline cache persisted to disk, timestamp queries for GPU profiling, and
-  optional HDR swapchains (`VK_EXT_swapchain_colorspace`).
+- Next steps on the roadmap: descriptor indexing (bindless textures) once images multiply,
+  a pipeline cache persisted to disk, and optional HDR swapchains
+  (`VK_EXT_swapchain_colorspace`).

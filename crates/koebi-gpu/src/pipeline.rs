@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use ash::vk;
 
+use crate::binding::{BindGroupLayout, BindGroupLayoutShared};
 use crate::debug::set_object_name;
 use crate::device::DeviceShared;
 use crate::error::VkResultExt as _;
@@ -16,6 +17,9 @@ use crate::{Error, Result};
 
 /// Push constant budget guaranteed by every Vulkan implementation.
 pub const MAX_PUSH_CONSTANT_SIZE: u32 = 128;
+
+/// Bind groups a pipeline may use, guaranteed by every Vulkan implementation.
+pub const MAX_BIND_GROUPS: usize = 4;
 
 /// A shader module and its entry point.
 #[derive(Clone, Copy, Debug)]
@@ -101,6 +105,9 @@ pub struct RenderPipelineDesc<'a> {
     pub color_targets: &'a [ColorTargetDesc],
     /// Size of the push constant block shared by both stages (multiple of 4, ≤ 128).
     pub push_constant_size: u32,
+    /// The layouts of the bind groups the shaders read, by set number (at most
+    /// [`MAX_BIND_GROUPS`]).
+    pub bind_group_layouts: &'a [&'a BindGroupLayout],
 }
 
 /// A compiled graphics pipeline with its layout.
@@ -112,11 +119,12 @@ pub struct RenderPipeline {
     raw: vk::Pipeline,
     layout: vk::PipelineLayout,
     push_constant_size: u32,
+    bind_group_layouts: Vec<Arc<BindGroupLayoutShared>>,
 }
 
 impl RenderPipeline {
     pub(crate) fn new(device: &Arc<DeviceShared>, desc: &RenderPipelineDesc<'_>) -> Result<Self> {
-        validate(desc)?;
+        validate(device, desc)?;
         let push_ranges = [vk::PushConstantRange {
             stage_flags: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
             offset: 0,
@@ -127,7 +135,14 @@ impl RenderPipeline {
         } else {
             &[]
         };
-        let layout_info = vk::PipelineLayoutCreateInfo::default().push_constant_ranges(ranges);
+        let set_layouts: Vec<_> = desc
+            .bind_group_layouts
+            .iter()
+            .map(|layout| layout.handle())
+            .collect();
+        let layout_info = vk::PipelineLayoutCreateInfo::default()
+            .set_layouts(&set_layouts)
+            .push_constant_ranges(ranges);
         // SAFETY: valid device and create info.
         let layout = unsafe { device.raw.create_pipeline_layout(&layout_info, None) }
             .ctx("vkCreatePipelineLayout")?;
@@ -239,6 +254,11 @@ impl RenderPipeline {
             raw,
             layout,
             push_constant_size: desc.push_constant_size,
+            bind_group_layouts: desc
+                .bind_group_layouts
+                .iter()
+                .map(|layout| Arc::clone(layout.shared()))
+                .collect(),
         })
     }
 
@@ -256,6 +276,15 @@ impl RenderPipeline {
     pub fn push_constant_size(&self) -> u32 {
         self.push_constant_size
     }
+
+    /// The layout of bind group `index`, if the pipeline has one.
+    pub(crate) fn bind_group_layout(&self, index: u32) -> Option<&Arc<BindGroupLayoutShared>> {
+        self.bind_group_layouts.get(usize::try_from(index).ok()?)
+    }
+
+    pub(crate) fn device(&self) -> &Arc<DeviceShared> {
+        &self.device
+    }
 }
 
 impl fmt::Debug for RenderPipeline {
@@ -263,6 +292,7 @@ impl fmt::Debug for RenderPipeline {
         f.debug_struct("RenderPipeline")
             .field("handle", &self.raw)
             .field("push_constant_size", &self.push_constant_size)
+            .field("bind_groups", &self.bind_group_layouts.len())
             .finish_non_exhaustive()
     }
 }
@@ -276,8 +306,18 @@ impl Drop for RenderPipeline {
     }
 }
 
-fn validate(desc: &RenderPipelineDesc<'_>) -> Result<()> {
+fn validate(device: &Arc<DeviceShared>, desc: &RenderPipelineDesc<'_>) -> Result<()> {
     let fail = |message: &str| Err(Error::InvalidArgument(format!("{}: {message}", desc.label)));
+    if desc.bind_group_layouts.len() > MAX_BIND_GROUPS {
+        return fail("a pipeline uses at most 4 bind groups");
+    }
+    if desc
+        .bind_group_layouts
+        .iter()
+        .any(|layout| !Arc::ptr_eq(&layout.shared().device, device))
+    {
+        return fail("a bind group layout belongs to another device");
+    }
     if desc.color_targets.is_empty() {
         return fail("at least one color target is required");
     }

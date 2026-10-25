@@ -98,6 +98,7 @@ impl PrimitivePipeline {
                 blend: BlendMode::PremultipliedAlpha,
             }],
             push_constant_size: 16,
+            bind_group_layouts: &[],
         })?;
         Ok(Self {
             label: desc.label,

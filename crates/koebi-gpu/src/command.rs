@@ -3,10 +3,12 @@
 use std::fmt;
 use std::marker::PhantomData;
 use std::ops::Range;
+use std::sync::Arc;
 
 use ash::vk;
 use koebi_core::Extent;
 
+use crate::binding::BindGroup;
 use crate::buffer::{Buffer, BufferUsage};
 use crate::device::DeviceShared;
 use crate::format::TextureFormat;
@@ -46,6 +48,59 @@ pub enum LoadOp {
     DontCare,
 }
 
+/// A rectangle of texels, for copies.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub struct TextureRegion {
+    /// Left column.
+    pub x: u32,
+    /// Top row.
+    pub y: u32,
+    /// Width in texels.
+    pub width: u32,
+    /// Height in texels.
+    pub height: u32,
+}
+
+impl TextureRegion {
+    /// The region of `width` × `height` texels whose top-left texel is (`x`, `y`).
+    pub const fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    /// The whole of a texture of `extent`.
+    pub const fn whole(extent: Extent) -> Self {
+        Self::new(0, 0, extent.width, extent.height)
+    }
+
+    /// `true` when the region holds no texel.
+    pub const fn is_empty(self) -> bool {
+        self.width == 0 || self.height == 0
+    }
+
+    /// `true` when the region lies inside a texture of `extent`.
+    pub fn fits_in(self, extent: Extent) -> bool {
+        let right = self.x.checked_add(self.width);
+        let bottom = self.y.checked_add(self.height);
+        right.is_some_and(|right| right <= extent.width)
+            && bottom.is_some_and(|bottom| bottom <= extent.height)
+    }
+}
+
+/// Where the texel rows of a copy lie in a buffer.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub struct BufferTexels {
+    /// Byte offset of the first texel: a multiple of 4 and of the texel size.
+    pub offset: u64,
+    /// Bytes from the start of one row to the next: a multiple of the texel size, at least
+    /// the length of one row of the region.
+    pub bytes_per_row: u32,
+}
+
 /// Usage state of a texture, for [`CommandEncoder::texture_barrier`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TextureState {
@@ -77,7 +132,8 @@ impl TextureState {
                 L::COLOR_ATTACHMENT_OPTIMAL,
             ),
             Self::TransferSrc => (S::COPY, A::TRANSFER_READ, L::TRANSFER_SRC_OPTIMAL),
-            Self::TransferDst => (S::COPY, A::TRANSFER_WRITE, L::TRANSFER_DST_OPTIMAL),
+            // Copies and clears write textures, at different stages: cover every transfer.
+            Self::TransferDst => (S::ALL_TRANSFER, A::TRANSFER_WRITE, L::TRANSFER_DST_OPTIMAL),
             Self::ShaderRead => (
                 S::FRAGMENT_SHADER,
                 A::SHADER_SAMPLED_READ,
@@ -190,6 +246,74 @@ impl<'a> CommandEncoder<'a> {
         let dependency = vk::DependencyInfo::default().memory_barriers(&barriers);
         // SAFETY: recording command buffer.
         unsafe { self.device.cmd_pipeline_barrier2(self.raw, &dependency) };
+        Ok(())
+    }
+
+    /// Copies texels from `buffer` into `region` of `texture`, leaving the rest of the texture
+    /// unchanged: uploads through a staging buffer, whole or partial.
+    ///
+    /// The texture must be in [`TextureState::TransferDst`]; the buffer must hold the data
+    /// before the submission executes (host writes to mapped memory are visible to the GPU at
+    /// submission).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidArgument`] if usages are missing, the region is empty or lies
+    /// outside the texture, the layout is misaligned, or the buffer is too small.
+    pub fn copy_buffer_to_texture(
+        &mut self,
+        buffer: &Buffer,
+        texels: BufferTexels,
+        texture: &Texture,
+        region: TextureRegion,
+    ) -> Result<()> {
+        if !buffer.usage().contains(BufferUsage::TRANSFER_SRC)
+            || !texture.usage().contains(TextureUsage::TRANSFER_DST)
+        {
+            return Err(Error::InvalidArgument(
+                "copy requires TRANSFER_SRC/TRANSFER_DST".into(),
+            ));
+        }
+        let copy = buffer_image_copy(buffer, texels, texture, region)?;
+        // SAFETY: recording command buffer; objects belong to this device; the region and the
+        // buffer range were checked.
+        unsafe {
+            self.device.raw.cmd_copy_buffer_to_image(
+                self.raw,
+                buffer.handle(),
+                texture.handle(),
+                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                &[copy],
+            );
+        }
+        Ok(())
+    }
+
+    /// Fills the whole texture with `color`, given in the texture's encoding.
+    ///
+    /// The texture must be in [`TextureState::TransferDst`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidArgument`] without [`TextureUsage::TRANSFER_DST`].
+    pub fn clear_texture(&mut self, texture: &Texture, color: [f32; 4]) -> Result<()> {
+        if !texture.usage().contains(TextureUsage::TRANSFER_DST) {
+            return Err(Error::InvalidArgument(
+                "clearing a texture requires TRANSFER_DST".into(),
+            ));
+        }
+        let clear = vk::ClearColorValue { float32: color };
+        // SAFETY: recording command buffer; the texture belongs to this device and is in
+        // TRANSFER_DST_OPTIMAL layout (caller's barrier).
+        unsafe {
+            self.device.raw.cmd_clear_color_image(
+                self.raw,
+                texture.handle(),
+                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                &clear,
+                &[COLOR_RANGE],
+            );
+        }
         Ok(())
     }
 
@@ -323,6 +447,46 @@ impl RenderPass<'_> {
         Ok(())
     }
 
+    /// Binds `group` as bind group `index` of `pipeline`'s layout, for the draws that follow.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidArgument`] if the pipeline has no bind group `index`, or if the
+    /// group's layout has other entries than the pipeline's.
+    pub fn set_bind_group(
+        &mut self,
+        pipeline: &RenderPipeline,
+        index: u32,
+        group: &BindGroup,
+    ) -> Result<()> {
+        let expected = pipeline.bind_group_layout(index).ok_or_else(|| {
+            Error::InvalidArgument(format!("the pipeline has no bind group {index}"))
+        })?;
+        // Layouts with identical bindings are compatible.
+        if expected.entries != group.layout().entries
+            || !Arc::ptr_eq(pipeline.device(), &group.layout().device)
+        {
+            return Err(Error::InvalidArgument(format!(
+                "bind group {index} has entries {:?}, the pipeline expects {:?}",
+                group.entries(),
+                expected.entries
+            )));
+        }
+        // SAFETY: recording inside a pass; the set's layout is compatible with set `index` of
+        // the pipeline's layout (checked above), and the group keeps its resources alive.
+        unsafe {
+            self.device.raw.cmd_bind_descriptor_sets(
+                self.raw,
+                vk::PipelineBindPoint::GRAPHICS,
+                pipeline.layout(),
+                index,
+                &[group.handle()],
+                &[],
+            );
+        }
+        Ok(())
+    }
+
     /// Binds a vertex buffer to `slot`.
     pub fn set_vertex_buffer(&mut self, slot: u32, buffer: &Buffer, offset: u64) {
         // SAFETY: recording; the buffer belongs to this device. Deferred destruction keeps it
@@ -367,9 +531,93 @@ impl Drop for RenderPass<'_> {
     }
 }
 
+/// Validates a copy between `buffer` and `region` of `texture`, and describes it.
+fn buffer_image_copy(
+    buffer: &Buffer,
+    texels: BufferTexels,
+    texture: &Texture,
+    region: TextureRegion,
+) -> Result<vk::BufferImageCopy> {
+    let fail = |message: String| Err(Error::InvalidArgument(message));
+    if region.is_empty() || !region.fits_in(texture.extent()) {
+        return fail(format!(
+            "region {region:?} is empty or outside a texture of {:?}",
+            texture.extent()
+        ));
+    }
+    let texel_size = texture.format().bytes_per_pixel();
+    let row = u64::from(region.width) * u64::from(texel_size);
+    if !texels.offset.is_multiple_of(4) || !texels.offset.is_multiple_of(u64::from(texel_size)) {
+        return fail(format!(
+            "offset {} is not a multiple of 4 and of the texel size {texel_size}",
+            texels.offset
+        ));
+    }
+    if !texels.bytes_per_row.is_multiple_of(texel_size) || u64::from(texels.bytes_per_row) < row {
+        return fail(format!(
+            "rows of {} bytes cannot hold {} texels of {texel_size} bytes",
+            texels.bytes_per_row, region.width
+        ));
+    }
+    let end = u64::from(region.height - 1)
+        .checked_mul(u64::from(texels.bytes_per_row))
+        .and_then(|rows| rows.checked_add(row))
+        .and_then(|length| length.checked_add(texels.offset));
+    if end.is_none_or(|end| end > buffer.size()) {
+        return fail(format!(
+            "the copy reads beyond the {} bytes of the buffer",
+            buffer.size()
+        ));
+    }
+    let offset = |value: u32| {
+        i32::try_from(value).map_err(|_| Error::InvalidArgument("region offset".into()))
+    };
+    Ok(vk::BufferImageCopy {
+        buffer_offset: texels.offset,
+        buffer_row_length: texels.bytes_per_row / texel_size,
+        buffer_image_height: 0,
+        image_subresource: vk::ImageSubresourceLayers {
+            aspect_mask: vk::ImageAspectFlags::COLOR,
+            mip_level: 0,
+            base_array_layer: 0,
+            layer_count: 1,
+        },
+        image_offset: vk::Offset3D {
+            x: offset(region.x)?,
+            y: offset(region.y)?,
+            z: 0,
+        },
+        image_extent: vk::Extent3D {
+            width: region.width,
+            height: region.height,
+            depth: 1,
+        },
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn transfer_destinations_wait_for_clears_as_well_as_copies() {
+        // Clears run at the CLEAR stage and copies at COPY: a barrier leaving `TransferDst`
+        // must wait for both, or synchronization validation reports a write-after-write hazard.
+        assert_eq!(
+            TextureState::TransferDst.sync().0,
+            vk::PipelineStageFlags2::ALL_TRANSFER
+        );
+    }
+
+    #[test]
+    fn regions_fit_inside_their_texture() {
+        let extent = Extent::new(8, 4);
+        assert!(TextureRegion::whole(extent).fits_in(extent));
+        assert!(TextureRegion::new(6, 2, 2, 2).fits_in(extent));
+        assert!(!TextureRegion::new(7, 0, 2, 1).fits_in(extent));
+        assert!(!TextureRegion::new(0, u32::MAX, 1, 2).fits_in(extent));
+        assert!(TextureRegion::new(1, 1, 0, 3).is_empty());
+    }
 
     #[test]
     fn undefined_waits_on_color_output_to_chain_with_acquire() {
