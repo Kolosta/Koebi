@@ -5,7 +5,9 @@
 //! build instead of being vendored.
 
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::SystemTime;
 
 use crate::util::{self, Result};
 
@@ -80,7 +82,6 @@ pub(crate) fn run(options: &Options) -> Result<()> {
         }
         util::run(&mut build)?;
 
-        // sdl3-sys copies libSDL3.so next to the crate outputs.
         let out = root.join("target").join(triple).join(profile);
         let jni = project
             .join("app")
@@ -89,9 +90,14 @@ pub(crate) fn run(options: &Options) -> Result<()> {
             .join("jniLibs")
             .join(abi);
         fs::create_dir_all(&jni)?;
-        for library in ["libkoebi.so", "libSDL3.so"] {
-            fs::copy(out.join(library), jni.join(library))
-                .map_err(|e| format!("cannot copy {library} from {}: {e}", out.display()))?;
+        let sdl = sdl_library(&out)
+            .ok_or_else(|| format!("libSDL3.so not found under {}", out.display()))?;
+        for (source, library) in [
+            (out.join("libkoebi.so"), "libkoebi.so"),
+            (sdl, "libSDL3.so"),
+        ] {
+            fs::copy(&source, jni.join(library))
+                .map_err(|e| format!("cannot copy {}: {e}", source.display()))?;
         }
     }
 
@@ -144,9 +150,86 @@ pub(crate) fn run(options: &Options) -> Result<()> {
     Ok(())
 }
 
+/// The SDL library to package for a profile directory (`target/<triple>/<profile>`).
+///
+/// The sdl3-sys build script copies `libSDL3.so` next to the crate outputs, but only when it
+/// runs: when the build outputs come from a cache, the build script is up to date and the copy
+/// may be missing. The library `CMake` installed in the build script's output directory is then
+/// used, the newest one if several builds exist.
+fn sdl_library(profile_dir: &Path) -> Option<PathBuf> {
+    let copy = profile_dir.join("libSDL3.so");
+    if copy.is_file() {
+        return Some(copy);
+    }
+    let mut found: Vec<(SystemTime, PathBuf)> = Vec::new();
+    for entry in fs::read_dir(profile_dir.join("build")).ok()?.flatten() {
+        if !entry.file_name().to_string_lossy().starts_with("sdl3-sys-") {
+            continue;
+        }
+        for lib in ["lib", "lib64"] {
+            let path = entry.path().join("out").join(lib).join("libSDL3.so");
+            if let Ok(metadata) = fs::metadata(&path) {
+                found.push((metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH), path));
+            }
+        }
+    }
+    found
+        .into_iter()
+        .max_by_key(|(modified, _)| *modified)
+        .map(|(_, path)| path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A fresh profile directory, removed on drop.
+    struct Profile(PathBuf);
+
+    impl Profile {
+        fn new(name: &str) -> Self {
+            let dir = std::env::temp_dir().join(format!("xtask-{}-{name}", std::process::id()));
+            fs::remove_dir_all(&dir).ok();
+            fs::create_dir_all(&dir).unwrap();
+            Self(dir)
+        }
+
+        fn file(&self, relative: &str) -> PathBuf {
+            let path = self.0.join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, b"elf").unwrap();
+            path
+        }
+    }
+
+    impl Drop for Profile {
+        fn drop(&mut self) {
+            fs::remove_dir_all(&self.0).ok();
+        }
+    }
+
+    #[test]
+    fn sdl_library_is_found_when_the_build_script_did_not_run() {
+        // Issue #51: with build outputs restored from a cache, only CMake's copy exists.
+        let profile = Profile::new("cached");
+        let installed = profile.file("build/sdl3-sys-0123abcd/out/lib/libSDL3.so");
+        profile.file("build/other-crate-42/out/lib/libSDL3.so.txt");
+        assert_eq!(sdl_library(&profile.0), Some(installed));
+    }
+
+    #[test]
+    fn sdl_library_prefers_the_copy_next_to_the_crate_outputs() {
+        let profile = Profile::new("fresh");
+        profile.file("build/sdl3-sys-0123abcd/out/lib64/libSDL3.so");
+        let copy = profile.file("libSDL3.so");
+        assert_eq!(sdl_library(&profile.0), Some(copy));
+    }
+
+    #[test]
+    fn sdl_library_is_absent_without_a_build() {
+        let profile = Profile::new("empty");
+        assert_eq!(sdl_library(&profile.0), None);
+    }
 
     #[test]
     fn abis_map_to_rust_targets() {
