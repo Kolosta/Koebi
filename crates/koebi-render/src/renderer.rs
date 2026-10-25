@@ -51,6 +51,51 @@ impl ViewportConstants {
     }
 }
 
+/// A scissor rectangle in physical pixels.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Scissor {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+}
+
+impl Scissor {
+    /// The whole target.
+    fn full(extent: Extent) -> Self {
+        Self {
+            x: 0,
+            y: 0,
+            width: extent.width,
+            height: extent.height,
+        }
+    }
+
+    /// `clip` (logical pixels) on the target, its edges rounded to the nearest pixel so that
+    /// clips sharing an edge share a pixel boundary. `None` when nothing remains.
+    fn of(clip: koebi_core::Rect, viewport: Viewport) -> Option<Self> {
+        let scale = viewport.scale_factor;
+        let edge = |value: f32, size: u32| {
+            #[allow(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                reason = "rounded and clamped to the target first"
+            )]
+            let pixel = (value * scale).round().clamp(0.0, size as f32) as u32;
+            pixel
+        };
+        let (width, height) = (viewport.extent.width, viewport.extent.height);
+        let (x0, x1) = (edge(clip.min.x, width), edge(clip.max.x, width));
+        let (y0, y1) = (edge(clip.min.y, height), edge(clip.max.y, height));
+        (x1 > x0 && y1 > y0).then(|| Self {
+            x: i32::try_from(x0).unwrap_or(i32::MAX),
+            y: i32::try_from(y0).unwrap_or(i32::MAX),
+            width: x1 - x0,
+            height: y1 - y0,
+        })
+    }
+}
+
 /// What differs between the pipelines of two primitive types.
 struct PipelineDesc<'a> {
     label: &'static str,
@@ -331,7 +376,18 @@ impl Renderer2D {
             .then(|| self.glyphs.prepared(frame_index, scene.glyph_count()))
             .transpose()?;
         let constants = ViewportConstants::new(viewport);
+        let full = Scissor::full(viewport.extent);
+        let mut current = full;
         for batch in scene.batches() {
+            let scissor = batch
+                .clip
+                .map_or(Some(full), |clip| Scissor::of(clip, viewport));
+            // Clipped away entirely.
+            let Some(scissor) = scissor else { continue };
+            if scissor != current {
+                pass.set_scissor(scissor.x, scissor.y, scissor.width, scissor.height);
+                current = scissor;
+            }
             let (primitives, buffer) = match batch.kind {
                 PrimitiveKind::Rect => (&self.rects, rects),
                 PrimitiveKind::Line => (&self.lines, lines),
@@ -394,6 +450,37 @@ impl Renderer2D {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn clips_become_rounded_scissors_inside_the_target() {
+        let viewport = Viewport {
+            extent: Extent::new(100, 80),
+            scale_factor: 1.5,
+        };
+        let rect = |x0, y0, x1, y1| {
+            koebi_core::Rect::from_min_max(
+                koebi_core::Vec2::new(x0, y0),
+                koebi_core::Vec2::new(x1, y1),
+            )
+        };
+        // 10.3 * 1.5 = 15.45 rounds to 15; 20.5 * 1.5 = 30.75 rounds to 31.
+        assert_eq!(
+            Scissor::of(rect(10.3, 4.0, 20.5, 8.0), viewport),
+            Some(Scissor {
+                x: 15,
+                y: 6,
+                width: 16,
+                height: 6,
+            })
+        );
+        // Clamped to the target; nothing left outside it.
+        assert_eq!(
+            Scissor::of(rect(-5.0, -5.0, 500.0, 500.0), viewport),
+            Some(Scissor::full(viewport.extent))
+        );
+        assert_eq!(Scissor::of(rect(200.0, 0.0, 300.0, 10.0), viewport), None);
+        assert_eq!(Scissor::of(koebi_core::Rect::ZERO, viewport), None);
+    }
 
     #[test]
     fn viewport_constants_carry_physical_size_and_scale() {

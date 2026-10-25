@@ -236,3 +236,35 @@ fn painter_order_holds_across_primitive_types() {
     assert_pixel(&image, 12, 8, top.to_rgba8(), 1);
     gpu.assert_no_validation_errors();
 }
+
+#[test]
+fn clips_cut_primitives_exactly_at_their_edges() {
+    let Some(gpu) = gpu_or_skip("clips_cut_primitives_exactly_at_their_edges") else {
+        return;
+    };
+    let mut scene = Scene::new();
+    scene.set_clear_color(BACKGROUND);
+    scene.push_clip(rect(4.0, 4.0, 8.0, 8.0));
+    scene.push_rect(&RectPrimitive::new(rect(0.0, 0.0, 32.0, 16.0), FILL));
+    scene.pop_clip();
+    // Drawn after the clip ends: not clipped.
+    scene.push_rect(&RectPrimitive::new(rect(20.0, 0.0, 4.0, 4.0), STROKE));
+    for scale in [1.0_f32, 2.0] {
+        let factor = if scale > 1.0 { 2 } else { 1 };
+        let image = render(&gpu, Extent::new(32 * factor, 16 * factor), scale, &scene);
+        for y in 0..16 * factor {
+            for x in 0..32 * factor {
+                let (lx, ly) = (x / factor, y / factor);
+                let expected = if (4..12).contains(&lx) && (4..12).contains(&ly) {
+                    FILL
+                } else if (20..24).contains(&lx) && ly < 4 {
+                    STROKE
+                } else {
+                    BACKGROUND
+                };
+                assert_pixel(&image, x, y, expected.to_rgba8(), 1);
+            }
+        }
+    }
+    gpu.assert_no_validation_errors();
+}

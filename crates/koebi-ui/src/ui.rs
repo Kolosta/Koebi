@@ -256,15 +256,17 @@ impl<'a> Ui<'a> {
         result
     }
 
-    /// Draws with `add`, hit testing its components only inside `clip` (a scrolling list:
-    /// rows scrolled out of view receive nothing).
+    /// Draws with `add` clipped to `clip`, and hit tests its components only inside it (a
+    /// scrolling list: rows scrolled out of view are neither drawn nor clicked).
     pub fn clipped<R>(&mut self, clip: Rect, add: impl FnOnce(&mut Self) -> R) -> R {
         let clip = match self.clip {
             Some(outer) => outer.intersection(&clip).unwrap_or(Rect::ZERO),
             None => clip,
         };
         let previous = self.clip.replace(clip);
+        self.scene.push_clip(clip);
         let result = add(self);
+        self.scene.pop_clip();
         self.clip = previous;
         result
     }
