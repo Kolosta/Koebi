@@ -25,7 +25,7 @@ pub(crate) static GROUP: ActionGroup = ActionGroup {
 };
 
 /// Every action group of the application, for the keymap.
-pub(crate) static GROUPS: [&ActionGroup; 1] = [&GROUP];
+pub(crate) static GROUPS: [&ActionGroup; 2] = [&GROUP, &koebi_ui::MENU_ACTIONS];
 
 /// The interface's button for a mouse button, if components react to it.
 pub(crate) fn pointer_button(button: MouseButton) -> Option<PointerButton> {

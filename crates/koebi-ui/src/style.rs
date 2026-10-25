@@ -9,10 +9,11 @@ use koebi_core::Color;
 use koebi_design::{DesignSystem, Resolve};
 use koebi_tokens::component;
 
+use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
-    ButtonStyle, CheckboxStyle, DragValueStyle, PanelStyle, SeparatorStyle, SliderStyle,
-    SwatchStyle, ThemeCardStyle, ToggleStyle,
+    ButtonStyle, CheckboxStyle, DragValueStyle, DropdownStyle, MenuStyle, PanelStyle,
+    SeparatorStyle, SliderStyle, SwatchStyle, ThemeCardStyle, ToggleStyle,
 };
 
 /// One color per interaction state.
@@ -63,6 +64,8 @@ pub struct Styles {
     pub background: Color,
     /// Line icons.
     pub icon: IconStyle,
+    /// Typography and text colors.
+    pub text: TextStyles,
     /// [`Ui::button`](crate::Ui::button).
     pub button: ButtonStyle,
     /// [`Ui::toggle`](crate::Ui::toggle).
@@ -81,6 +84,10 @@ pub struct Styles {
     pub swatch: SwatchStyle,
     /// [`Ui::theme_card`](crate::Ui::theme_card).
     pub theme_card: ThemeCardStyle,
+    /// [`Ui::menu`](crate::Ui::menu).
+    pub menu: MenuStyle,
+    /// [`Ui::dropdown`](crate::Ui::dropdown).
+    pub dropdown: DropdownStyle,
 }
 
 impl Styles {
@@ -90,6 +97,7 @@ impl Styles {
         Self {
             background: tokens.get(component::WINDOW_BACKGROUND_COLOR_DEFAULT),
             icon: IconStyle::resolve(tokens),
+            text: TextStyles::resolve(tokens),
             button: ButtonStyle::resolve(tokens),
             toggle: ToggleStyle::resolve(tokens),
             checkbox: CheckboxStyle::resolve(tokens),
@@ -99,6 +107,8 @@ impl Styles {
             separator: SeparatorStyle::resolve(tokens),
             swatch: SwatchStyle::resolve(tokens),
             theme_card: ThemeCardStyle::resolve(tokens),
+            menu: MenuStyle::resolve(tokens),
+            dropdown: DropdownStyle::resolve(tokens),
         }
     }
 }

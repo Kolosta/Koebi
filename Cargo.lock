@@ -128,6 +128,7 @@ dependencies = [
  "koebi-input",
  "koebi-render",
  "koebi-testkit",
+ "koebi-text",
  "koebi-tokens",
 ]
 

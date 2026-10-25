@@ -57,6 +57,7 @@ mod id;
 mod input;
 mod routing;
 mod style;
+mod text;
 mod ui;
 mod widgets;
 
@@ -65,10 +66,13 @@ pub use id::WidgetId;
 pub use input::{Input, PointerButton};
 pub use routing::Layer;
 pub use style::{IconStyle, StateColors, StyleCache, Styles};
+pub use text::{Align, FontStyle, TextStyles};
 pub use ui::{Response, Ui, UiState, WidgetState};
 pub use widgets::{
-    ButtonStyle, CheckboxStyle, DragValueStyle, PanelLevel, PanelStyle, SeparatorStyle,
-    SliderStyle, SwatchStyle, ThemeCardStyle, ThemePreview, ToggleStyle,
+    ButtonStyle, CheckboxStyle, DragValueStyle, DropdownStyle, MENU, MENU_ACTIONS, MENU_CHOOSE,
+    MENU_CLOSE, MENU_NEXT, MENU_PREVIOUS, MenuAction, MenuItem, MenuState, MenuStyle, PanelLevel,
+    PanelStyle, SeparatorStyle, SliderStyle, SwatchStyle, ThemeCardStyle, ThemePreview,
+    ToggleStyle,
 };
 
 /// The styles of Koebi's base theme, for unit tests.

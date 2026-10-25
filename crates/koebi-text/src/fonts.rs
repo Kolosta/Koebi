@@ -82,10 +82,10 @@ impl Fonts {
     /// fonts first; from 400 to 500, up to 500 first, then lighter; above 500, heavier fonts
     /// first. Family names match ignoring case, spaces, hyphens and underscores.
     pub fn select(&self, family: &str, weight: u16) -> Option<FontId> {
-        let family = fold(family);
+        // Compared without allocating: components select their font every frame.
         (0_u16..)
             .zip(self.entries.iter())
-            .filter(|(_, entry)| entry.family == family)
+            .filter(|(_, entry)| folded(family).eq(entry.family.chars()))
             .min_by_key(|(_, entry)| preference(weight, entry.font.weight()))
             .map(|(index, _)| FontId(index))
     }
@@ -113,13 +113,17 @@ impl fmt::Debug for Fonts {
     }
 }
 
-/// A family name folded for matching.
-fn fold(family: &str) -> String {
+/// The characters of a family name folded for matching: lowercase, without separators.
+fn folded(family: &str) -> impl Iterator<Item = char> + '_ {
     family
         .chars()
         .filter(|c| !matches!(c, ' ' | '-' | '_'))
         .flat_map(char::to_lowercase)
-        .collect()
+}
+
+/// A family name folded for matching.
+fn fold(family: &str) -> String {
+    folded(family).collect()
 }
 
 /// How well `weight` serves a request for `desired`: lower is better (CSS Fonts 4, 5.2).

@@ -7,6 +7,8 @@
 mod button;
 mod checkbox;
 mod drag_value;
+mod dropdown;
+mod menu;
 mod panel;
 mod separator;
 mod slider;
@@ -17,6 +19,11 @@ mod toggle;
 pub use button::ButtonStyle;
 pub use checkbox::CheckboxStyle;
 pub use drag_value::DragValueStyle;
+pub use dropdown::DropdownStyle;
+pub use menu::{
+    MENU, MENU_ACTIONS, MENU_CHOOSE, MENU_CLOSE, MENU_NEXT, MENU_PREVIOUS, MenuAction, MenuItem,
+    MenuState, MenuStyle,
+};
 pub use panel::{PanelLevel, PanelStyle};
 pub use separator::SeparatorStyle;
 pub use slider::SliderStyle;

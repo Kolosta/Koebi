@@ -18,7 +18,7 @@ use koebi_design::kind::Color as ColorKind;
 use koebi_design::tier::Semantic;
 use koebi_design::{DesignSystem, Scope, Token};
 use koebi_tokens::semantic;
-use koebi_ui::{Icon, PanelLevel, ThemePreview, Ui, WidgetId};
+use koebi_ui::{Icon, MenuState, PanelLevel, ThemePreview, Ui, WidgetId};
 
 /// The twelve chart colors, shown as swatches and in the grid.
 const PALETTE: [Token<ColorKind, Semantic>; 12] = [
@@ -140,6 +140,8 @@ pub(crate) struct Gallery {
     sheet: Sheet,
     /// States of the grid's checkboxes, toggles and swatches.
     grid: Vec<bool>,
+    /// The color vision dropdown's menu.
+    vision_menu: MenuState,
 }
 
 impl Gallery {
@@ -150,6 +152,7 @@ impl Gallery {
             accent_source: None,
             sheet: Sheet::default(),
             grid: Vec::new(),
+            vision_menu: MenuState::new(),
         }
     }
 
@@ -179,7 +182,7 @@ impl Gallery {
             editor::tokens(self, ui, design, tokens, metrics);
         }
         let vision = cut_top(&mut rest, vision_height, metrics.gap);
-        editor::color_vision(ui, design, vision, metrics);
+        editor::color_vision(ui, design, vision, metrics, &mut self.vision_menu, area);
         self.grid(ui, design, rest, metrics);
     }
 
