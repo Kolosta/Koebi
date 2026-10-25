@@ -50,8 +50,8 @@ platform/              Android Gradle project, iOS/macOS Info.plist templates
 docs/                  architecture, ADRs, development guides, AI workflow
 ```
 
-Layering (enforced by Cargo): `app -> ui -> render -> gpu -> core`, `app -> platform -> core`
-and `ui -> tokens -> design -> core`.
+Layering (enforced by Cargo): `app -> ui -> render -> gpu -> core`, `render -> text -> core`,
+`app -> platform -> core` and `ui -> tokens -> design -> core`.
 `render`, `gpu` and `ui` never see SDL; `platform` never sees the renderer; `core` depends on
 nothing.
 

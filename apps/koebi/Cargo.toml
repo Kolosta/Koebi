@@ -27,6 +27,7 @@ koebi-design.workspace = true
 koebi-gpu.workspace = true
 koebi-platform.workspace = true
 koebi-render.workspace = true
+koebi-text.workspace = true
 koebi-tokens.workspace = true
 koebi-ui.workspace = true
 

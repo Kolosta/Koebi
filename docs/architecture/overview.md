@@ -17,6 +17,7 @@ flowchart TD
     text["koebi-text<br/>fonts, glyph rasterization, single-line layout"]
     core["koebi-core<br/>geometry, color science, logging"]
     app --> ui --> render --> gpu --> core
+    render --> text
     app --> platform --> core
     app --> gpu
     app --> tokens
@@ -28,7 +29,7 @@ flowchart TD
 |---|---|---|
 | `koebi-core` | `Vec2`/`Rect`/`Extent`, `Color` (sRGB, linear, OKLab, OKLCH, WCAG contrast), color vision matrices, input vocabulary (`Key`, `Modifiers` with sides, `MouseButton`), logging facade | nothing |
 | `koebi-gpu` | Vulkan loading, instance, adapter selection, device, memory, buffers, textures, samplers, bind groups, pipelines, command recording, swapchain and frame pacing | `ash`, core |
-| `koebi-render` | Retained `Scene` of 2D primitives, GPU instance layouts, shaders, batching | gpu, core |
+| `koebi-render` | Retained `Scene` of 2D primitives (rectangles, segments, glyphs), glyph atlas, GPU instance layouts, shaders, batching | gpu, text, core |
 | `koebi-platform` | SDL3 main callbacks (`App` trait), windows, event translation (keys, pointer, wheel, pinch, focus), cursors, Vulkan library and surface | `sdl3-sys`, `ash` (types), core |
 | `koebi-design` | Design token engine: typed tokens in three tiers, compiled token tables, themes, overrides, views, color vision ([ADR 0008](../adr/0008-design-token-system.md)) | core |
 | `koebi-tokens` | Koebi's token set and built-in themes ([design system](../design-system/README.md)) | design |

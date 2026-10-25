@@ -48,6 +48,21 @@ Line segments with round caps, over and under rectangles:
 | `lines.png` | 160x120 | 1 | the reference rendering |
 | `lines_2x.png` | 320x240 | 2 | stroke widths scaled to physical pixels |
 
+## The text scene
+
+Labels as the workspace draws them, on a card:
+
+| Element | Exercises |
+|---|---|
+| "Outliner" in Noto Sans Medium 14 | the medium weight, glyphs rasterized at the physical size |
+| Rows in Regular 12, one cut to 100 px | single-line layout, ellipsis truncation |
+| "Été, Жук, 12,5 €" at 85 % white over an accent rectangle, from x = 22.5 | accents, Cyrillic, symbols, subpixel pen positions, glyph blending over another primitive |
+
+| File | Size | Scale factor | What it adds |
+|---|---|---|---|
+| `text.png` | 160x120 | 1 | the reference rendering |
+| `text_2x.png` | 320x240 | 2 | glyphs rasterized again at twice the size, not scaled |
+
 ## Comparison
 
 `Tolerance::new(3, 8)`: channel differences up to 3/255 are ignored and at most 8 pixels may
