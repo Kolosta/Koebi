@@ -16,4 +16,7 @@ koebi_design::tokens! {
     /// Drop target: padding.
     DROP_TARGET_PADDING_DEFAULT = "drop-target.padding.default": Dimension =
         px(3.0), range(0.0, 16.0);
+    /// Drop target: border color of the target dragged items would go into.
+    DROP_TARGET_BORDER_COLOR_DEFAULT = "drop-target.border.color.default": Color ->
+        semantic::BACKGROUND_DROP_TARGET_DEFAULT;
 }

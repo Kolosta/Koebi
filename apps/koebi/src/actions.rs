@@ -25,10 +25,11 @@ pub(crate) static GROUP: ActionGroup = ActionGroup {
 };
 
 /// Every action group of the application, for the keymap.
-pub(crate) static GROUPS: [&ActionGroup; 3] = [
+pub(crate) static GROUPS: [&ActionGroup; 4] = [
     &GROUP,
     &koebi_ui::MENU_ACTIONS,
     &koebi_ui::WORKSPACE_ACTIONS,
+    &koebi_ui::LIST_ACTIONS,
 ];
 
 /// The interface's button for a mouse button, if components react to it.
@@ -156,6 +157,43 @@ mod tests {
         let triggers = keymap.handle(press, &[APP], &settings, now);
         let actions: Vec<_> = triggers.iter().map(|t| t.action.id).collect();
         assert_eq!(actions, ["app.frame-times"]);
+    }
+
+    #[test]
+    fn list_keys_apply_over_lists_and_during_their_drags() {
+        let mut keymap = Keymap::new(&GROUPS).expect("the default shortcuts do not conflict");
+        let settings = koebi_input::InputSettings::default();
+        let now = std::time::Instant::now();
+        let mut actions = |key: Key, modifiers: Modifiers, chain: &[Context]| -> Vec<&str> {
+            let press = InputEvent::Key {
+                key,
+                down: true,
+                repeat: false,
+                modifiers,
+            };
+            let triggers = keymap.handle(press, chain, &settings, now);
+            triggers.iter().map(|trigger| trigger.action.id).collect()
+        };
+        // The chain under the pointer over a list: its scroll area, the list, the window.
+        let over_list = [koebi_ui::SCROLL, koebi_ui::LIST, APP];
+        assert_eq!(
+            actions(Key::Down, Modifiers::NONE, &over_list),
+            ["list.next"]
+        );
+        assert_eq!(
+            actions(Key::Down, Modifiers::LEFT_SHIFT, &over_list),
+            ["list.extend-next"]
+        );
+        assert_eq!(
+            actions(Key::Down, Modifiers::NONE, &[APP]),
+            Vec::<&str>::new()
+        );
+        // A drag grabs the keyboard: Escape cancels it wherever the pointer is.
+        let dragging = [koebi_ui::LIST_DRAG, APP];
+        assert_eq!(
+            actions(Key::Escape, Modifiers::NONE, &dragging),
+            ["list.cancel-drag"]
+        );
     }
 
     #[test]

@@ -4,7 +4,7 @@
 use koebi_core::input::Key;
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
-use koebi_input::{ActionDef, ActionGroup, Context, KeyTrigger, Shortcut, Trigger};
+use koebi_input::{ActionDef, ActionGroup, Context, Shortcut};
 use koebi_render::{LinePrimitive, RectPrimitive};
 use koebi_tokens::{component, semantic};
 
@@ -12,18 +12,10 @@ use crate::id::WidgetId;
 use crate::routing::Layer;
 use crate::text::Align;
 use crate::ui::Ui;
-use crate::widgets::snap;
+use crate::widgets::{repeating, snap};
 
 /// An open menu: its keys apply wherever the pointer is.
 pub const MENU: Context = Context::new("menu");
-
-const fn repeating(key: Key) -> Shortcut {
-    Shortcut::new(Trigger::Key {
-        key,
-        when: KeyTrigger::Press,
-        repeat: true,
-    })
-}
 
 /// Closes the open menu without choosing.
 pub static MENU_CLOSE: ActionDef = ActionDef {

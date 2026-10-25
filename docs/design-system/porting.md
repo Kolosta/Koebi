@@ -288,3 +288,33 @@ or hold a value where no semantic token fits (32):
 - `component.theme-card.padding.default` = 4 px
 
 </details>
+
+New component tokens for the workspace (#72), scroll areas (#71) and lists (#73) (23):
+
+<details><summary>show</summary>
+
+- `component.editor.corner-radius.default` → `semantic.radius.m`
+- `component.zone.separator.hit-size.default` = 8 px
+- `component.zone.min-size.default` = 40 px
+- `component.zone.corner.size.default` = 12 px
+- `component.zone-overlay.split-preview` = `#FFFFFF24`
+- `component.zone-overlay.join.frame-width` → `semantic.border.width.medium`
+- `component.scrollbar.wheel-step.default` = 48 px
+- `component.outliner.tree-line.color.default` → `semantic.border.color.tree-line.default`
+- `component.outliner.tree-line.width.default` → `semantic.border.width.thin`
+- `component.list-row.height.default` → `semantic.size.control-height`
+- `component.list-row.indent.default` = 16 px
+- `component.list-row.padding.horizontal.default` = 4 px
+- `component.list-row.gap.default` = 4 px
+- `component.list-row.fold.size.default` = 10 px
+- `component.list-row.fold.color.default` → `semantic.text.color.secondary.default`
+- `component.list-row.expand.duration` → `semantic.animation.duration.expand`
+- `component.list-row.collapse.duration` → `semantic.animation.duration.collapse`
+- `component.list-row.swatch.size.default` = 12 px
+- `component.list-row.swatch.corner-radius.default` → `semantic.radius.xs`
+- `component.list-row.count.color.default` → `semantic.text.color.secondary.default`
+- `component.list-row.drop-line.color.default` → `semantic.background.accent.default`
+- `component.list-row.drop-line.width.default` = 2 px
+- `component.drop-target.border.color.default` → `semantic.background.drop-target.default`
+
+</details>

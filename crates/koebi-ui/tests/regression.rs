@@ -11,8 +11,12 @@ use koebi_core::{Color, Extent, Rect, Vec2};
 use koebi_design::DesignSystem;
 use koebi_render::Scene;
 use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
+use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
-use koebi_ui::{Icon, Input, PanelLevel, Styles, ThemePreview, Ui, UiState, WidgetId};
+use koebi_ui::{
+    Icon, Input, ListItem, ListOptions, ListState, PanelLevel, Styles, ThemePreview, Ui, UiState,
+    WidgetId,
+};
 
 /// Anti-aliased edges may differ by a few units between drivers.
 const CROSS_DRIVER: Tolerance = Tolerance::new(3, 8);
@@ -159,5 +163,103 @@ fn components_match_golden_in_the_light_theme() {
     design.set_active_theme(light).expect("built-in theme");
     let image = render(&gpu, Extent::new(320, 184), &component_sheet(&design));
     assert_golden!(image, "components_light", CROSS_DRIVER);
+    gpu.assert_no_validation_errors();
+}
+
+/// The rows of the lists' golden images: a scene tree with icons, and colored layers.
+fn list_items() -> [ListItem<'static>; 9] {
+    [
+        ListItem::new(1, "Scene"),
+        ListItem::new(2, "Camera")
+            .with_depth(1)
+            .with_icon(Icon::Plus),
+        ListItem::new(3, "Lights")
+            .with_depth(1)
+            .with_icon(Icon::Check),
+        ListItem::new(4, "Sun").with_depth(2),
+        ListItem::new(5, "Fill light with a long name").with_depth(2),
+        ListItem::new(6, "Props")
+            .with_depth(1)
+            .with_icon(Icon::Close),
+        ListItem::new(7, "Table").with_depth(2),
+        ListItem::new(8, "Background").with_color(Color::from_hex(0x2D_9C_DB)),
+        ListItem::new(9, "Notes").with_color(Color::from_hex(0xE0_4F_5F)),
+    ]
+}
+
+/// The tree of [`list_items`] in a 200 x 160 window, Props folded, Camera and Sun selected
+/// with Sun active, after `input` reached it: the frames before it lay the list out and
+/// play its pointer moves.
+fn list_scene(design: &DesignSystem, inputs: &[Input]) -> Scene {
+    let styles = Styles::resolve(design);
+    let mut scene = Scene::new();
+    scene.set_clear_color(styles.background);
+    let mut state = UiState::new();
+    state.set_fonts(Fonts::with_embedded());
+    let mut list = ListState::new();
+    list.set_folded(6, true);
+    list.set_selected(2, true);
+    list.set_active(Some(4));
+    let items = list_items();
+    for input in inputs {
+        scene.clear();
+        let mut ui = Ui::new(&mut scene, &styles, input, &mut state);
+        ui.list(
+            WidgetId::new("outliner"),
+            rect(0.0, 0.0, 200.0, 160.0),
+            &mut list,
+            &items,
+            &ListOptions::TREE,
+            &mut (),
+        );
+    }
+    scene
+}
+
+#[test]
+fn trees_match_golden() {
+    let Some(gpu) = gpu_or_skip("trees_match_golden") else {
+        return;
+    };
+    let design = DesignSystem::new(&KOEBI).expect("Koebi's schema is valid");
+    // The pointer over Lights.
+    let mut hover = Input::new();
+    hover.pointer_moved(Vec2::new(150.0, 50.0));
+    let image = render(
+        &gpu,
+        Extent::new(200, 160),
+        &list_scene(&design, &[hover, hover]),
+    );
+    assert_golden!(image, "tree", CROSS_DRIVER);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn dragged_rows_match_golden() {
+    let Some(gpu) = gpu_or_skip("dragged_rows_match_golden") else {
+        return;
+    };
+    let design = DesignSystem::new(&KOEBI).expect("Koebi's schema is valid");
+    // Background pressed, then dragged into the middle of Lights, then below Fill at the
+    // pointer's level: after Lights.
+    let mut frames = [Input::new(); 4];
+    frames[0].pointer_moved(Vec2::new(150.0, 130.0));
+    frames[1] = frames[0];
+    frames[1].end_frame();
+    frames[1].primary_button(true, Vec2::new(150.0, 130.0));
+    frames[2] = frames[1];
+    frames[2].end_frame();
+    frames[2].pointer_moved(Vec2::new(150.0, 50.0));
+    let image = render(
+        &gpu,
+        Extent::new(200, 160),
+        &list_scene(&design, &frames[..3]),
+    );
+    assert_golden!(image, "tree_drag_into", CROSS_DRIVER);
+    frames[3] = frames[2];
+    frames[3].end_frame();
+    frames[3].pointer_moved(Vec2::new(10.0, 97.0));
+    let image = render(&gpu, Extent::new(200, 160), &list_scene(&design, &frames));
+    assert_golden!(image, "tree_drag_after", CROSS_DRIVER);
     gpu.assert_no_validation_errors();
 }

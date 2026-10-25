@@ -27,6 +27,19 @@ images show what the themes look like.
 The theme cards always show the dark and light themes; only the cards' frames follow the
 active theme.
 
+## The lists
+
+`list_scene()` draws a tree in the dark theme, with the embedded fonts: Scene holding Camera,
+Lights (with Sun and a long-named fill light, cut with an ellipsis) and Props (folded,
+showing the 1 row it hides), then Background and Notes with color marks. Camera is selected
+and Sun active.
+
+| File | Size | Shows |
+|---|---|---|
+| `tree.png` | 200x160 | the pointer over Lights: zebra rows, lines, fold arrows, the hovered, selected and active rows |
+| `tree_drag_into.png` | 200x160 | Background dragged into Lights: the frame around Lights, the dragged row faded, its label near the pointer, the selection unchanged |
+| `tree_drag_after.png` | 200x160 | the same drag below Fill, the pointer at Lights' level: the line after Lights |
+
 ## Comparison and updates
 
 Same tolerance as the renderer's golden images: `Tolerance::new(3, 8)`. Never edit these
