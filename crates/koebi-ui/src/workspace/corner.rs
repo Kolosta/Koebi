@@ -81,16 +81,20 @@ fn drag_axis(delta: Vec2, threshold: f32) -> Option<Orientation> {
     })
 }
 
-/// The squares of side `size` at the corners of `panel`: top-left, top-right, bottom-left,
-/// bottom-right.
-fn corners(panel: Rect, size: f32) -> [Rect; 4] {
-    let at = |x: f32, y: f32| Rect::from_origin_size(Vec2::new(x, y), Vec2::splat(size));
+/// The corners of `panel`, `size` wide: top-left, top-right, bottom-left, bottom-right. The
+/// top ones are only `top` high, within the top bar's padding, so that they never cover its
+/// items.
+fn corners(panel: Rect, size: f32, top: f32) -> [Rect; 4] {
+    let at = |x: f32, y: f32, height: f32| {
+        Rect::from_origin_size(Vec2::new(x, y), Vec2::new(size, height))
+    };
     let (right, bottom) = (panel.max.x - size, panel.max.y - size);
+    let top = top.min(size);
     [
-        at(panel.min.x, panel.min.y),
-        at(right, panel.min.y),
-        at(panel.min.x, bottom),
-        at(right, bottom),
+        at(panel.min.x, panel.min.y, top),
+        at(right, panel.min.y, top),
+        at(panel.min.x, bottom, size),
+        at(right, bottom, size),
     ]
 }
 
@@ -112,7 +116,8 @@ impl Ui<'_> {
             if panel.width() < style.corner * 3.0 || panel.height() < style.corner * 3.0 {
                 continue;
             }
-            for (corner, square) in (0_u8..).zip(corners(panel, style.corner)) {
+            let squares = corners(panel, style.corner, style.top_bar_padding);
+            for (corner, square) in (0_u8..).zip(squares) {
                 let dragging = matches!(
                     view.operation,
                     Some(Operation::Corner { area: held, corner: which, .. })
@@ -197,9 +202,11 @@ mod tests {
     #[test]
     fn corners_sit_inside_the_panel() {
         let panel = Rect::from_min_max(Vec2::new(10.0, 20.0), Vec2::new(110.0, 220.0));
-        let [top_left, top_right, bottom_left, bottom_right] = corners(panel, 12.0);
+        let [top_left, top_right, bottom_left, bottom_right] = corners(panel, 12.0, 6.0);
         assert_eq!(top_left.min, panel.min);
+        assert_eq!(top_left.height(), 6.0);
         assert_eq!(top_right.max.x, panel.max.x);
+        assert_eq!(bottom_left.height(), 12.0);
         assert_eq!(bottom_left.max.y, panel.max.y);
         assert_eq!(bottom_right.max, panel.max);
     }

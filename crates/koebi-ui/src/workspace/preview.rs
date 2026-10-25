@@ -227,7 +227,7 @@ impl Ui<'_> {
                     _ => {}
                 }
             }
-            Some(Operation::Resize { .. }) | None => {}
+            Some(Operation::Resize { .. } | Operation::Dock { .. }) | None => {}
         }
     }
 }

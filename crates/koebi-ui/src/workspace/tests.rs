@@ -23,11 +23,22 @@ struct Host {
     drawn: Vec<(EditorId, Rect)>,
     copied: Vec<(EditorId, EditorId)>,
     removed: Vec<EditorId>,
+    /// Editor types offered, none by default, and the types set.
+    kinds: Vec<&'static str>,
+    set: Vec<(EditorId, usize)>,
 }
 
 impl EditorHost for Host {
     fn title(&self, _editor: EditorId) -> &'static str {
         "Editor"
+    }
+
+    fn kinds(&self) -> &[&str] {
+        &self.kinds
+    }
+
+    fn set_kind(&mut self, editor: EditorId, kind: usize) {
+        self.set.push((editor, kind));
     }
 
     fn content(&mut self, _ui: &mut Ui<'_>, editor: EditorId, rect: Rect) {
@@ -383,8 +394,8 @@ impl Harness {
 
 /// Inside the bottom-left corner of the left panel, (4, 4) to (400, 600).
 const LEFT_BOTTOM_CORNER: Vec2 = Vec2::new(8.0, 596.0);
-/// Inside the top-right corner of the left panel.
-const LEFT_TOP_RIGHT_CORNER: Vec2 = Vec2::new(396.0, 8.0);
+/// Inside the top-right corner of the left panel, within the top bar's padding.
+const LEFT_TOP_RIGHT_CORNER: Vec2 = Vec2::new(396.0, 6.0);
 
 #[test]
 fn dragging_a_corner_inwards_splits_along_the_drag() {
@@ -442,4 +453,163 @@ fn escape_cancels_a_corner_drag() {
     harness.frame();
     assert_eq!(harness.areas(), before);
     assert_eq!(harness.host.copied, []);
+}
+
+impl Harness {
+    /// The editor shown in each area, area by area.
+    fn shown(&self) -> Vec<EditorId> {
+        self.area_ids()
+            .iter()
+            .map(|area| self.workspace.stack(*area).unwrap().active())
+            .collect()
+    }
+
+    /// The tabs drawn last frame, as (editor, rectangle).
+    fn tab_rects(&self) -> Vec<(EditorId, Rect)> {
+        self.view
+            .tabs
+            .iter()
+            .map(|tab| (tab.editor, tab.rect))
+            .collect()
+    }
+}
+
+/// On the left area's top bar, away from anything drawn on it.
+const LEFT_TOP_BAR: Vec2 = Vec2::new(200.0, 20.0);
+
+#[test]
+fn stacked_editors_show_tabs_and_a_click_shows_one() {
+    let mut harness = Harness::halves();
+    let right = harness.area_ids()[1];
+    let first = harness.workspace.stack(right).unwrap().active();
+    let second = harness.workspace.add_tab(right).unwrap();
+    harness.frame();
+    let tabs = harness.tab_rects();
+    assert_eq!(tabs.len(), 2);
+    assert_eq!((tabs[0].0, tabs[1].0), (first, second));
+    // The tab bar pushes the content down.
+    let style = harness.styles.workspace;
+    let content = harness.host.drawn.last().unwrap().1;
+    assert_eq!(
+        content.min.y,
+        4.0 + style.tab_bar_height + style.top_bar_height
+    );
+    let at = tabs[0].1.center();
+    harness.input.pointer_moved(at);
+    harness.frame();
+    harness.input.primary_button(true, at);
+    harness.input.primary_button(false, at);
+    harness.frame();
+    assert_eq!(harness.workspace.stack(right).unwrap().active(), first);
+    assert!(!harness.view.is_operating());
+}
+
+#[test]
+fn dragging_a_tab_along_the_bar_reorders_it() {
+    let mut harness = Harness::halves();
+    let right = harness.area_ids()[1];
+    let first = harness.workspace.stack(right).unwrap().active();
+    let second = harness.workspace.add_tab(right).unwrap();
+    harness.frame();
+    let tabs = harness.tab_rects();
+    let past_second = Vec2::new(tabs[1].1.max.x + 4.0, tabs[1].1.center().y);
+    harness.drag(tabs[0].1.center(), past_second);
+    assert_eq!(
+        harness.workspace.stack(right).unwrap().editors(),
+        [second, first]
+    );
+    harness.workspace.check().unwrap();
+}
+
+#[test]
+fn dragging_a_top_bar_beside_an_area_docks_the_editor_there() {
+    let mut harness = Harness::halves();
+    let [left_editor, right_editor] = harness.shown()[..] else {
+        panic!("two areas");
+    };
+    harness.drag(LEFT_TOP_BAR, Vec2::new(790.0, 300.0));
+    // The right area split in half; the emptied left area closed into its neighbour.
+    assert_eq!(harness.areas().len(), 2);
+    assert_eq!(harness.shown(), [right_editor, left_editor]);
+    assert!(
+        close(harness.areas()[1].x0, 3 * GRID / 4, 2),
+        "{:?}",
+        harness.areas()
+    );
+    assert_eq!(harness.areas()[0].x0, 0);
+    harness.workspace.check().unwrap();
+}
+
+#[test]
+fn dragging_a_top_bar_into_the_middle_of_an_area_adds_a_tab() {
+    let mut harness = Harness::halves();
+    let [left_editor, right_editor] = harness.shown()[..] else {
+        panic!("two areas");
+    };
+    harness.drag(LEFT_TOP_BAR, Vec2::new(600.0, 320.0));
+    assert_eq!(harness.areas(), [GridRect::FULL]);
+    let area = harness.area_ids()[0];
+    let stack = harness.workspace.stack(area).unwrap();
+    assert_eq!(stack.editors(), [right_editor, left_editor]);
+    assert_eq!(stack.active(), left_editor);
+}
+
+#[test]
+fn escape_cancels_docking_and_a_click_on_a_top_bar_docks_nothing() {
+    let mut harness = Harness::halves();
+    let before = harness.areas();
+    harness.input.pointer_moved(LEFT_TOP_BAR);
+    harness.frame();
+    harness.input.primary_button(true, LEFT_TOP_BAR);
+    harness.frame();
+    harness.input.pointer_moved(Vec2::new(600.0, 320.0));
+    harness.frame();
+    assert_eq!(harness.state.cursor(), CursorShape::Move);
+    harness.input.trigger(&OPERATION_CANCEL);
+    harness.frame();
+    harness.input.primary_button(false, Vec2::new(600.0, 320.0));
+    harness.frame();
+    assert_eq!(harness.areas(), before);
+    assert!(!harness.view.is_operating());
+    // A click without moving.
+    harness.input.pointer_moved(LEFT_TOP_BAR);
+    harness.frame();
+    harness.input.primary_button(true, LEFT_TOP_BAR);
+    harness.input.primary_button(false, LEFT_TOP_BAR);
+    harness.frame();
+    assert_eq!(harness.areas(), before);
+    assert!(!harness.view.is_operating());
+}
+
+#[test]
+fn the_editor_type_dropdown_changes_the_kind() {
+    let mut harness = Harness::halves();
+    harness.host.kinds = vec!["Viewport", "Outliner"];
+    harness.frame();
+    let left_editor = harness.shown()[0];
+    // The dropdown starts after the top bar's padding.
+    let style = harness.styles.workspace;
+    let control = Vec2::new(
+        4.0 + style.top_bar_padding + 8.0,
+        4.0 + style.top_bar_height * 0.5,
+    );
+    harness.input.pointer_moved(control);
+    harness.frame();
+    harness.input.primary_button(true, control);
+    harness.input.primary_button(false, control);
+    harness.frame();
+    harness.frame();
+    // The second item of the menu below the control.
+    let menu = harness.styles.menu;
+    let top = 4.0 + style.top_bar_height - style.top_bar_padding + menu.border_width;
+    let second = Vec2::new(
+        control.x,
+        top + menu.padding_vertical + menu.item_height * 1.5,
+    );
+    harness.input.pointer_moved(second);
+    harness.frame();
+    harness.input.primary_button(true, second);
+    harness.input.primary_button(false, second);
+    harness.frame();
+    assert_eq!(harness.host.set, [(left_editor, 1)]);
 }

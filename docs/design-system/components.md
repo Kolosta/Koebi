@@ -49,8 +49,19 @@ in the dark and light themes, and the application shows them all in its
 between frames, and the application's `EditorHost` draws each editor's content (clipped to its
 area) and learns when a split copies an editor or a join removes some.
 
-- **Areas** are rounded panels (`component.editor.*`) with a top bar showing the editor's title,
-  separated by gaps of `zone.separator.size`.
+- **Areas** are rounded panels (`component.editor.*`) separated by gaps of
+  `zone.separator.size`. Each has a top bar starting with the editor type dropdown
+  (`EditorHost::kinds`, switching with `EditorHost::set_kind`), then the editor's own items
+  (`EditorHost::top_bar`, placed with a `BarLayout`: groups from the left, from the right, and
+  centred), and the editor's content below.
+- **Tabs** (`component.zone-tab.*`): an area holding several editors shows a tab bar above its
+  top bar; a click shows an editor, a drag along the bar reorders the tabs.
+- **Docking**: dragging a tab or the background of a top bar (past `zone-tab.drag.threshold`)
+  moves the editor: over another area's tab bar or top bar it goes into its tabs (a line shows
+  where, and a single editor's area shows its tab bar meanwhile), in the middle of an area it
+  joins its tabs, near an edge it docks beside the area, which splits in half (the half is
+  previewed). The dragged tab follows the pointer; the area it leaves closes when empty, or
+  the drop is refused if that area cannot close.
 - **Gutters** show a resize cursor; dragging one moves every edge of its line, ten times finer
   with Shift and snapped to a 48th of the window with Ctrl, both as soon as they are pressed,
   never below `zone.min-size`. After `input.hover.delay`, a band with rounded ends shows the
