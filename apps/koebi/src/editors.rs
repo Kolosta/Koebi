@@ -26,7 +26,19 @@ pub(crate) enum EditorKind {
 }
 
 impl EditorKind {
-    /// The title shown in the editor's top bar.
+    /// Every kind, in the order of the editor type dropdown.
+    pub(crate) const ALL: [Self; 5] = [
+        Self::Gallery,
+        Self::Viewport,
+        Self::Outliner,
+        Self::Info,
+        Self::Timeline,
+    ];
+
+    /// The titles of [`EditorKind::ALL`], for the dropdown.
+    const TITLES: [&'static str; 5] = ["Gallery", "Viewport", "Outliner", "Info", "Timeline"];
+
+    /// The title shown in the editor's tab and type dropdown.
     pub(crate) fn title(self) -> &'static str {
         match self {
             Self::Gallery => "Gallery",
@@ -121,6 +133,24 @@ impl EditorHost for Host<'_> {
         self.editors.kind(editor).title()
     }
 
+    fn kinds(&self) -> &[&str] {
+        &EditorKind::TITLES
+    }
+
+    fn kind(&self, editor: EditorId) -> usize {
+        let kind = self.editors.kind(editor);
+        EditorKind::ALL
+            .iter()
+            .position(|candidate| *candidate == kind)
+            .unwrap_or(0)
+    }
+
+    fn set_kind(&mut self, editor: EditorId, kind: usize) {
+        if let Some(kind) = EditorKind::ALL.get(kind) {
+            self.editors.set(editor, *kind);
+        }
+    }
+
     fn content(&mut self, ui: &mut Ui<'_>, editor: EditorId, rect: Rect) {
         match self.editors.kind(editor) {
             EditorKind::Gallery => self.gallery.show(ui, self.design, rect, self.window),
@@ -169,6 +199,16 @@ mod tests {
     }
 
     #[test]
+    fn the_dropdown_lists_every_kind_by_its_title() {
+        assert!(
+            EditorKind::ALL
+                .iter()
+                .zip(EditorKind::TITLES)
+                .all(|(kind, title)| kind.title() == title)
+        );
+    }
+
+    #[test]
     fn copies_keep_their_kind_and_removed_editors_go() {
         let mut editors = Editors::default();
         let (a, b) = (EditorId::from_saved(1), EditorId::from_saved(2));
@@ -183,8 +223,11 @@ mod tests {
         };
         host.copied(a, b);
         assert_eq!(host.title(b), "Outliner");
+        assert_eq!(host.kind(b), 2);
+        host.set_kind(b, 4);
+        assert_eq!(host.title(b), "Timeline");
         host.removed(&[a]);
-        assert_eq!(editors.kind(b), EditorKind::Outliner);
+        assert_eq!(editors.kind(b), EditorKind::Timeline);
         assert_eq!(editors.kinds.len(), 1);
     }
 }

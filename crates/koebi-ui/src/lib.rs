@@ -52,6 +52,7 @@
 //! # Ok::<(), koebi_design::Error>(())
 //! ```
 
+mod bar;
 mod icon;
 mod id;
 mod input;
@@ -62,6 +63,7 @@ mod ui;
 mod widgets;
 mod workspace;
 
+pub use bar::BarLayout;
 pub use icon::Icon;
 pub use id::WidgetId;
 pub use input::{Input, PointerButton};

@@ -11,7 +11,9 @@
 //! and restore the exact previous state; Shift makes a resize ten times finer and Ctrl snaps
 //! it, both as soon as they are pressed.
 
+mod area;
 mod corner;
+mod dock;
 mod geometry;
 mod gutter;
 mod preview;
@@ -22,14 +24,15 @@ use koebi_core::input::{CursorShape, Key, MouseButton};
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
 use koebi_input::{ActionDef, ActionGroup, ButtonTrigger, Context, Shortcut};
-use koebi_render::RectPrimitive;
 use koebi_tokens::{component, semantic};
 use koebi_workspace::{AreaId, EditorId, Layout, Line, Orientation, Workspace};
 
+use crate::bar::BarLayout;
 use crate::id::WidgetId;
-use crate::text::Align;
 use crate::ui::Ui;
 use crate::widgets::{MenuItem, MenuState};
+use area::{AreaParts, TabPart};
+use dock::DockTarget;
 use geometry::{Frame, Segment, segments};
 
 /// The workspace: its gutters and areas.
@@ -70,8 +73,30 @@ const AREA_MENU: WidgetId = WidgetId::new("workspace-area-menu");
 
 /// The application's editors, as the workspace view needs them.
 pub trait EditorHost {
-    /// The title of `editor`, shown in its top bar.
+    /// The title of `editor`, shown in its tab (and in its top bar when there are no types).
     fn title(&self, editor: EditorId) -> &str;
+
+    /// The editor types the dropdown at the start of each top bar offers; none hides it.
+    fn kinds(&self) -> &[&str] {
+        &[]
+    }
+
+    /// The type of `editor`, as an index into [`EditorHost::kinds`].
+    fn kind(&self, editor: EditorId) -> usize {
+        let _ = editor;
+        0
+    }
+
+    /// The dropdown changed the type of `editor`: the editor keeps its state for each type.
+    fn set_kind(&mut self, editor: EditorId, kind: usize) {
+        let _ = (editor, kind);
+    }
+
+    /// Draws the editor's own items in its top bar, after the type dropdown: groups from the
+    /// left, from the right and centred (`bar`).
+    fn top_bar(&mut self, ui: &mut Ui<'_>, editor: EditorId, bar: BarLayout) {
+        let _ = (ui, editor, bar);
+    }
 
     /// Draws the content of `editor` in `rect`; drawing is clipped to it.
     fn content(&mut self, ui: &mut Ui<'_>, editor: EditorId, rect: Rect);
@@ -111,6 +136,36 @@ pub struct WorkspaceStyle {
     pub top_bar_padding: f32,
     /// Color of the editor's title in the top bar.
     pub title: Color,
+    /// Height of the tab bar of an area holding several editors.
+    pub tab_bar_height: f32,
+    /// Background of the tab bar.
+    pub tab_bar_background: Color,
+    /// Space between tabs, and above them.
+    pub tab_gap: f32,
+    /// Space between a tab's sides and its title.
+    pub tab_padding: f32,
+    /// Background of a tab at rest.
+    pub tab_background: Color,
+    /// Background of a tab under the pointer.
+    pub tab_hover: Color,
+    /// Background of the shown editor's tab: the top bar's color.
+    pub tab_active: Color,
+    /// Title of a tab at rest.
+    pub tab_label: Color,
+    /// Title of the shown editor's tab.
+    pub tab_label_active: Color,
+    /// Whether an area with one editor shows its tab bar anyway.
+    pub tab_show_solo: bool,
+    /// How far a tab or a top bar moves before the drag docks its editor.
+    pub tab_drag_threshold: f32,
+    /// The line where a dragged tab would go.
+    pub insert_line: Color,
+    /// Width of that line.
+    pub insert_line_width: f32,
+    /// Where a dragged editor would go: half an area, or the whole area inset.
+    pub drop_preview: Color,
+    /// Inset of the preview of a drop into an area's tabs.
+    pub drop_center_inset: f32,
     /// Corner radius of the areas.
     pub corner_radius: f32,
     /// How long the pointer stays over a gutter before the band shows.
@@ -148,6 +203,22 @@ impl WorkspaceStyle {
             top_bar_height: tokens.get(semantic::SIZE_CONTROL_HEIGHT) + 2.0 * padding,
             top_bar_padding: padding,
             title: tokens.get(component::ZONE_TAB_LABEL_COLOR_ACTIVE),
+            tab_bar_height: tokens.get(semantic::SIZE_CONTROL_HEIGHT)
+                + 2.0 * tokens.get(component::ZONE_TAB_PADDING_VERTICAL_DEFAULT),
+            tab_bar_background: tokens.get(component::ZONE_TAB_BAR_BACKGROUND_COLOR_DEFAULT),
+            tab_gap: tokens.get(component::ZONE_TAB_GAP_DEFAULT),
+            tab_padding: tokens.get(component::ZONE_TAB_PADDING_HORIZONTAL_DEFAULT),
+            tab_background: tokens.get(component::ZONE_TAB_BACKGROUND_COLOR_DEFAULT),
+            tab_hover: tokens.get(component::ZONE_TAB_BACKGROUND_COLOR_HOVER),
+            tab_active: tokens.get(component::ZONE_TAB_BACKGROUND_COLOR_ACTIVE),
+            tab_label: tokens.get(component::ZONE_TAB_LABEL_COLOR_DEFAULT),
+            tab_label_active: tokens.get(component::ZONE_TAB_LABEL_COLOR_ACTIVE),
+            tab_show_solo: tokens.get(component::ZONE_TAB_SHOW_SOLO) != 0,
+            tab_drag_threshold: tokens.get(component::ZONE_TAB_DRAG_THRESHOLD),
+            insert_line: tokens.get(component::ZONE_TAB_INSERT_LINE_COLOR_DEFAULT),
+            insert_line_width: tokens.get(component::ZONE_TAB_INSERT_LINE_WIDTH_DEFAULT),
+            drop_preview: tokens.get(component::ZONE_TAB_DROP_PREVIEW_COLOR_DEFAULT),
+            drop_center_inset: tokens.get(component::ZONE_TAB_DROP_PREVIEW_CENTER_INSET),
             corner_radius: tokens.get(component::EDITOR_CORNER_RADIUS_DEFAULT),
             hover_delay: tokens.get(semantic::INPUT_HOVER_DELAY),
             split_preview: tokens.get(component::ZONE_OVERLAY_SPLIT_PREVIEW),
@@ -184,6 +255,13 @@ enum Operation {
         origin: Vec2,
         axis: Option<Orientation>,
     },
+    /// Dragging `editor` out of `from` by its tab or top bar, once past the threshold.
+    Dock {
+        editor: EditorId,
+        from: AreaId,
+        origin: Vec2,
+        started: bool,
+    },
 }
 
 /// What the workspace view remembers between frames. Keep one per workspace.
@@ -199,6 +277,14 @@ pub struct WorkspaceView {
     menu: MenuState,
     /// The gutter the area menu was opened on.
     menu_gutter: Option<Segment>,
+    /// Where the parts of the areas and their tabs lay in the last frame.
+    parts: Vec<AreaParts>,
+    tabs: Vec<TabPart>,
+    /// Where the editor being docked would go.
+    dock_target: Option<DockTarget>,
+    /// The editor type menu open, and the editor it belongs to.
+    type_menu: MenuState,
+    type_menu_editor: Option<EditorId>,
 }
 
 impl WorkspaceView {
@@ -227,6 +313,7 @@ impl WorkspaceView {
         if let Some(Operation::Resize { before, .. }) = self.operation.take() {
             *workspace = *before;
         }
+        self.dock_target = None;
     }
 }
 
@@ -260,60 +347,19 @@ impl Ui<'_> {
             }
         }
         self.zone(area, WORKSPACE, |ui| {
-            ui.workspace_areas(workspace, frame, &style, host);
+            ui.workspace_docking(view, workspace, frame, &style);
+            ui.workspace_areas(view, workspace, frame, &style, host, area);
             ui.workspace_gutters(view, workspace, frame, &style);
             ui.workspace_corners(view, workspace, frame, &style, host);
             ui.workspace_operation(view, workspace, frame, &style, host, area);
+            ui.dock_preview(view, &style, host);
             ui.workspace_menu(view, workspace, area);
         });
-    }
-
-    /// The panels of the areas: background, top bar with the editor's title, content.
-    fn workspace_areas(
-        &mut self,
-        workspace: &Workspace,
-        frame: Frame,
-        style: &WorkspaceStyle,
-        host: &mut dyn EditorHost,
-    ) {
-        let font = self.styles().text.label.clone();
-        for (id, rect) in workspace.layout().areas() {
-            let Some(editor) = workspace.stack(id).map(koebi_workspace::Stack::active) else {
-                continue;
-            };
-            let panel = frame.panel(rect);
-            if panel.is_empty() {
-                continue;
-            }
-            self.scene.push_rect(
-                &RectPrimitive::new(panel, style.background)
-                    .with_corner_radius(style.corner_radius),
-            );
-            let bar = Rect::from_min_max(
-                panel.min,
-                Vec2::new(
-                    panel.max.x,
-                    (panel.min.y + style.top_bar_height).min(panel.max.y),
-                ),
-            );
-            self.scene.push_rect(
-                &RectPrimitive::new(bar, style.top_bar).with_corner_radius(style.corner_radius),
-            );
-            // Square bottom corners: the content continues below the bar.
-            let radius = style.corner_radius.min(bar.height() * 0.5);
-            self.scene.push_rect(&RectPrimitive::new(
-                Rect::from_min_max(Vec2::new(bar.min.x, bar.max.y - radius), bar.max),
-                style.top_bar,
-            ));
-            let title = Rect::from_min_max(
-                Vec2::new(bar.min.x + style.top_bar_padding, bar.min.y),
-                Vec2::new(bar.max.x - style.top_bar_padding, bar.max.y),
-            );
-            self.label(host.title(editor), title, &font, style.title, Align::Start);
-            let content = Rect::from_min_max(Vec2::new(panel.min.x, bar.max.y), panel.max);
-            if !content.is_empty() {
-                self.clipped(content, |ui| host.content(ui, editor, content));
-            }
+        // A press on a top bar released without dragging was a click: nothing to dock.
+        if matches!(view.operation, Some(Operation::Dock { started: false, .. }))
+            && self.input().released()
+        {
+            view.operation = None;
         }
     }
 
