@@ -2,7 +2,6 @@
 
 use std::time::{Duration, Instant};
 
-use koebi_core::input::CursorShape;
 use koebi_core::{Extent, Rect, Vec2};
 use koebi_design::DesignSystem;
 use koebi_design::persist::Store;
@@ -12,8 +11,8 @@ use koebi_gpu::{
 };
 use koebi_input::{Context, InputSettings, Keymap};
 use koebi_platform::{
-    App, AppContext, AppControl, AppError, Cursor, Event, IterationRate, SystemCursor,
-    VulkanSupport, Window, WindowDesc, WindowEvent, exit_code,
+    App, AppContext, AppControl, AppError, Event, IterationRate, VulkanSupport, Window, WindowDesc,
+    WindowEvent, exit_code,
 };
 use koebi_render::{Renderer2D, Scene};
 use koebi_text::Fonts;
@@ -21,6 +20,7 @@ use koebi_tokens::semantic;
 use koebi_ui::{Input, MenuItem, MenuState, StyleCache, Ui, UiState, WidgetId};
 
 use crate::actions;
+use crate::cursors::AppCursors;
 use crate::design_options;
 use crate::frame_times::FrameTimes;
 use crate::gallery::Gallery;
@@ -418,23 +418,6 @@ impl Interface {
     }
 }
 
-/// The platform cursor showing `shape`.
-fn platform_cursor(shape: CursorShape) -> Cursor {
-    Cursor::System(match shape {
-        CursorShape::Pointer => SystemCursor::Pointer,
-        CursorShape::Text => SystemCursor::Text,
-        CursorShape::Crosshair => SystemCursor::Crosshair,
-        CursorShape::Move => SystemCursor::Move,
-        CursorShape::NotAllowed => SystemCursor::NotAllowed,
-        CursorShape::ResizeHorizontal => SystemCursor::ResizeHorizontal,
-        CursorShape::ResizeVertical => SystemCursor::ResizeVertical,
-        CursorShape::ResizeNwse => SystemCursor::ResizeNwse,
-        CursorShape::ResizeNesw => SystemCursor::ResizeNesw,
-        // The application registers no cursor of its own yet.
-        CursorShape::Default | CursorShape::Custom(_) => SystemCursor::Default,
-    })
-}
-
 /// Opens the store in the data directory and restores the saved state into `design`.
 fn open_store(context: &AppContext, options: &Options, design: &mut DesignSystem) -> Option<Store> {
     let directory = match &options.data_dir {
@@ -481,6 +464,8 @@ pub(crate) struct KoebiApp {
     needs_redraw: bool,
     /// The iteration rate last asked of the platform.
     rate: IterationRate,
+    /// Cursors the application drew.
+    cursors: AppCursors,
     // Field order is drop order: GPU objects (surface included) before the window.
     gpu: Gpu,
     window: Window,
@@ -613,6 +598,7 @@ impl App for KoebiApp {
                 )
             })?;
         let gpu = Gpu::new(&window, &vulkan, options.present_mode, fonts)?;
+        let cursors = AppCursors::create(context, window.scale_factor());
         koebi_core::info!(
             "window {}x{} px, scale {:.2}",
             window.size_in_pixels().width,
@@ -633,6 +619,7 @@ impl App for KoebiApp {
             frame_times: FrameTimes::new(),
             needs_redraw: true,
             rate,
+            cursors,
             gpu,
             window,
         })
@@ -644,7 +631,7 @@ impl App for KoebiApp {
             if control != AppControl::Continue {
                 return control;
             }
-            context.set_cursor(platform_cursor(self.interface.state.cursor()));
+            context.set_cursor(self.cursors.cursor(self.interface.state.cursor()));
         }
         self.interface.save_if_due();
         self.update_rate(context);

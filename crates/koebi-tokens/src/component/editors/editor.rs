@@ -14,4 +14,7 @@ koebi_design::tokens! {
     /// Editor: content inset.
     EDITOR_CONTENT_INSET_DEFAULT = "editor.content.inset.default": Dimension ->
         semantic::SPACING_EDITOR_INSET;
+    /// Corner radius of an editor's area.
+    EDITOR_CORNER_RADIUS_DEFAULT = "editor.corner-radius.default": Dimension ->
+        semantic::RADIUS_M;
 }

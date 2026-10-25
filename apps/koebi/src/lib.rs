@@ -11,6 +11,7 @@
 
 mod actions;
 mod app;
+mod cursors;
 mod design_options;
 mod frame_times;
 mod gallery;
