@@ -7,8 +7,9 @@ use sdl3_sys::events::{
     SDL_EVENT_MOUSE_MOTION, SDL_EVENT_MOUSE_WHEEL, SDL_EVENT_QUIT, SDL_EVENT_TERMINATING,
     SDL_EVENT_WILL_ENTER_BACKGROUND, SDL_EVENT_WILL_ENTER_FOREGROUND,
     SDL_EVENT_WINDOW_CLOSE_REQUESTED, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED,
-    SDL_EVENT_WINDOW_EXPOSED, SDL_EVENT_WINDOW_MINIMIZED, SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED,
-    SDL_EVENT_WINDOW_RESIZED, SDL_EVENT_WINDOW_RESTORED, SDL_Event, SDL_EventType,
+    SDL_EVENT_WINDOW_EXPOSED, SDL_EVENT_WINDOW_MINIMIZED, SDL_EVENT_WINDOW_MOUSE_LEAVE,
+    SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED, SDL_EVENT_WINDOW_RESIZED, SDL_EVENT_WINDOW_RESTORED,
+    SDL_Event, SDL_EventType,
 };
 
 use crate::window::WindowId;
@@ -99,6 +100,8 @@ pub enum WindowEvent {
     Restored,
     /// The display scale changed (moved to another monitor, OS setting).
     DisplayScaleChanged,
+    /// The pointer left the window: nothing in it is under the pointer any more.
+    PointerLeft,
 }
 
 /// A layout-dependent key code (an SDL keycode).
@@ -216,6 +219,7 @@ pub(crate) fn translate(event: &SDL_Event) -> Option<Event> {
         k if k == SDL_EVENT_WINDOW_MINIMIZED => WindowEvent::Minimized,
         k if k == SDL_EVENT_WINDOW_RESTORED => WindowEvent::Restored,
         k if k == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED => WindowEvent::DisplayScaleChanged,
+        k if k == SDL_EVENT_WINDOW_MOUSE_LEAVE => WindowEvent::PointerLeft,
         _ => return None,
     };
     Some(Event::Window {
@@ -277,6 +281,20 @@ mod tests {
         );
         assert_eq!(MouseButton::from(3), MouseButton::Right);
         assert_eq!(MouseButton::from(9), MouseButton::Other(9));
+    }
+
+    #[test]
+    fn leaving_the_window_is_translated() {
+        let mut event = blank();
+        event.window.r#type = SDL_EVENT_WINDOW_MOUSE_LEAVE;
+        event.window.windowID = sdl3_sys::video::SDL_WindowID(3);
+        assert_eq!(
+            translate(&event),
+            Some(Event::Window {
+                window: WindowId(3),
+                event: WindowEvent::PointerLeft,
+            })
+        );
     }
 
     #[test]

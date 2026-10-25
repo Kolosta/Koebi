@@ -1,16 +1,28 @@
 //! Command-line options (hand-parsed: no argument-parsing dependency).
 
 use std::fmt;
+use std::path::PathBuf;
 
+use koebi_design::ColorVision;
 use koebi_gpu::PresentMode;
 
+use crate::design_options::COLOR_VISION_MODES;
+
 /// Parsed command line.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Options {
     /// Render this many frames continuously, then exit (tests, benchmarks).
     pub frames: Option<u64>,
     /// Presentation pacing.
     pub present_mode: PresentMode,
+    /// Directory of the saved design state; the platform's preferences directory if `None`.
+    pub data_dir: Option<PathBuf>,
+    /// Theme to activate at startup, by key.
+    pub theme: Option<String>,
+    /// Global overrides to set at startup: token path and value, in command-line order.
+    pub overrides: Vec<(String, String)>,
+    /// Color vision setting to apply at startup.
+    pub color_vision: Option<ColorVision>,
     /// Print usage and exit.
     pub help: bool,
     /// Print the version and exit.
@@ -55,8 +67,19 @@ Usage: koebi [OPTIONS]
 Options:
   --frames <N>             Render N frames continuously, then exit (0 on success)
   --present-mode <MODE>    fifo (vsync, default), mailbox or immediate
+  --data-dir <DIR>         Keep the design state in DIR (default: the user's preferences)
+  --theme <KEY>            Activate a theme: dark, light, muted-green, high-contrast
+  --override <PATH=VALUE>  Override a token in every theme, for instance
+                           semantic.radius.control=6,
+                           component.button.background.color.default=#ff8800 or
+                           semantic.accent.color.700={primitive.color.green.700}
+  --color-vision <MODE>    normal, simulate-protan, simulate-deutan, simulate-tritan,
+                           simulate-achromatopsia, correct-protan, correct-deutan or
+                           correct-tritan
   -h, --help               Print this help
   -V, --version            Print the version
+
+Design changes made with these options are saved, like changes made in the interface.
 
 Environment:
   KOEBI_LOG=<level>        off, error, warn, info (default), debug, trace
@@ -109,6 +132,41 @@ Environment:
                         }
                     };
                 }
+                "--data-dir" => {
+                    let value = args.next().ok_or(ParseError::MissingValue("--data-dir"))?;
+                    options.data_dir = Some(PathBuf::from(value.as_ref()));
+                }
+                "--theme" => {
+                    let value = args.next().ok_or(ParseError::MissingValue("--theme"))?;
+                    options.theme = Some(value.as_ref().to_owned());
+                }
+                "--override" => {
+                    let value = args.next().ok_or(ParseError::MissingValue("--override"))?;
+                    let (path, definition) = value
+                        .as_ref()
+                        .split_once('=')
+                        .filter(|(path, definition)| !path.is_empty() && !definition.is_empty())
+                        .ok_or_else(|| ParseError::InvalidValue {
+                            option: "--override",
+                            value: value.as_ref().into(),
+                        })?;
+                    options
+                        .overrides
+                        .push((path.trim().to_owned(), definition.trim().to_owned()));
+                }
+                "--color-vision" => {
+                    let value = args
+                        .next()
+                        .ok_or(ParseError::MissingValue("--color-vision"))?;
+                    let (_, vision) = COLOR_VISION_MODES
+                        .iter()
+                        .find(|(name, _)| *name == value.as_ref())
+                        .ok_or_else(|| ParseError::InvalidValue {
+                            option: "--color-vision",
+                            value: value.as_ref().into(),
+                        })?;
+                    options.color_vision = Some(*vision);
+                }
                 // Platform launchers add arguments of their own (macOS `-psn_*`, IDE helpers).
                 other if other.starts_with("-psn_") => {}
                 other => return Err(ParseError::UnknownArgument(other.into())),
@@ -152,6 +210,45 @@ mod tests {
             Options::parse(["--fast"]),
             Err(ParseError::UnknownArgument("--fast".into()))
         );
+    }
+
+    #[test]
+    fn design_options_are_parsed() {
+        let options = Options::parse([
+            "--data-dir",
+            "state",
+            "--theme",
+            "light",
+            "--override",
+            "semantic.radius.control = 6",
+            "--override",
+            "component.button.background.color.default=#ff8800",
+            "--color-vision",
+            "simulate-deutan",
+        ])
+        .unwrap();
+        assert_eq!(options.data_dir, Some(PathBuf::from("state")));
+        assert_eq!(options.theme.as_deref(), Some("light"));
+        assert_eq!(
+            options.overrides,
+            [
+                ("semantic.radius.control".to_owned(), "6".to_owned()),
+                (
+                    "component.button.background.color.default".to_owned(),
+                    "#ff8800".to_owned()
+                ),
+            ]
+        );
+        assert!(matches!(
+            options.color_vision,
+            Some(ColorVision::Simulate { .. })
+        ));
+        for invalid in [["--override", "no-value"], ["--color-vision", "sepia"]] {
+            assert!(matches!(
+                Options::parse(invalid),
+                Err(ParseError::InvalidValue { .. })
+            ));
+        }
     }
 
     #[test]

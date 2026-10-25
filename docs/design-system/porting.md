@@ -245,7 +245,7 @@ The base theme is Dark: the token tables define it. The other themes come from t
 ## Added after the port
 
 New component tokens for the first components of `koebi-ui` (#45). They alias semantic tokens,
-or hold a value where no semantic token fits (30):
+or hold a value where no semantic token fits (32):
 
 <details><summary>show</summary>
 
@@ -260,6 +260,8 @@ or hold a value where no semantic token fits (30):
 - `component.slider.grab.padding.default` = 2 px
 - `component.slider.track.color.default` → `semantic.background.app.frame`
 - `component.slider.track.color.hover` → `semantic.background.app.frame-hover`
+- `component.slider.track.border.color.default` → `semantic.border.color.default`
+- `component.slider.track.border.width.default` → `semantic.border.width.thin`
 - `component.drag-value.fill.color.default` → `semantic.background.accent.default`
 - `component.panel.border.width.default` → `semantic.border.width.thin`
 - `component.panel.padding.default` = 8 px

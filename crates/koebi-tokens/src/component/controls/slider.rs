@@ -29,4 +29,10 @@ koebi_design::tokens! {
     /// Slider: track color, hovered.
     SLIDER_TRACK_COLOR_HOVER = "slider.track.color.hover": Color ->
         semantic::BACKGROUND_APP_FRAME_HOVER;
+    /// Slider: track border color.
+    SLIDER_TRACK_BORDER_COLOR_DEFAULT = "slider.track.border.color.default": Color ->
+        semantic::BORDER_COLOR_DEFAULT;
+    /// Slider: track border width.
+    SLIDER_TRACK_BORDER_WIDTH_DEFAULT = "slider.track.border.width.default": Dimension ->
+        semantic::BORDER_WIDTH_THIN;
 }

@@ -38,10 +38,13 @@ name = "koebi"
 version = "0.1.0"
 dependencies = [
  "koebi-core",
+ "koebi-design",
  "koebi-gpu",
  "koebi-platform",
  "koebi-render",
  "koebi-testkit",
+ "koebi-tokens",
+ "koebi-ui",
 ]
 
 [[package]]
