@@ -108,7 +108,9 @@ fn run_in_simulator(app: &Path) -> Result<()> {
                 BUNDLE_ID,
             ])
             .args(["--frames", SMOKE_FRAMES])
-            .env("SIMCTL_CHILD_KOEBI_LOG", "info"),
+            .env("SIMCTL_CHILD_KOEBI_LOG", "info")
+            .env("SIMCTL_CHILD_MTL_DEBUG_LAYER", "1")
+            .env("SIMCTL_CHILD_MVK_CONFIG_LOG_LEVEL", "4"),
     )?;
     println!("{log}");
     let marker = format!("presented {SMOKE_FRAMES} frames");
