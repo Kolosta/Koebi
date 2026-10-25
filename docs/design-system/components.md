@@ -20,11 +20,25 @@ reads its tokens and how to write a new one.
 | Menu | `Ui::menu(id, &mut state, &items, bounds)` returns the chosen item | `component.menu.*`, `component.separator.*` |
 | Dropdown | `Ui::dropdown(id, rect, &mut state, current, &items, bounds)` | `component.dropdown.*`, then the menu's |
 | Label | `Ui::label(text, rect, &font, color, align)`, `Ui::text_width(text, &font)` | `semantic.font.*`, `semantic.text.*` |
+| Scroll area | `Ui::scroll_area(id, rect, &mut state, content_size, axes, add)` | `component.scrollbar.*` |
 
 Line icons (`Icon::Check`, `Icon::Plus`, chevrons...) use `component.icon.*`. Labels use the
 fonts given to `UiState::set_fonts`, in the roles of `Styles::text` (label, body, detail): one
 line, cut with an ellipsis when too long ([ADR 0014](../adr/0014-text-basics.md)). Theme cards
 still draw text as bars.
+
+## Scroll areas
+
+`Ui::scroll_area` clips its content to its rectangle and gives it the scrolled origin and the
+viewport (`ScrollContent`); a `ScrollState` per area keeps the offset and the scrollbars'
+animation. The wheel and trackpads scroll it when the pointer is over it, nothing else on top
+(Shift turns the wheel sideways); one notch is `scrollbar.wheel-step`. Its scrollbars, rebuilt
+from the previous application's, are overlays in the area's margin (`scrollbar.overlay.*`):
+the margin is always kept, so content never shifts; a grab shows only when the content
+overflows, thin at rest, growing and brightening as the pointer comes within
+`scrollbar.overlay.proximity` (eased, the area asking for frames until it settles); dragging
+the grab scrolls, a press on the track brings the grab under the pointer. Which axes scroll is
+the content's choice (`ScrollAxes`): lists vertically, timelines both ways.
 
 ## Menus
 

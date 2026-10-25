@@ -10,6 +10,7 @@ mod drag_value;
 mod dropdown;
 mod menu;
 mod panel;
+mod scroll;
 mod separator;
 mod slider;
 mod swatch;
@@ -25,6 +26,7 @@ pub use menu::{
     MenuState, MenuStyle,
 };
 pub use panel::{PanelLevel, PanelStyle};
+pub use scroll::{SCROLL, ScrollAxes, ScrollContent, ScrollState, ScrollStyle};
 pub use separator::SeparatorStyle;
 pub use slider::SliderStyle;
 pub use swatch::SwatchStyle;

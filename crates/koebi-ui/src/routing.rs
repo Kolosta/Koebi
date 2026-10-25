@@ -94,6 +94,14 @@ impl Regions {
         })
     }
 
+    /// `true` when the region on top at `point` is `widget`'s, or lies in its zone.
+    pub(crate) fn is_within(&self, point: Vec2, widget: WidgetId) -> bool {
+        self.topmost(point).is_some_and(|(index, _)| {
+            self.ancestry(index)
+                .any(|region| region.widget == Some(widget))
+        })
+    }
+
     /// The contexts under `point`, innermost first, replacing the content of `chain`.
     pub(crate) fn contexts_at(&self, point: Vec2, chain: &mut Vec<Context>) {
         chain.clear();

@@ -41,4 +41,7 @@ koebi_design::tokens! {
     /// Scrollbar: overlay padding.
     SCROLLBAR_OVERLAY_PADDING_DEFAULT = "scrollbar.overlay.padding.default": Dimension =
         px(4.0), range(0.0, 20.0);
+    /// How far one notch of the wheel scrolls.
+    SCROLLBAR_WHEEL_STEP_DEFAULT = "scrollbar.wheel-step.default": Dimension =
+        px(48.0), range(1.0, 400.0);
 }

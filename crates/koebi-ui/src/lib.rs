@@ -72,8 +72,8 @@ pub use ui::{Response, Ui, UiState, WidgetState};
 pub use widgets::{
     ButtonStyle, CheckboxStyle, DragValueStyle, DropdownStyle, MENU, MENU_ACTIONS, MENU_CHOOSE,
     MENU_CLOSE, MENU_NEXT, MENU_PREVIOUS, MenuAction, MenuItem, MenuState, MenuStyle, PanelLevel,
-    PanelStyle, SeparatorStyle, SliderStyle, SwatchStyle, ThemeCardStyle, ThemePreview,
-    ToggleStyle,
+    PanelStyle, SCROLL, ScrollAxes, ScrollContent, ScrollState, ScrollStyle, SeparatorStyle,
+    SliderStyle, SwatchStyle, ThemeCardStyle, ThemePreview, ToggleStyle,
 };
 pub use workspace::{
     EditorHost, OPERATION_CANCEL, OPERATION_CONFIRM, WORKSPACE, WORKSPACE_ACTIONS,
