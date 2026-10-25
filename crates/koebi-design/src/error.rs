@@ -83,6 +83,8 @@ pub enum Error {
     UnsupportedVersion(u16),
     /// Saved data belongs to another token schema.
     ForeignSchema(String),
+    /// An imported file has problems; every one is listed, located in the file.
+    Import(Vec<crate::dtcg::ImportIssue>),
 }
 
 /// Result type of the design system.
@@ -140,6 +142,17 @@ impl fmt::Display for Error {
                     f,
                     "design data of format version {version}, newer than this build"
                 )
+            }
+            Self::Import(issues) => {
+                f.write_str("invalid design tokens file:")?;
+                for issue in issues {
+                    write!(
+                        f,
+                        "
+  {issue}"
+                    )?;
+                }
+                Ok(())
             }
             Self::ForeignSchema(name) => {
                 write!(f, "design data saved for the token schema {name:?}")

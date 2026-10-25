@@ -250,3 +250,45 @@ fn text_meets_wcag_contrast_on_every_surface_in_every_theme() {
         }
     }
 }
+
+#[test]
+fn every_theme_round_trips_through_the_design_tokens_format() {
+    use koebi_design::dtcg::{export_schema, export_theme, import_theme};
+
+    let mut design = design();
+    let values = |design: &DesignSystem, theme: ThemeId, layers: Layers| {
+        let view = design.view(theme, layers).unwrap();
+        KOEBI
+            .tokens()
+            .map(|(id, _)| view.value(id).unwrap())
+            .collect::<Vec<_>>()
+    };
+    let builtin: Vec<_> = design
+        .themes()
+        .map(|(id, t)| (id, t.key().to_owned()))
+        .collect();
+    for (id, key) in builtin {
+        let text = export_theme(&design, id).unwrap();
+        let copy = text.replace(
+            &format!("\"key\": \"{key}\""),
+            &format!("\"key\": \"{key}-copy\""),
+        );
+        let imported = import_theme(&mut design, &copy).unwrap();
+        assert_eq!(
+            values(&design, imported, Layers::THEME),
+            values(&design, id, Layers::THEME),
+            "{key}"
+        );
+    }
+
+    // The full schema export is a valid theme too: importing it reproduces the base theme.
+    let schema = export_schema(&design).replace(
+        "\"base\": \"dark\"",
+        "\"base\": \"dark\",\n      \"theme\": { \"key\": \"schema\", \"name\": \"Schema\" }",
+    );
+    let imported = import_theme(&mut design, &schema).unwrap();
+    assert_eq!(
+        values(&design, imported, Layers::THEME),
+        values(&design, ThemeId::BASE, Layers::NONE)
+    );
+}

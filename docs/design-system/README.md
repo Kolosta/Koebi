@@ -208,6 +208,37 @@ store.save_if_due(&design, Instant::now())?; // every frame: writes once a chang
 store.save(&design)?;                        // when the application goes to the background
 ```
 
+## Import and export
+
+`koebi_design::dtcg` exchanges themes as JSON in the W3C Design Tokens format, with Koebi's
+tiers, layers and theme identity in an extension ([ADR 0010](../adr/0010-design-token-interchange.md)):
+
+```rust
+use koebi_design::dtcg::{export_schema, export_theme, import_theme};
+
+let file = export_theme(&design, design.active_theme())?; // what differs from the base theme
+let reference = export_schema(&design);                    // every token, documented
+let theme = import_theme(&mut design, &file)?;            // strict: every problem is reported
+store.save(&design)?;                                      // an imported theme is kept at once
+```
+
+An exported token looks like this:
+
+```json
+"semantic": {
+  "background": {
+    "base": {
+      "default": {
+        "$type": "color",
+        "$value": "{primitive.color.gray.50}",
+        "$description": "Base background of the application.",
+        "$extensions": { "io.github.kolosta.koebi": { "tier": "semantic", "layer": "theme" } }
+      }
+    }
+  }
+}
+```
+
 ## Color science
 
 ### OKLCH
