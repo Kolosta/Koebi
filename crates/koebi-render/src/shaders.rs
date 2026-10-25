@@ -6,6 +6,10 @@ pub(crate) static RECT_VERT: &[u32] =
     koebi_gpu::include_spirv!(include_bytes!("../shaders/spirv/rect.vert.spv"));
 pub(crate) static RECT_FRAG: &[u32] =
     koebi_gpu::include_spirv!(include_bytes!("../shaders/spirv/rect.frag.spv"));
+pub(crate) static LINE_VERT: &[u32] =
+    koebi_gpu::include_spirv!(include_bytes!("../shaders/spirv/line.vert.spv"));
+pub(crate) static LINE_FRAG: &[u32] =
+    koebi_gpu::include_spirv!(include_bytes!("../shaders/spirv/line.frag.spv"));
 
 #[cfg(test)]
 mod tests {
@@ -13,7 +17,7 @@ mod tests {
 
     #[test]
     fn embedded_modules_are_spirv() {
-        for module in [RECT_VERT, RECT_FRAG] {
+        for module in [RECT_VERT, RECT_FRAG, LINE_VERT, LINE_FRAG] {
             assert_eq!(module.first(), Some(&koebi_gpu::SPIRV_MAGIC));
         }
     }

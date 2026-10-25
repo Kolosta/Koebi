@@ -8,11 +8,11 @@ use koebi_gpu::{
     VertexBufferLayout, VertexFormat, VertexStepMode,
 };
 
-use crate::scene::{RectInstance, Scene};
+use crate::scene::{LineInstance, PrimitiveKind, RectInstance, Scene};
 use crate::shaders;
 
-/// Initial size of a per-frame instance buffer (256 rectangles).
-const MIN_INSTANCE_BUFFER_BYTES: u64 = 256 * RectInstance::STRIDE as u64;
+/// Instances an instance buffer holds when first created.
+const MIN_INSTANCES_PER_BUFFER: u64 = 256;
 
 /// The render target's size and the logical→physical scale factor.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -46,33 +46,39 @@ impl ViewportConstants {
     }
 }
 
-/// Draws [`Scene`]s. Create one per target format; reuse it every frame.
-#[derive(Debug)]
-pub struct Renderer2D {
-    device: Device,
-    rect_pipeline: RenderPipeline,
-    /// One streaming buffer per frame in flight: the CPU writes slot N while the GPU reads
-    /// the others.
-    instance_buffers: Vec<Option<Buffer>>,
-    target_format: TextureFormat,
+/// What differs between the pipelines of two primitive types.
+struct PipelineDesc {
+    label: &'static str,
+    vertex: (&'static str, &'static [u32]),
+    fragment: (&'static str, &'static [u32]),
+    /// Bytes per instance: `vec4` attributes at locations `0..stride / 16`.
+    stride: u32,
 }
 
-impl Renderer2D {
-    /// Compiles the pipelines for targets of `target_format`.
-    ///
-    /// # Errors
-    ///
-    /// Fails if shader modules or pipelines cannot be created.
-    pub fn new(device: &Device, target_format: TextureFormat) -> Result<Self> {
-        let vertex = device.create_shader_module("rect.vert", shaders::RECT_VERT)?;
-        let fragment = device.create_shader_module("rect.frag", shaders::RECT_FRAG)?;
-        let attributes = [0_u32, 1, 2, 3].map(|location| VertexAttribute {
-            location,
-            format: VertexFormat::Float32x4,
-            offset: location * 16,
-        });
-        let rect_pipeline = device.create_render_pipeline(&RenderPipelineDesc {
-            label: "rect",
+/// The pipeline of one primitive type and its streaming instance buffers.
+#[derive(Debug)]
+struct PrimitivePipeline {
+    label: &'static str,
+    pipeline: RenderPipeline,
+    stride: u32,
+    /// One streaming buffer per frame in flight: the CPU writes slot N while the GPU reads
+    /// the others.
+    buffers: Vec<Option<Buffer>>,
+}
+
+impl PrimitivePipeline {
+    fn new(device: &Device, desc: &PipelineDesc, target_format: TextureFormat) -> Result<Self> {
+        let vertex = device.create_shader_module(desc.vertex.0, desc.vertex.1)?;
+        let fragment = device.create_shader_module(desc.fragment.0, desc.fragment.1)?;
+        let attributes: Vec<_> = (0..desc.stride / 16)
+            .map(|location| VertexAttribute {
+                location,
+                format: VertexFormat::Float32x4,
+                offset: location * 16,
+            })
+            .collect();
+        let pipeline = device.create_render_pipeline(&RenderPipelineDesc {
+            label: desc.label,
             vertex: ShaderStage {
                 module: &vertex,
                 entry_point: c"main",
@@ -82,7 +88,7 @@ impl Renderer2D {
                 entry_point: c"main",
             },
             vertex_buffers: &[VertexBufferLayout {
-                stride: RectInstance::STRIDE,
+                stride: desc.stride,
                 step_mode: VertexStepMode::Instance,
                 attributes: &attributes,
             }],
@@ -94,43 +100,38 @@ impl Renderer2D {
             push_constant_size: 16,
         })?;
         Ok(Self {
-            device: device.clone(),
-            rect_pipeline,
-            instance_buffers: (0..FRAMES_IN_FLIGHT).map(|_| None).collect(),
-            target_format,
+            label: desc.label,
+            pipeline,
+            stride: desc.stride,
+            buffers: (0..FRAMES_IN_FLIGHT).map(|_| None).collect(),
         })
     }
 
-    /// The target format the pipelines were built for.
-    pub fn target_format(&self) -> TextureFormat {
-        self.target_format
-    }
-
-    /// Uploads the scene's instance data into the streaming buffer of `frame_index`.
-    ///
-    /// The frame slot must not be in use by the GPU, which [`koebi_gpu::Presenter`]
-    /// guarantees for the index it provides. Buffers grow geometrically, so steady-state
-    /// frames never allocate.
-    ///
-    /// # Errors
-    ///
-    /// Fails if `frame_index >= FRAMES_IN_FLIGHT` or a buffer cannot be created.
-    pub fn prepare(&mut self, scene: &Scene, frame_index: usize) -> Result<()> {
-        let instances = scene.rect_instances();
+    /// Writes `instances` into the buffer of `frame_index`, growing it geometrically.
+    fn upload<T: Pod>(
+        &mut self,
+        device: &Device,
+        instances: &[T],
+        frame_index: usize,
+    ) -> Result<()> {
         if instances.is_empty() {
             return Ok(());
         }
         let slot = self
-            .instance_buffers
+            .buffers
             .get_mut(frame_index)
             .ok_or_else(|| Error::InvalidArgument(format!("frame index {frame_index}")))?;
         let needed = u64::try_from(size_of_val(instances))
             .map_err(|_| Error::InvalidArgument("scene too large".into()))?;
         if slot.as_ref().is_none_or(|buffer| buffer.size() < needed) {
-            let size = needed.next_power_of_two().max(MIN_INSTANCE_BUFFER_BYTES);
-            koebi_core::debug!("growing rect instance buffer {frame_index} to {size} bytes");
-            *slot = Some(self.device.create_buffer(&BufferDesc {
-                label: "rect instances",
+            let minimum = MIN_INSTANCES_PER_BUFFER * u64::from(self.stride);
+            let size = needed.next_power_of_two().max(minimum);
+            koebi_core::debug!(
+                "growing {} instance buffer {frame_index} to {size} bytes",
+                self.label
+            );
+            *slot = Some(device.create_buffer(&BufferDesc {
+                label: self.label,
                 size,
                 usage: BufferUsage::VERTEX,
                 location: MemoryLocation::CpuToGpu,
@@ -142,8 +143,79 @@ impl Renderer2D {
         Ok(())
     }
 
-    /// Records the scene's draw calls into an active pass. Call [`Renderer2D::prepare`]
-    /// with the same `frame_index` first.
+    /// The buffer of `frame_index`, if it holds at least `count` instances.
+    fn prepared(&self, frame_index: usize, count: usize) -> Result<&Buffer> {
+        let bytes = u64::try_from(count)
+            .ok()
+            .and_then(|count| count.checked_mul(u64::from(self.stride)));
+        self.buffers
+            .get(frame_index)
+            .and_then(Option::as_ref)
+            .filter(|buffer| bytes.is_some_and(|bytes| buffer.size() >= bytes))
+            .ok_or_else(|| Error::InvalidArgument("scene was not prepared for this frame".into()))
+    }
+}
+
+/// Draws [`Scene`]s. Create one per target format; reuse it every frame.
+#[derive(Debug)]
+pub struct Renderer2D {
+    device: Device,
+    rects: PrimitivePipeline,
+    lines: PrimitivePipeline,
+    target_format: TextureFormat,
+}
+
+impl Renderer2D {
+    /// Compiles the pipelines for targets of `target_format`.
+    ///
+    /// # Errors
+    ///
+    /// Fails if shader modules or pipelines cannot be created.
+    pub fn new(device: &Device, target_format: TextureFormat) -> Result<Self> {
+        let rects = PipelineDesc {
+            label: "rect",
+            vertex: ("rect.vert", shaders::RECT_VERT),
+            fragment: ("rect.frag", shaders::RECT_FRAG),
+            stride: RectInstance::STRIDE,
+        };
+        let lines = PipelineDesc {
+            label: "line",
+            vertex: ("line.vert", shaders::LINE_VERT),
+            fragment: ("line.frag", shaders::LINE_FRAG),
+            stride: LineInstance::STRIDE,
+        };
+        Ok(Self {
+            device: device.clone(),
+            rects: PrimitivePipeline::new(device, &rects, target_format)?,
+            lines: PrimitivePipeline::new(device, &lines, target_format)?,
+            target_format,
+        })
+    }
+
+    /// The target format the pipelines were built for.
+    pub fn target_format(&self) -> TextureFormat {
+        self.target_format
+    }
+
+    /// Uploads the scene's instance data into the streaming buffers of `frame_index`.
+    ///
+    /// The frame slot must not be in use by the GPU, which [`koebi_gpu::Presenter`]
+    /// guarantees for the index it provides. Buffers grow geometrically, so steady-state
+    /// frames never allocate.
+    ///
+    /// # Errors
+    ///
+    /// Fails if `frame_index >= FRAMES_IN_FLIGHT` or a buffer cannot be created.
+    pub fn prepare(&mut self, scene: &Scene, frame_index: usize) -> Result<()> {
+        self.rects
+            .upload(&self.device, scene.rect_instances(), frame_index)?;
+        self.lines
+            .upload(&self.device, scene.line_instances(), frame_index)
+    }
+
+    /// Records the scene's draw calls into an active pass: one instanced draw per run of
+    /// consecutive primitives of the same type, in painter's order. Call
+    /// [`Renderer2D::prepare`] with the same `frame_index` first.
     ///
     /// # Errors
     ///
@@ -155,24 +227,29 @@ impl Renderer2D {
         frame_index: usize,
         viewport: Viewport,
     ) -> Result<()> {
-        let count = scene.rect_count();
-        if count == 0 {
+        if scene.is_empty() {
             return Ok(());
         }
-        let buffer = self
-            .instance_buffers
-            .get(frame_index)
-            .and_then(Option::as_ref)
-            .filter(|buffer| buffer.size() >= count as u64 * u64::from(RectInstance::STRIDE))
-            .ok_or_else(|| {
-                Error::InvalidArgument("scene was not prepared for this frame".into())
-            })?;
-        let instances =
-            u32::try_from(count).map_err(|_| Error::InvalidArgument("too many rects".into()))?;
-        pass.set_pipeline(&self.rect_pipeline);
-        pass.set_push_constants(&self.rect_pipeline, &ViewportConstants::new(viewport))?;
-        pass.set_vertex_buffer(0, buffer, 0);
-        pass.draw(0..4, 0..instances);
+        // Check both buffers before recording anything.
+        let rects = (scene.rect_count() > 0)
+            .then(|| self.rects.prepared(frame_index, scene.rect_count()))
+            .transpose()?;
+        let lines = (scene.line_count() > 0)
+            .then(|| self.lines.prepared(frame_index, scene.line_count()))
+            .transpose()?;
+        let constants = ViewportConstants::new(viewport);
+        for batch in scene.batches() {
+            let (primitives, buffer) = match batch.kind {
+                PrimitiveKind::Rect => (&self.rects, rects),
+                PrimitiveKind::Line => (&self.lines, lines),
+            };
+            // A batch exists only for a type with instances, whose buffer was checked above.
+            let Some(buffer) = buffer else { continue };
+            pass.set_pipeline(&primitives.pipeline);
+            pass.set_push_constants(&primitives.pipeline, &constants)?;
+            pass.set_vertex_buffer(0, buffer, 0);
+            pass.draw(0..4, batch.instances());
+        }
         Ok(())
     }
 
