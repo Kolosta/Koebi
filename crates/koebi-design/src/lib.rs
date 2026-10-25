@@ -90,6 +90,7 @@
 //! ```
 
 pub mod define;
+pub mod dtcg;
 pub mod kind;
 pub mod persist;
 pub mod schema;
@@ -100,6 +101,7 @@ mod active;
 mod check;
 mod error;
 mod graph;
+mod json;
 mod layers;
 mod macros;
 mod system;

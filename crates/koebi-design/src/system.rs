@@ -434,6 +434,11 @@ impl DesignSystem {
         Ok(())
     }
 
+    /// The token graph, for the modules of this crate (export reads raw layers).
+    pub(crate) fn graph(&self) -> &Graph {
+        &self.graph
+    }
+
     /// Number of tokens resolved again by the last change. Exposed for tests and profiling.
     #[doc(hidden)]
     pub fn last_refresh_len(&self) -> usize {
