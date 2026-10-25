@@ -2,6 +2,7 @@
 
 use std::time::{Duration, Instant};
 
+use koebi_core::input::CursorShape;
 use koebi_core::{Extent, Rect, Vec2};
 use koebi_design::DesignSystem;
 use koebi_design::persist::Store;
@@ -10,8 +11,8 @@ use koebi_gpu::{
     RenderOutcome, Surface, Validation,
 };
 use koebi_platform::{
-    App, AppContext, AppControl, AppError, Event, IterationRate, MouseButton, VulkanSupport,
-    Window, WindowDesc, WindowEvent, exit_code,
+    App, AppContext, AppControl, AppError, Cursor, Event, IterationRate, MouseButton, SystemCursor,
+    VulkanSupport, Window, WindowDesc, WindowEvent, exit_code,
 };
 use koebi_render::{Renderer2D, Scene};
 use koebi_ui::{Input, StyleCache, Ui, UiState};
@@ -301,6 +302,23 @@ impl Interface {
     }
 }
 
+/// The platform cursor showing `shape`.
+fn platform_cursor(shape: CursorShape) -> Cursor {
+    Cursor::System(match shape {
+        CursorShape::Pointer => SystemCursor::Pointer,
+        CursorShape::Text => SystemCursor::Text,
+        CursorShape::Crosshair => SystemCursor::Crosshair,
+        CursorShape::Move => SystemCursor::Move,
+        CursorShape::NotAllowed => SystemCursor::NotAllowed,
+        CursorShape::ResizeHorizontal => SystemCursor::ResizeHorizontal,
+        CursorShape::ResizeVertical => SystemCursor::ResizeVertical,
+        CursorShape::ResizeNwse => SystemCursor::ResizeNwse,
+        CursorShape::ResizeNesw => SystemCursor::ResizeNesw,
+        // The application registers no cursor of its own yet.
+        CursorShape::Default | CursorShape::Custom(_) => SystemCursor::Default,
+    })
+}
+
 /// Opens the store in the data directory and restores the saved state into `design`.
 fn open_store(context: &AppContext, options: &Options, design: &mut DesignSystem) -> Option<Store> {
     let directory = match &options.data_dir {
@@ -509,6 +527,7 @@ impl App for KoebiApp {
             if control != AppControl::Continue {
                 return control;
             }
+            context.set_cursor(platform_cursor(self.interface.state.cursor()));
         }
         self.interface.save_if_due();
         self.update_rate(context);

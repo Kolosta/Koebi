@@ -522,6 +522,35 @@ impl From<u8> for MouseButton {
     }
 }
 
+/// The shape of the pointer, as interface components ask for it. The platform layer maps
+/// it to the system's cursors; `Custom` cursors are made by the application.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum CursorShape {
+    /// The default arrow.
+    #[default]
+    Default,
+    /// A clickable element.
+    Pointer,
+    /// Text insertion.
+    Text,
+    /// Precise selection.
+    Crosshair,
+    /// Moving something in any direction.
+    Move,
+    /// The action under the pointer is not possible.
+    NotAllowed,
+    /// Resizing horizontally (a vertical gutter).
+    ResizeHorizontal,
+    /// Resizing vertically (a horizontal gutter).
+    ResizeVertical,
+    /// Resizing along the top-left to bottom-right diagonal.
+    ResizeNwse,
+    /// Resizing along the top-right to bottom-left diagonal.
+    ResizeNesw,
+    /// A cursor the application created, by its own number.
+    Custom(u16),
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

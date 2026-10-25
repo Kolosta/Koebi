@@ -115,6 +115,7 @@ dependencies = [
  "koebi-core",
  "koebi-design",
  "koebi-gpu",
+ "koebi-input",
  "koebi-render",
  "koebi-testkit",
  "koebi-tokens",

@@ -30,7 +30,17 @@ fn component_sheet(design: &DesignSystem) -> Scene {
     let mut input = Input::new();
     input.pointer_moved(Vec2::new(100.0, 24.0));
     let mut state = UiState::new();
-    let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+    // Hit testing uses the previous frame: lay the sheet out once, then draw it.
+    for _ in 0..2 {
+        scene.clear();
+        let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+        draw_sheet(&mut ui, design);
+    }
+    scene
+}
+
+/// Every component of the sheet.
+fn draw_sheet(ui: &mut Ui<'_>, design: &DesignSystem) {
     let id = WidgetId::new;
 
     // Buttons, toggles and checkboxes.
@@ -126,8 +136,6 @@ fn component_sheet(design: &DesignSystem) -> Scene {
             index == 0,
         );
     }
-    drop(ui);
-    scene
 }
 
 #[test]

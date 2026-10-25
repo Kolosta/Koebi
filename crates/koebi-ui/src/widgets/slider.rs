@@ -180,6 +180,8 @@ mod tests {
             input.end_frame();
             response
         };
+        // A first frame lays the slider out: hit testing uses the previous frame.
+        frame(&mut input, &mut value);
         // Pressing the middle of the track jumps there.
         input.primary_button(true, Vec2::new(200.0, 10.0));
         assert!(frame(&mut input, &mut value).changed);

@@ -20,5 +20,6 @@ one and link both.
 | [0008](0008-design-token-system.md) | Design token system: typed tiers, compiled tables, layered resolution | Accepted |
 | [0009](0009-design-state-persistence.md) | Persistence of the design system state: a versioned binary file keyed by paths | Accepted |
 | [0010](0010-design-token-interchange.md) | Design token interchange: the W3C Design Tokens format with a Koebi extension | Accepted |
-| [0011](0011-token-driven-components.md) | Token-driven components: typed styles and immediate-mode interaction | Accepted |
+| [0011](0011-token-driven-components.md) | Token-driven components: typed styles and immediate-mode interaction | Accepted, hit testing superseded by 0013 |
 | [0012](0012-actions-and-shortcuts.md) | Actions and shortcuts: an action-centred keymap resolved through pointer contexts | Accepted |
+| [0013](0013-layered-hit-testing.md) | Layered hit testing against the previous frame, and zones as shortcut contexts | Accepted |

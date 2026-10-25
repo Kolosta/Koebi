@@ -55,6 +55,14 @@ input.end_frame();
   `released`, `changed` and `drag_delta`.
 - **Values** belong to the application: components take `&mut` references and report
   `changed`.
+- **What is on top wins** ([ADR 0013](../adr/0013-layered-hit-testing.md)): each frame
+  registers the rectangles of its components, and the next frame resolves the pointer
+  against them: the highest layer (`Ui::on_layer`: base, floating, overlay), then the
+  component drawn last. Nothing under it is hovered or clicked, so components may overlap.
+- **Zones** (`Ui::zone`) group components under a shortcut context; the chain of zones under
+  the pointer (`UiState::contexts_at`) is what the keymap resolves, innermost first.
+  `Ui::interact_with_cursor` and `Ui::zone_with_cursor` choose the cursor
+  (`UiState::cursor`).
 - **Redraws**: hover and press states follow the pointer, so the application redraws after
   every input event, and after every change of the design system.
 
