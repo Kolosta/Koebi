@@ -341,6 +341,30 @@ impl<'a> Ui<'a> {
         result
     }
 
+    /// A zone identified by `id`, so that [`Ui::pointer_within`] can tell whether the pointer
+    /// is over it or over what it holds: a scroll area receiving the wheel.
+    pub(crate) fn identified_zone<R>(
+        &mut self,
+        rect: Rect,
+        context: Context,
+        id: WidgetId,
+        add: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let index = self.register(rect, Some(id), Some(context), None);
+        let outer = self.zone.replace(index);
+        let result = add(self);
+        self.zone = outer;
+        result
+    }
+
+    /// `true` when the pointer is over the zone `id` ([`Ui::identified_zone`]) or over what
+    /// it holds, with nothing else on top, in the last frame.
+    pub(crate) fn pointer_within(&self, id: WidgetId) -> bool {
+        self.input
+            .pointer()
+            .is_some_and(|point| self.state.previous.is_within(point, id))
+    }
+
     /// Takes the pointer over `rect` without reacting to it: the background of a floating
     /// panel, so that what lies under the panel receives nothing.
     pub fn block(&mut self, rect: Rect) {

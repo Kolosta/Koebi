@@ -18,7 +18,7 @@ use koebi_design::kind::Color as ColorKind;
 use koebi_design::tier::Semantic;
 use koebi_design::{DesignSystem, Scope, Token};
 use koebi_tokens::semantic;
-use koebi_ui::{Icon, MenuState, PanelLevel, ThemePreview, Ui, WidgetId};
+use koebi_ui::{Icon, MenuState, PanelLevel, ScrollAxes, ScrollState, ThemePreview, Ui, WidgetId};
 
 /// The twelve chart colors, shown as swatches and in the grid.
 const PALETTE: [Token<ColorKind, Semantic>; 12] = [
@@ -142,6 +142,8 @@ pub(crate) struct Gallery {
     grid: Vec<bool>,
     /// The color vision dropdown's menu.
     vision_menu: MenuState,
+    /// How far the gallery is scrolled when its area is too small for it.
+    scroll: ScrollState,
 }
 
 impl Gallery {
@@ -153,11 +155,12 @@ impl Gallery {
             sheet: Sheet::default(),
             grid: Vec::new(),
             vision_menu: MenuState::new(),
+            scroll: ScrollState::new(),
         }
     }
 
-    /// Draws the gallery in `area` and applies the changes made with it to `design`; its menus
-    /// open inside `window`.
+    /// Draws the gallery in `area`, scrolling when the area is too small for it, and applies
+    /// the changes made with it to `design`; its menus open inside `window`.
     pub(crate) fn show(
         &mut self,
         ui: &mut Ui<'_>,
@@ -165,7 +168,51 @@ impl Gallery {
         area: Rect,
         window: Rect,
     ) {
+        const SCROLL: WidgetId = WidgetId::new("gallery-scroll");
         let metrics = Metrics::resolve(design);
+        let width = area.width() - ui.styles().scroll.margin;
+        let height = Self::height(ui, width, metrics).max(area.height());
+        let mut scroll = self.scroll;
+        let content = Vec2::new(width, height);
+        ui.scroll_area(
+            SCROLL,
+            area,
+            &mut scroll,
+            content,
+            ScrollAxes::Vertical,
+            |ui, view| {
+                let sheet = Rect::from_origin_size(view.origin, content);
+                self.layout(ui, design, sheet, window, metrics);
+            },
+        );
+        self.scroll = scroll;
+    }
+
+    /// The height the gallery needs at `width`, with room for a few rows of the grid.
+    fn height(ui: &Ui<'_>, width: f32, metrics: Metrics) -> f32 {
+        let gap = metrics.gap;
+        let cards = (metrics.row * 4.5).round();
+        let sheet = metrics.panel_height(ui, 5);
+        let tokens = metrics.panel_height(ui, editor::ROWS);
+        let top = if width - 2.0 * gap >= TWO_COLUMNS {
+            sheet.max(tokens)
+        } else {
+            sheet + gap + tokens
+        };
+        let vision = metrics.panel_height(ui, 1);
+        let grid = metrics.panel_height(ui, 6);
+        2.0 * gap + cards + gap + top + gap + vision + gap + grid
+    }
+
+    /// Lays the gallery out in `area`, its full size.
+    fn layout(
+        &mut self,
+        ui: &mut Ui<'_>,
+        design: &mut DesignSystem,
+        area: Rect,
+        window: Rect,
+        metrics: Metrics,
+    ) {
         let mut rest = area.inset(metrics.gap);
         if rest.is_empty() {
             return;
