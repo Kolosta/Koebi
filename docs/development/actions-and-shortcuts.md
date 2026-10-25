@@ -73,6 +73,18 @@ Shortcuts act on what is under the pointer, not on a focused window: the chain o
 the pointer (application, area, editor, top bar, content, element) decides which actions
 apply, innermost first. Text fields, once they exist, take the keyboard while editing.
 
+## Wiring
+
+- The application builds one keymap from every feature's group (`GROUPS` in
+  `apps/koebi/src/actions.rs`): list a new group there, and a test checks that its defaults do
+  not conflict.
+- For each input event, the keymap receives the chain of `UiState::chain_at`: the contexts
+  that grab the keyboard, then the zones under the pointer. Triggered actions reach the next
+  frame through `Input::trigger`.
+- Components read them with `Ui::triggered(&ACTION)`. A component that must keep the keyboard
+  whatever the pointer is over (an open menu, an operation in progress) calls
+  `Ui::grab(CONTEXT)` every frame it lasts.
+
 ## Input settings
 
 Thresholds and delays are design tokens, so that a theme or the user can change them:
