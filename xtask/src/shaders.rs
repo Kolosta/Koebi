@@ -11,7 +11,10 @@ use std::process::Command;
 use crate::util::{self, Result};
 
 /// Directories holding GLSL sources; binaries go to `<dir>/spirv/<file>.spv`.
-const SHADER_DIRS: [&str; 1] = ["crates/koebi-render/shaders"];
+const SHADER_DIRS: [&str; 2] = [
+    "crates/koebi-render/shaders",
+    "crates/koebi-gpu/tests/shaders",
+];
 const STAGES: [&str; 3] = ["vert", "frag", "comp"];
 const TARGET_ENV: &str = "vulkan1.2";
 

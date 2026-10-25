@@ -21,11 +21,13 @@
 //! # Object graph
 //!
 //! ```text
-//! VulkanLibrary ─► Instance ─► Adapter ─► Device ─► Buffer, Texture, ShaderModule, RenderPipeline
+//! VulkanLibrary ─► Instance ─► Adapter ─► Device ─► Buffer, Texture, Sampler, ShaderModule
+//!                     │                             BindGroupLayout ─► BindGroup, RenderPipeline
 //!                     └──────► Surface ──────────► Presenter (swapchain + frames in flight)
 //! ```
 
 mod adapter;
+mod binding;
 mod buffer;
 mod command;
 mod debug;
@@ -39,6 +41,7 @@ mod memory;
 mod pipeline;
 mod pod;
 mod presenter;
+mod sampler;
 mod shader;
 mod surface;
 mod swapchain;
@@ -47,8 +50,13 @@ mod texture;
 pub use adapter::{Adapter, AdapterInfo, AdapterKind, AdapterPreference};
 /// Raw Vulkan bindings (`ash`), re-exported as an escape hatch.
 pub use ash::vk;
+pub use binding::{
+    BindGroup, BindGroupDesc, BindGroupLayout, BindGroupLayoutDesc, BindingResource, BindingType,
+};
 pub use buffer::{Buffer, BufferDesc, BufferUsage};
-pub use command::{CommandEncoder, LoadOp, RenderPass, RenderTarget, TextureState};
+pub use command::{
+    BufferTexels, CommandEncoder, LoadOp, RenderPass, RenderTarget, TextureRegion, TextureState,
+};
 pub use device::Device;
 pub use error::{Error, Result, version_string};
 pub use format::{TextureFormat, VertexFormat};
@@ -56,11 +64,13 @@ pub use instance::{Instance, InstanceDesc, Validation, ValidationReport};
 pub use loader::VulkanLibrary;
 pub use memory::MemoryLocation;
 pub use pipeline::{
-    BlendMode, ColorTargetDesc, MAX_PUSH_CONSTANT_SIZE, PrimitiveTopology, RenderPipeline,
-    RenderPipelineDesc, ShaderStage, VertexAttribute, VertexBufferLayout, VertexStepMode,
+    BlendMode, ColorTargetDesc, MAX_BIND_GROUPS, MAX_PUSH_CONSTANT_SIZE, PrimitiveTopology,
+    RenderPipeline, RenderPipelineDesc, ShaderStage, VertexAttribute, VertexBufferLayout,
+    VertexStepMode,
 };
 pub use pod::{Pod, bytes_of, cast_slice, cast_slice_mut};
 pub use presenter::{FrameTarget, Presenter, PresenterDesc, RenderOutcome};
+pub use sampler::{AddressMode, FilterMode, Sampler, SamplerDesc};
 #[doc(hidden)]
 pub use shader::__spirv_from_aligned;
 pub use shader::{SPIRV_MAGIC, ShaderModule, spirv_words};

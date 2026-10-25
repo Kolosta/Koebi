@@ -14,6 +14,8 @@ extend-exclude = [
 paeth = "paeth"
 # Apple simulator/device identifier.
 udid = "udid"
+# Vulkan "level of detail" (sampler `min_lod`/`max_lod`).
+lod = "lod"
 
 [default.extend-identifiers]
 PNGs = "PNGs"

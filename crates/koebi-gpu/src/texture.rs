@@ -86,15 +86,21 @@ pub struct TextureDesc<'a> {
 
 /// A 2D, single-mip, device-local texture with a default view.
 ///
-/// Dropping is always safe: destruction is deferred until pending GPU work completes.
+/// Dropping is always safe: destruction is deferred until pending GPU work completes, and
+/// until every [`crate::BindGroup`] referencing the texture is dropped.
 pub struct Texture {
-    device: Arc<DeviceShared>,
-    raw: vk::Image,
-    view: vk::ImageView,
+    shared: Arc<TextureShared>,
+}
+
+/// The Vulkan objects of a texture, shared with the bind groups that reference it.
+pub(crate) struct TextureShared {
+    pub(crate) device: Arc<DeviceShared>,
+    pub(crate) raw: vk::Image,
+    pub(crate) view: vk::ImageView,
     memory: vk::DeviceMemory,
-    extent: Extent,
-    format: TextureFormat,
-    usage: TextureUsage,
+    pub(crate) extent: Extent,
+    pub(crate) format: TextureFormat,
+    pub(crate) usage: TextureUsage,
 }
 
 pub(crate) const COLOR_RANGE: vk::ImageSubresourceRange = vk::ImageSubresourceRange {
@@ -165,39 +171,45 @@ impl Texture {
         set_object_name(device, view, desc.label);
 
         Ok(Self {
-            device: Arc::clone(device),
-            raw,
-            view,
-            memory: allocation.memory,
-            extent: desc.extent,
-            format: desc.format,
-            usage: desc.usage,
+            shared: Arc::new(TextureShared {
+                device: Arc::clone(device),
+                raw,
+                view,
+                memory: allocation.memory,
+                extent: desc.extent,
+                format: desc.format,
+                usage: desc.usage,
+            }),
         })
     }
 
     /// Size in physical pixels.
     pub fn extent(&self) -> Extent {
-        self.extent
+        self.shared.extent
     }
 
     /// Pixel format.
     pub fn format(&self) -> TextureFormat {
-        self.format
+        self.shared.format
     }
 
     /// Usage flags.
     pub fn usage(&self) -> TextureUsage {
-        self.usage
+        self.shared.usage
     }
 
     /// The raw image handle.
     pub fn handle(&self) -> vk::Image {
-        self.raw
+        self.shared.raw
     }
 
     /// The default view's raw handle.
     pub fn view_handle(&self) -> vk::ImageView {
-        self.view
+        self.shared.view
+    }
+
+    pub(crate) fn shared(&self) -> &Arc<TextureShared> {
+        &self.shared
     }
 
     /// Describes this texture as a render pass target.
@@ -206,15 +218,15 @@ impl Texture {
     ///
     /// Returns [`Error::InvalidArgument`] without [`TextureUsage::COLOR_ATTACHMENT`].
     pub fn render_target(&self) -> Result<RenderTarget> {
-        if !self.usage.contains(TextureUsage::COLOR_ATTACHMENT) {
+        if !self.usage().contains(TextureUsage::COLOR_ATTACHMENT) {
             return Err(Error::InvalidArgument(
                 "texture was not created with COLOR_ATTACHMENT usage".into(),
             ));
         }
         Ok(RenderTarget {
-            view: self.view,
-            extent: self.extent,
-            format: self.format,
+            view: self.shared.view,
+            extent: self.shared.extent,
+            format: self.shared.format,
         })
     }
 }
@@ -222,15 +234,15 @@ impl Texture {
 impl fmt::Debug for Texture {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Texture")
-            .field("handle", &self.raw)
-            .field("extent", &self.extent)
-            .field("format", &self.format)
-            .field("usage", &self.usage)
+            .field("handle", &self.shared.raw)
+            .field("extent", &self.shared.extent)
+            .field("format", &self.shared.format)
+            .field("usage", &self.shared.usage)
             .finish_non_exhaustive()
     }
 }
 
-impl Drop for Texture {
+impl Drop for TextureShared {
     fn drop(&mut self) {
         self.device.defer_destroy(Garbage::Texture {
             image: self.raw,

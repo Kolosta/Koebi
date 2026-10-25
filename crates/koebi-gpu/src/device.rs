@@ -8,12 +8,14 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use ash::vk;
 
 use crate::adapter::Adapter;
+use crate::binding::{BindGroup, BindGroupDesc, BindGroupLayout, BindGroupLayoutDesc};
 use crate::buffer::{Buffer, BufferDesc};
 use crate::command::CommandEncoder;
 use crate::error::VkResultExt as _;
 use crate::garbage::{Garbage, GarbageQueue};
 use crate::instance::Instance;
 use crate::pipeline::{RenderPipeline, RenderPipelineDesc};
+use crate::sampler::{Sampler, SamplerDesc};
 use crate::shader::ShaderModule;
 use crate::texture::{Texture, TextureDesc};
 use crate::{Error, Result};
@@ -192,6 +194,37 @@ impl Device {
     /// Fails on invalid descriptions or when memory is exhausted.
     pub fn create_texture(&self, desc: &TextureDesc<'_>) -> Result<Texture> {
         Texture::new(&self.shared, desc)
+    }
+
+    /// Creates a sampler. See [`SamplerDesc`].
+    ///
+    /// # Errors
+    ///
+    /// Fails when the driver cannot create the sampler.
+    pub fn create_sampler(&self, desc: &SamplerDesc<'_>) -> Result<Sampler> {
+        Sampler::new(&self.shared, desc)
+    }
+
+    /// Creates the layout of a bind group. See [`BindGroupLayoutDesc`].
+    ///
+    /// # Errors
+    ///
+    /// Fails on a layout without binding, or when the driver cannot create it.
+    pub fn create_bind_group_layout(
+        &self,
+        desc: &BindGroupLayoutDesc<'_>,
+    ) -> Result<BindGroupLayout> {
+        BindGroupLayout::new(&self.shared, desc)
+    }
+
+    /// Creates a bind group: resources for every binding of a layout. See [`BindGroupDesc`].
+    ///
+    /// # Errors
+    ///
+    /// Fails when the resources do not match the layout, lack the usage their binding needs or
+    /// belong to another device, or when descriptors cannot be allocated.
+    pub fn create_bind_group(&self, desc: &BindGroupDesc<'_>) -> Result<BindGroup> {
+        BindGroup::new(&self.shared, desc)
     }
 
     /// Creates a shader module from SPIR-V words.

@@ -25,6 +25,16 @@ pub(crate) enum Garbage {
         pipeline: vk::Pipeline,
         layout: vk::PipelineLayout,
     },
+    Sampler {
+        sampler: vk::Sampler,
+    },
+    BindGroupLayout {
+        layout: vk::DescriptorSetLayout,
+    },
+    /// Destroying the pool frees the bind group's descriptor set.
+    BindGroup {
+        pool: vk::DescriptorPool,
+    },
 }
 
 impl Garbage {
@@ -55,6 +65,11 @@ impl Garbage {
                     device.destroy_pipeline(pipeline, None);
                     device.destroy_pipeline_layout(layout, None);
                 }
+                Self::Sampler { sampler } => device.destroy_sampler(sampler, None),
+                Self::BindGroupLayout { layout } => {
+                    device.destroy_descriptor_set_layout(layout, None);
+                }
+                Self::BindGroup { pool } => device.destroy_descriptor_pool(pool, None),
             }
         }
     }
