@@ -11,18 +11,23 @@ flowchart TD
     render["koebi-render<br/>Scene → batched instanced draws"]
     gpu["koebi-gpu<br/>Vulkan RHI (ash)"]
     platform["koebi-platform<br/>SDL3: lifecycle, windows, events, surface"]
+    tokens["koebi-tokens<br/>Koebi's design tokens and themes"]
+    design["koebi-design<br/>design tokens, themes, overrides, color vision"]
     core["koebi-core<br/>geometry, color science, logging"]
     app --> render --> gpu --> core
     app --> platform --> core
     app --> gpu
+    tokens --> design --> core
 ```
 
 | Crate | Responsibility | Depends on |
 |---|---|---|
-| `koebi-core` | `Vec2`/`Rect`/`Extent`, `Color` (sRGB, linear, OKLab, OKLCH, WCAG contrast), logging facade | nothing |
+| `koebi-core` | `Vec2`/`Rect`/`Extent`, `Color` (sRGB, linear, OKLab, OKLCH, WCAG contrast), color vision matrices, logging facade | nothing |
 | `koebi-gpu` | Vulkan loading, instance, adapter selection, device, memory, buffers, textures, pipelines, command recording, swapchain and frame pacing | `ash`, core |
 | `koebi-render` | Retained `Scene` of 2D primitives, GPU instance layouts, shaders, batching | gpu, core |
 | `koebi-platform` | SDL3 main callbacks (`App` trait), windows, event translation, Vulkan library and surface | `sdl3-sys`, `ash` (types), core |
+| `koebi-design` | Design token engine: typed tokens in three tiers, compiled token tables, themes, overrides, views, color vision ([ADR 0008](../adr/0008-design-token-system.md)) | core |
+| `koebi-tokens` | Koebi's token set and built-in themes ([design system](../design-system/README.md)) | design |
 | `koebi-testkit` | Headless GPU, offscreen readback, PNG golden images (tests only) | gpu, core |
 | `koebi` (app) | Wires the layers, owns application state, theme tokens | all |
 
@@ -32,9 +37,11 @@ Rules that keep the graph clean:
 - `koebi-platform` never sees the renderer: it only produces events and surfaces.
 - `koebi-core` has no dependency at all and no platform code, so it is testable everywhere,
   including under Miri.
+- `koebi-design` knows neither the GPU nor the platform: it turns token definitions into
+  values. Widgets map those values to render primitives.
 
 Future crates slot in the same way: `koebi-text` (font parsing, shaping, glyph atlas),
-`koebi-ui` (layout, widgets, design system: today's `apps/koebi/src/theme.rs` moves there).
+`koebi-ui` (layout and widgets, styled by `koebi-design` tokens).
 
 ## Application lifecycle
 
@@ -91,7 +98,8 @@ The result: dropping is always safe, and no code outside `koebi-gpu` calls `vkDe
   `physical = logical × scale_factor`, applied on the GPU.
 - Colors are gamma-encoded sRGB with straight alpha (what designers pick), premultiplied at
   upload and blended in gamma space on UNORM targets so results match design tools
-  ([ADR 0004](../adr/0004-color-pipeline.md)). Design tokens use OKLCH.
+  ([ADR 0004](../adr/0004-color-pipeline.md)). Design tokens keep exact sRGB values; OKLCH
+  serves editing and palette derivation ([ADR 0008](../adr/0008-design-token-system.md)).
 
 ## Errors and logging
 

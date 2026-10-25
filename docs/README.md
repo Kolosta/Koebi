@@ -29,6 +29,13 @@ you work on.
   Blender's GPU module.
 - [Architecture decision records](adr/README.md): the reasons behind every structural choice.
 
+## Design system
+
+- [Design system](design-system/README.md): tokens, tiers, themes, overrides, views, color
+  vision, and how to define and read tokens.
+- [Porting report](design-system/porting.md): the differences between Koebi's tokens and the
+  token table of the previous application.
+
 ## Development
 
 - [Setup](development/setup.md): toolchains per OS (Rust, Vulkan SDK, CMake, Android, Xcode).

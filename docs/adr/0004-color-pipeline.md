@@ -1,6 +1,6 @@
 # 0004. Color pipeline: sRGB values, gamma-space blending, OKLCH tokens
 
-- Status: Accepted
+- Status: Accepted; the token item is superseded by [0008](0008-design-token-system.md)
 - Date: 2026-10-24
 - Deciders: @Kolosta
 

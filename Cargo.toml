@@ -16,10 +16,12 @@ publish = false
 [workspace.dependencies]
 # --- Internal crates -------------------------------------------------------------------------
 koebi-core = { path = "crates/koebi-core" }
+koebi-design = { path = "crates/koebi-design" }
 koebi-gpu = { path = "crates/koebi-gpu" }
 koebi-platform = { path = "crates/koebi-platform" }
 koebi-render = { path = "crates/koebi-render" }
 koebi-testkit = { path = "crates/koebi-testkit" }
+koebi-tokens = { path = "crates/koebi-tokens" }
 
 # --- External crates: the COMPLETE allow-list ------------------------------------------------
 # Adding or replacing an external crate requires an ADR (docs/adr/0003-minimal-dependencies.md)
