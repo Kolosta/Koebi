@@ -9,6 +9,7 @@
 //! Until Koebi has editors, the window shows the design system gallery: theme cards, every
 //! component, a token editor, the color vision modes and a grid of components.
 
+mod actions;
 mod app;
 mod design_options;
 mod frame_times;

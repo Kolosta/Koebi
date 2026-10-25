@@ -25,6 +25,7 @@ path = "src/main.rs"
 koebi-core.workspace = true
 koebi-design.workspace = true
 koebi-gpu.workspace = true
+koebi-input.workspace = true
 koebi-platform.workspace = true
 koebi-render.workspace = true
 koebi-text.workspace = true

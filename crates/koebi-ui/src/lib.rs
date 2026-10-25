@@ -57,7 +57,7 @@ mod widgets;
 
 pub use icon::Icon;
 pub use id::WidgetId;
-pub use input::Input;
+pub use input::{Input, PointerButton};
 pub use routing::Layer;
 pub use style::{IconStyle, StateColors, StyleCache, Styles};
 pub use ui::{Response, Ui, UiState, WidgetState};
