@@ -54,6 +54,7 @@ allow = [
     "koebi-platform",
     "koebi-render",
     "koebi-testkit",
+    "koebi-text",
     "koebi-tokens",
     "koebi-ui",
     "xtask",

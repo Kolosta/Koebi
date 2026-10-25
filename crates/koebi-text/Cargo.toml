@@ -1,0 +1,16 @@
+[package]
+name = "koebi-text"
+description = "Koebi's text basics: TrueType reading, glyph rasterization and single-line layout, with embedded Noto Sans."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[dependencies]
+koebi-core.workspace = true
+
+[lints]
+workspace = true

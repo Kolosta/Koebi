@@ -16,6 +16,8 @@ paeth = "paeth"
 udid = "udid"
 # Vulkan "level of detail" (sampler `min_lod`/`max_lod`).
 lod = "lod"
+# TrueType "index to location" table.
+loca = "loca"
 
 [default.extend-identifiers]
 PNGs = "PNGs"

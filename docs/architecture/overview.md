@@ -14,12 +14,14 @@ flowchart TD
     platform["koebi-platform<br/>SDL3: lifecycle, windows, events, surface"]
     tokens["koebi-tokens<br/>Koebi's design tokens and themes"]
     design["koebi-design<br/>design tokens, themes, overrides, color vision"]
+    text["koebi-text<br/>fonts, glyph rasterization, single-line layout"]
     core["koebi-core<br/>geometry, color science, logging"]
     app --> ui --> render --> gpu --> core
     app --> platform --> core
     app --> gpu
     app --> tokens
     ui --> tokens --> design --> core
+    text --> core
 ```
 
 | Crate | Responsibility | Depends on |
@@ -32,6 +34,7 @@ flowchart TD
 | `koebi-tokens` | Koebi's token set and built-in themes ([design system](../design-system/README.md)) | design |
 | `koebi-ui` | Components drawn from typed styles of component tokens, immediate-mode interaction ([ADR 0011](../adr/0011-token-driven-components.md)) | render, tokens, design, core |
 | `koebi-input` | Actions and shortcuts: keymap, contexts, gestures, conflicts, overrides ([ADR 0012](../adr/0012-actions-and-shortcuts.md)) | core |
+| `koebi-text` | TrueType reading, glyph rasterization to coverage, single-line layout with ellipsis, embedded Noto Sans ([ADR 0014](../adr/0014-text-basics.md)) | core |
 | `koebi-testkit` | Headless GPU, offscreen readback, PNG golden images (tests only) | gpu, core |
 | `koebi` (app) | Wires the layers, owns application state, theme tokens | all |
 

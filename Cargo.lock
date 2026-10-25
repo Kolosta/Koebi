@@ -101,6 +101,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koebi-text"
+version = "0.1.0"
+dependencies = [
+ "koebi-core",
+]
+
+[[package]]
 name = "koebi-tokens"
 version = "0.1.0"
 dependencies = [

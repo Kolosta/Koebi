@@ -22,6 +22,7 @@ koebi-input = { path = "crates/koebi-input" }
 koebi-platform = { path = "crates/koebi-platform" }
 koebi-render = { path = "crates/koebi-render" }
 koebi-testkit = { path = "crates/koebi-testkit" }
+koebi-text = { path = "crates/koebi-text" }
 koebi-tokens = { path = "crates/koebi-tokens" }
 koebi-ui = { path = "crates/koebi-ui" }
 
