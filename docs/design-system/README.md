@@ -193,6 +193,21 @@ applied once per color token when tokens are resolved, never per pixel. Grays ar
 Tokens whose mask lacks `Layers::COLOR_VISION` keep their colors, and so does everything that
 aliases them.
 
+## Persistence
+
+`koebi_design::persist::Store` saves what the user changed (run-time themes, overrides, layer
+masks, color vision, active theme) in a small binary file, atomically and with a backup;
+[ADR 0009](../adr/0009-design-state-persistence.md) explains the format.
+
+```rust
+use koebi_design::persist::Store;
+
+let mut store = Store::new(preferences_dir);
+store.load(&mut design)?;                    // at startup
+store.save_if_due(&design, Instant::now())?; // every frame: writes once a change has settled
+store.save(&design)?;                        // when the application goes to the background
+```
+
 ## Color science
 
 ### OKLCH

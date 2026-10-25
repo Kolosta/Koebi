@@ -68,6 +68,21 @@ pub enum Error {
     },
     /// An invalid color vision setting.
     InvalidColorVision(&'static str),
+    /// A file operation failed.
+    Io {
+        /// What was being done (`read`, `write`, `rename`...).
+        operation: &'static str,
+        /// The file.
+        path: String,
+        /// The system's message.
+        message: String,
+    },
+    /// Saved data is damaged: wrong signature, checksum or structure.
+    Corrupt(String),
+    /// Saved data comes from a newer version of the format.
+    UnsupportedVersion(u16),
+    /// Saved data belongs to another token schema.
+    ForeignSchema(String),
 }
 
 /// Result type of the design system.
@@ -114,6 +129,21 @@ impl fmt::Display for Error {
             ),
             Self::Cycle { token } => write!(f, "changing {token} would create an alias cycle"),
             Self::InvalidColorVision(reason) => write!(f, "invalid color vision setting: {reason}"),
+            Self::Io {
+                operation,
+                path,
+                message,
+            } => write!(f, "cannot {operation} {path}: {message}"),
+            Self::Corrupt(reason) => write!(f, "damaged design data: {reason}"),
+            Self::UnsupportedVersion(version) => {
+                write!(
+                    f,
+                    "design data of format version {version}, newer than this build"
+                )
+            }
+            Self::ForeignSchema(name) => {
+                write!(f, "design data saved for the token schema {name:?}")
+            }
         }
     }
 }

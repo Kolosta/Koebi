@@ -304,6 +304,17 @@ impl DesignSystem {
         Ok(())
     }
 
+    /// Validates a definition for `token` without applying it: kind, value range and tier
+    /// rules. Cycles depend on where the definition goes; [`Self::set_override`] and
+    /// [`Self::create_theme`] check them.
+    ///
+    /// # Errors
+    ///
+    /// The error [`Self::set_override`] would return for those reasons.
+    pub fn check_definition(&self, token: TokenId, definition: Definition) -> Result<Definition> {
+        self.graph.check_definition(token, definition)
+    }
+
     /// Removes the override of `token` in `scope`. Returns `false` when there was none.
     ///
     /// # Errors

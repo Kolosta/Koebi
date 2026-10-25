@@ -91,6 +91,7 @@
 
 pub mod define;
 pub mod kind;
+pub mod persist;
 pub mod schema;
 pub mod tier;
 pub mod value;
