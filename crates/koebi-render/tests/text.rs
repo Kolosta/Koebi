@@ -86,22 +86,16 @@ fn rasterize(font: &Font, id: GlyphId, size: f32, offset: f32) -> GlyphBitmap {
 /// (`x`, `baseline`) physical pixels, and nothing else around it.
 #[track_caller]
 fn assert_glyph_at(image: &Image, bitmap: &GlyphBitmap, x: i32, baseline: i32) {
-    let (left, top) = (x + bitmap.left, baseline + bitmap.top);
-    for py in 0..i32::try_from(image.height()).unwrap() {
-        for px in 0..i32::try_from(image.width()).unwrap() {
-            let (bx, by) = (px - left, py - top);
-            let coverage = u32::try_from(bx)
-                .ok()
-                .zip(u32::try_from(by).ok())
-                .map_or(0, |(bx, by)| bitmap.coverage_at(bx, by));
-            let pixel = (u32::try_from(px).unwrap(), u32::try_from(py).unwrap());
-            assert_pixel(
-                image,
-                pixel.0,
-                pixel.1,
-                [coverage, coverage, coverage, 255],
-                1,
-            );
+    let left = i64::from(x) + i64::from(bitmap.left);
+    let top = i64::from(baseline) + i64::from(bitmap.top);
+    for py in 0..image.height() {
+        for px in 0..image.width() {
+            let column = u32::try_from(i64::from(px) - left).ok();
+            let row = u32::try_from(i64::from(py) - top).ok();
+            let coverage = column
+                .zip(row)
+                .map_or(0, |(column, row)| bitmap.coverage_at(column, row));
+            assert_pixel(image, px, py, [coverage, coverage, coverage, 255], 1);
         }
     }
 }
