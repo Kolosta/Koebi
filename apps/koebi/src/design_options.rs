@@ -1,13 +1,16 @@
-//! Design changes asked on the command line (`--theme`, `--override`, `--color-vision`), and
-//! the one-line summary of the design state logged at startup.
+//! Design changes asked on the command line (`--import`, `--theme`, `--override`,
+//! `--color-vision`), exports (`--export`, `--export-schema`), and the one-line summary of
+//! the design state logged at startup.
 
 use core::time::Duration;
+use std::path::Path;
 use std::sync::Arc;
 
 use koebi_core::Color;
+use koebi_design::dtcg::{export_schema, export_theme, import_theme};
 use koebi_design::kind::KindId;
 use koebi_design::value::{CubicBezier, Definition, FontWeight, Value};
-use koebi_design::{ColorVision, Deficiency, DesignSystem, Scope};
+use koebi_design::{ColorVision, Deficiency, DesignSystem, Error, Scope};
 
 use crate::options::Options;
 
@@ -40,15 +43,23 @@ const fn correct(deficiency: Deficiency) -> ColorVision {
     }
 }
 
-/// Applies the command line's design changes on top of the restored state: the theme, then
-/// the overrides (global), then the color vision setting.
+/// Applies the command line's design changes on top of the restored state: the imported
+/// themes (the last one becomes active), then the theme, then the overrides (global), then
+/// the color vision setting.
 ///
 /// # Errors
 ///
-/// A message naming the option and the problem: an unknown theme or token, a value that does
-/// not parse, or a change the design system rejects. Changes applied before the faulty one
-/// stay applied; the application exits without saving them.
+/// A message naming the option and the problem: a file that cannot be read or imported, an
+/// unknown theme or token, a value that does not parse, or a change the design system
+/// rejects. Changes applied before the faulty one stay applied; the application exits
+/// without saving them.
 pub(crate) fn apply(design: &mut DesignSystem, options: &Options) -> Result<(), String> {
+    for path in &options.imports {
+        let theme = import(design, path)?;
+        design
+            .set_active_theme(theme)
+            .map_err(|error| format!("--import {}: {error}", path.display()))?;
+    }
     if let Some(key) = &options.theme {
         let theme = design.find_theme(key).ok_or_else(|| {
             let keys: Vec<_> = design.themes().map(|(_, theme)| theme.key()).collect();
@@ -75,6 +86,49 @@ pub(crate) fn apply(design: &mut DesignSystem, options: &Options) -> Result<(), 
         design
             .set_color_vision(vision)
             .map_err(|error| format!("--color-vision: {error}"))?;
+    }
+    Ok(())
+}
+
+/// Imports the theme of the Design Tokens file at `path`.
+fn import(design: &mut DesignSystem, path: &Path) -> Result<koebi_design::ThemeId, String> {
+    let context = |message: String| format!("--import {}: {message}", path.display());
+    let text = std::fs::read_to_string(path).map_err(|error| context(error.to_string()))?;
+    let theme = import_theme(design, &text).map_err(|error| match error {
+        Error::Import(issues) => {
+            let lines: Vec<_> = issues.iter().map(|issue| format!("  {issue}")).collect();
+            context(format!("the file was refused:\n{}", lines.join("\n")))
+        }
+        other => context(other.to_string()),
+    })?;
+    if let Some(info) = design.theme(theme) {
+        koebi_core::info!(
+            "imported theme {} ({}) from {}",
+            info.key(),
+            info.name(),
+            path.display()
+        );
+    }
+    Ok(theme)
+}
+
+/// Writes the exports the command line asks for, after the changes are applied.
+///
+/// # Errors
+///
+/// A message naming the option, when a file cannot be written.
+pub(crate) fn export(design: &DesignSystem, options: &Options) -> Result<(), String> {
+    if let Some(path) = &options.export {
+        let context = |message: String| format!("--export {}: {message}", path.display());
+        let text = export_theme(design, design.active_theme())
+            .map_err(|error| context(error.to_string()))?;
+        std::fs::write(path, text).map_err(|error| context(error.to_string()))?;
+        koebi_core::info!("exported the active theme to {}", path.display());
+    }
+    if let Some(path) = &options.export_schema {
+        std::fs::write(path, export_schema(design))
+            .map_err(|error| format!("--export-schema {}: {error}", path.display()))?;
+        koebi_core::info!("exported every token to {}", path.display());
     }
     Ok(())
 }
@@ -246,6 +300,75 @@ mod tests {
         assert!(
             error.starts_with("--override semantic.radius.control=99: "),
             "{error}"
+        );
+    }
+
+    /// A file in this test module's own temporary directory.
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join("koebi-design-options-tests");
+        std::fs::create_dir_all(&dir).expect("writable temporary directory");
+        dir.join(name)
+    }
+
+    #[test]
+    fn imported_themes_become_active_and_exports_are_written() {
+        let mut design = design();
+        let theme = scratch("sunset.tokens.json");
+        std::fs::write(
+            &theme,
+            r##"{
+  "$extensions": { "io.github.kolosta.koebi": { "theme": { "key": "sunset", "name": "Sunset" } } },
+  "semantic": { "accent": { "color": { "700": { "$type": "color", "$value": "#ff7a3d" } } } }
+}"##,
+        )
+        .unwrap();
+        let mut args = options(&["--override", "semantic.radius.control=5"]);
+        args.imports.push(theme);
+        args.export = Some(scratch("export.tokens.json"));
+        args.export_schema = Some(scratch("schema.tokens.json"));
+        apply(&mut design, &args).unwrap();
+        export(&design, &args).unwrap();
+        assert_eq!(design.theme(design.active_theme()).unwrap().key(), "sunset");
+        assert_eq!(
+            design.get(semantic::ACCENT_COLOR_700),
+            Color::from_hex(0xFF_7A_3D)
+        );
+        let exported = std::fs::read_to_string(scratch("export.tokens.json")).unwrap();
+        assert!(exported.contains("\"key\": \"sunset\""), "{exported}");
+        assert!(exported.contains("\"hex\": \"#ff7a3d\""), "{exported}");
+        assert!(
+            exported.contains("\"layer\": \"global-override\""),
+            "{exported}"
+        );
+        let schema = std::fs::read_to_string(scratch("schema.tokens.json")).unwrap();
+        assert!(schema.contains("\"$type\": \"typography\""));
+    }
+
+    #[test]
+    fn refused_files_report_every_problem() {
+        let mut design = design();
+        let broken = scratch("broken.tokens.json");
+        std::fs::write(
+            &broken,
+            r#"{ "$extensions": { "io.github.kolosta.koebi": { "theme": { "key": "x", "name": "X" } } },
+  "semantic": { "radius": { "control": { "$value": "round" } } },
+  "nowhere": {} }"#,
+        )
+        .unwrap();
+        let mut args = Options::default();
+        args.imports.push(broken);
+        let error = apply(&mut design, &args).unwrap_err();
+        assert!(error.contains("the file was refused:"), "{error}");
+        assert!(error.contains("semantic.radius.control"), "{error}");
+        assert!(error.contains("nowhere: unknown tier"), "{error}");
+        let missing = Options {
+            imports: vec![scratch("missing.tokens.json")],
+            ..Options::default()
+        };
+        assert!(
+            apply(&mut design, &missing)
+                .unwrap_err()
+                .starts_with("--import ")
         );
     }
 

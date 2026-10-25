@@ -179,10 +179,17 @@ impl Interface {
         let mut design = DesignSystem::new(&koebi_tokens::KOEBI).map_err(|error| {
             AppError::new(exit_code::FAILURE, format!("design system: {error}"))
         })?;
-        let store = open_store(context, options, &mut design);
+        let mut store = open_store(context, options, &mut design);
         design_options::apply(&mut design, options)
             .map_err(|message| AppError::new(exit_code::USAGE, message))?;
         koebi_core::info!("{}", design_options::summary(&design));
+        // Changes asked on the command line, an imported theme above all, are kept at once.
+        if let Some(store) = &mut store {
+            let result = store.save(&design);
+            report_save(store, result);
+        }
+        design_options::export(&design, options)
+            .map_err(|message| AppError::new(exit_code::FAILURE, message))?;
         Ok(Self {
             styles: StyleCache::new(&design),
             design,
