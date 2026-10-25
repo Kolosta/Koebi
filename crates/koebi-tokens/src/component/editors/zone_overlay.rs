@@ -34,4 +34,7 @@ koebi_design::tokens! {
     /// Zone overlay: join frame color.
     ZONE_OVERLAY_JOIN_FRAME = "zone-overlay.join.frame": Color ->
         semantic::BORDER_COLOR_BLUE_DEFAULT;
+    /// Width of the outline of a joined area's final rectangle.
+    ZONE_OVERLAY_JOIN_FRAME_WIDTH = "zone-overlay.join.frame-width": Dimension ->
+        semantic::BORDER_WIDTH_MEDIUM;
 }

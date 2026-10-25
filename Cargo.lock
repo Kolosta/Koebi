@@ -47,6 +47,7 @@ dependencies = [
  "koebi-text",
  "koebi-tokens",
  "koebi-ui",
+ "koebi-workspace",
 ]
 
 [[package]]
@@ -130,6 +131,7 @@ dependencies = [
  "koebi-testkit",
  "koebi-text",
  "koebi-tokens",
+ "koebi-workspace",
 ]
 
 [[package]]

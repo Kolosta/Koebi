@@ -1,5 +1,7 @@
 //! [`Ui`]: one frame of immediate-mode interface, and the interaction state between frames.
 
+use core::time::Duration;
+
 use koebi_core::input::CursorShape;
 use koebi_core::{Rect, Vec2};
 use koebi_input::{ActionDef, Context};
@@ -40,12 +42,20 @@ pub struct UiState {
     /// The fonts labels are laid out with, and a line reused for each label.
     pub(crate) fonts: Fonts,
     pub(crate) line: TextLine,
+    /// When the last frame wants to be drawn again, if it does.
+    redraw_at: Option<Duration>,
 }
 
 impl UiState {
     /// Nothing holds the pointer.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// When the last frame asked to be drawn again (an animation, a delay running out), on the
+    /// time scale of [`Input::time`]: the application redraws then, even without input.
+    pub fn redraw_at(&self) -> Option<Duration> {
+        self.redraw_at
     }
 
     /// Sets the fonts labels are laid out with: the collection the renderer rasterizes
@@ -204,6 +214,7 @@ impl<'a> Ui<'a> {
         state.press_target = topmost(input.pressed_at());
         state.secondary_target = topmost(input.button_pressed_at(PointerButton::Secondary));
         state.grabbing.clear();
+        state.redraw_at = None;
         let held_cursor = state
             .active
             .and_then(|widget| state.previous.of_widget(widget))
@@ -239,6 +250,18 @@ impl<'a> Ui<'a> {
     /// `true` when the keymap triggered `action` since the last frame.
     pub fn triggered(&self, action: &ActionDef) -> bool {
         self.input.triggered(action)
+    }
+
+    /// Asks for the frame to be drawn again at `time` ([`Input::time`] scale), even without
+    /// input: the end of a delay, the next step of an animation.
+    pub fn request_redraw_at(&mut self, time: Duration) {
+        let state = &mut *self.state;
+        state.redraw_at = Some(state.redraw_at.map_or(time, |at| at.min(time)));
+    }
+
+    /// Asks for the frame to be drawn again `delay` after this one.
+    pub fn request_redraw_after(&mut self, delay: Duration) {
+        self.request_redraw_at(self.input.time() + delay);
     }
 
     /// Takes the keyboard for the shortcuts of `context` in the next frame, wherever the

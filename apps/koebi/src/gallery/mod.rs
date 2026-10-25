@@ -156,8 +156,15 @@ impl Gallery {
         }
     }
 
-    /// Draws the gallery in `area` and applies the changes made with it to `design`.
-    pub(crate) fn show(&mut self, ui: &mut Ui<'_>, design: &mut DesignSystem, area: Rect) {
+    /// Draws the gallery in `area` and applies the changes made with it to `design`; its menus
+    /// open inside `window`.
+    pub(crate) fn show(
+        &mut self,
+        ui: &mut Ui<'_>,
+        design: &mut DesignSystem,
+        area: Rect,
+        window: Rect,
+    ) {
         let metrics = Metrics::resolve(design);
         let mut rest = area.inset(metrics.gap);
         if rest.is_empty() {
@@ -182,7 +189,7 @@ impl Gallery {
             editor::tokens(self, ui, design, tokens, metrics);
         }
         let vision = cut_top(&mut rest, vision_height, metrics.gap);
-        editor::color_vision(ui, design, vision, metrics, &mut self.vision_menu, area);
+        editor::color_vision(ui, design, vision, metrics, &mut self.vision_menu, window);
         self.grid(ui, design, rest, metrics);
     }
 
@@ -355,7 +362,7 @@ mod tests {
             let styles = StyleCache::new(design);
             scene.clear();
             let mut ui = Ui::new(&mut scene, styles.styles(), &input, &mut state);
-            gallery.show(&mut ui, design, area);
+            gallery.show(&mut ui, design, area, area);
         }
         scene
     }

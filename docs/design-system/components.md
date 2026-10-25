@@ -42,6 +42,31 @@ still draw text as bars.
 in the dark and light themes, and the application shows them all in its
 [gallery](gallery.md).
 
+## The workspace
+
+`Ui::workspace(&mut view, &mut workspace, window, &mut host)` draws a `koebi_workspace::Workspace`
+([ADR 0015](../adr/0015-workspace-layout.md)) and edits it; `WorkspaceView` keeps what lasts
+between frames, and the application's `EditorHost` draws each editor's content (clipped to its
+area) and learns when a split copies an editor or a join removes some.
+
+- **Areas** are rounded panels (`component.editor.*`) with a top bar showing the editor's title,
+  separated by gaps of `zone.separator.size`.
+- **Gutters** show a resize cursor; dragging one moves every edge of its line, ten times finer
+  with Shift and snapped to a 48th of the window with Ctrl, both as soon as they are pressed,
+  never below `zone.min-size`. After `input.hover.delay`, a band with rounded ends shows the
+  whole line that would move (`zone.separator.color.continuation` at its opacity), brighter
+  between the two hovered areas (`zone.separator.color.default`).
+- **Area menu**: a right click on a gutter offers to swap the two areas, join them, or split
+  any area vertically or horizontally.
+- **Previews**: a split shows the two halves the area under the pointer would become, a gutter
+  apart (`zone-overlay.split-preview`); a join shows the kept area lighter, the part of the
+  removed area it takes darker, the parts neighbours take darker still, and the joined area
+  outlined (`zone-overlay.join.*`), with an arrow cursor from the removed area to the kept one,
+  or "not allowed" where nothing can join. A press applies the preview; a press where nothing
+  can happen does nothing.
+- **Cancel**: Escape, Delete or a right click (`workspace.cancel`) end any operation and restore
+  the exact previous layout; Enter (`workspace.confirm`) applies a preview.
+
 ## One frame
 
 ```rust

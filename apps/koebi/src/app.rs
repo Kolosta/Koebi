@@ -17,20 +17,17 @@ use koebi_platform::{
 use koebi_render::{Renderer2D, Scene};
 use koebi_text::Fonts;
 use koebi_tokens::semantic;
-use koebi_ui::{Input, MenuItem, MenuState, StyleCache, Ui, UiState, WidgetId};
+use koebi_ui::{Input, StyleCache, Ui, UiState, WorkspaceView};
+use koebi_workspace::Workspace;
 
 use crate::actions;
 use crate::cursors::AppCursors;
 use crate::design_options;
+use crate::editors::{self, Editors, Host};
 use crate::frame_times::FrameTimes;
 use crate::gallery::Gallery;
 use crate::options::Options;
 use crate::overlay::Overlay;
-
-/// Under every component: right clicks that reach it open the application menu.
-const BACKGROUND: WidgetId = WidgetId::new("app-background");
-/// The application menu.
-const APP_MENU: WidgetId = WidgetId::new("app-menu");
 
 /// Everything Vulkan. Declared before the window in [`KoebiApp`] so that it drops first:
 /// surfaces must be destroyed before their native window.
@@ -206,6 +203,10 @@ struct Interface {
     styles: StyleCache,
     state: UiState,
     input: Input,
+    /// The areas and their editors.
+    workspace: Workspace,
+    view: WorkspaceView,
+    editors: Editors,
     gallery: Gallery,
     /// `None` when the frame-time overlay is hidden.
     overlay: Option<Overlay>,
@@ -216,10 +217,8 @@ struct Interface {
     input_settings: InputSettings,
     /// Reused for the chain of contexts of each event.
     chain: Vec<Context>,
-    /// The menu a right click on the background opens.
-    app_menu: MenuState,
-    /// The shortcut shown beside "Frame times" in that menu.
-    frame_times_shortcut: String,
+    /// The origin of the interface's time ([`Input::set_time`]).
+    started: Instant,
     scene: Scene,
 }
 
@@ -242,27 +241,25 @@ impl Interface {
             .map_err(|message| AppError::new(exit_code::FAILURE, message))?;
         let keymap = Keymap::new(&actions::GROUPS)
             .map_err(|error| AppError::new(exit_code::FAILURE, format!("shortcuts: {error}")))?;
-        let frame_times_shortcut = keymap
-            .shortcuts(actions::FRAME_TIMES.id)
-            .and_then(<[_]>::first)
-            .map(ToString::to_string)
-            .unwrap_or_default();
         let mut state = UiState::new();
         state.set_fonts(fonts.clone());
+        let (workspace, editors) = editors::default_workspace();
         Ok(Self {
             styles: StyleCache::new(&design),
             design,
             store,
             state,
             input: Input::new(),
+            workspace,
+            view: WorkspaceView::new(),
+            editors,
             gallery: Gallery::new(),
             overlay: options.shows_frame_times().then(Overlay::new),
             fonts,
             keymap,
             input_settings: InputSettings::default(),
             chain: Vec::new(),
-            app_menu: MenuState::new(),
-            frame_times_shortcut,
+            started: Instant::now(),
             scene: Scene::new(),
         })
     }
@@ -271,6 +268,7 @@ impl Interface {
     /// (a slider edits a token, a card switches the theme), the scene is built again with the
     /// new styles: every component shows the change in this very frame.
     fn build(&mut self, area: Rect, times: &FrameTimes) {
+        self.input.set_time(self.started.elapsed());
         if self.input.triggered(&actions::FRAME_TIMES) {
             self.overlay = match self.overlay {
                 Some(_) => None,
@@ -296,11 +294,12 @@ impl Interface {
             design,
             styles,
             state,
+            workspace,
+            view,
+            editors,
             gallery,
             overlay,
             fonts,
-            app_menu,
-            frame_times_shortcut,
             scene,
             ..
         } = self;
@@ -308,29 +307,16 @@ impl Interface {
         let styles = styles.update(design);
         scene.set_clear_color(styles.background);
         let mut ui = Ui::new(scene, styles, input, state);
-        let mut toggle_frame_times = false;
+        let mut host = Host {
+            editors,
+            gallery,
+            design,
+            window: area,
+        };
         ui.zone(area, actions::APP, |ui| {
-            // Under everything: a right click where no component takes it opens the menu.
-            let background = ui.interact(BACKGROUND, area);
-            if background.secondary_pressed
-                && let Some(point) = ui.input().pointer()
-            {
-                app_menu.open_at(point);
-            }
-            gallery.show(ui, design, area);
-            let items = [
-                MenuItem::Title("Koebi"),
-                MenuItem::action("Frame times").shortcut(frame_times_shortcut),
-            ];
-            toggle_frame_times = ui.menu(APP_MENU, app_menu, &items, area) == Some(1);
+            ui.workspace(view, workspace, area, &mut host);
         });
         drop(ui);
-        if toggle_frame_times {
-            *overlay = match overlay {
-                Some(_) => None,
-                None => Some(Overlay::new()),
-            };
-        }
         if let Some(overlay) = overlay {
             overlay.draw(scene, design, fonts, times, area);
         }
@@ -391,6 +377,13 @@ impl Interface {
             self.input.trigger(triggered.action);
         }
         true
+    }
+
+    /// How long until the interface wants to be drawn again without input, if it does: zero
+    /// when it is due.
+    fn redraw_in(&self) -> Option<Duration> {
+        let at = self.state.redraw_at()?;
+        Some(at.saturating_sub(self.started.elapsed()))
     }
 
     /// `true` while changes wait for [`Self::save_if_due`].
@@ -510,8 +503,15 @@ impl KoebiApp {
     /// Waits for events, except while changes wait to be saved: then the application wakes up
     /// a few times per second until they are. Tests and benchmarks draw continuously.
     fn update_rate(&mut self, context: &mut AppContext) {
+        let redraw = self.interface.redraw_in();
         let rate = if self.options.frames.is_some() {
             IterationRate::Unlimited
+        } else if redraw.is_some_and(|wait| wait < Duration::from_millis(20)) {
+            // An animation: draw at the display's pace.
+            IterationRate::Unlimited
+        } else if redraw.is_some() {
+            // A delay running out: check often enough to be on time.
+            IterationRate::Hz(60)
         } else if self.interface.has_unsaved_changes() {
             IterationRate::Hz(10)
         } else {
@@ -626,6 +626,13 @@ impl App for KoebiApp {
     }
 
     fn iterate(&mut self, context: &mut AppContext) -> AppControl {
+        if self
+            .interface
+            .redraw_in()
+            .is_some_and(|wait| wait.is_zero())
+        {
+            self.needs_redraw = true;
+        }
         if self.needs_redraw || self.options.frames.is_some() {
             let control = self.render_frame();
             if control != AppControl::Continue {
