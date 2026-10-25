@@ -5,6 +5,7 @@ use crate::error::{Error, Result};
 use crate::graph::{Change, Graph, ThemeSlot};
 use crate::kind::Kind;
 use crate::layers::{Layers, Origin, Overlay};
+use crate::resolve::Resolve;
 use crate::schema::{Schema, TokenInfo};
 use crate::theme::{self, NewTheme, Theme, ThemeId, ThemeOrigin};
 use crate::tier::{MayAlias, Tier, TierId};
@@ -88,13 +89,7 @@ impl DesignSystem {
 
     /// The resolved text style of a typography composite in the active theme.
     pub fn typography<T: Tier>(&self, style: Typography<T>) -> TextStyle {
-        TextStyle {
-            font_family: self.get(style.font_family),
-            font_size: self.get(style.font_size),
-            font_weight: self.get(style.font_weight),
-            line_height: self.get(style.line_height),
-            letter_spacing: self.get(style.letter_spacing),
-        }
+        Resolve::typography(self, style)
     }
 
     /// A view on any theme with any set of layers: original values ([`Layers::NONE`] or

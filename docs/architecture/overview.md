@@ -8,16 +8,18 @@ renderer on Vulkan. The operating system only provides a window, input and a sur
 ```mermaid
 flowchart TD
     app["apps/koebi<br/>composition root, app state machine"]
+    ui["koebi-ui<br/>components styled by tokens"]
     render["koebi-render<br/>Scene → batched instanced draws"]
     gpu["koebi-gpu<br/>Vulkan RHI (ash)"]
     platform["koebi-platform<br/>SDL3: lifecycle, windows, events, surface"]
     tokens["koebi-tokens<br/>Koebi's design tokens and themes"]
     design["koebi-design<br/>design tokens, themes, overrides, color vision"]
     core["koebi-core<br/>geometry, color science, logging"]
-    app --> render --> gpu --> core
+    app --> ui --> render --> gpu --> core
     app --> platform --> core
     app --> gpu
-    tokens --> design --> core
+    app --> tokens
+    ui --> tokens --> design --> core
 ```
 
 | Crate | Responsibility | Depends on |
@@ -28,6 +30,7 @@ flowchart TD
 | `koebi-platform` | SDL3 main callbacks (`App` trait), windows, event translation, Vulkan library and surface | `sdl3-sys`, `ash` (types), core |
 | `koebi-design` | Design token engine: typed tokens in three tiers, compiled token tables, themes, overrides, views, color vision ([ADR 0008](../adr/0008-design-token-system.md)) | core |
 | `koebi-tokens` | Koebi's token set and built-in themes ([design system](../design-system/README.md)) | design |
+| `koebi-ui` | Components drawn from typed styles of component tokens, immediate-mode interaction ([ADR 0011](../adr/0011-token-driven-components.md)) | render, tokens, design, core |
 | `koebi-testkit` | Headless GPU, offscreen readback, PNG golden images (tests only) | gpu, core |
 | `koebi` (app) | Wires the layers, owns application state, theme tokens | all |
 
@@ -38,10 +41,11 @@ Rules that keep the graph clean:
 - `koebi-core` has no dependency at all and no platform code, so it is testable everywhere,
   including under Miri.
 - `koebi-design` knows neither the GPU nor the platform: it turns token definitions into
-  values. Widgets map those values to render primitives.
+  values. `koebi-ui` maps those values to render primitives, and never sees the platform:
+  the app turns platform events into `koebi_ui::Input`.
 
-Future crates slot in the same way: `koebi-text` (font parsing, shaping, glyph atlas),
-`koebi-ui` (layout and widgets, styled by `koebi-design` tokens).
+Future crates slot in the same way: `koebi-text` (font parsing, shaping, glyph atlas), then a
+widget tree and layout engine in `koebi-ui`.
 
 ## Application lifecycle
 

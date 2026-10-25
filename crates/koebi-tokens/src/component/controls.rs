@@ -1,5 +1,5 @@
-//! Controls: buttons, toggles, checkboxes, sliders, value fields, dropdowns, frames, separators,
-//! scrollbars, tabs and headers.
+//! Controls: buttons, icons, toggles, checkboxes, sliders, value fields, dropdowns, frames,
+//! separators, scrollbars, tabs, headers, color swatches and theme cards.
 
 use crate::semantic;
 use koebi_design::define::*;
@@ -19,6 +19,15 @@ koebi_design::tokens! {
     /// Button: label color.
     BUTTON_LABEL_COLOR_DEFAULT = "button.label.color.default": Color ->
         semantic::TEXT_COLOR_PRIMARY_DEFAULT;
+    /// Button: border color.
+    BUTTON_BORDER_COLOR_DEFAULT = "button.border.color.default": Color ->
+        semantic::BORDER_COLOR_DEFAULT;
+    /// Button: border width.
+    BUTTON_BORDER_WIDTH_DEFAULT = "button.border.width.default": Dimension ->
+        semantic::BORDER_WIDTH_NONE;
+    /// Button: corner radius.
+    BUTTON_CORNER_RADIUS_DEFAULT = "button.corner-radius.default": Dimension ->
+        semantic::RADIUS_CONTROL;
 
     /// Icon button: background color.
     ICON_BUTTON_BACKGROUND_COLOR_DEFAULT = "icon-button.background.color.default": Color ->
@@ -41,6 +50,11 @@ koebi_design::tokens! {
     /// Icon button: corner radius.
     ICON_BUTTON_CORNER_RADIUS_DEFAULT = "icon-button.corner-radius.default": Dimension ->
         semantic::RADIUS_CONTROL;
+
+    /// Icon: size of line icons.
+    ICON_SIZE_DEFAULT = "icon.size.default": Dimension = px(16.0), range(8.0, 64.0);
+    /// Icon: stroke width of line icons (check marks excepted).
+    ICON_STROKE_WIDTH_DEFAULT = "icon.stroke-width.default": Dimension = px(1.5), range(0.5, 4.0);
 
     /// Toggle: background color.
     TOGGLE_BACKGROUND_COLOR_DEFAULT = "toggle.background.color.default": Color ->
@@ -104,6 +118,9 @@ koebi_design::tokens! {
     /// Checkbox: border width.
     CHECKBOX_BORDER_WIDTH_DEFAULT = "checkbox.border.width.default": Dimension =
         px(1.0), range(0.0, 4.0);
+    /// Checkbox: stroke width of the check mark.
+    CHECKBOX_MARK_WIDTH_DEFAULT = "checkbox.mark.width.default": Dimension =
+        px(2.0), range(0.5, 6.0);
 
     /// Slider: grab color.
     SLIDER_GRAB_COLOR_DEFAULT = "slider.grab.color.default": Color ->
@@ -113,6 +130,20 @@ koebi_design::tokens! {
         semantic::BACKGROUND_ACCENT_PRESSED;
     /// Slider: corner radius.
     SLIDER_CORNER_RADIUS_DEFAULT = "slider.corner-radius.default": Dimension -> semantic::RADIUS_M;
+    /// Slider: grab color, hovered.
+    SLIDER_GRAB_COLOR_HOVER = "slider.grab.color.hover": Color -> semantic::BACKGROUND_ACCENT_HOVER;
+    /// Slider: grab width.
+    SLIDER_GRAB_WIDTH_DEFAULT = "slider.grab.width.default": Dimension =
+        px(10.0), range(2.0, 40.0);
+    /// Slider: space between the grab and the track edges.
+    SLIDER_GRAB_PADDING_DEFAULT = "slider.grab.padding.default": Dimension =
+        px(2.0), range(0.0, 10.0);
+    /// Slider: track color.
+    SLIDER_TRACK_COLOR_DEFAULT = "slider.track.color.default": Color ->
+        semantic::BACKGROUND_APP_FRAME;
+    /// Slider: track color, hovered.
+    SLIDER_TRACK_COLOR_HOVER = "slider.track.color.hover": Color ->
+        semantic::BACKGROUND_APP_FRAME_HOVER;
 
     /// Drag value: background color.
     DRAG_VALUE_BACKGROUND_COLOR_DEFAULT = "drag-value.background.color.default": Color ->
@@ -147,6 +178,9 @@ koebi_design::tokens! {
     /// Drag value: border width.
     DRAG_VALUE_BORDER_WIDTH_DEFAULT = "drag-value.border.width.default": Dimension ->
         semantic::BORDER_WIDTH_THIN;
+    /// Drag value: fill showing where the value lies in its range.
+    DRAG_VALUE_FILL_COLOR_DEFAULT = "drag-value.fill.color.default": Color ->
+        semantic::BACKGROUND_ACCENT_DEFAULT;
 
     /// Dropdown: height.
     DROPDOWN_SIZE_HEIGHT = "dropdown.size.height": Dimension -> semantic::SIZE_CONTROL_HEIGHT;
@@ -412,4 +446,54 @@ koebi_design::tokens! {
     /// Resize grip: color, pressed.
     RESIZE_GRIP_COLOR_PRESSED = "resize-grip.color.pressed": Color ->
         semantic::BACKGROUND_ACCENT_PRESSED;
+
+    /// Color swatch: corner radius.
+    COLOR_SWATCH_CORNER_RADIUS_DEFAULT = "color-swatch.corner-radius.default": Dimension ->
+        semantic::RADIUS_XS;
+    /// Color swatch: border color.
+    COLOR_SWATCH_BORDER_COLOR_DEFAULT = "color-swatch.border.color.default": Color ->
+        semantic::BORDER_COLOR_DEFAULT;
+    /// Color swatch: border color, hovered.
+    COLOR_SWATCH_BORDER_COLOR_HOVER = "color-swatch.border.color.hover": Color ->
+        semantic::BORDER_COLOR_STRONG_DEFAULT;
+    /// Color swatch: border color, selected.
+    COLOR_SWATCH_BORDER_COLOR_SELECTED = "color-swatch.border.color.selected": Color ->
+        semantic::BORDER_COLOR_FOCUS_DEFAULT;
+    /// Color swatch: border width.
+    COLOR_SWATCH_BORDER_WIDTH_DEFAULT = "color-swatch.border.width.default": Dimension ->
+        semantic::BORDER_WIDTH_THIN;
+    /// Color swatch: border width, selected.
+    COLOR_SWATCH_BORDER_WIDTH_SELECTED = "color-swatch.border.width.selected": Dimension ->
+        semantic::BORDER_WIDTH_MEDIUM;
+    /// Color swatch: light squares of the checkerboard behind translucent colors.
+    COLOR_SWATCH_CHECKER_COLOR_LIGHT = "color-swatch.checker.color.light": Color ->
+        semantic::NEUTRAL_COLOR_500;
+    /// Color swatch: dark squares of the checkerboard behind translucent colors.
+    COLOR_SWATCH_CHECKER_COLOR_DARK = "color-swatch.checker.color.dark": Color ->
+        semantic::NEUTRAL_COLOR_700;
+    /// Color swatch: size of the checkerboard squares.
+    COLOR_SWATCH_CHECKER_SIZE_DEFAULT = "color-swatch.checker.size.default": Dimension =
+        px(6.0), range(2.0, 32.0);
+
+    /// Theme card: corner radius.
+    THEME_CARD_CORNER_RADIUS_DEFAULT = "theme-card.corner-radius.default": Dimension ->
+        semantic::RADIUS_M;
+    /// Theme card: border color.
+    THEME_CARD_BORDER_COLOR_DEFAULT = "theme-card.border.color.default": Color ->
+        semantic::BORDER_COLOR_DEFAULT;
+    /// Theme card: border color, hovered.
+    THEME_CARD_BORDER_COLOR_HOVER = "theme-card.border.color.hover": Color ->
+        semantic::BORDER_COLOR_STRONG_DEFAULT;
+    /// Theme card: border color of the active theme's card.
+    THEME_CARD_BORDER_COLOR_SELECTED = "theme-card.border.color.selected": Color ->
+        semantic::BACKGROUND_ACCENT_DEFAULT;
+    /// Theme card: border width.
+    THEME_CARD_BORDER_WIDTH_DEFAULT = "theme-card.border.width.default": Dimension ->
+        semantic::BORDER_WIDTH_THIN;
+    /// Theme card: border width of the active theme's card.
+    THEME_CARD_BORDER_WIDTH_SELECTED = "theme-card.border.width.selected": Dimension ->
+        semantic::BORDER_WIDTH_MEDIUM;
+    /// Theme card: space between the border and the preview.
+    THEME_CARD_PADDING_DEFAULT = "theme-card.padding.default": Dimension =
+        px(4.0), range(0.0, 16.0);
 }
