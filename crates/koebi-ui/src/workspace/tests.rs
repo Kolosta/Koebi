@@ -236,7 +236,11 @@ fn shift_resizes_ten_times_finer_and_ctrl_snaps() {
         .input
         .pointer_moved(GUTTER_AT + Vec2::new(163.0, 0.0));
     harness.frame();
-    assert_eq!(harness.left().x1 % (GRID / 48), 0);
+    let steps = f64::from(harness.left().x1) * 48.0 / f64::from(GRID);
+    assert!(
+        (steps - steps.round()).abs() * f64::from(GRID) / 48.0 < 1.0,
+        "{steps}"
+    );
 }
 
 #[test]
@@ -359,4 +363,83 @@ fn a_right_click_cancels_a_preview() {
     // The cancel took the right click: no menu opened either.
     assert!(!harness.view.menu.is_open());
     assert_eq!(Duration::ZERO, harness.input.time());
+}
+
+impl Harness {
+    /// Presses at `from`, moves in two steps to `to`, and releases there.
+    fn drag(&mut self, from: Vec2, to: Vec2) {
+        self.input.pointer_moved(from);
+        self.frame();
+        self.input.primary_button(true, from);
+        self.frame();
+        self.input.pointer_moved((from + to) * 0.5);
+        self.frame();
+        self.input.pointer_moved(to);
+        self.frame();
+        self.input.primary_button(false, to);
+        self.frame();
+    }
+}
+
+/// Inside the bottom-left corner of the left panel, (4, 4) to (400, 600).
+const LEFT_BOTTOM_CORNER: Vec2 = Vec2::new(8.0, 596.0);
+/// Inside the top-right corner of the left panel.
+const LEFT_TOP_RIGHT_CORNER: Vec2 = Vec2::new(396.0, 8.0);
+
+#[test]
+fn dragging_a_corner_inwards_splits_along_the_drag() {
+    let mut harness = Harness::halves();
+    harness.input.pointer_moved(LEFT_BOTTOM_CORNER);
+    harness.frame();
+    harness.frame();
+    assert_eq!(harness.state.cursor(), CursorShape::Crosshair);
+    // A horizontal drag makes a vertical line where the pointer lets go.
+    harness.drag(LEFT_BOTTOM_CORNER, Vec2::new(202.0, 560.0));
+    assert_eq!(harness.areas().len(), 3);
+    assert!(
+        close(harness.left().x1, GRID / 4, 2),
+        "{:?}",
+        harness.left()
+    );
+    assert_eq!(harness.host.copied.len(), 1);
+    assert!(!harness.view.is_operating());
+    harness.workspace.check().unwrap();
+    // A vertical drag makes a horizontal line.
+    harness.drag(LEFT_BOTTOM_CORNER, Vec2::new(20.0, 302.0));
+    assert_eq!(harness.areas().len(), 4);
+    assert!(
+        close(harness.left().y1, GRID / 2, 2),
+        "{:?}",
+        harness.left()
+    );
+}
+
+#[test]
+fn dragging_a_corner_into_a_neighbour_joins_it() {
+    let mut harness = Harness::halves();
+    let ids = harness.area_ids();
+    let right_editor = harness.workspace.stack(ids[1]).unwrap().active();
+    harness.drag(LEFT_TOP_RIGHT_CORNER, Vec2::new(600.0, 300.0));
+    assert_eq!(harness.areas(), [GridRect::FULL]);
+    assert_eq!(harness.host.removed, [right_editor]);
+}
+
+#[test]
+fn escape_cancels_a_corner_drag() {
+    let mut harness = Harness::halves();
+    let before = harness.areas();
+    harness.input.pointer_moved(LEFT_BOTTOM_CORNER);
+    harness.frame();
+    harness.input.primary_button(true, LEFT_BOTTOM_CORNER);
+    harness.frame();
+    harness.input.pointer_moved(Vec2::new(202.0, 560.0));
+    harness.frame();
+    assert!(harness.view.is_operating());
+    assert_eq!(harness.state.cursor(), CursorShape::ResizeHorizontal);
+    harness.input.trigger(&OPERATION_CANCEL);
+    harness.frame();
+    harness.input.primary_button(false, Vec2::new(202.0, 560.0));
+    harness.frame();
+    assert_eq!(harness.areas(), before);
+    assert_eq!(harness.host.copied, []);
 }

@@ -215,17 +215,6 @@ impl<'a> Ui<'a> {
         state.secondary_target = topmost(input.button_pressed_at(PointerButton::Secondary));
         state.grabbing.clear();
         state.redraw_at = None;
-        let held_cursor = state
-            .active
-            .and_then(|widget| state.previous.of_widget(widget))
-            .and_then(|region| region.cursor);
-        state.cursor = held_cursor
-            .or_else(|| {
-                input
-                    .pointer()
-                    .and_then(|point| state.previous.cursor_at(point))
-            })
-            .unwrap_or_default();
         Self {
             scene,
             styles,
@@ -433,8 +422,21 @@ impl Drop for Ui<'_> {
         if !self.state.active_seen || self.input.released() {
             self.state.active = None;
         }
-        // The regions and grabs of this frame decide where the next one's input goes.
+        // The cursor shown until the next frame comes from what this frame drew: the widget
+        // holding the pointer, or what is on top under it.
         let state = &mut *self.state;
+        let held = state
+            .active
+            .and_then(|widget| state.current.of_widget(widget))
+            .and_then(|region| region.cursor);
+        state.cursor = held
+            .or_else(|| {
+                self.input
+                    .pointer()
+                    .and_then(|point| state.current.cursor_at(point))
+            })
+            .unwrap_or_default();
+        // The regions and grabs of this frame decide where the next one's input goes.
         core::mem::swap(&mut state.previous, &mut state.current);
         core::mem::swap(&mut state.grabs, &mut state.grabbing);
     }
