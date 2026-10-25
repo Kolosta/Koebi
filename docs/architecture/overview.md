@@ -73,7 +73,7 @@ presenter (swapchain and surface) on `WillEnterBackground` and recreates it on
 1. The app rebuilds the `Scene` (logical pixels; `Scene::clear` keeps its allocations).
 2. `Presenter::render` waits for the frame slot's fence (frame *N - 2*), releases deferred
    garbage, acquires a swapchain image and opens a command buffer.
-3. `Renderer2D::render` uploads instance data into the slot's streaming buffer, begins a
+3. `Renderer2D::render` uploads instance data into the slot's streaming buffers, begins a
    dynamic rendering pass cleared to the scene's background and records one instanced draw per
    primitive run.
 4. The presenter transitions the image for presentation, submits (signalling the image's
