@@ -247,8 +247,10 @@ impl Renderer2D {
             let Some(buffer) = buffer else { continue };
             pass.set_pipeline(&primitives.pipeline);
             pass.set_push_constants(&primitives.pipeline, &constants)?;
-            pass.set_vertex_buffer(0, buffer, 0);
-            pass.draw(0..4, batch.instances());
+            // From instance zero, at the run's offset: some drivers have no base instance.
+            let (offset, count) = batch.window(primitives.stride);
+            pass.set_vertex_buffer(0, buffer, offset);
+            pass.draw(0..4, 0..count);
         }
         Ok(())
     }

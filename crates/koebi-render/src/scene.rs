@@ -1,7 +1,5 @@
 //! Scene description: what to draw this frame, in painter's order.
 
-use core::ops::Range;
-
 use koebi_core::{Color, Rect, Vec2};
 use koebi_gpu::Pod;
 
@@ -167,9 +165,16 @@ pub(crate) struct Batch {
 }
 
 impl Batch {
-    /// The instances of the batch, in the instances of its kind.
-    pub(crate) fn instances(self) -> Range<u32> {
-        self.start..self.end
+    /// How to draw the batch from a buffer of instances of `stride` bytes: the byte offset of
+    /// its first instance, where to bind the buffer, and its number of instances.
+    ///
+    /// Draws always start at instance zero: MoltenVK rejects non-zero base instances on
+    /// GPUs without them, such as the iOS simulator's.
+    pub(crate) fn window(self, stride: u32) -> (u64, u32) {
+        (
+            u64::from(self.start) * u64::from(stride),
+            self.end - self.start,
+        )
     }
 }
 
@@ -369,20 +374,39 @@ mod tests {
         scene.push_line(&line());
         scene.push_line(&line());
         scene.push_rect(&rect);
+        // With a stride of 1, a window is (first instance, instance count).
         let batches: Vec<_> = scene
             .batches()
             .iter()
-            .map(|batch| (batch.kind, batch.instances()))
+            .map(|batch| (batch.kind, batch.window(1)))
             .collect();
         assert_eq!(
             batches,
             [
-                (PrimitiveKind::Rect, 0..2),
-                (PrimitiveKind::Line, 0..3),
-                (PrimitiveKind::Rect, 2..3),
+                (PrimitiveKind::Rect, (0, 2)),
+                (PrimitiveKind::Line, (0, 3)),
+                (PrimitiveKind::Rect, (2, 1)),
             ]
         );
         assert_eq!(scene.draw_count(), 3);
+    }
+
+    #[test]
+    fn batches_draw_from_instance_zero_at_a_buffer_offset() {
+        // Regression test for #61: MoltenVK on the iOS simulator rejects draws whose first
+        // instance is not zero, so a run's start must move into the vertex buffer offset.
+        let mut scene = Scene::new();
+        let rect = RectPrimitive::new(rect(), Color::WHITE);
+        scene.push_rect(&rect);
+        scene.push_rect(&rect);
+        scene.push_line(&line());
+        scene.push_rect(&rect);
+        let windows: Vec<_> = scene
+            .batches()
+            .iter()
+            .map(|batch| batch.window(RectInstance::STRIDE))
+            .collect();
+        assert_eq!(windows, [(0, 2), (0, 1), (128, 1)]);
     }
 
     #[test]
