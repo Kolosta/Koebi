@@ -21,6 +21,8 @@ koebi_design::tokens! {
         semantic::BORDER_COLOR_MAGENTA_DEFAULT;
     /// Zone overlay: split line color.
     ZONE_OVERLAY_SPLIT_LINE = "zone-overlay.split-line": Color = hex("#FFFFFFF0");
+    /// The two halves an area would split into.
+    ZONE_OVERLAY_SPLIT_PREVIEW = "zone-overlay.split-preview": Color = hex("#FFFFFF24");
     /// Zone overlay: transform dim color.
     ZONE_OVERLAY_TRANSFORM_DIM = "zone-overlay.transform-dim": Color = hex("#00000070");
     /// Zone overlay: join keep color.
@@ -32,4 +34,7 @@ koebi_design::tokens! {
     /// Zone overlay: join frame color.
     ZONE_OVERLAY_JOIN_FRAME = "zone-overlay.join.frame": Color ->
         semantic::BORDER_COLOR_BLUE_DEFAULT;
+    /// Width of the outline of a joined area's final rectangle.
+    ZONE_OVERLAY_JOIN_FRAME_WIDTH = "zone-overlay.join.frame-width": Dimension ->
+        semantic::BORDER_WIDTH_MEDIUM;
 }

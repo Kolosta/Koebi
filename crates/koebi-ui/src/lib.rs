@@ -60,6 +60,7 @@ mod style;
 mod text;
 mod ui;
 mod widgets;
+mod workspace;
 
 pub use icon::Icon;
 pub use id::WidgetId;
@@ -73,6 +74,10 @@ pub use widgets::{
     MENU_CLOSE, MENU_NEXT, MENU_PREVIOUS, MenuAction, MenuItem, MenuState, MenuStyle, PanelLevel,
     PanelStyle, SeparatorStyle, SliderStyle, SwatchStyle, ThemeCardStyle, ThemePreview,
     ToggleStyle,
+};
+pub use workspace::{
+    EditorHost, OPERATION_CANCEL, OPERATION_CONFIRM, WORKSPACE, WORKSPACE_ACTIONS,
+    WORKSPACE_OPERATION, WorkspaceStyle, WorkspaceView,
 };
 
 /// The styles of Koebi's base theme, for unit tests.

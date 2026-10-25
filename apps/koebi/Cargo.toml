@@ -31,6 +31,7 @@ koebi-render.workspace = true
 koebi-text.workspace = true
 koebi-tokens.workspace = true
 koebi-ui.workspace = true
+koebi-workspace.workspace = true
 
 [dev-dependencies]
 koebi-testkit.workspace = true

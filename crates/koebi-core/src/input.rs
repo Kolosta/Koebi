@@ -547,6 +547,15 @@ pub enum CursorShape {
     ResizeNwse,
     /// Resizing along the top-right to bottom-left diagonal.
     ResizeNesw,
+    /// An arrow pointing left: an operation going that way (an area joining the one on its
+    /// left).
+    ArrowLeft,
+    /// An arrow pointing right.
+    ArrowRight,
+    /// An arrow pointing up.
+    ArrowUp,
+    /// An arrow pointing down.
+    ArrowDown,
     /// A cursor the application created, by its own number.
     Custom(u16),
 }

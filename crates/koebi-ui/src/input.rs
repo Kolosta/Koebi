@@ -1,6 +1,8 @@
 //! [`Input`]: the pointer, the modifiers and the triggered actions as components see them
 //! during one frame.
 
+use core::time::Duration;
+
 use koebi_core::Vec2;
 use koebi_core::input::Modifiers;
 use koebi_input::ActionDef;
@@ -75,6 +77,8 @@ pub struct Input {
     wheel: Vec2,
     modifiers: Modifiers,
     actions: Actions,
+    /// When the frame is drawn, since a moment the application chose.
+    time: Duration,
 }
 
 impl Input {
@@ -127,6 +131,17 @@ impl Input {
     /// The keymap triggered `action`.
     pub fn trigger(&mut self, action: &'static ActionDef) {
         self.actions.push(action);
+    }
+
+    /// Sets the time of the frame about to be drawn, measured from a fixed moment (the
+    /// application's start): delays and animations count from it.
+    pub fn set_time(&mut self, time: Duration) {
+        self.time = time;
+    }
+
+    /// The time of this frame (see [`Input::set_time`]).
+    pub fn time(&self) -> Duration {
+        self.time
     }
 
     /// Forgets the presses, releases, wheel turns and actions reported to the frame that just

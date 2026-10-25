@@ -15,6 +15,7 @@ use crate::widgets::{
     ButtonStyle, CheckboxStyle, DragValueStyle, DropdownStyle, MenuStyle, PanelStyle,
     SeparatorStyle, SliderStyle, SwatchStyle, ThemeCardStyle, ToggleStyle,
 };
+use crate::workspace::WorkspaceStyle;
 
 /// One color per interaction state.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -88,6 +89,8 @@ pub struct Styles {
     pub menu: MenuStyle,
     /// [`Ui::dropdown`](crate::Ui::dropdown).
     pub dropdown: DropdownStyle,
+    /// [`Ui::workspace`](crate::Ui::workspace).
+    pub workspace: WorkspaceStyle,
 }
 
 impl Styles {
@@ -109,6 +112,7 @@ impl Styles {
             theme_card: ThemeCardStyle::resolve(tokens),
             menu: MenuStyle::resolve(tokens),
             dropdown: DropdownStyle::resolve(tokens),
+            workspace: WorkspaceStyle::resolve(tokens),
         }
     }
 }
