@@ -11,8 +11,10 @@
 
 mod app;
 mod design_options;
+mod frame_times;
 mod gallery;
 mod options;
+mod overlay;
 
 pub use koebi_platform::exit_code;
 pub use options::{Options, ParseError};

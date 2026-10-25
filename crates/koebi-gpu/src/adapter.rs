@@ -1,6 +1,7 @@
 //! Physical devices ("adapters") and the capabilities Koebi requires from them.
 
 use std::ffi::CStr;
+use std::time::Duration;
 
 use ash::vk;
 
@@ -76,6 +77,38 @@ pub struct AdapterInfo {
     pub driver_info: String,
 }
 
+/// How the graphics queue counts time, for timestamp queries.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Timestamps {
+    /// Nanoseconds per tick.
+    pub(crate) period: f32,
+    /// The valid bits of a timestamp: the counter wraps around beyond them.
+    pub(crate) mask: u64,
+}
+
+impl Timestamps {
+    fn new(period: f32, valid_bits: u32) -> Option<Self> {
+        let mask = match valid_bits {
+            0 => return None,
+            64.. => u64::MAX,
+            bits => (1_u64 << bits) - 1,
+        };
+        (period.is_finite() && period > 0.0).then_some(Self { period, mask })
+    }
+
+    /// The time between two timestamps of the same queue, `end` written after `begin`.
+    pub(crate) fn elapsed(self, begin: u64, end: u64) -> Duration {
+        let ticks = end.wrapping_sub(begin) & self.mask;
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "a frame lasts far less than 2^64 nanoseconds, and the product is positive"
+        )]
+        let nanoseconds = (ticks as f64 * f64::from(self.period)).round() as u64;
+        Duration::from_nanos(nanoseconds)
+    }
+}
+
 /// A physical device meeting Koebi's baseline: Vulkan 1.2 with dynamic rendering and
 /// synchronization2 (core in 1.3, extensions before), plus a graphics queue.
 #[derive(Clone, Debug)]
@@ -83,6 +116,8 @@ pub struct Adapter {
     pub(crate) raw: vk::PhysicalDevice,
     pub(crate) info: AdapterInfo,
     pub(crate) queue_family: u32,
+    /// `None` when the graphics queue has no timestamps.
+    pub(crate) timestamps: Option<Timestamps>,
     pub(crate) core_1_3: bool,
     pub(crate) has_swapchain: bool,
     pub(crate) has_portability_subset: bool,
@@ -104,6 +139,12 @@ impl Adapter {
     /// `true` when dynamic rendering and synchronization2 come from Vulkan 1.3 core.
     pub fn uses_vulkan_1_3_core(&self) -> bool {
         self.core_1_3
+    }
+
+    /// `true` when the graphics queue writes timestamps, so that
+    /// [`crate::Presenter::gpu_frame_time`] can measure frames.
+    pub fn supports_timestamps(&self) -> bool {
+        self.timestamps.is_some()
     }
 
     /// Checks a physical device against Koebi's requirements.
@@ -173,8 +214,9 @@ impl Adapter {
         let driver_name = to_string(driver.driver_name_as_c_str());
         let driver_info = to_string(driver.driver_info_as_c_str());
 
-        let queue_family = find_queue_family(instance, raw, surface)
+        let (queue_family, timestamp_bits) = find_queue_family(instance, raw, surface)
             .ok_or_else(|| format!("{name}: no graphics queue able to present"))?;
+        let timestamps = Timestamps::new(properties.limits.timestamp_period, timestamp_bits);
 
         let has_swapchain = has(ash::khr::swapchain::NAME);
         if surface.is_some() && !has_swapchain {
@@ -193,6 +235,7 @@ impl Adapter {
                 driver_info,
             },
             queue_family,
+            timestamps,
             core_1_3,
             has_swapchain,
             has_portability_subset: has(PORTABILITY_SUBSET),
@@ -201,12 +244,13 @@ impl Adapter {
 }
 
 /// Finds a queue family with graphics support (and presentation support when a surface is
-/// given). One queue does everything: Koebi's workloads are small and latency-bound.
+/// given), and returns it with its number of valid timestamp bits. One queue does
+/// everything: Koebi's workloads are small and latency-bound.
 fn find_queue_family(
     instance: &InstanceShared,
     raw: vk::PhysicalDevice,
     surface: Option<&Surface>,
-) -> Option<u32> {
+) -> Option<(u32, u32)> {
     // SAFETY: `raw` was enumerated from this instance.
     let families = unsafe {
         instance
@@ -217,14 +261,15 @@ fn find_queue_family(
         if !family.queue_flags.contains(vk::QueueFlags::GRAPHICS) {
             return None;
         }
+        let found = (index, family.timestamp_valid_bits);
         match (surface, instance.surface.as_ref()) {
-            (None, _) => Some(index),
+            (None, _) => Some(found),
             (Some(surface), Some(loader)) => {
                 // SAFETY: the surface was created from this instance; index is in range.
                 let supported = unsafe {
                     loader.get_physical_device_surface_support(raw, index, surface.handle())
                 };
-                supported.unwrap_or(false).then_some(index)
+                supported.unwrap_or(false).then_some(found)
             }
             (Some(_), None) => None,
         }
@@ -234,6 +279,19 @@ fn find_queue_family(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn timestamps_scale_ticks_and_survive_wrap_around() {
+        assert_eq!(Timestamps::new(1.0, 0), None);
+        assert_eq!(Timestamps::new(0.0, 64), None);
+        // 52.08 ns per tick, as on some mobile GPUs.
+        let slow = Timestamps::new(52.08, 64).expect("valid support");
+        assert_eq!(slow.elapsed(1_000, 1_100), Duration::from_nanos(5_208));
+        // A 36-bit counter that wrapped between the two timestamps.
+        let narrow = Timestamps::new(1.0, 36).expect("valid support");
+        let begin = (1_u64 << 36) - 10;
+        assert_eq!(narrow.elapsed(begin, 5), Duration::from_nanos(15));
+    }
 
     #[test]
     fn high_performance_prefers_discrete_then_integrated_and_cpu_last() {

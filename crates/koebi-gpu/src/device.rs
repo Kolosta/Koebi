@@ -417,6 +417,27 @@ impl DeviceShared {
     }
 
     /// # Safety
+    /// `command_buffer` must be recording, `pool` a timestamp query pool of this device, and
+    /// `query` reset since its last use.
+    pub(crate) unsafe fn cmd_write_timestamp2(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        stage: vk::PipelineStageFlags2,
+        pool: vk::QueryPool,
+        query: u32,
+    ) {
+        // SAFETY: forwarded from the caller.
+        unsafe {
+            match &self.sync2_khr {
+                Some(khr) => khr.cmd_write_timestamp2(command_buffer, stage, pool, query),
+                None => self
+                    .raw
+                    .cmd_write_timestamp2(command_buffer, stage, pool, query),
+            }
+        }
+    }
+
+    /// # Safety
     /// `command_buffer` must be recording and `info` valid for this device.
     pub(crate) unsafe fn cmd_pipeline_barrier2(
         &self,

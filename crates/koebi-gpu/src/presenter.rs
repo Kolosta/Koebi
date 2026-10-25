@@ -12,8 +12,12 @@
 //!
 //! `render_finished` is indexed by swapchain image (not frame slot): a semaphore is reused
 //! only when its image is acquired again, which guarantees the previous present consumed it.
+//!
+//! When the queue supports it, two timestamps surround the frame's commands. They are read
+//! when the slot comes around again, after its fence: measuring never waits.
 
 use std::fmt;
+use std::time::Duration;
 
 use ash::vk;
 use koebi_core::Extent;
@@ -70,6 +74,10 @@ struct FrameSync {
     image_available: vk::Semaphore,
     in_flight: vk::Fence,
     submission: u64,
+    /// Two timestamps around the frame's commands; null without timestamp support.
+    timestamps: vk::QueryPool,
+    /// Whether the slot's last submission wrote the timestamps.
+    timed: bool,
 }
 
 /// Presents frames to a window surface.
@@ -82,6 +90,7 @@ pub struct Presenter {
     present_mode: PresentMode,
     needs_recreate: bool,
     frames_presented: u64,
+    gpu_frame_time: Option<Duration>,
     // Dropped after `Drop::drop` destroyed the swapchain, then the device reference.
     surface: Surface,
     device: Device,
@@ -103,6 +112,7 @@ impl Presenter {
             present_mode: desc.present_mode,
             needs_recreate: true,
             frames_presented: 0,
+            gpu_frame_time: None,
             surface,
             device: device.clone(),
         };
@@ -145,6 +155,18 @@ impl Presenter {
         self.frames_presented
     }
 
+    /// How long the GPU took to execute the commands of the latest measured frame, from its
+    /// first to its last command, without the wait for the swapchain image.
+    ///
+    /// Frames are measured with timestamp queries read [`FRAMES_IN_FLIGHT`] frames later,
+    /// once their fence has signaled, so measuring never stalls. `None` before the first
+    /// measured frame, when the queue has no timestamps
+    /// ([`crate::Adapter::supports_timestamps`]), or when its timestamps never advance (as on
+    /// the iOS simulator).
+    pub fn gpu_frame_time(&self) -> Option<Duration> {
+        self.gpu_frame_time
+    }
+
     /// Records and presents one frame. `record` receives an encoder whose target is already
     /// in [`TextureState::ColorAttachment`]; it must leave it there.
     ///
@@ -178,6 +200,28 @@ impl Presenter {
         .ctx("vkWaitForFences")?;
         device.mark_completed(frame.submission);
         device.collect_garbage();
+        if frame.timed {
+            frame.timed = false;
+            if let Some(timestamps) = device.adapter.timestamps {
+                let mut ticks = [0_u64; 2];
+                // SAFETY: both queries were written by the submission whose fence was just
+                // waited on, so their results are available without waiting.
+                let read = unsafe {
+                    device.raw.get_query_pool_results(
+                        frame.timestamps,
+                        0,
+                        &mut ticks,
+                        vk::QueryResultFlags::TYPE_64,
+                    )
+                };
+                let elapsed = timestamps.elapsed(ticks[0], ticks[1]);
+                // Some drivers (MoltenVK on the iOS simulator) announce timestamps that never
+                // advance: a frame cannot take no time, so such a frame counts as unmeasured.
+                if read.is_ok() && !elapsed.is_zero() {
+                    self.gpu_frame_time = Some(elapsed);
+                }
+            }
+        }
 
         // SAFETY: valid swapchain; the semaphore is unsignaled (its last wait completed).
         let acquired = unsafe {
@@ -231,13 +275,39 @@ impl Presenter {
             },
             frame_index: self.frame_index,
         };
+        let timed = frame.timestamps != vk::QueryPool::null();
+        if timed {
+            // SAFETY: recording, outside any rendering; the pool belongs to this device and
+            // its previous results were read above.
+            unsafe {
+                device
+                    .raw
+                    .cmd_reset_query_pool(frame.command_buffer, frame.timestamps, 0, 2);
+            }
+        }
         let mut encoder = CommandEncoder::new(device, frame.command_buffer);
         encoder.image_barrier(
             image,
             TextureState::Undefined,
             TextureState::ColorAttachment,
         );
+        // Written once every earlier command completed, the acquire wait included.
+        let stamp = |query| {
+            if timed {
+                // SAFETY: recording; the query was reset above and is written once.
+                unsafe {
+                    device.cmd_write_timestamp2(
+                        frame.command_buffer,
+                        vk::PipelineStageFlags2::ALL_COMMANDS,
+                        frame.timestamps,
+                        query,
+                    );
+                }
+            }
+        };
+        stamp(0);
         record(&mut encoder, &target);
+        stamp(1);
         encoder.image_barrier(image, TextureState::ColorAttachment, TextureState::Present);
 
         // SAFETY: recording started above.
@@ -256,6 +326,7 @@ impl Presenter {
             .command_buffer_infos(&command_buffers)
             .signal_semaphore_infos(&signals)];
         frame.submission = device.submit(&submits, frame.in_flight)?;
+        frame.timed = timed;
 
         let wait_semaphores = [render_finished];
         let swapchains = [swapchain.raw];
@@ -338,6 +409,7 @@ impl Drop for Presenter {
                 shared.raw.destroy_fence(frame.in_flight, None);
                 shared.raw.destroy_semaphore(frame.image_available, None);
                 shared.raw.destroy_command_pool(frame.pool, None);
+                shared.raw.destroy_query_pool(frame.timestamps, None);
             }
             for semaphore in self.render_finished.drain(..) {
                 shared.raw.destroy_semaphore(semaphore, None);
@@ -364,6 +436,8 @@ impl FrameSync {
             image_available: vk::Semaphore::null(),
             in_flight: vk::Fence::null(),
             submission: 0,
+            timestamps: vk::QueryPool::null(),
+            timed: false,
         };
         let result = (|| {
             let allocate = vk::CommandBufferAllocateInfo::default()
@@ -382,11 +456,20 @@ impl FrameSync {
             // SAFETY: valid device.
             frame.in_flight =
                 unsafe { raw.create_fence(&fence_info, None) }.ctx("vkCreateFence")?;
+            if device.shared.adapter.timestamps.is_some() {
+                let info = vk::QueryPoolCreateInfo::default()
+                    .query_type(vk::QueryType::TIMESTAMP)
+                    .query_count(2);
+                // SAFETY: valid device; its graphics queue supports timestamps.
+                frame.timestamps =
+                    unsafe { raw.create_query_pool(&info, None) }.ctx("vkCreateQueryPool")?;
+            }
             Ok::<(), Error>(())
         })();
         if let Err(error) = result {
             // SAFETY: nothing was submitted; null handles are ignored by destroy functions.
             unsafe {
+                raw.destroy_fence(frame.in_flight, None);
                 raw.destroy_semaphore(frame.image_available, None);
                 raw.destroy_command_pool(pool, None);
             }
