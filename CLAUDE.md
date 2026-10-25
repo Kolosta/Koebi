@@ -34,7 +34,8 @@ Vulkan surface. Performance, precise color control and a clean architecture are 
 
 ```text
 apps/koebi/            the application (composition root); e2e tests in tests/
-crates/koebi-core/     geometry, color science (sRGB, linear, OKLab/OKLCH, WCAG, color vision), logging; no deps
+crates/koebi-core/     geometry, color science (sRGB, linear, OKLab/OKLCH, WCAG, color vision), input
+                       vocabulary (keys, modifiers, buttons), logging; no deps
 crates/koebi-design/   design token engine: typed tiers, token tables, themes, overrides, views
 crates/koebi-tokens/   Koebi's design tokens (primitive, semantic, component) and built-in themes
 crates/koebi-ui/       components drawn from typed token styles, immediate-mode interaction
