@@ -18,9 +18,9 @@ use sdl3_sys::main::{SDL_EnterAppMainCallbacks, SDL_RunApp};
 use sdl3_sys::stdinc::SDL_free;
 
 use crate::error::{PlatformError, sdl_error};
-use crate::event::{Event, translate};
+use crate::event::{Event, to_logical, translate};
 use crate::vulkan::VulkanSupport;
-use crate::window::{Window, WindowDesc};
+use crate::window::{Window, WindowDesc, logical_per_window_coordinate};
 
 /// Process exit codes shared by every Koebi binary, its tests and CI scripts.
 pub mod exit_code {
@@ -364,6 +364,11 @@ unsafe extern "C" fn app_event<A: App>(
     // SAFETY: SDL passes a valid event for the duration of the callback.
     let Some(event) = (unsafe { event.as_ref() }).and_then(translate) else {
         return SDL_APP_CONTINUE;
+    };
+    // Pointer positions arrive in window coordinates; scenes are in logical pixels.
+    let event = match event.pointer_window() {
+        Some(window) => to_logical(event, logical_per_window_coordinate(window)),
+        None => event,
     };
     guarded(|| match state.app.as_mut() {
         Some(app) => to_sdl_result(app.event(&mut state.context, &event)),

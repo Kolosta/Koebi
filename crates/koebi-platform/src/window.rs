@@ -7,9 +7,10 @@ use std::ptr::NonNull;
 use ash::vk;
 use koebi_core::Extent;
 use sdl3_sys::video::{
-    SDL_CreateWindow, SDL_DestroyWindow, SDL_GetWindowDisplayScale, SDL_GetWindowID,
-    SDL_GetWindowSizeInPixels, SDL_WINDOW_HIGH_PIXEL_DENSITY, SDL_WINDOW_RESIZABLE,
-    SDL_WINDOW_VULKAN, SDL_Window,
+    SDL_CreateWindow, SDL_DestroyWindow, SDL_GetWindowDisplayScale, SDL_GetWindowFromID,
+    SDL_GetWindowID, SDL_GetWindowPixelDensity, SDL_GetWindowSizeInPixels,
+    SDL_WINDOW_HIGH_PIXEL_DENSITY, SDL_WINDOW_RESIZABLE, SDL_WINDOW_VULKAN, SDL_Window,
+    SDL_WindowID,
 };
 use sdl3_sys::vulkan::SDL_Vulkan_CreateSurface;
 
@@ -132,6 +133,39 @@ impl Window {
     }
 }
 
+/// How many logical pixels one SDL window coordinate is worth in the window `id`: its pixel
+/// density divided by its display scale.
+///
+/// Window coordinates are pixels on Windows and most Linux setups (density 1) and points on
+/// Apple platforms, while logical pixels are physical pixels divided by the display scale
+/// ([`Window::scale_factor`]). Returns 1 for an unknown window.
+pub(crate) fn logical_per_window_coordinate(id: WindowId) -> f32 {
+    // SAFETY: called on the main thread from an SDL callback; SDL returns null for an
+    // unknown identifier.
+    let raw = unsafe { SDL_GetWindowFromID(SDL_WindowID(id.0)) };
+    if raw.is_null() {
+        return 1.0;
+    }
+    // SAFETY: `raw` is a live window, just looked up.
+    let (density, display_scale) = unsafe {
+        (
+            SDL_GetWindowPixelDensity(raw),
+            SDL_GetWindowDisplayScale(raw),
+        )
+    };
+    coordinate_scale(density, display_scale)
+}
+
+/// `density / display_scale`, or 1 when SDL could not tell (it returns 0 on failure).
+fn coordinate_scale(density: f32, display_scale: f32) -> f32 {
+    let scale = density / display_scale;
+    if scale.is_finite() && scale > 0.0 {
+        scale
+    } else {
+        1.0
+    }
+}
+
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Window")
@@ -150,6 +184,17 @@ impl Drop for Window {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn window_coordinates_scale_by_density_over_display_scale() {
+        // Windows at 125 %: pixels are window coordinates, 1.25 of them per logical pixel.
+        assert!((coordinate_scale(1.0, 1.25) - 0.8).abs() < f32::EPSILON);
+        // macOS Retina: points are logical pixels.
+        assert!((coordinate_scale(2.0, 2.0) - 1.0).abs() < f32::EPSILON);
+        // SDL failures (0) fall back to no conversion.
+        assert!((coordinate_scale(0.0, 1.25) - 1.0).abs() < f32::EPSILON);
+        assert!((coordinate_scale(1.0, 0.0) - 1.0).abs() < f32::EPSILON);
+    }
 
     #[test]
     fn default_window_is_resizable_and_titled() {

@@ -54,7 +54,7 @@ pub enum Event {
     MouseMotion {
         /// Window under the mouse.
         window: WindowId,
-        /// Position in logical pixels.
+        /// Position in logical pixels, the unit of the window's scene.
         position: Vec2,
     },
     /// A mouse button was pressed or released.
@@ -83,7 +83,8 @@ pub enum Event {
 pub enum WindowEvent {
     /// The close button was pressed.
     CloseRequested,
-    /// New size in logical units.
+    /// New size in SDL window coordinates: pixels on Windows and most Linux setups, points on
+    /// Apple platforms. Use [`crate::Window::size_in_pixels`] for the drawable size.
     Resized {
         /// Width.
         width: i32,
@@ -150,7 +151,42 @@ fn to_extent(width: i32, height: i32) -> Extent {
     )
 }
 
-/// Translates an SDL event; returns `None` for events Koebi does not handle yet.
+impl Event {
+    /// The window of a pointer event that carries a position.
+    pub(crate) fn pointer_window(&self) -> Option<WindowId> {
+        match *self {
+            Self::MouseMotion { window, .. } | Self::MouseButton { window, .. } => Some(window),
+            _ => None,
+        }
+    }
+}
+
+/// Converts the position of a pointer event from SDL window coordinates to logical pixels,
+/// `scale` being the logical pixels per window coordinate of the event's window
+/// ([`crate::window::logical_per_window_coordinate`]). Other events are returned unchanged.
+pub(crate) fn to_logical(event: Event, scale: f32) -> Event {
+    match event {
+        Event::MouseMotion { window, position } => Event::MouseMotion {
+            window,
+            position: position * scale,
+        },
+        Event::MouseButton {
+            window,
+            button,
+            down,
+            position,
+        } => Event::MouseButton {
+            window,
+            button,
+            down,
+            position: position * scale,
+        },
+        other => other,
+    }
+}
+
+/// Translates an SDL event; returns `None` for events Koebi does not handle yet. Pointer
+/// positions stay in SDL window coordinates: see [`to_logical`].
 pub(crate) fn translate(event: &SDL_Event) -> Option<Event> {
     // SAFETY: `type` is the common first member of every event variant.
     let kind = SDL_EventType(unsafe { event.r#type });
@@ -295,6 +331,43 @@ mod tests {
                 event: WindowEvent::PointerLeft,
             })
         );
+    }
+
+    #[test]
+    fn pointer_positions_are_converted_to_logical_pixels() {
+        // Regression test for #65: on Windows at 125 %, window coordinates are pixels and a
+        // logical pixel is 1.25 pixels, so a click at pixel (400, 200) is at (320, 160) in the
+        // scene. Positions used to pass through unconverted.
+        let window = WindowId(1);
+        let click = Event::MouseButton {
+            window,
+            button: MouseButton::Left,
+            down: true,
+            position: Vec2::new(400.0, 200.0),
+        };
+        assert_eq!(click.pointer_window(), Some(window));
+        assert_eq!(
+            to_logical(click, 1.0 / 1.25),
+            Event::MouseButton {
+                window,
+                button: MouseButton::Left,
+                down: true,
+                position: Vec2::new(320.0, 160.0),
+            }
+        );
+        // On a Retina display, window coordinates are points: already logical pixels.
+        let motion = Event::MouseMotion {
+            window,
+            position: Vec2::new(400.0, 200.0),
+        };
+        assert_eq!(to_logical(motion, 1.0), motion);
+        // Wheel deltas are not positions.
+        let wheel = Event::MouseWheel {
+            window,
+            delta: Vec2::new(0.0, 1.0),
+        };
+        assert_eq!(wheel.pointer_window(), None);
+        assert_eq!(to_logical(wheel, 0.8), wheel);
     }
 
     #[test]
