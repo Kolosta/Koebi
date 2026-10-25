@@ -100,10 +100,11 @@ every frame costs one resolution per frame, and frames without changes read no t
 ## Writing a component
 
 1. **Tokens.** List what the component needs: colors per state, sizes, radii, widths. Reuse
-   the component's existing tokens; add the missing ones to `koebi-tokens`
-   (`src/component/*.rs`) under the component's name, aliasing semantic tokens (or holding a
-   value when no semantic token fits). Never alias another component's tokens: two
-   components that look alike today may diverge tomorrow.
+   the component's existing tokens; add the missing ones to its file in `koebi-tokens`
+   (`src/component/<category>/<component>.rs`, created for a new component, see
+   [defining tokens](README.md#defining-tokens)) under the component's name, aliasing
+   semantic tokens (or holding a value when no semantic token fits). Avoid aliasing another
+   component's tokens: two components that look alike today may diverge tomorrow.
 2. **Style.** In `crates/koebi-ui/src/widgets/<component>.rs`, define `<Component>Style` with
    one field per token and its `resolve` function. Use `StateColors` for per-state colors.
    Add the style to `Styles` and to `Styles::resolve`.

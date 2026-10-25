@@ -100,7 +100,7 @@ koebi_design::tokens! {
 }
 
 koebi_design::tokens! {
-    group CONTROLS: Component, start = SHAPES::END;
+    group SCROLLBAR: Component, start = SEPARATOR::END;
 
     /// Scrollbar: size.
     SCROLLBAR_SIZE_DEFAULT = "scrollbar.size.default": Dimension = px(14.0), range(1.0, 32.0);
@@ -120,12 +120,26 @@ token:
 4. Alias the most specific existing token: components alias semantic tokens, never primitives.
    A component may hold a value of its own when no semantic intent fits.
 
+Koebi's tables live in `crates/koebi-tokens/src/`, one token group per file:
+
+| Files | Content |
+|---|---|
+| `primitive/<family>.rs` | palettes and scales: `palette.rs`, `neutral.rs`, `scale.rs`... |
+| `semantic/<family>.rs` | intents: `background.rs`, `content.rs`, `typography.rs`... |
+| `component/<category>/<component>.rs` | one file per component, in `controls/`, `surfaces/` or `editors/`: `component/controls/button.rs` holds every `component.button.*` token |
+| `themes/<theme>.rs` | one file per built-in theme; `themes/mod.rs` lists them in order (`BUILT_IN`) |
+
+Each group starts where the previous one ends (`start = PREVIOUS::END`), and `lib.rs` lists
+the groups in that order: a new component gets its file, a line in its category's `mod.rs`
+and its group in `lib.rs`. A new theme gets its file and its place in `BUILT_IN`.
+
 ## Themes
 
 The base theme is the token tables themselves: it defines every token. A theme only lists the
 tokens it changes, as aliases:
 
 ```rust
+// crates/koebi-tokens/src/themes/light.rs
 koebi_design::theme! {
     /// Light theme: dark content on light surfaces.
     LIGHT = "light", "Light" {
@@ -133,6 +147,9 @@ koebi_design::theme! {
     }
 }
 ```
+
+Each built-in theme has its own file: a theme is reviewed, compared and exported on its own,
+and adding or removing one touches its file and the list in `themes/mod.rs` only.
 
 Themes can also be created at run time (`DesignSystem::create_theme`), for instance from an
 imported file. Switch with `set_active_theme`.
