@@ -1,0 +1,16 @@
+[package]
+name = "koebi-design"
+description = "Koebi design system engine: typed design tokens, themes, overrides and color vision."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[dependencies]
+koebi-core.workspace = true
+
+[lints]
+workspace = true

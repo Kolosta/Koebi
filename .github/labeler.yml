@@ -14,7 +14,7 @@
       - any-glob-to-any-file: crates/koebi-text/**
 "area: ui":
   - changed-files:
-      - any-glob-to-any-file: crates/koebi-ui/**
+      - any-glob-to-any-file: ["crates/koebi-ui/**", "crates/koebi-design/**", "crates/koebi-tokens/**"]
 "area: platform":
   - changed-files:
       - any-glob-to-any-file: crates/koebi-platform/**

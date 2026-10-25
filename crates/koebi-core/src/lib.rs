@@ -6,6 +6,7 @@
 //!   (logical pixels for layout, physical pixels for framebuffers).
 //! - [`color`]: color science for the design system: gamma-encoded sRGB (what designers
 //!   pick), linear light, perceptual OKLab/OKLCH, gamut mapping and WCAG contrast.
+//! - [`color_vision`]: simulation and correction matrices for color vision deficiencies.
 //! - [`log`]: a minimal logging facade with a pluggable sink (stderr by default, logcat on
 //!   Android).
 //!
@@ -13,8 +14,10 @@
 //! unit-testable on every target, including the Android emulator and the iOS simulator.
 
 pub mod color;
+pub mod color_vision;
 pub mod log;
 pub mod math;
 
 pub use color::{Color, LinearRgba, Oklab, Oklch, ParseColorError};
+pub use color_vision::{ColorMatrix, Deficiency};
 pub use math::{Extent, Rect, Vec2};

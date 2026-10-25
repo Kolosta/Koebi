@@ -49,6 +49,13 @@ name = "koebi-core"
 version = "0.1.0"
 
 [[package]]
+name = "koebi-design"
+version = "0.1.0"
+dependencies = [
+ "koebi-core",
+]
+
+[[package]]
 name = "koebi-gpu"
 version = "0.1.0"
 dependencies = [
@@ -81,6 +88,14 @@ version = "0.1.0"
 dependencies = [
  "koebi-core",
  "koebi-gpu",
+]
+
+[[package]]
+name = "koebi-tokens"
+version = "0.1.0"
+dependencies = [
+ "koebi-core",
+ "koebi-design",
 ]
 
 [[package]]

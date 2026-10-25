@@ -48,10 +48,12 @@ allow = [
     # Workspace members.
     "koebi",
     "koebi-core",
+    "koebi-design",
     "koebi-gpu",
     "koebi-platform",
     "koebi-render",
     "koebi-testkit",
+    "koebi-tokens",
     "xtask",
 ]
 
