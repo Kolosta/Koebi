@@ -175,14 +175,16 @@ pub(crate) enum PrimitiveKind {
     Glyph,
 }
 
-/// Consecutive primitives of one type: one instanced draw.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Consecutive primitives of one type and clip: one instanced draw.
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Batch {
     pub(crate) kind: PrimitiveKind,
     /// First instance, in the instances of `kind`.
     start: u32,
     /// One past the last instance.
     end: u32,
+    /// The rectangle its primitives are clipped to, in logical pixels.
+    pub(crate) clip: Option<Rect>,
 }
 
 impl Batch {
@@ -201,6 +203,10 @@ impl Batch {
 
 /// The 2D primitives of one frame, drawn in insertion order (later on top).
 ///
+/// Primitives pushed between [`Scene::push_clip`] and [`Scene::pop_clip`] are clipped to the
+/// rectangle (intersected with the clips around it): an editor's content stays in its area, a
+/// scrolled list in its viewport.
+///
 /// Reuse one scene across frames with [`Scene::clear`]: storage is kept, so steady-state
 /// frames do not allocate.
 #[derive(Clone, Debug, Default)]
@@ -212,6 +218,8 @@ pub struct Scene {
     glyphs: Vec<GlyphPrimitive>,
     /// Painter's order across types: runs of rectangles, segments and glyphs.
     batches: Vec<Batch>,
+    /// The clips in force, each intersected with the one before it.
+    clips: Vec<Rect>,
 }
 
 impl Scene {
@@ -226,6 +234,33 @@ impl Scene {
         self.lines.clear();
         self.glyphs.clear();
         self.batches.clear();
+        self.clips.clear();
+    }
+
+    /// Clips the primitives pushed from now on to `rect` (logical pixels), within the current
+    /// clip, until the matching [`Scene::pop_clip`].
+    pub fn push_clip(&mut self, rect: Rect) {
+        let clip = match self.clips.last() {
+            Some(outer) => outer.intersection(&rect).unwrap_or(Rect::ZERO),
+            None => rect,
+        };
+        self.clips.push(clip);
+    }
+
+    /// Ends the innermost clip.
+    pub fn pop_clip(&mut self) {
+        self.clips.pop();
+    }
+
+    /// The clip primitives are pushed with, if any.
+    pub fn clip(&self) -> Option<Rect> {
+        self.clips.last().copied()
+    }
+
+    /// `false` when `bounds` lie entirely outside the current clip.
+    fn visible(&self, bounds: Rect) -> bool {
+        self.clip()
+            .is_none_or(|clip| bounds.intersection(&clip).is_some())
     }
 
     /// Sets the color the target is cleared to before drawing.
@@ -242,7 +277,7 @@ impl Scene {
     pub fn push_rect(&mut self, primitive: &RectPrimitive) {
         let invisible = primitive.fill.a <= 0.0
             && (primitive.border_width <= 0.0 || primitive.border_color.a <= 0.0);
-        if primitive.rect.is_empty() || invisible {
+        if primitive.rect.is_empty() || invisible || !self.visible(primitive.rect) {
             return;
         }
         self.rects.push(RectInstance::from_primitive(primitive));
@@ -257,6 +292,11 @@ impl Scene {
             .iter()
             .all(|v| v.is_finite());
         if !finite || width <= 0.0 || primitive.color.a <= 0.0 {
+            return;
+        }
+        let reach = Vec2::splat(width * 0.5);
+        let bounds = Rect::from_min_max(from.min(to) - reach, from.max(to) + reach);
+        if !self.visible(bounds) {
             return;
         }
         self.lines.push(LineInstance::from_primitive(primitive));
@@ -294,12 +334,14 @@ impl Scene {
     fn extend_batch(&mut self, kind: PrimitiveKind, count: usize) {
         // More than 4 billion primitives cannot be drawn anyway: saturate.
         let end = u32::try_from(count).unwrap_or(u32::MAX);
+        let clip = self.clip();
         match self.batches.last_mut() {
-            Some(batch) if batch.kind == kind => batch.end = end,
+            Some(batch) if batch.kind == kind && batch.clip == clip => batch.end = end,
             _ => self.batches.push(Batch {
                 kind,
                 start: end - 1,
                 end,
+                clip,
             }),
         }
     }
@@ -519,6 +561,63 @@ mod tests {
         assert_eq!(scene.glyph_count(), 3);
         scene.clear();
         assert_eq!(scene.glyph_count(), 0);
+    }
+
+    #[test]
+    fn clips_split_batches_and_nest() {
+        let mut scene = Scene::new();
+        let rect = RectPrimitive::new(rect(), Color::WHITE);
+        scene.push_rect(&rect);
+        let area = Rect::from_origin_size(Vec2::new(0.0, 0.0), Vec2::new(100.0, 100.0));
+        scene.push_clip(area);
+        scene.push_rect(&rect);
+        scene.push_rect(&rect);
+        // A nested clip intersects with the one around it.
+        scene.push_clip(Rect::from_origin_size(
+            Vec2::new(20.0, 30.0),
+            Vec2::new(200.0, 10.0),
+        ));
+        let inner = Rect::from_min_max(Vec2::new(20.0, 30.0), Vec2::new(100.0, 40.0));
+        assert_eq!(scene.clip(), Some(inner));
+        scene.push_rect(&rect);
+        scene.pop_clip();
+        scene.push_rect(&rect);
+        scene.pop_clip();
+        scene.push_rect(&rect);
+        let clips: Vec<_> = scene.batches().iter().map(|batch| batch.clip).collect();
+        assert_eq!(clips, [None, Some(area), Some(inner), Some(area), None]);
+        scene.push_clip(area);
+        scene.clear();
+        assert_eq!(scene.clip(), None);
+    }
+
+    #[test]
+    fn primitives_outside_the_clip_are_culled() {
+        let mut scene = Scene::new();
+        scene.push_clip(Rect::from_origin_size(Vec2::ZERO, Vec2::new(5.0, 5.0)));
+        // The rectangle starts at (10, 20); the segment ends one pixel away.
+        scene.push_rect(&RectPrimitive::new(rect(), Color::WHITE));
+        scene.push_line(&LinePrimitive::new(
+            Vec2::new(8.0, 8.0),
+            Vec2::new(9.0, 9.0),
+            2.0,
+            Color::WHITE,
+        ));
+        assert!(scene.is_empty());
+        // A segment whose cap reaches into the clip is kept.
+        scene.push_line(&LinePrimitive::new(
+            Vec2::new(6.0, 2.0),
+            Vec2::new(9.0, 2.0),
+            4.0,
+            Color::WHITE,
+        ));
+        assert_eq!(scene.line_count(), 1);
+        // An empty clip hides everything.
+        scene.push_clip(Rect::from_origin_size(
+            Vec2::new(50.0, 50.0),
+            Vec2::new(5.0, 5.0),
+        ));
+        assert_eq!(scene.clip(), Some(Rect::ZERO));
     }
 
     #[test]

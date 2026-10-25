@@ -10,6 +10,8 @@
 //! - **Colors**: `koebi_core::Color` (gamma-encoded sRGB, straight alpha) is premultiplied at
 //!   upload and blended in gamma space on UNORM targets, matching design tools
 //!   (`docs/adr/0004-color-pipeline.md`).
+//! - **Clipping**: [`Scene::push_clip`] clips what follows to a rectangle, applied as a
+//!   scissor per draw; clips nest, and primitives entirely outside are dropped.
 //! - **Text**: glyphs of `koebi_text` lines are rasterized on the CPU at their physical size,
 //!   cached in a glyph atlas texture and drawn one texel per pixel
 //!   (`docs/adr/0014-text-basics.md`).
