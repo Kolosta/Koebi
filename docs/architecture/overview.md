@@ -15,6 +15,7 @@ flowchart TD
     tokens["koebi-tokens<br/>Koebi's design tokens and themes"]
     design["koebi-design<br/>design tokens, themes, overrides, color vision"]
     text["koebi-text<br/>fonts, glyph rasterization, single-line layout"]
+    workspace["koebi-workspace<br/>areas, lines, joins, editor stacks"]
     core["koebi-core<br/>geometry, color science, logging"]
     app --> ui --> render --> gpu --> core
     render --> text
@@ -23,6 +24,7 @@ flowchart TD
     app --> tokens
     ui --> tokens --> design --> core
     text --> core
+    workspace --> core
 ```
 
 | Crate | Responsibility | Depends on |
@@ -35,6 +37,7 @@ flowchart TD
 | `koebi-tokens` | Koebi's token set and built-in themes ([design system](../design-system/README.md)) | design |
 | `koebi-ui` | Components drawn from typed styles of component tokens, immediate-mode interaction ([ADR 0011](../adr/0011-token-driven-components.md)) | render, tokens, design, core |
 | `koebi-input` | Actions and shortcuts: keymap, contexts, gestures, conflicts, overrides ([ADR 0012](../adr/0012-actions-and-shortcuts.md)) | core |
+| `koebi-workspace` | Workspace model: areas tiling an integer grid, linked lines, splits, joins and closes that fill gaps, editor stacks and docking ([ADR 0015](../adr/0015-workspace-layout.md)) | core |
 | `koebi-text` | TrueType reading, glyph rasterization to coverage, single-line layout with ellipsis, embedded Noto Sans ([ADR 0014](../adr/0014-text-basics.md)) | core |
 | `koebi-testkit` | Headless GPU, offscreen readback, PNG golden images (tests only) | gpu, core |
 | `koebi` (app) | Wires the layers, owns application state, theme tokens | all |
@@ -49,8 +52,12 @@ Rules that keep the graph clean:
   values. `koebi-ui` maps those values to render primitives, and never sees the platform:
   the app turns platform events into `koebi_ui::Input`.
 
-Future crates slot in the same way: `koebi-text` (font parsing, shaping, glyph atlas), then a
-widget tree and layout engine in `koebi-ui`.
+- `koebi-text` and `koebi-workspace` are pure models: fonts and glyph bitmaps, areas and editor
+  stacks. The renderer draws the glyphs; the interface draws the areas and turns gestures into
+  workspace operations.
+
+Future crates slot in the same way: full typography in `koebi-text`, then a widget tree and
+layout engine in `koebi-ui`.
 
 ## Application lifecycle
 

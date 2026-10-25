@@ -57,6 +57,7 @@ allow = [
     "koebi-text",
     "koebi-tokens",
     "koebi-ui",
+    "koebi-workspace",
     "xtask",
 ]
 

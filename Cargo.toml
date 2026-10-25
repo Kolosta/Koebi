@@ -25,6 +25,7 @@ koebi-testkit = { path = "crates/koebi-testkit" }
 koebi-text = { path = "crates/koebi-text" }
 koebi-tokens = { path = "crates/koebi-tokens" }
 koebi-ui = { path = "crates/koebi-ui" }
+koebi-workspace = { path = "crates/koebi-workspace" }
 
 # --- External crates: the COMPLETE allow-list ------------------------------------------------
 # Adding or replacing an external crate requires an ADR (docs/adr/0003-minimal-dependencies.md)
