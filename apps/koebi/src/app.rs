@@ -10,14 +10,17 @@ use koebi_gpu::{
     AdapterPreference, Device, Instance, InstanceDesc, PresentMode, Presenter, PresenterDesc,
     RenderOutcome, Surface, Validation,
 };
+use koebi_input::{Context, InputSettings, Keymap};
 use koebi_platform::{
-    App, AppContext, AppControl, AppError, Cursor, Event, IterationRate, MouseButton, SystemCursor,
+    App, AppContext, AppControl, AppError, Cursor, Event, IterationRate, SystemCursor,
     VulkanSupport, Window, WindowDesc, WindowEvent, exit_code,
 };
 use koebi_render::{Renderer2D, Scene};
 use koebi_text::Fonts;
+use koebi_tokens::semantic;
 use koebi_ui::{Input, StyleCache, Ui, UiState};
 
+use crate::actions;
 use crate::design_options;
 use crate::frame_times::FrameTimes;
 use crate::gallery::Gallery;
@@ -203,6 +206,11 @@ struct Interface {
     overlay: Option<Overlay>,
     /// The fonts text is laid out with; the renderer rasterizes glyphs from the same ones.
     fonts: Fonts,
+    /// Turns input events into actions, through the contexts under the pointer.
+    keymap: Keymap,
+    input_settings: InputSettings,
+    /// Reused for the chain of contexts of each event.
+    chain: Vec<Context>,
     scene: Scene,
 }
 
@@ -223,6 +231,8 @@ impl Interface {
         }
         design_options::export(&design, options)
             .map_err(|message| AppError::new(exit_code::FAILURE, message))?;
+        let keymap = Keymap::new(&actions::GROUPS)
+            .map_err(|error| AppError::new(exit_code::FAILURE, format!("shortcuts: {error}")))?;
         Ok(Self {
             styles: StyleCache::new(&design),
             design,
@@ -232,6 +242,9 @@ impl Interface {
             gallery: Gallery::new(),
             overlay: options.shows_frame_times().then(Overlay::new),
             fonts,
+            keymap,
+            input_settings: InputSettings::default(),
+            chain: Vec::new(),
             scene: Scene::new(),
         })
     }
@@ -240,6 +253,17 @@ impl Interface {
     /// (a slider edits a token, a card switches the theme), the scene is built again with the
     /// new styles: every component shows the change in this very frame.
     fn build(&mut self, area: Rect, times: &FrameTimes) {
+        if self.input.triggered(&actions::FRAME_TIMES) {
+            self.overlay = match self.overlay {
+                Some(_) => None,
+                None => Some(Overlay::new()),
+            };
+        }
+        // Thresholds and delays are tokens: a theme or the user may change them.
+        self.input_settings = InputSettings {
+            drag_threshold: self.design.get(semantic::INPUT_DRAG_THRESHOLD),
+            double_click_time: self.design.get(semantic::INPUT_DOUBLE_CLICK_TIME),
+        };
         let revision = self.design.revision();
         let input = self.input;
         self.draw(area, &input, times);
@@ -264,28 +288,66 @@ impl Interface {
         let styles = styles.update(design);
         scene.set_clear_color(styles.background);
         let mut ui = Ui::new(scene, styles, input, state);
-        gallery.show(&mut ui, design, area);
+        ui.zone(area, actions::APP, |ui| gallery.show(ui, design, area));
         drop(ui);
         if let Some(overlay) = overlay {
             overlay.draw(scene, design, fonts, times, area);
         }
     }
 
-    /// Feeds pointer events to the interface. Returns `true` when the event concerns it.
+    /// Feeds an input event to the interface, and to the keymap through the contexts under
+    /// the pointer. Returns `true` when the event concerns them.
     fn handle(&mut self, event: &Event) -> bool {
         match *event {
-            Event::MouseMotion { position, .. } => self.input.pointer_moved(position),
+            Event::MouseMotion {
+                position,
+                modifiers,
+                ..
+            } => {
+                self.input.pointer_moved(position);
+                self.input.set_modifiers(modifiers);
+            }
             Event::MouseButton {
-                button: MouseButton::Left,
+                button,
                 down,
                 position,
+                modifiers,
                 ..
-            } => self.input.primary_button(down, position),
+            } => {
+                if let Some(button) = actions::pointer_button(button) {
+                    self.input.button(button, down, position);
+                }
+                self.input.set_modifiers(modifiers);
+            }
+            Event::MouseWheel {
+                delta, modifiers, ..
+            } => {
+                self.input.scrolled(delta);
+                self.input.set_modifiers(modifiers);
+            }
+            Event::Key { modifiers, .. } => self.input.set_modifiers(modifiers),
             Event::Window {
                 event: WindowEvent::PointerLeft,
                 ..
-            } => self.input.pointer_left(),
-            _ => return false,
+            } => {
+                self.input.pointer_left();
+                return true;
+            }
+            _ => {}
+        }
+        let Some((input_event, position)) = actions::input_event(event, self.input.pointer())
+        else {
+            return false;
+        };
+        self.state.chain_at(position, &mut self.chain);
+        let triggers = self.keymap.handle(
+            input_event,
+            &self.chain,
+            &self.input_settings,
+            Instant::now(),
+        );
+        for triggered in triggers.iter() {
+            self.input.trigger(triggered.action);
         }
         true
     }

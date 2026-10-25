@@ -9,9 +9,14 @@
 //!   to the [`Input`], draw into a [`koebi_render::Scene`] and return a [`Response`]
 //!   (hovered, pressed, clicked, dragged, changed). [`UiState`] keeps what outlives a frame:
 //!   the widget that holds the pointer.
+//! - **Actions**: the application turns events into `koebi_input` actions through the chain
+//!   of contexts under the pointer ([`UiState::chain_at`]); components read them with
+//!   [`Ui::triggered`], and an open menu or an operation in progress takes the keyboard with
+//!   [`Ui::grab`].
 //! - **Layout**: callers give every component its rectangle, in logical pixels. A layout
 //!   engine comes with the widget tree.
-//! - **Text**: components have no labels until Koebi renders text; line [`Icon`]s stand in.
+//! - **Text**: labels come with the components that need them (menus, tabs, lists); line
+//!   [`Icon`]s stand in elsewhere.
 //!
 //! # Example
 //!
@@ -57,7 +62,7 @@ mod widgets;
 
 pub use icon::Icon;
 pub use id::WidgetId;
-pub use input::Input;
+pub use input::{Input, PointerButton};
 pub use routing::Layer;
 pub use style::{IconStyle, StateColors, StyleCache, Styles};
 pub use ui::{Response, Ui, UiState, WidgetState};

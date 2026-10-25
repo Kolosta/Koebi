@@ -2,11 +2,11 @@
 
 use koebi_core::input::CursorShape;
 use koebi_core::{Rect, Vec2};
-use koebi_input::Context;
+use koebi_input::{ActionDef, Context};
 use koebi_render::Scene;
 
 use crate::id::WidgetId;
-use crate::input::Input;
+use crate::input::{Input, PointerButton};
 use crate::routing::{Layer, Region, Regions};
 use crate::style::Styles;
 
@@ -29,7 +29,13 @@ pub struct UiState {
     /// The widget on top under the pointer, and under the press, resolved when a frame starts.
     hovered: Option<WidgetId>,
     press_target: Option<WidgetId>,
+    /// The widget on top where the secondary button went down.
+    secondary_target: Option<WidgetId>,
     cursor: CursorShape,
+    /// Contexts that take the keyboard whatever the pointer is over (an open menu), from the
+    /// last complete frame and from the frame being built, innermost last.
+    grabs: Vec<Context>,
+    grabbing: Vec<Context>,
 }
 
 impl UiState {
@@ -58,6 +64,18 @@ impl UiState {
     /// replacing the content of `chain` (pass the same vector every time: no allocation).
     pub fn contexts_at(&self, point: Vec2, chain: &mut Vec<Context>) {
         self.previous.contexts_at(point, chain);
+    }
+
+    /// The chain of contexts an input event at `point` goes through, innermost first: the
+    /// contexts grabbing the keyboard ([`Ui::grab`]), then those under the point.
+    pub fn chain_at(&self, point: Option<Vec2>, chain: &mut Vec<Context>) {
+        match point {
+            Some(point) => self.previous.contexts_at(point, chain),
+            None => chain.clear(),
+        }
+        for (index, context) in self.grabs.iter().rev().enumerate() {
+            chain.insert(index, *context);
+        }
     }
 }
 
@@ -88,6 +106,8 @@ pub struct Response {
     pub held: bool,
     /// The pointer was released over the component after pressing it.
     pub clicked: bool,
+    /// The secondary button went down on the component this frame: open its context menu.
+    pub secondary_pressed: bool,
     /// The component let go of the pointer this frame: a click or the end of a drag.
     pub released: bool,
     /// The component changed its value this frame.
@@ -125,6 +145,7 @@ impl Response {
             pressed: self.pressed || part.pressed,
             held: self.held || part.held,
             clicked: self.clicked || part.clicked,
+            secondary_pressed: self.secondary_pressed || part.secondary_pressed,
             released: self.released || part.released,
             changed: self.changed || part.changed,
             drag_delta: if self.held {
@@ -171,6 +192,8 @@ impl<'a> Ui<'a> {
         };
         state.hovered = topmost(input.pointer());
         state.press_target = topmost(input.pressed_at());
+        state.secondary_target = topmost(input.button_pressed_at(PointerButton::Secondary));
+        state.grabbing.clear();
         let held_cursor = state
             .active
             .and_then(|widget| state.previous.of_widget(widget))
@@ -198,9 +221,21 @@ impl<'a> Ui<'a> {
         self.styles
     }
 
-    /// The pointer state of this frame.
+    /// The input of this frame.
     pub fn input(&self) -> &'a Input {
         self.input
+    }
+
+    /// `true` when the keymap triggered `action` since the last frame.
+    pub fn triggered(&self, action: &ActionDef) -> bool {
+        self.input.triggered(action)
+    }
+
+    /// Takes the keyboard for the shortcuts of `context` in the next frame, wherever the
+    /// pointer is: an open menu or an operation in progress. Call it every frame the grab
+    /// lasts; later grabs come first in the chain.
+    pub fn grab(&mut self, context: Context) {
+        self.state.grabbing.push(context);
     }
 
     /// The scene, for custom drawing between components.
@@ -321,6 +356,11 @@ impl<'a> Ui<'a> {
             self.state.press_origin = origin;
             response.pressed = true;
         }
+        response.secondary_pressed = self.state.secondary_target == Some(id)
+            && self
+                .input
+                .button_pressed_at(PointerButton::Secondary)
+                .is_some();
         let on_top = self.state.hovered == Some(id);
         let active = self.state.active == Some(id);
         response.hovered = on_top && (active || self.state.active.is_none());
@@ -358,9 +398,10 @@ impl Drop for Ui<'_> {
         if !self.state.active_seen || self.input.released() {
             self.state.active = None;
         }
-        // The regions of this frame decide what is under the pointer in the next one.
+        // The regions and grabs of this frame decide where the next one's input goes.
         let state = &mut *self.state;
         core::mem::swap(&mut state.previous, &mut state.current);
+        core::mem::swap(&mut state.grabs, &mut state.grabbing);
     }
 }
 
@@ -401,6 +442,45 @@ mod tests {
         let (mut state, mut input) = (UiState::new(), Input::new());
         frame(&mut state, &mut input);
         (state, input)
+    }
+
+    #[test]
+    fn secondary_presses_reach_the_widget_on_top_only() {
+        let (mut state, mut input) = laid_out();
+        input.button(PointerButton::Secondary, true, Vec2::new(5.0, 5.0));
+        let (a, b) = frame(&mut state, &mut input);
+        assert!(a.secondary_pressed && !b.secondary_pressed);
+        // The secondary button never takes the pointer.
+        assert!(!a.pressed && state.active().is_none());
+        let (a, _) = frame(&mut state, &mut input);
+        assert!(!a.secondary_pressed);
+    }
+
+    #[test]
+    fn grabs_come_first_in_the_chain_for_the_next_frame() {
+        let styles = crate::test_styles();
+        let (mut scene, mut state, input) = (Scene::new(), UiState::new(), Input::new());
+        let (app, menu, modal) = (
+            Context::new("app"),
+            Context::new("menu"),
+            Context::new("modal"),
+        );
+        {
+            let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+            ui.zone(rect(0.0, 0.0, 100.0, 100.0), app, |ui| {
+                ui.grab(menu);
+                ui.grab(modal);
+            });
+        }
+        let mut chain = Vec::new();
+        state.chain_at(Some(Vec2::new(5.0, 5.0)), &mut chain);
+        assert_eq!(chain, [modal, menu, app]);
+        state.chain_at(None, &mut chain);
+        assert_eq!(chain, [modal, menu]);
+        // A frame without grabs releases the keyboard.
+        drop(Ui::new(&mut scene, &styles, &input, &mut state));
+        state.chain_at(Some(Vec2::new(5.0, 5.0)), &mut chain);
+        assert_eq!(chain, Vec::<Context>::new());
     }
 
     #[test]
