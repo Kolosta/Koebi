@@ -18,3 +18,4 @@ one and link both.
 | [0006](0006-testing-strategy.md) | Testing strategy: five levels, software GPUs in CI | Accepted |
 | [0007](0007-gitflow-and-delivery.md) | Gitflow with automated delivery | Accepted |
 | [0008](0008-design-token-system.md) | Design token system: typed tiers, compiled tables, layered resolution | Accepted |
+| [0009](0009-design-state-persistence.md) | Persistence of the design system state: a versioned binary file keyed by paths | Accepted |

@@ -120,12 +120,22 @@ macro_rules! __token_group {
         )*
     ) => {
         #[doc(hidden)]
-        #[allow(non_snake_case, missing_docs, unreachable_pub, clippy::upper_case_acronyms)]
+        #[allow(
+            non_snake_case,
+            missing_docs,
+            unreachable_pub,
+            clippy::upper_case_acronyms,
+            dead_code,
+            reason = "a hidden module named after its group, holding generated items"
+        )]
         pub mod $group {
-            #[allow(unused_imports)]
+            #[allow(unused_imports, reason = "the group sees the items of the enclosing module")]
             use super::*;
 
-            #[allow(non_camel_case_types)]
+            #[allow(
+                non_camel_case_types,
+                reason = "the index variants are named after the token constants"
+            )]
             #[repr(u16)]
             pub enum Index {
                 $($name,)*
@@ -235,12 +245,22 @@ macro_rules! typography {
         )*
     ) => {
         #[doc(hidden)]
-        #[allow(non_snake_case, missing_docs, unreachable_pub, clippy::upper_case_acronyms)]
+        #[allow(
+            non_snake_case,
+            missing_docs,
+            unreachable_pub,
+            clippy::upper_case_acronyms,
+            dead_code,
+            reason = "a hidden module named after its group, holding generated items"
+        )]
         pub mod $group {
-            #[allow(unused_imports)]
+            #[allow(unused_imports, reason = "the group sees the items of the enclosing module")]
             use super::*;
 
-            #[allow(non_camel_case_types)]
+            #[allow(
+                non_camel_case_types,
+                reason = "the index variants are named after the token constants"
+            )]
             #[repr(u16)]
             pub enum Index {
                 $($name,)*

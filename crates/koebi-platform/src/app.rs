@@ -4,15 +4,18 @@ use std::ffi::{CStr, CString, c_char, c_int, c_void};
 use std::fmt;
 use std::marker::PhantomData;
 use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use sdl3_sys::events::SDL_Event;
+use sdl3_sys::filesystem::SDL_GetPrefPath;
 use sdl3_sys::hints::{SDL_HINT_MAIN_CALLBACK_RATE, SDL_SetHint};
 use sdl3_sys::init::{
     SDL_APP_CONTINUE, SDL_APP_FAILURE, SDL_APP_SUCCESS, SDL_AppResult, SDL_INIT_VIDEO, SDL_Init,
     SDL_SetAppMetadata,
 };
 use sdl3_sys::main::{SDL_EnterAppMainCallbacks, SDL_RunApp};
+use sdl3_sys::stdinc::SDL_free;
 
 use crate::error::{PlatformError, sdl_error};
 use crate::event::{Event, translate};
@@ -149,6 +152,29 @@ impl AppContext {
     /// Returns the SDL error when no Vulkan loader can be opened.
     pub fn load_vulkan(&mut self, library: Option<&str>) -> Result<VulkanSupport, PlatformError> {
         VulkanSupport::load(library)
+    }
+
+    /// The directory where the application keeps its settings and user data, created if
+    /// needed: `%APPDATA%\Kolosta\Koebi\` on Windows, `~/.local/share/Kolosta/Koebi/` on
+    /// Linux, `~/Library/Application Support/Kolosta/Koebi/` on macOS, the application's
+    /// private storage on Android and iOS.
+    ///
+    /// # Errors
+    ///
+    /// Returns the SDL error when the directory cannot be found or created.
+    pub fn preferences_dir(&self) -> Result<PathBuf, PlatformError> {
+        // SAFETY: both arguments are valid NUL-terminated strings.
+        let raw = unsafe { SDL_GetPrefPath(c"Kolosta".as_ptr(), c"Koebi".as_ptr()) };
+        if raw.is_null() {
+            return Err(PlatformError::from_sdl("SDL_GetPrefPath"));
+        }
+        // SAFETY: SDL returned a non-null, NUL-terminated UTF-8 string.
+        let path = unsafe { CStr::from_ptr(raw) }
+            .to_string_lossy()
+            .into_owned();
+        // SAFETY: the string was allocated by SDL for the caller and is not used afterwards.
+        unsafe { SDL_free(raw.cast()) };
+        Ok(PathBuf::from(path))
     }
 
     /// Changes how often [`App::iterate`] runs.
