@@ -18,6 +18,7 @@ publish = false
 koebi-core = { path = "crates/koebi-core" }
 koebi-design = { path = "crates/koebi-design" }
 koebi-gpu = { path = "crates/koebi-gpu" }
+koebi-input = { path = "crates/koebi-input" }
 koebi-platform = { path = "crates/koebi-platform" }
 koebi-render = { path = "crates/koebi-render" }
 koebi-testkit = { path = "crates/koebi-testkit" }

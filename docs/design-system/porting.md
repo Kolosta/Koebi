@@ -244,6 +244,11 @@ The base theme is Dark: the token tables define it. The other themes come from t
 
 ## Added after the port
 
+Input settings, as semantic tokens aliasing durations and spacings (8): `semantic.input.drag-threshold`,
+`semantic.input.double-click.time`, `semantic.input.tooltip.delay`,
+`semantic.input.tooltip.delay-short`, `semantic.input.tooltip.delay-stationary`,
+`semantic.input.hover.delay`, `semantic.input.repeat.delay` and `semantic.input.repeat.interval`.
+
 New component tokens for the first components of `koebi-ui` (#45). They alias semantic tokens,
 or hold a value where no semantic token fits (32):
 
