@@ -17,9 +17,26 @@ reads its tokens and how to write a new one.
 | Separator | `Ui::separator(rect)` | `component.separator.*` |
 | Color swatch | `Ui::swatch(id, rect, color, selected)` | `component.color-swatch.*` |
 | Theme card | `Ui::theme_card(id, rect, &preview, selected)` | `component.theme-card.*` |
+| Menu | `Ui::menu(id, &mut state, &items, bounds)` returns the chosen item | `component.menu.*`, `component.separator.*` |
+| Dropdown | `Ui::dropdown(id, rect, &mut state, current, &items, bounds)` | `component.dropdown.*`, then the menu's |
+| Label | `Ui::label(text, rect, &font, color, align)`, `Ui::text_width(text, &font)` | `semantic.font.*`, `semantic.text.*` |
 
-Line icons (`Icon::Check`, `Icon::Plus`, chevrons...) use `component.icon.*`. Components
-have no text yet: icons stand in for labels, and theme cards draw text as bars.
+Line icons (`Icon::Check`, `Icon::Plus`, chevrons...) use `component.icon.*`. Labels use the
+fonts given to `UiState::set_fonts`, in the roles of `Styles::text` (label, body, detail): one
+line, cut with an ellipsis when too long ([ADR 0014](../adr/0014-text-basics.md)). Theme cards
+still draw text as bars.
+
+## Menus
+
+- A `MenuState` per menu, kept by the application, opens it at a point (`open_at`, a context
+  menu, usually on `Response::secondary_pressed`) or below a control (`open_below`, what a
+  dropdown does). `Ui::menu` draws it on the floating layer, kept inside the window, and
+  returns the item chosen this frame; items are actions with an optional shortcut text,
+  separators and titles (`MenuItem`), disabled or marked as the current choice.
+- While open, a menu takes the keyboard (`Ui::grab(MENU)`): `menu.next`, `menu.previous`,
+  `menu.choose` and `menu.close` (arrows, Enter or Space, Escape by default) work wherever the
+  pointer is. A press outside closes the menu and reaches nothing else; nothing under the menu
+  receives its clicks.
 
 [`crates/koebi-ui/tests/golden/`](../../crates/koebi-ui/tests/golden/) shows every component
 in the dark and light themes, and the application shows them all in its
@@ -34,7 +51,8 @@ use koebi_ui::{Input, StyleCache, Ui, UiState, WidgetId};
 let mut styles = StyleCache::new(&design);
 let (mut state, mut input) = (UiState::new(), Input::new());
 
-// Platform events feed the input: input.pointer_moved(p), input.primary_button(down, p).
+// Platform events feed the input: input.pointer_moved(p), input.button(button, down, p),
+// input.scrolled(delta), input.set_modifiers(m); the keymap's actions: input.trigger(action).
 
 // Every frame.
 scene.clear();

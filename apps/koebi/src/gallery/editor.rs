@@ -12,7 +12,7 @@ use koebi_design::tier::Tier;
 use koebi_design::{DesignSystem, Layers, Scope, Token};
 use koebi_render::{LinePrimitive, RectPrimitive};
 use koebi_tokens::{component, semantic};
-use koebi_ui::{Icon, PanelLevel, Ui, WidgetId};
+use koebi_ui::{Icon, MenuItem, MenuState, PanelLevel, Ui, WidgetId};
 
 use super::{Gallery, Metrics, PALETTE, cut_left, cut_top};
 use crate::design_options::COLOR_VISION_MODES;
@@ -363,18 +363,60 @@ fn accent_rows(
     }
 }
 
-/// The color vision modes: one toggle each, previewing the mode on four chart colors.
+/// Readable names of the color vision modes, in the order of [`COLOR_VISION_MODES`].
+const COLOR_VISION_LABELS: [&str; 8] = [
+    "Normal vision",
+    "Protanopia",
+    "Deuteranopia",
+    "Tritanopia",
+    "Achromatopsia",
+    "Protan correction",
+    "Deutan correction",
+    "Tritan correction",
+];
+
+/// The dropdown's entries: normal vision, the simulations, then the corrections, and the mode
+/// each entry chooses.
+fn vision_entries(current: usize) -> ([MenuItem<'static>; 10], [Option<usize>; 10]) {
+    let mut items = [MenuItem::Separator; 10];
+    let mut modes = [None; 10];
+    let mut slot = 0;
+    for (mode, label) in COLOR_VISION_LABELS.into_iter().enumerate() {
+        if mode == 1 || mode == 5 {
+            slot += 1;
+        }
+        items[slot] = MenuItem::action(label).selected(mode == current);
+        modes[slot] = Some(mode);
+        slot += 1;
+    }
+    (items, modes)
+}
+
+/// The color vision modes: a dropdown, and one toggle each previewing the mode on four chart
+/// colors.
 pub(super) fn color_vision(
     ui: &mut Ui<'_>,
     design: &mut DesignSystem,
     rect: Rect,
     metrics: Metrics,
+    menu: &mut MenuState,
+    window: Rect,
 ) {
     const ID: WidgetId = WidgetId::new("color-vision");
     let mut content = ui.panel(rect, PanelLevel::First);
     let (row, gap) = (metrics.row, metrics.row_gap());
     let samples = [0, 1, 2, 3].map(|index| definition(design, PALETTE[index]));
     let current = design.color_vision();
+    let current_index = COLOR_VISION_MODES
+        .iter()
+        .position(|(_, mode)| *mode == current);
+    let (items, modes) = vision_entries(current_index.unwrap_or(usize::MAX));
+    let label = current_index.map_or("Custom", |index| COLOR_VISION_LABELS[index]);
+    let dropdown = cut_left(&mut content, (row * 8.0).round(), gap);
+    let picked = ui
+        .dropdown(ID.with(100), dropdown, menu, label, &items, window)
+        .and_then(|slot| modes[slot])
+        .map(|index| COLOR_VISION_MODES[index].1);
     // Normal, then four simulations, then three corrections, with a wider gap between groups.
     let count = COLOR_VISION_MODES.len() as f32;
     let width = ((content.width() - gap * (count + 1.0)) / count)
@@ -407,7 +449,7 @@ pub(super) fn color_vision(
             ));
         }
     }
-    if let Some(mode) = chosen
+    if let Some(mode) = chosen.or(picked)
         && let Err(error) = design.set_color_vision(mode)
     {
         koebi_core::warn!("cannot change the color vision setting: {error}");

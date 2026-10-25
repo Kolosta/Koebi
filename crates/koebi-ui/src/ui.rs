@@ -4,6 +4,7 @@ use koebi_core::input::CursorShape;
 use koebi_core::{Rect, Vec2};
 use koebi_input::{ActionDef, Context};
 use koebi_render::Scene;
+use koebi_text::{Fonts, TextLine};
 
 use crate::id::WidgetId;
 use crate::input::{Input, PointerButton};
@@ -36,12 +37,21 @@ pub struct UiState {
     /// last complete frame and from the frame being built, innermost last.
     grabs: Vec<Context>,
     grabbing: Vec<Context>,
+    /// The fonts labels are laid out with, and a line reused for each label.
+    pub(crate) fonts: Fonts,
+    pub(crate) line: TextLine,
 }
 
 impl UiState {
     /// Nothing holds the pointer.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Sets the fonts labels are laid out with: the collection the renderer rasterizes
+    /// glyphs from. Without fonts, labels draw nothing.
+    pub fn set_fonts(&mut self, fonts: Fonts) {
+        self.fonts = fonts;
     }
 
     /// The widget that holds the pointer: pressed, and not released yet.
@@ -167,7 +177,7 @@ pub struct Ui<'a> {
     pub(crate) scene: &'a mut Scene,
     styles: &'a Styles,
     input: &'a Input,
-    state: &'a mut UiState,
+    pub(crate) state: &'a mut UiState,
     layer: Layer,
     /// The innermost zone being drawn, by region index.
     zone: Option<u32>,

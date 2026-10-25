@@ -18,7 +18,7 @@ use koebi_platform::{
 use koebi_render::{Renderer2D, Scene};
 use koebi_text::Fonts;
 use koebi_tokens::semantic;
-use koebi_ui::{Input, StyleCache, Ui, UiState};
+use koebi_ui::{Input, MenuItem, MenuState, StyleCache, Ui, UiState, WidgetId};
 
 use crate::actions;
 use crate::design_options;
@@ -26,6 +26,11 @@ use crate::frame_times::FrameTimes;
 use crate::gallery::Gallery;
 use crate::options::Options;
 use crate::overlay::Overlay;
+
+/// Under every component: right clicks that reach it open the application menu.
+const BACKGROUND: WidgetId = WidgetId::new("app-background");
+/// The application menu.
+const APP_MENU: WidgetId = WidgetId::new("app-menu");
 
 /// Everything Vulkan. Declared before the window in [`KoebiApp`] so that it drops first:
 /// surfaces must be destroyed before their native window.
@@ -211,6 +216,10 @@ struct Interface {
     input_settings: InputSettings,
     /// Reused for the chain of contexts of each event.
     chain: Vec<Context>,
+    /// The menu a right click on the background opens.
+    app_menu: MenuState,
+    /// The shortcut shown beside "Frame times" in that menu.
+    frame_times_shortcut: String,
     scene: Scene,
 }
 
@@ -233,11 +242,18 @@ impl Interface {
             .map_err(|message| AppError::new(exit_code::FAILURE, message))?;
         let keymap = Keymap::new(&actions::GROUPS)
             .map_err(|error| AppError::new(exit_code::FAILURE, format!("shortcuts: {error}")))?;
+        let frame_times_shortcut = keymap
+            .shortcuts(actions::FRAME_TIMES.id)
+            .and_then(<[_]>::first)
+            .map(ToString::to_string)
+            .unwrap_or_default();
+        let mut state = UiState::new();
+        state.set_fonts(fonts.clone());
         Ok(Self {
             styles: StyleCache::new(&design),
             design,
             store,
-            state: UiState::new(),
+            state,
             input: Input::new(),
             gallery: Gallery::new(),
             overlay: options.shows_frame_times().then(Overlay::new),
@@ -245,6 +261,8 @@ impl Interface {
             keymap,
             input_settings: InputSettings::default(),
             chain: Vec::new(),
+            app_menu: MenuState::new(),
+            frame_times_shortcut,
             scene: Scene::new(),
         })
     }
@@ -281,6 +299,8 @@ impl Interface {
             gallery,
             overlay,
             fonts,
+            app_menu,
+            frame_times_shortcut,
             scene,
             ..
         } = self;
@@ -288,8 +308,29 @@ impl Interface {
         let styles = styles.update(design);
         scene.set_clear_color(styles.background);
         let mut ui = Ui::new(scene, styles, input, state);
-        ui.zone(area, actions::APP, |ui| gallery.show(ui, design, area));
+        let mut toggle_frame_times = false;
+        ui.zone(area, actions::APP, |ui| {
+            // Under everything: a right click where no component takes it opens the menu.
+            let background = ui.interact(BACKGROUND, area);
+            if background.secondary_pressed
+                && let Some(point) = ui.input().pointer()
+            {
+                app_menu.open_at(point);
+            }
+            gallery.show(ui, design, area);
+            let items = [
+                MenuItem::Title("Koebi"),
+                MenuItem::action("Frame times").shortcut(frame_times_shortcut),
+            ];
+            toggle_frame_times = ui.menu(APP_MENU, app_menu, &items, area) == Some(1);
+        });
         drop(ui);
+        if toggle_frame_times {
+            *overlay = match overlay {
+                Some(_) => None,
+                None => Some(Overlay::new()),
+            };
+        }
         if let Some(overlay) = overlay {
             overlay.draw(scene, design, fonts, times, area);
         }
