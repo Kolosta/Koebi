@@ -13,6 +13,8 @@ Koebi's token set comes from the previous C++ application (`TokenSchema.cpp`): t
 | Koebi token definitions | 1463 |
 | Koebi tokens, typography fields included | 1547 |
 
+Koebi has added tokens since the port; they are listed in [Added after the port](#added-after-the-port).
+
 Every source token not listed below is ported with the same path, the same value or the same alias, and the same per-theme aliases.
 
 ## Renamed
@@ -239,3 +241,43 @@ The base theme is Dark: the token tables define it. The other themes come from t
 
 - `primitive.color.gray.875` (`#232323`) is lighter than `primitive.color.gray.850` (`#1E1E1E`), unlike the rest of the gray scale.
 - Several semantic scale steps share a value (`semantic.size.xxs` and `semantic.size.xs` are both 12 px).
+
+## Added after the port
+
+New component tokens for the first components of `koebi-ui` (#45). They alias semantic tokens,
+or hold a value where no semantic token fits (30):
+
+<details><summary>show</summary>
+
+- `component.button.border.color.default` → `semantic.border.color.default`
+- `component.button.border.width.default` → `semantic.border.width.none`
+- `component.button.corner-radius.default` → `semantic.radius.control`
+- `component.icon.size.default` = 16 px
+- `component.icon.stroke-width.default` = 1.5 px
+- `component.checkbox.mark.width.default` = 2 px
+- `component.slider.grab.color.hover` → `semantic.background.accent.hover`
+- `component.slider.grab.width.default` = 10 px
+- `component.slider.grab.padding.default` = 2 px
+- `component.slider.track.color.default` → `semantic.background.app.frame`
+- `component.slider.track.color.hover` → `semantic.background.app.frame-hover`
+- `component.drag-value.fill.color.default` → `semantic.background.accent.default`
+- `component.panel.border.width.default` → `semantic.border.width.thin`
+- `component.panel.padding.default` = 8 px
+- `component.color-swatch.corner-radius.default` → `semantic.radius.xs`
+- `component.color-swatch.border.color.default` → `semantic.border.color.default`
+- `component.color-swatch.border.color.hover` → `semantic.border.color.strong.default`
+- `component.color-swatch.border.color.selected` → `semantic.border.color.focus.default`
+- `component.color-swatch.border.width.default` → `semantic.border.width.thin`
+- `component.color-swatch.border.width.selected` → `semantic.border.width.medium`
+- `component.color-swatch.checker.color.light` → `semantic.neutral.color.500`
+- `component.color-swatch.checker.color.dark` → `semantic.neutral.color.700`
+- `component.color-swatch.checker.size.default` = 6 px
+- `component.theme-card.corner-radius.default` → `semantic.radius.m`
+- `component.theme-card.border.color.default` → `semantic.border.color.default`
+- `component.theme-card.border.color.hover` → `semantic.border.color.strong.default`
+- `component.theme-card.border.color.selected` → `semantic.background.accent.default`
+- `component.theme-card.border.width.default` → `semantic.border.width.thin`
+- `component.theme-card.border.width.selected` → `semantic.border.width.medium`
+- `component.theme-card.padding.default` = 4 px
+
+</details>

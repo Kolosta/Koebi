@@ -73,7 +73,8 @@ let body = design.typography(semantic::TEXT_BODY_M);                      // Tex
 ```
 
 `get` reads the active theme with every layer. It is an array access: read tokens every frame
-without caching them.
+without caching them. Components read theirs through typed styles, which also serve previews
+of other themes: see [components](components.md).
 
 ## Defining tokens
 

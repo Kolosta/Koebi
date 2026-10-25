@@ -99,6 +99,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "koebi-ui"
+version = "0.1.0"
+dependencies = [
+ "koebi-core",
+ "koebi-design",
+ "koebi-gpu",
+ "koebi-render",
+ "koebi-testkit",
+ "koebi-tokens",
+]
+
+[[package]]
 name = "rpkg-config"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

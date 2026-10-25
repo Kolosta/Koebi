@@ -37,6 +37,7 @@ apps/koebi/            the application (composition root); e2e tests in tests/
 crates/koebi-core/     geometry, color science (sRGB, linear, OKLab/OKLCH, WCAG, color vision), logging; no deps
 crates/koebi-design/   design token engine: typed tiers, token tables, themes, overrides, views
 crates/koebi-tokens/   Koebi's design tokens (primitive, semantic, component) and built-in themes
+crates/koebi-ui/       components drawn from typed token styles, immediate-mode interaction
 crates/koebi-gpu/      Vulkan RHI: loader, instance, device, memory, resources, pipelines, presenter
 crates/koebi-render/   2D renderer: Scene -> instanced draws; GLSL in shaders/, SPIR-V committed
 crates/koebi-platform/ SDL3 layer: App trait (main callbacks), windows, events, Vulkan surface
@@ -46,9 +47,10 @@ platform/              Android Gradle project, iOS/macOS Info.plist templates
 docs/                  architecture, ADRs, development guides, AI workflow
 ```
 
-Layering (enforced by Cargo): `app -> render -> gpu -> core`, `app -> platform -> core` and
-`tokens -> design -> core`.
-`render` and `gpu` never see SDL; `platform` never sees the renderer; `core` depends on nothing.
+Layering (enforced by Cargo): `app -> ui -> render -> gpu -> core`, `app -> platform -> core`
+and `ui -> tokens -> design -> core`.
+`render`, `gpu` and `ui` never see SDL; `platform` never sees the renderer; `core` depends on
+nothing.
 
 ## Commands
 

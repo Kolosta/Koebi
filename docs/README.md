@@ -33,6 +33,8 @@ you work on.
 
 - [Design system](design-system/README.md): tokens, tiers, themes, overrides, views, color
   vision, and how to define and read tokens.
+- [Components](design-system/components.md): how `koebi-ui` components read their tokens,
+  and how to write one.
 - [Porting report](design-system/porting.md): the differences between Koebi's tokens and the
   token table of the previous application.
 

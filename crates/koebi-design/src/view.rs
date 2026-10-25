@@ -4,6 +4,7 @@ use crate::active::Active;
 use crate::graph::Graph;
 use crate::kind::Kind;
 use crate::layers::{Layers, Origin};
+use crate::resolve::Resolve;
 use crate::theme::ThemeId;
 use crate::tier::Tier;
 use crate::token::{TextStyle, Token, TokenId, Typography};
@@ -75,13 +76,7 @@ impl<'a> View<'a> {
 
     /// The resolved text style of a typography composite in this view.
     pub fn typography<T: Tier>(&self, style: Typography<T>) -> TextStyle {
-        TextStyle {
-            font_family: self.get(style.font_family),
-            font_size: self.get(style.font_size),
-            font_weight: self.get(style.font_weight),
-            line_height: self.get(style.line_height),
-            letter_spacing: self.get(style.letter_spacing),
-        }
+        Resolve::typography(self, style)
     }
 
     /// The definition of `token` itself in this view (the topmost layer allowed by the view

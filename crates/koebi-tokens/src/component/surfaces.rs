@@ -123,6 +123,11 @@ koebi_design::tokens! {
     /// Panel: corner radius.
     PANEL_CORNER_RADIUS_DEFAULT = "panel.corner-radius.default": Dimension ->
         semantic::RADIUS_CONTROL;
+    /// Panel: border width.
+    PANEL_BORDER_WIDTH_DEFAULT = "panel.border.width.default": Dimension ->
+        semantic::BORDER_WIDTH_THIN;
+    /// Panel: space between the border and the content.
+    PANEL_PADDING_DEFAULT = "panel.padding.default": Dimension = px(8.0), range(0.0, 32.0);
 
     /// Side panel: margin.
     SIDE_PANEL_MARGIN_DEFAULT = "side-panel.margin.default": Dimension = px(8.0), range(0.0, 32.0);
