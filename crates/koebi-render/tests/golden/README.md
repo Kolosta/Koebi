@@ -6,7 +6,7 @@ See [testing.md](../../../../docs/development/testing.md#golden-images).
 
 These images test the renderer library, not the application. The scenes are defined in the
 tests themselves (`showcase_scene()`, `lines_scene()`), so changing what the application draws
-(`apps/koebi/src/scene.rs`) never affects them. They fail only when the renderer draws these
+(`apps/koebi/src/gallery/`) never affects them. They fail only when the renderer draws these
 scenes differently: a shader, blending, color conversion or scaling change. Intended changes
 are blessed and reviewed; unintended ones are regressions. The application is covered by the
 end-to-end test, which launches it and checks that it presents frames without validation

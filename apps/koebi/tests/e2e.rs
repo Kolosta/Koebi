@@ -10,6 +10,7 @@
 //! skips, unless `KOEBI_REQUIRE_GPU=1` (CI) makes it fail.
 
 use std::io::Read as _;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -125,4 +126,101 @@ fn invalid_arguments_exit_with_usage_code() {
     }
     assert_eq!(run.code, Some(exit_code::USAGE), "{}", run.stderr);
     assert!(run.stderr.contains("invalid value"), "{}", run.stderr);
+}
+
+/// An empty directory for the design state of one test.
+fn data_dir(name: &str) -> PathBuf {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(name);
+    // Left over by a previous run, or absent: either way the test starts empty.
+    std::fs::remove_dir_all(&dir).ok();
+    dir
+}
+
+#[test]
+fn design_changes_survive_a_restart() {
+    let dir = data_dir("e2e-design-state");
+    let dir_arg = dir.to_str().expect("the target directory has a UTF-8 path");
+    let first = run_koebi(
+        &[
+            "--frames",
+            "3",
+            "--data-dir",
+            dir_arg,
+            "--theme",
+            "light",
+            "--override",
+            "semantic.radius.control=7",
+            "--override",
+            "component.button.background.color.default=#ff8800",
+            "--color-vision",
+            "simulate-deutan",
+        ],
+        Duration::from_secs(120),
+    );
+    if first.code == Some(exit_code::UNSUPPORTED) && !koebi_testkit::require_gpu() {
+        eprintln!(
+            "SKIPPED: no display or Vulkan driver
+{}",
+            first.stderr
+        );
+        return;
+    }
+    assert_eq!(first.code, Some(exit_code::SUCCESS), "{}", first.stderr);
+    assert!(first.stderr.contains("design saved to"), "{}", first.stderr);
+    assert!(dir.join("design.kds").is_file());
+
+    // A plain restart restores everything, and has nothing new to save.
+    let second = run_koebi(
+        &["--frames", "3", "--data-dir", dir_arg],
+        Duration::from_secs(120),
+    );
+    assert_eq!(second.code, Some(exit_code::SUCCESS), "{}", second.stderr);
+    let expected = concat!(
+        "design: theme light, 2 global override(s), 0 theme override(s), ",
+        "color vision simulate-deutan"
+    );
+    assert!(
+        second.stderr.contains("design restored from"),
+        "{}",
+        second.stderr
+    );
+    assert!(second.stderr.contains(expected), "{}", second.stderr);
+    assert!(
+        !second.stderr.contains("design saved to"),
+        "{}",
+        second.stderr
+    );
+}
+
+#[test]
+fn refused_design_options_exit_with_usage_code_and_save_nothing() {
+    let dir = data_dir("e2e-design-refused");
+    let dir_arg = dir.to_str().expect("the target directory has a UTF-8 path");
+    let run = run_koebi(
+        &[
+            "--frames",
+            "1",
+            "--data-dir",
+            dir_arg,
+            "--override",
+            "semantic.radius.control=wide",
+        ],
+        Duration::from_secs(60),
+    );
+    if run.code == Some(exit_code::UNSUPPORTED) && !koebi_testkit::require_gpu() {
+        eprintln!(
+            "SKIPPED: SDL video unavailable
+{}",
+            run.stderr
+        );
+        return;
+    }
+    assert_eq!(run.code, Some(exit_code::USAGE), "{}", run.stderr);
+    assert!(
+        run.stderr
+            .contains("--override semantic.radius.control=wide"),
+        "{}",
+        run.stderr
+    );
+    assert!(!dir.join("design.kds").exists());
 }

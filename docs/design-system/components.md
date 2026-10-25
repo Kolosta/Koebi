@@ -22,7 +22,8 @@ Line icons (`Icon::Check`, `Icon::Plus`, chevrons...) use `component.icon.*`. Co
 have no text yet: icons stand in for labels, and theme cards draw text as bars.
 
 [`crates/koebi-ui/tests/golden/`](../../crates/koebi-ui/tests/golden/) shows every component
-in the dark and light themes.
+in the dark and light themes, and the application shows them all in its
+[gallery](gallery.md).
 
 ## One frame
 

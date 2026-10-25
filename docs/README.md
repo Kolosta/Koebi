@@ -35,6 +35,8 @@ you work on.
   vision, and how to define and read tokens.
 - [Components](design-system/components.md): how `koebi-ui` components read their tokens,
   and how to write one.
+- [Gallery](design-system/gallery.md): what the application's window shows, where the design
+  state is saved, and the design options of the command line.
 - [Porting report](design-system/porting.md): the differences between Koebi's tokens and the
   token table of the previous application.
 

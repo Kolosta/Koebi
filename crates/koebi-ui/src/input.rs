@@ -52,6 +52,20 @@ impl Input {
         self.released = false;
     }
 
+    /// The same pointer without this frame's press and release.
+    ///
+    /// When a frame changes what components look like (a slider edits a token, a card
+    /// switches the theme), draw it again with this input: components show the new state in
+    /// the same frame, without handling the press or the release twice.
+    #[must_use]
+    pub fn settled(&self) -> Self {
+        Self {
+            pressed_at: None,
+            released: false,
+            ..*self
+        }
+    }
+
     /// Where the pointer is, if it is over the window.
     pub fn pointer(&self) -> Option<Vec2> {
         self.pointer
@@ -99,6 +113,17 @@ mod tests {
         input.primary_button(false, AT);
         assert_eq!(input.pressed_at(), Some(AT));
         assert!(input.released() && !input.is_down());
+    }
+
+    #[test]
+    fn settled_input_keeps_the_pointer_but_not_the_transitions() {
+        let mut input = Input::new();
+        input.primary_button(true, AT);
+        let settled = input.settled();
+        assert_eq!((settled.pressed_at(), settled.is_down()), (None, true));
+        assert_eq!(settled.pointer(), Some(AT));
+        input.primary_button(false, AT);
+        assert!(!input.settled().released());
     }
 
     #[test]

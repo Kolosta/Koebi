@@ -2,15 +2,17 @@
 //!
 //! - `koebi-platform` provides the window, events and lifecycle (SDL3 main callbacks);
 //! - `koebi-gpu` provides the Vulkan device and frame presentation;
-//! - `koebi-render` draws the 2D scene.
+//! - `koebi-render` draws the 2D scene;
+//! - `koebi-design` and `koebi-tokens` hold the design system, saved in the user's preferences;
+//! - `koebi-ui` draws the components.
 //!
-//! Today the scene is a single themed rounded rectangle. Future UI crates (widgets, layout,
-//! design system) plug in here without touching the lower layers.
+//! Until Koebi has editors, the window shows the design system gallery: theme cards, every
+//! component, a token editor, the color vision modes and a grid of components.
 
 mod app;
+mod design_options;
+mod gallery;
 mod options;
-mod scene;
-mod theme;
 
 pub use koebi_platform::exit_code;
 pub use options::{Options, ParseError};

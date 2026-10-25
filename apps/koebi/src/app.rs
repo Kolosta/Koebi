@@ -1,19 +1,24 @@
 //! The application state machine: SDL callbacks in, frames out.
 
-use koebi_core::Extent;
+use std::time::Instant;
+
+use koebi_core::{Extent, Rect, Vec2};
+use koebi_design::DesignSystem;
+use koebi_design::persist::Store;
 use koebi_gpu::{
     AdapterPreference, Device, Instance, InstanceDesc, PresentMode, Presenter, PresenterDesc,
     RenderOutcome, Surface, Validation,
 };
 use koebi_platform::{
-    App, AppContext, AppControl, AppError, Event, IterationRate, VulkanSupport, Window, WindowDesc,
-    WindowEvent, exit_code,
+    App, AppContext, AppControl, AppError, Event, IterationRate, MouseButton, VulkanSupport,
+    Window, WindowDesc, WindowEvent, exit_code,
 };
 use koebi_render::{Renderer2D, Scene};
+use koebi_ui::{Input, StyleCache, Ui, UiState};
 
+use crate::design_options;
+use crate::gallery::Gallery;
 use crate::options::Options;
-use crate::scene;
-use crate::theme::Theme;
 
 /// Everything Vulkan. Declared before the window in [`KoebiApp`] so that it drops first:
 /// surfaces must be destroyed before their native window.
@@ -156,13 +161,157 @@ fn version() -> (u32, u32, u32) {
     )
 }
 
+/// The interface: the design system, its saved state, and the gallery drawn with it.
+struct Interface {
+    design: DesignSystem,
+    /// `None` without a place to save to: changes then last until the application quits.
+    store: Option<Store>,
+    styles: StyleCache,
+    state: UiState,
+    input: Input,
+    gallery: Gallery,
+    scene: Scene,
+}
+
+impl Interface {
+    /// Restores the saved design state, then applies the command line's design changes.
+    fn new(context: &AppContext, options: &Options) -> Result<Self, AppError> {
+        let mut design = DesignSystem::new(&koebi_tokens::KOEBI).map_err(|error| {
+            AppError::new(exit_code::FAILURE, format!("design system: {error}"))
+        })?;
+        let store = open_store(context, options, &mut design);
+        design_options::apply(&mut design, options)
+            .map_err(|message| AppError::new(exit_code::USAGE, message))?;
+        koebi_core::info!("{}", design_options::summary(&design));
+        Ok(Self {
+            styles: StyleCache::new(&design),
+            design,
+            store,
+            state: UiState::new(),
+            input: Input::new(),
+            gallery: Gallery::new(),
+            scene: Scene::new(),
+        })
+    }
+
+    /// Builds the scene of a frame covering `area`. When the frame changes the design system
+    /// (a slider edits a token, a card switches the theme), the scene is built again with the
+    /// new styles: every component shows the change in this very frame.
+    fn build(&mut self, area: Rect) {
+        let revision = self.design.revision();
+        let input = self.input;
+        self.draw(area, &input);
+        if self.design.revision() != revision {
+            self.draw(area, &input.settled());
+        }
+        self.input.end_frame();
+    }
+
+    fn draw(&mut self, area: Rect, input: &Input) {
+        let Self {
+            design,
+            styles,
+            state,
+            gallery,
+            scene,
+            ..
+        } = self;
+        scene.clear();
+        let styles = styles.update(design);
+        scene.set_clear_color(styles.background);
+        let mut ui = Ui::new(scene, styles, input, state);
+        gallery.show(&mut ui, design, area);
+    }
+
+    /// Feeds pointer events to the interface. Returns `true` when the event concerns it.
+    fn handle(&mut self, event: &Event) -> bool {
+        match *event {
+            Event::MouseMotion { position, .. } => self.input.pointer_moved(position),
+            Event::MouseButton {
+                button: MouseButton::Left,
+                down,
+                position,
+                ..
+            } => self.input.primary_button(down, position),
+            Event::Window {
+                event: WindowEvent::PointerLeft,
+                ..
+            } => self.input.pointer_left(),
+            _ => return false,
+        }
+        true
+    }
+
+    /// `true` while changes wait for [`Self::save_if_due`].
+    fn has_unsaved_changes(&self) -> bool {
+        self.store
+            .as_ref()
+            .is_some_and(|store| store.is_dirty(&self.design))
+    }
+
+    /// Saves the design state once changes have settled: one write per pause while a slider
+    /// drags, not one per frame.
+    fn save_if_due(&mut self) {
+        if let Some(store) = &mut self.store {
+            let result = store.save_if_due(&self.design, Instant::now());
+            report_save(store, result);
+        }
+    }
+
+    /// Saves now if anything changed: before quitting or going to the background.
+    fn save(&mut self) {
+        if let Some(store) = &mut self.store {
+            let result = store.save(&self.design);
+            report_save(store, result);
+        }
+    }
+}
+
+/// Opens the store in the data directory and restores the saved state into `design`.
+fn open_store(context: &AppContext, options: &Options, design: &mut DesignSystem) -> Option<Store> {
+    let directory = match &options.data_dir {
+        Some(directory) => directory.clone(),
+        None => match context.preferences_dir() {
+            Ok(directory) => directory,
+            Err(error) => {
+                koebi_core::warn!("no preferences directory ({error}): changes will not be saved");
+                return None;
+            }
+        },
+    };
+    let mut store = Store::new(directory);
+    match store.load(design) {
+        Ok(Some(report)) => {
+            for skipped in &report.skipped {
+                koebi_core::warn!("design: {skipped}");
+            }
+            koebi_core::info!("design restored from {}", store.path().display());
+        }
+        Ok(None) => koebi_core::info!("design: nothing saved yet in {}", store.path().display()),
+        Err(error) => koebi_core::warn!(
+            "design: cannot restore {} ({error}); starting from the built-in themes",
+            store.path().display()
+        ),
+    }
+    Some(store)
+}
+
+fn report_save(store: &Store, result: koebi_design::Result<bool>) {
+    match result {
+        Ok(true) => koebi_core::info!("design saved to {}", store.path().display()),
+        Ok(false) => {}
+        Err(error) => koebi_core::warn!("cannot save the design: {error}"),
+    }
+}
+
 /// Koebi's application state.
 pub(crate) struct KoebiApp {
     options: Options,
-    theme: Theme,
-    scene: Scene,
+    interface: Interface,
     frames_presented: u64,
     needs_redraw: bool,
+    /// The iteration rate last asked of the platform.
+    rate: IterationRate,
     // Field order is drop order: GPU objects (surface included) before the window.
     gpu: Gpu,
     window: Window,
@@ -172,8 +321,9 @@ impl KoebiApp {
     fn render_frame(&mut self) -> AppControl {
         let scale_factor = self.window.scale_factor();
         let logical_size = self.window.size_in_pixels().to_logical(scale_factor);
-        scene::build(&mut self.scene, logical_size, &self.theme);
-        match self.gpu.render(&self.scene, scale_factor) {
+        self.interface
+            .build(Rect::from_origin_size(Vec2::ZERO, logical_size));
+        match self.gpu.render(&self.interface.scene, scale_factor) {
             Ok(RenderOutcome::Presented) => {
                 self.frames_presented += 1;
                 self.needs_redraw = false;
@@ -194,6 +344,22 @@ impl KoebiApp {
             }
         }
         AppControl::Continue
+    }
+
+    /// Waits for events, except while changes wait to be saved: then the application wakes up
+    /// a few times per second until they are. Tests and benchmarks draw continuously.
+    fn update_rate(&mut self, context: &mut AppContext) {
+        let rate = if self.options.frames.is_some() {
+            IterationRate::Unlimited
+        } else if self.interface.has_unsaved_changes() {
+            IterationRate::Hz(10)
+        } else {
+            IterationRate::WaitEvent
+        };
+        if rate != self.rate {
+            context.set_iteration_rate(rate);
+            self.rate = rate;
+        }
     }
 
     /// Exit code reflecting the Vulkan validation report.
@@ -232,11 +398,13 @@ impl App for KoebiApp {
         }
 
         // A UI only needs to draw after input; benchmarks and tests draw continuously.
-        context.set_iteration_rate(if options.frames.is_some() {
+        let rate = if options.frames.is_some() {
             IterationRate::Unlimited
         } else {
             IterationRate::WaitEvent
-        });
+        };
+        context.set_iteration_rate(rate);
+        let interface = Interface::new(context, &options)?;
 
         // Load Vulkan before creating the window: otherwise SDL loads its default library when
         // the first Vulkan window is created, which fails where the loader is not on the system
@@ -266,22 +434,24 @@ impl App for KoebiApp {
 
         Ok(Self {
             options,
-            theme: Theme::dark(),
-            scene: Scene::new(),
+            interface,
             frames_presented: 0,
             needs_redraw: true,
+            rate,
             gpu,
             window,
         })
     }
 
-    fn iterate(&mut self, _context: &mut AppContext) -> AppControl {
+    fn iterate(&mut self, context: &mut AppContext) -> AppControl {
         if self.needs_redraw || self.options.frames.is_some() {
             let control = self.render_frame();
             if control != AppControl::Continue {
                 return control;
             }
         }
+        self.interface.save_if_due();
+        self.update_rate(context);
         match self.options.frames {
             Some(limit) if self.frames_presented >= limit => self.finish(),
             _ => AppControl::Continue,
@@ -289,8 +459,15 @@ impl App for KoebiApp {
     }
 
     fn event(&mut self, _context: &mut AppContext, event: &Event) -> AppControl {
+        if self.interface.handle(event) {
+            self.needs_redraw = true;
+            return AppControl::Continue;
+        }
         match *event {
-            Event::Quit | Event::Terminating => return self.finish(),
+            Event::Quit | Event::Terminating => {
+                self.interface.save();
+                return self.finish();
+            }
             Event::Window { window, event } if window == self.window.id() => match event {
                 WindowEvent::CloseRequested => return self.finish(),
                 WindowEvent::PixelSizeChanged(extent) => {
@@ -299,8 +476,12 @@ impl App for KoebiApp {
                 }
                 _ => self.needs_redraw = true,
             },
-            // Android destroys the native window in the background: release the surface first.
-            Event::WillEnterBackground => self.gpu.detach(),
+            // The OS may kill a background application without notice: save first. Android
+            // also destroys the native window: release the surface.
+            Event::WillEnterBackground => {
+                self.interface.save();
+                self.gpu.detach();
+            }
             Event::DidEnterForeground => {
                 if let Err(error) = self.gpu.reattach(&self.window) {
                     koebi_core::error!("{}", error.message);
@@ -313,7 +494,8 @@ impl App for KoebiApp {
         AppControl::Continue
     }
 
-    fn quit(self, _context: &mut AppContext) {
+    fn quit(mut self, _context: &mut AppContext) {
+        self.interface.save();
         if let Err(error) = self.gpu.device.wait_idle() {
             koebi_core::warn!("waiting for the GPU at exit failed: {error}");
         }

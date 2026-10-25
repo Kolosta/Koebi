@@ -2,7 +2,7 @@
 
 use core::ops::RangeInclusive;
 
-use koebi_core::{Rect, Vec2};
+use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
 use koebi_render::RectPrimitive;
 use koebi_tokens::component;
@@ -16,6 +16,10 @@ use crate::ui::{Response, Ui};
 pub struct SliderStyle {
     /// Track color per state (pressed while dragging).
     pub track: StateColors,
+    /// Track border color.
+    pub track_border_color: Color,
+    /// Track border width.
+    pub track_border_width: f32,
     /// Grab color per state.
     pub grab: StateColors,
     /// Grab width.
@@ -36,6 +40,8 @@ impl SliderStyle {
                 hovered: track_hovered,
                 pressed: track_hovered,
             },
+            track_border_color: tokens.get(component::SLIDER_TRACK_BORDER_COLOR_DEFAULT),
+            track_border_width: tokens.get(component::SLIDER_TRACK_BORDER_WIDTH_DEFAULT),
             grab: StateColors {
                 normal: tokens.get(component::SLIDER_GRAB_COLOR_DEFAULT),
                 hovered: tokens.get(component::SLIDER_GRAB_COLOR_HOVER),
@@ -117,7 +123,8 @@ impl Ui<'_> {
         let state = response.drag_state();
         self.scene.push_rect(
             &RectPrimitive::new(rect, style.track.pick(state))
-                .with_corner_radius(style.corner_radius),
+                .with_corner_radius(style.corner_radius)
+                .with_border(style.track_border_width, style.track_border_color),
         );
         let grab_radius = (style.corner_radius - style.grab_padding).max(0.0);
         let grab = style.grab_rect(rect, fraction(*value, &range));
