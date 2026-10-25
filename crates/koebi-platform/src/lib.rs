@@ -17,13 +17,16 @@
 //! Vulkan types (`ash::vk`) do, because surfaces are created here.
 
 mod app;
+mod cursor;
 mod error;
 mod event;
 mod vulkan;
 mod window;
 
 pub use app::{App, AppContext, AppControl, AppError, IterationRate, exit_code, run, run_sdl_main};
+pub use cursor::{Cursor, CursorId, CursorImage, SystemCursor};
 pub use error::PlatformError;
-pub use event::{Event, Key, MouseButton, WindowEvent};
+pub use event::{Event, GesturePhase, WindowEvent};
+pub use koebi_core::input::{Key, Modifiers, MouseButton};
 pub use vulkan::VulkanSupport;
 pub use window::{Window, WindowDesc, WindowId};

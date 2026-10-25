@@ -15,6 +15,7 @@
 
 pub mod color;
 pub mod color_vision;
+pub mod input;
 pub mod log;
 pub mod math;
 

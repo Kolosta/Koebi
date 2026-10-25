@@ -14,11 +14,13 @@ use sdl3_sys::init::{
     SDL_APP_CONTINUE, SDL_APP_FAILURE, SDL_APP_SUCCESS, SDL_AppResult, SDL_INIT_VIDEO, SDL_Init,
     SDL_SetAppMetadata,
 };
+use sdl3_sys::keyboard::SDL_GetModState;
 use sdl3_sys::main::{SDL_EnterAppMainCallbacks, SDL_RunApp};
 use sdl3_sys::stdinc::SDL_free;
 
+use crate::cursor::{Cursor, CursorId, CursorImage, Cursors};
 use crate::error::{PlatformError, sdl_error};
-use crate::event::{Event, to_logical, translate};
+use crate::event::{Event, modifiers_from_sdl, to_logical, translate};
 use crate::vulkan::VulkanSupport;
 use crate::window::{Window, WindowDesc, logical_per_window_coordinate};
 
@@ -118,6 +120,7 @@ pub trait App: Sized + 'static {
 /// Only exists between SDL initialization and shutdown, on the main thread.
 #[derive(Debug)]
 pub struct AppContext {
+    cursors: Cursors,
     _main_thread_only: PhantomData<*mut ()>,
 }
 
@@ -128,6 +131,7 @@ pub struct AppContext {
 impl AppContext {
     fn new() -> Self {
         Self {
+            cursors: Cursors::default(),
             _main_thread_only: PhantomData,
         }
     }
@@ -175,6 +179,27 @@ impl AppContext {
         // SAFETY: the string was allocated by SDL for the caller and is not used afterwards.
         unsafe { SDL_free(raw.cast()) };
         Ok(PathBuf::from(path))
+    }
+
+    /// Shows `cursor` over the application's windows. Setting the cursor already shown costs
+    /// nothing: call it every frame with the cursor the pointer's position calls for.
+    ///
+    /// Drags keep receiving pointer events outside the window: SDL captures the mouse while a
+    /// button is held.
+    pub fn set_cursor(&mut self, cursor: Cursor) {
+        if let Err(error) = self.cursors.show(cursor) {
+            koebi_core::warn!("cannot show the cursor: {error}");
+        }
+    }
+
+    /// Creates a custom cursor from pixels, to show with [`Self::set_cursor`]. Cursors live as
+    /// long as the context.
+    ///
+    /// # Errors
+    ///
+    /// When the image is invalid (see [`CursorImage`]) or SDL cannot create the cursor.
+    pub fn create_cursor(&mut self, image: &CursorImage<'_>) -> Result<CursorId, PlatformError> {
+        self.cursors.create(image)
     }
 
     /// Changes how often [`App::iterate`] runs.
@@ -361,8 +386,11 @@ unsafe extern "C" fn app_event<A: App>(
     let Some(state) = (unsafe { appstate.cast::<AppState<A>>().as_mut() }) else {
         return SDL_APP_FAILURE;
     };
+    // SAFETY: called on the main thread inside an SDL callback.
+    let modifiers = modifiers_from_sdl(unsafe { SDL_GetModState() });
     // SAFETY: SDL passes a valid event for the duration of the callback.
-    let Some(event) = (unsafe { event.as_ref() }).and_then(translate) else {
+    let Some(event) = (unsafe { event.as_ref() }).and_then(|event| translate(event, modifiers))
+    else {
         return SDL_APP_CONTINUE;
     };
     // Pointer positions arrive in window coordinates; scenes are in logical pixels.
