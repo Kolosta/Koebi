@@ -200,13 +200,16 @@ mod tests {
     }
 
     impl Harness {
+        /// A harness whose previous frame laid the field out: hit testing uses it.
         fn new() -> Self {
-            Self {
+            let mut harness = Self {
                 styles: crate::test_styles(),
                 scene: Scene::new(),
                 state: UiState::new(),
                 input: Input::new(),
-            }
+            };
+            harness.frame(&mut 0.0, 0.0..=1.0, 0.0);
+            harness
         }
 
         fn frame(&mut self, value: &mut f32, range: RangeInclusive<f32>, step: f32) -> Response {

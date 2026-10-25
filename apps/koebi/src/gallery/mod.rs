@@ -342,14 +342,18 @@ mod tests {
         DesignSystem::new(&KOEBI).expect("Koebi's schema is valid")
     }
 
-    /// One frame of the gallery in a window of `size`, with `input`.
+    /// One frame of the gallery in a window of `size`, with `input`, after a frame that lays
+    /// it out (hit testing uses the previous frame, as in the application).
     fn frame(gallery: &mut Gallery, design: &mut DesignSystem, input: &Input, size: Vec2) -> Scene {
-        let styles = StyleCache::new(design);
+        let area = Rect::from_origin_size(Vec2::ZERO, size);
         let mut scene = Scene::new();
         let mut state = UiState::new();
-        let mut ui = Ui::new(&mut scene, styles.styles(), input, &mut state);
-        gallery.show(&mut ui, design, Rect::from_origin_size(Vec2::ZERO, size));
-        drop(ui);
+        for input in [input.settled(), *input] {
+            let styles = StyleCache::new(design);
+            scene.clear();
+            let mut ui = Ui::new(&mut scene, styles.styles(), &input, &mut state);
+            gallery.show(&mut ui, design, area);
+        }
         scene
     }
 

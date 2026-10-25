@@ -1,16 +1,20 @@
 //! [`Ui`]: one frame of immediate-mode interface, and the interaction state between frames.
 
+use koebi_core::input::CursorShape;
 use koebi_core::{Rect, Vec2};
+use koebi_input::Context;
 use koebi_render::Scene;
 
 use crate::id::WidgetId;
 use crate::input::Input;
+use crate::routing::{Layer, Region, Regions};
 use crate::style::Styles;
 
-/// What must outlive a frame: the widget that holds the pointer, and where it took it.
+/// What must outlive a frame: the widget that holds the pointer, where it took it, and the
+/// regions of the last frame, which decide what is under the pointer.
 ///
 /// Keep one per window and pass it to every [`Ui`].
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default)]
 pub struct UiState {
     active: Option<WidgetId>,
     /// Pointer position when the active widget was pressed.
@@ -19,6 +23,13 @@ pub struct UiState {
     press_value: f32,
     /// Whether the active widget took part in the current frame.
     active_seen: bool,
+    /// The regions of the last complete frame, and of the frame being built.
+    previous: Regions,
+    current: Regions,
+    /// The widget on top under the pointer, and under the press, resolved when a frame starts.
+    hovered: Option<WidgetId>,
+    press_target: Option<WidgetId>,
+    cursor: CursorShape,
 }
 
 impl UiState {
@@ -30,6 +41,23 @@ impl UiState {
     /// The widget that holds the pointer: pressed, and not released yet.
     pub fn active(&self) -> Option<WidgetId> {
         self.active
+    }
+
+    /// The widget on top under the pointer when the frame started.
+    pub fn hovered(&self) -> Option<WidgetId> {
+        self.hovered
+    }
+
+    /// The cursor the interface asks for: the one of the widget that holds the pointer, or of
+    /// what is on top under it.
+    pub fn cursor(&self) -> CursorShape {
+        self.cursor
+    }
+
+    /// The shortcut contexts under `point` in the last complete frame, innermost first,
+    /// replacing the content of `chain` (pass the same vector every time: no allocation).
+    pub fn contexts_at(&self, point: Vec2, chain: &mut Vec<Context>) {
+        self.previous.contexts_at(point, chain);
     }
 }
 
@@ -52,7 +80,7 @@ pub enum WidgetState {
     reason = "independent facts that callers test one by one, as `response.clicked`"
 )]
 pub struct Response {
-    /// The pointer is over the component, and no other component holds it.
+    /// The component is on top under the pointer, and no other component holds the pointer.
     pub hovered: bool,
     /// The primary button went down on the component this frame.
     pub pressed: bool,
@@ -111,14 +139,19 @@ impl Response {
 /// One frame of interface: components draw into a [`Scene`] and react to the [`Input`].
 ///
 /// Create one per frame, call components on it, then drop it: dropping ends the frame for
-/// the [`UiState`]. Components are hit-tested in drawing order and must not overlap: where
-/// they do, the first one drawn takes the press.
+/// the [`UiState`]. What is on top under the pointer receives it: the highest [`Layer`], then
+/// the component drawn last (see [`crate::Layer`]); nothing under it is hovered or clicked.
 #[derive(Debug)]
 pub struct Ui<'a> {
     pub(crate) scene: &'a mut Scene,
     styles: &'a Styles,
     input: &'a Input,
     state: &'a mut UiState,
+    layer: Layer,
+    /// The innermost zone being drawn, by region index.
+    zone: Option<u32>,
+    /// Regions are clipped to this rectangle.
+    clip: Option<Rect>,
 }
 
 impl<'a> Ui<'a> {
@@ -130,11 +163,33 @@ impl<'a> Ui<'a> {
         state: &'a mut UiState,
     ) -> Self {
         state.active_seen = false;
+        state.current.clear();
+        let topmost = |point: Option<Vec2>| {
+            point
+                .and_then(|point| state.previous.topmost(point))
+                .and_then(|(_, region)| region.widget)
+        };
+        state.hovered = topmost(input.pointer());
+        state.press_target = topmost(input.pressed_at());
+        let held_cursor = state
+            .active
+            .and_then(|widget| state.previous.of_widget(widget))
+            .and_then(|region| region.cursor);
+        state.cursor = held_cursor
+            .or_else(|| {
+                input
+                    .pointer()
+                    .and_then(|point| state.previous.cursor_at(point))
+            })
+            .unwrap_or_default();
         Self {
             scene,
             styles,
             input,
             state,
+            layer: Layer::BASE,
+            zone: None,
+            clip: None,
         }
     }
 
@@ -153,19 +208,122 @@ impl<'a> Ui<'a> {
         self.scene
     }
 
+    /// The layer components are drawn on.
+    pub fn layer(&self) -> Layer {
+        self.layer
+    }
+
+    /// Draws with `add` on `layer`, above or below what the current layer holds.
+    pub fn on_layer<R>(&mut self, layer: Layer, add: impl FnOnce(&mut Self) -> R) -> R {
+        let previous = core::mem::replace(&mut self.layer, layer);
+        let result = add(self);
+        self.layer = previous;
+        result
+    }
+
+    /// Draws with `add`, hit testing its components only inside `clip` (a scrolling list:
+    /// rows scrolled out of view receive nothing).
+    pub fn clipped<R>(&mut self, clip: Rect, add: impl FnOnce(&mut Self) -> R) -> R {
+        let clip = match self.clip {
+            Some(outer) => outer.intersection(&clip).unwrap_or(Rect::ZERO),
+            None => clip,
+        };
+        let previous = self.clip.replace(clip);
+        let result = add(self);
+        self.clip = previous;
+        result
+    }
+
+    fn register(
+        &mut self,
+        rect: Rect,
+        widget: Option<WidgetId>,
+        context: Option<Context>,
+        cursor: Option<CursorShape>,
+    ) -> u32 {
+        let rect = match self.clip {
+            Some(clip) => rect.intersection(&clip).unwrap_or(Rect::ZERO),
+            None => rect,
+        };
+        self.state.current.push(Region {
+            rect,
+            layer: self.layer,
+            widget,
+            context,
+            cursor,
+            parent: self.zone,
+        })
+    }
+
+    /// A zone: a part of the interface where the shortcuts of `context` apply, and that
+    /// receives the pointer where no component of `add` does. Zones nest: the chain of zones
+    /// under the pointer is the chain of contexts the keymap resolves, innermost first.
+    pub fn zone<R>(&mut self, rect: Rect, context: Context, add: impl FnOnce(&mut Self) -> R) -> R {
+        let index = self.register(rect, None, Some(context), None);
+        let outer = self.zone.replace(index);
+        let result = add(self);
+        self.zone = outer;
+        result
+    }
+
+    /// Like [`Self::zone`], showing `cursor` over the zone where nothing inside asks for
+    /// another one.
+    pub fn zone_with_cursor<R>(
+        &mut self,
+        rect: Rect,
+        context: Context,
+        cursor: CursorShape,
+        add: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let index = self.register(rect, None, Some(context), Some(cursor));
+        let outer = self.zone.replace(index);
+        let result = add(self);
+        self.zone = outer;
+        result
+    }
+
+    /// Takes the pointer over `rect` without reacting to it: the background of a floating
+    /// panel, so that what lies under the panel receives nothing.
+    pub fn block(&mut self, rect: Rect) {
+        self.register(rect, None, None, None);
+    }
+
     /// Hit-tests `rect` for the widget `id` and tracks which widget holds the pointer: the
     /// building block of every interactive component.
     pub fn interact(&mut self, id: WidgetId, rect: Rect) -> Response {
-        let contains = |point: Option<Vec2>| point.is_some_and(|point| rect.contains(point));
+        self.interact_inner(id, rect, None)
+    }
+
+    /// Like [`Self::interact`], showing `cursor` while the pointer is over the widget or the
+    /// widget holds it (a gutter shows a resize cursor during the whole drag).
+    pub fn interact_with_cursor(
+        &mut self,
+        id: WidgetId,
+        rect: Rect,
+        cursor: CursorShape,
+    ) -> Response {
+        self.interact_inner(id, rect, Some(cursor))
+    }
+
+    fn interact_inner(
+        &mut self,
+        id: WidgetId,
+        rect: Rect,
+        cursor: Option<CursorShape>,
+    ) -> Response {
+        self.register(rect, Some(id), None, cursor);
         let mut response = Response::default();
-        if self.state.active.is_none() && contains(self.input.pressed_at()) {
+        if self.state.active.is_none()
+            && self.state.press_target == Some(id)
+            && let Some(origin) = self.input.pressed_at()
+        {
             self.state.active = Some(id);
-            self.state.press_origin = self.input.pressed_at().unwrap_or_default();
+            self.state.press_origin = origin;
             response.pressed = true;
         }
-        let pointer_over = contains(self.input.pointer());
+        let on_top = self.state.hovered == Some(id);
         let active = self.state.active == Some(id);
-        response.hovered = pointer_over && (active || self.state.active.is_none());
+        response.hovered = on_top && (active || self.state.active.is_none());
         if active {
             self.state.active_seen = true;
             response.held = self.input.is_down();
@@ -175,7 +333,7 @@ impl<'a> Ui<'a> {
                 .map_or(Vec2::ZERO, |pointer| pointer - self.state.press_origin);
             if self.input.released() {
                 response.released = true;
-                response.clicked = pointer_over;
+                response.clicked = on_top;
                 self.state.active = None;
             }
         }
@@ -200,6 +358,9 @@ impl Drop for Ui<'_> {
         if !self.state.active_seen || self.input.released() {
             self.state.active = None;
         }
+        // The regions of this frame decide what is under the pointer in the next one.
+        let state = &mut *self.state;
+        core::mem::swap(&mut state.previous, &mut state.current);
     }
 }
 
@@ -210,15 +371,20 @@ mod tests {
     const A: WidgetId = WidgetId::new("a");
     const B: WidgetId = WidgetId::new("b");
 
+    fn rect(x: f32, y: f32, width: f32, height: f32) -> Rect {
+        Rect::from_origin_size(Vec2::new(x, y), Vec2::new(width, height))
+    }
+
     fn rect_a() -> Rect {
-        Rect::from_origin_size(Vec2::new(0.0, 0.0), Vec2::new(10.0, 10.0))
+        rect(0.0, 0.0, 10.0, 10.0)
     }
 
     fn rect_b() -> Rect {
-        Rect::from_origin_size(Vec2::new(20.0, 0.0), Vec2::new(10.0, 10.0))
+        rect(20.0, 0.0, 10.0, 10.0)
     }
 
-    /// Runs one frame with widgets A and B, then ends the frame for the input.
+    /// Runs one frame with widgets A and B, then ends the frame for the input. The first
+    /// frame of a state only lays widgets out: hit testing uses the previous frame.
     fn frame(state: &mut UiState, input: &mut Input) -> (Response, Response) {
         let styles = crate::test_styles();
         let mut scene = Scene::new();
@@ -230,18 +396,26 @@ mod tests {
         responses
     }
 
+    /// A state whose previous frame laid A and B out.
+    fn laid_out() -> (UiState, Input) {
+        let (mut state, mut input) = (UiState::new(), Input::new());
+        frame(&mut state, &mut input);
+        (state, input)
+    }
+
     #[test]
     fn hover_follows_the_pointer() {
-        let (mut state, mut input) = (UiState::new(), Input::new());
+        let (mut state, mut input) = laid_out();
         input.pointer_moved(Vec2::new(5.0, 5.0));
         let (a, b) = frame(&mut state, &mut input);
         assert!(a.hovered && !b.hovered);
         assert_eq!(a.state(), WidgetState::Hovered);
+        assert_eq!(state.hovered(), Some(A));
     }
 
     #[test]
     fn press_then_release_inside_clicks() {
-        let (mut state, mut input) = (UiState::new(), Input::new());
+        let (mut state, mut input) = laid_out();
         input.primary_button(true, Vec2::new(5.0, 5.0));
         let (a, _) = frame(&mut state, &mut input);
         assert!(a.pressed && a.held && !a.clicked);
@@ -259,7 +433,7 @@ mod tests {
 
     #[test]
     fn releasing_elsewhere_cancels_the_click() {
-        let (mut state, mut input) = (UiState::new(), Input::new());
+        let (mut state, mut input) = laid_out();
         input.primary_button(true, Vec2::new(5.0, 5.0));
         frame(&mut state, &mut input);
         input.pointer_moved(Vec2::new(25.0, 5.0));
@@ -276,7 +450,7 @@ mod tests {
 
     #[test]
     fn a_quick_click_between_two_frames_still_clicks() {
-        let (mut state, mut input) = (UiState::new(), Input::new());
+        let (mut state, mut input) = laid_out();
         input.primary_button(true, Vec2::new(25.0, 5.0));
         input.primary_button(false, Vec2::new(25.0, 5.0));
         let (a, b) = frame(&mut state, &mut input);
@@ -286,7 +460,7 @@ mod tests {
 
     #[test]
     fn presses_on_empty_space_hold_nothing() {
-        let (mut state, mut input) = (UiState::new(), Input::new());
+        let (mut state, mut input) = laid_out();
         input.primary_button(true, Vec2::new(15.0, 5.0));
         frame(&mut state, &mut input);
         assert_eq!(state.active(), None);
@@ -298,7 +472,7 @@ mod tests {
 
     #[test]
     fn a_vanished_widget_lets_go_of_the_pointer() {
-        let (mut state, mut input) = (UiState::new(), Input::new());
+        let (mut state, mut input) = laid_out();
         input.primary_button(true, Vec2::new(5.0, 5.0));
         frame(&mut state, &mut input);
         assert_eq!(state.active(), Some(A));
@@ -307,6 +481,119 @@ mod tests {
         let mut scene = Scene::new();
         drop(Ui::new(&mut scene, &styles, &input, &mut state));
         assert_eq!(state.active(), None);
+    }
+
+    /// Runs `draw` twice: once to lay out, once with `input`.
+    fn interact_twice(
+        state: &mut UiState,
+        input: &mut Input,
+        mut draw: impl FnMut(&mut Ui<'_>) -> Vec<Response>,
+    ) -> Vec<Response> {
+        let styles = crate::test_styles();
+        let mut scene = Scene::new();
+        let pending = *input;
+        let mut idle = pending.settled();
+        idle.end_frame();
+        drop(draw(&mut Ui::new(&mut scene, &styles, &idle, state)));
+        scene.clear();
+        let responses = draw(&mut Ui::new(&mut scene, &styles, input, state));
+        input.end_frame();
+        responses
+    }
+
+    #[test]
+    fn the_component_drawn_last_is_on_top() {
+        let (mut state, mut input) = (UiState::new(), Input::new());
+        input.primary_button(true, Vec2::new(5.0, 5.0));
+        let responses = interact_twice(&mut state, &mut input, |ui| {
+            vec![
+                ui.interact(A, rect_a()),
+                ui.interact(B, rect(0.0, 0.0, 8.0, 8.0)),
+            ]
+        });
+        assert!(!responses[0].hovered && !responses[0].pressed);
+        assert!(responses[1].hovered && responses[1].pressed);
+    }
+
+    #[test]
+    fn floating_layers_are_above_whatever_the_order() {
+        let (mut state, mut input) = (UiState::new(), Input::new());
+        input.primary_button(true, Vec2::new(5.0, 5.0));
+        let responses = interact_twice(&mut state, &mut input, |ui| {
+            let menu = ui.on_layer(Layer::FLOATING, |ui| ui.interact(A, rect_a()));
+            vec![menu, ui.interact(B, rect_a())]
+        });
+        assert!(responses[0].pressed && !responses[1].pressed);
+    }
+
+    #[test]
+    fn a_blocking_panel_shields_what_lies_under_it() {
+        let (mut state, mut input) = (UiState::new(), Input::new());
+        input.primary_button(true, Vec2::new(5.0, 5.0));
+        let responses = interact_twice(&mut state, &mut input, |ui| {
+            let under = ui.interact(A, rect_a());
+            ui.on_layer(Layer::FLOATING, |ui| ui.block(rect(0.0, 0.0, 50.0, 50.0)));
+            vec![under]
+        });
+        assert!(!responses[0].hovered && !responses[0].pressed);
+        assert_eq!(state.active(), None);
+    }
+
+    #[test]
+    fn clipped_components_receive_nothing_outside_the_clip() {
+        let (mut state, mut input) = (UiState::new(), Input::new());
+        input.primary_button(true, Vec2::new(5.0, 15.0));
+        let responses = interact_twice(&mut state, &mut input, |ui| {
+            ui.clipped(rect(0.0, 0.0, 100.0, 10.0), |ui| {
+                // A row scrolled half out of view.
+                vec![ui.interact(A, rect(0.0, 5.0, 10.0, 20.0))]
+            })
+        });
+        assert!(!responses[0].pressed);
+    }
+
+    #[test]
+    fn zones_give_the_context_chain_and_cursor_under_the_pointer() {
+        let (mut state, mut input) = (UiState::new(), Input::new());
+        input.pointer_moved(Vec2::new(5.0, 5.0));
+        interact_twice(&mut state, &mut input, |ui| {
+            ui.zone(rect(0.0, 0.0, 100.0, 100.0), Context::new("app"), |ui| {
+                ui.zone_with_cursor(
+                    rect(0.0, 0.0, 50.0, 50.0),
+                    Context::new("area"),
+                    CursorShape::Crosshair,
+                    |ui| {
+                        vec![ui.interact_with_cursor(
+                            B,
+                            rect(30.0, 30.0, 10.0, 10.0),
+                            CursorShape::ResizeHorizontal,
+                        )]
+                    },
+                )
+            })
+        });
+        let mut chain = Vec::new();
+        state.contexts_at(Vec2::new(5.0, 5.0), &mut chain);
+        assert_eq!(chain, [Context::new("area"), Context::new("app")]);
+        state.contexts_at(Vec2::new(35.0, 35.0), &mut chain);
+        assert_eq!(chain, [Context::new("area"), Context::new("app")]);
+        state.contexts_at(Vec2::new(75.0, 75.0), &mut chain);
+        assert_eq!(chain, [Context::new("app")]);
+        assert_eq!(state.cursor(), CursorShape::Crosshair);
+    }
+
+    #[test]
+    fn a_held_widget_keeps_its_cursor_wherever_the_pointer_goes() {
+        let (mut state, mut input) = (UiState::new(), Input::new());
+        input.primary_button(true, Vec2::new(5.0, 5.0));
+        let mut draw = |ui: &mut Ui<'_>| {
+            vec![ui.interact_with_cursor(A, rect_a(), CursorShape::ResizeVertical)]
+        };
+        interact_twice(&mut state, &mut input, &mut draw);
+        assert_eq!(state.active(), Some(A));
+        input.pointer_moved(Vec2::new(80.0, 80.0));
+        interact_twice(&mut state, &mut input, &mut draw);
+        assert_eq!(state.cursor(), CursorShape::ResizeVertical);
     }
 
     #[test]

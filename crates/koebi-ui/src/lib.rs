@@ -24,19 +24,24 @@
 //! let design = DesignSystem::new(&koebi_tokens::KOEBI)?;
 //! let mut styles = StyleCache::new(&design);
 //! let (mut scene, mut state, mut input) = (Scene::new(), UiState::new(), Input::new());
+//! let toggle = Rect::from_origin_size(Vec2::ZERO, Vec2::new(24.0, 24.0));
 //! let mut grid = false;
 //!
+//! // One frame: components draw, and react to the input against the previous frame.
+//! let mut frame = |input: &mut Input, grid: &mut bool| {
+//!     scene.clear();
+//!     let mut ui = Ui::new(&mut scene, styles.update(&design), input, &mut state);
+//!     let response = ui.toggle(WidgetId::new("grid"), toggle, grid, Some(Icon::Plus));
+//!     drop(ui);
+//!     input.end_frame();
+//!     response
+//! };
+//!
+//! frame(&mut input, &mut grid);
 //! // A click on the toggle, between two frames.
 //! input.primary_button(true, Vec2::new(10.0, 10.0));
 //! input.primary_button(false, Vec2::new(10.0, 10.0));
-//!
-//! // One frame.
-//! scene.clear();
-//! let mut ui = Ui::new(&mut scene, styles.update(&design), &input, &mut state);
-//! let toggle = Rect::from_origin_size(Vec2::ZERO, Vec2::new(24.0, 24.0));
-//! let response = ui.toggle(WidgetId::new("grid"), toggle, &mut grid, Some(Icon::Plus));
-//! drop(ui);
-//! input.end_frame();
+//! let response = frame(&mut input, &mut grid);
 //!
 //! assert!(response.changed && grid);
 //! # Ok::<(), koebi_design::Error>(())
@@ -45,6 +50,7 @@
 mod icon;
 mod id;
 mod input;
+mod routing;
 mod style;
 mod ui;
 mod widgets;
@@ -52,6 +58,7 @@ mod widgets;
 pub use icon::Icon;
 pub use id::WidgetId;
 pub use input::Input;
+pub use routing::Layer;
 pub use style::{IconStyle, StateColors, StyleCache, Styles};
 pub use ui::{Response, Ui, UiState, WidgetState};
 pub use widgets::{

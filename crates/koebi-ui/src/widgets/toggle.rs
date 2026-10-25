@@ -105,6 +105,10 @@ mod tests {
         let (mut scene, mut state, mut input) = (Scene::new(), UiState::new(), Input::new());
         let rect = Rect::from_origin_size(Vec2::ZERO, Vec2::new(24.0, 24.0));
         let mut on = false;
+        // A first frame lays the toggle out: hit testing uses the previous frame.
+        let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+        ui.toggle(WidgetId::new("grid"), rect, &mut on, None);
+        drop(ui);
         for expected in [true, false] {
             input.primary_button(true, Vec2::new(5.0, 5.0));
             input.primary_button(false, Vec2::new(5.0, 5.0));
