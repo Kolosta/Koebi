@@ -1,6 +1,6 @@
 //! The application state machine: SDL callbacks in, frames out.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use koebi_core::{Extent, Rect, Vec2};
 use koebi_design::DesignSystem;
@@ -17,8 +17,10 @@ use koebi_render::{Renderer2D, Scene};
 use koebi_ui::{Input, StyleCache, Ui, UiState};
 
 use crate::design_options;
+use crate::frame_times::FrameTimes;
 use crate::gallery::Gallery;
 use crate::options::Options;
+use crate::overlay::Overlay;
 
 /// Everything Vulkan. Declared before the window in [`KoebiApp`] so that it drops first:
 /// surfaces must be destroyed before their native window.
@@ -28,6 +30,8 @@ struct Gpu {
     /// `None` while the window surface is gone (mobile background).
     presenter: Option<Presenter>,
     present_mode: PresentMode,
+    /// Whether the GPU measures frame times.
+    timestamps: bool,
     device: Device,
     instance: Instance,
 }
@@ -63,6 +67,7 @@ impl Gpu {
             renderer: None,
             presenter: None,
             present_mode,
+            timestamps: adapter.supports_timestamps(),
             device,
             instance,
         };
@@ -100,7 +105,13 @@ impl Gpu {
         }
     }
 
-    fn render(&mut self, scene: &Scene, scale_factor: f32) -> koebi_gpu::Result<RenderOutcome> {
+    /// Renders `scene`. Returns the outcome and the CPU time spent recording the frame's
+    /// commands, without the waits for the display.
+    fn render(
+        &mut self,
+        scene: &Scene,
+        scale_factor: f32,
+    ) -> koebi_gpu::Result<(RenderOutcome, Duration)> {
         let Self {
             renderer,
             presenter,
@@ -108,10 +119,12 @@ impl Gpu {
             ..
         } = self;
         let Some(presenter) = presenter.as_mut() else {
-            return Ok(RenderOutcome::Skipped);
+            return Ok((RenderOutcome::Skipped, Duration::ZERO));
         };
         let mut recorded = Ok(());
+        let mut recording = Duration::ZERO;
         let outcome = presenter.render(|encoder, frame| {
+            let started = Instant::now();
             let target = frame.render_target();
             if renderer
                 .as_ref()
@@ -129,8 +142,14 @@ impl Gpu {
                 recorded =
                     renderer.render(encoder, target, scene, frame.frame_index(), scale_factor);
             }
+            recording = started.elapsed();
         })?;
-        recorded.map(|()| outcome)
+        recorded.map(|()| (outcome, recording))
+    }
+
+    /// GPU time of the latest measured frame (see [`Presenter::gpu_frame_time`]).
+    fn gpu_frame_time(&self) -> Option<Duration> {
+        self.presenter.as_ref().and_then(Presenter::gpu_frame_time)
     }
 }
 
@@ -170,6 +189,8 @@ struct Interface {
     state: UiState,
     input: Input,
     gallery: Gallery,
+    /// `None` when the frame-time overlay is hidden.
+    overlay: Option<Overlay>,
     scene: Scene,
 }
 
@@ -197,6 +218,7 @@ impl Interface {
             state: UiState::new(),
             input: Input::new(),
             gallery: Gallery::new(),
+            overlay: options.shows_frame_times().then(Overlay::new),
             scene: Scene::new(),
         })
     }
@@ -204,22 +226,23 @@ impl Interface {
     /// Builds the scene of a frame covering `area`. When the frame changes the design system
     /// (a slider edits a token, a card switches the theme), the scene is built again with the
     /// new styles: every component shows the change in this very frame.
-    fn build(&mut self, area: Rect) {
+    fn build(&mut self, area: Rect, times: &FrameTimes) {
         let revision = self.design.revision();
         let input = self.input;
-        self.draw(area, &input);
+        self.draw(area, &input, times);
         if self.design.revision() != revision {
-            self.draw(area, &input.settled());
+            self.draw(area, &input.settled(), times);
         }
         self.input.end_frame();
     }
 
-    fn draw(&mut self, area: Rect, input: &Input) {
+    fn draw(&mut self, area: Rect, input: &Input, times: &FrameTimes) {
         let Self {
             design,
             styles,
             state,
             gallery,
+            overlay,
             scene,
             ..
         } = self;
@@ -228,6 +251,10 @@ impl Interface {
         scene.set_clear_color(styles.background);
         let mut ui = Ui::new(scene, styles, input, state);
         gallery.show(&mut ui, design, area);
+        drop(ui);
+        if let Some(overlay) = overlay {
+            overlay.draw(scene, design, times, area);
+        }
     }
 
     /// Feeds pointer events to the interface. Returns `true` when the event concerns it.
@@ -316,6 +343,7 @@ pub(crate) struct KoebiApp {
     options: Options,
     interface: Interface,
     frames_presented: u64,
+    frame_times: FrameTimes,
     needs_redraw: bool,
     /// The iteration rate last asked of the platform.
     rate: IterationRate,
@@ -328,15 +356,22 @@ impl KoebiApp {
     fn render_frame(&mut self) -> AppControl {
         let scale_factor = self.window.scale_factor();
         let logical_size = self.window.size_in_pixels().to_logical(scale_factor);
-        self.interface
-            .build(Rect::from_origin_size(Vec2::ZERO, logical_size));
+        let started = Instant::now();
+        self.interface.build(
+            Rect::from_origin_size(Vec2::ZERO, logical_size),
+            &self.frame_times,
+        );
+        let built = started.elapsed();
         match self.gpu.render(&self.interface.scene, scale_factor) {
-            Ok(RenderOutcome::Presented) => {
+            Ok((RenderOutcome::Presented, recording)) => {
+                let gpu = self.gpu.gpu_frame_time();
+                self.frame_times
+                    .record(built + recording, gpu, Instant::now());
                 self.frames_presented += 1;
                 self.needs_redraw = false;
             }
             // Minimized or swapchain recreated: keep `needs_redraw` and try again.
-            Ok(RenderOutcome::Skipped) => {}
+            Ok((RenderOutcome::Skipped, _)) => {}
             Err(koebi_gpu::Error::SurfaceLost) => {
                 koebi_core::warn!("window surface lost, recreating it");
                 self.gpu.detach();
@@ -378,6 +413,17 @@ impl KoebiApp {
             report.errors,
             report.warnings
         );
+        if let Some(run) = self.frame_times.run() {
+            let gpu = run.gpu.map_or_else(
+                || "not measured".to_owned(),
+                |gpu| format!("{:.3} ms", gpu.as_secs_f64() * 1000.0),
+            );
+            koebi_core::info!(
+                "frame times: CPU {:.3} ms, GPU {gpu}: {:.0} frames per second possible",
+                run.cpu.as_secs_f64() * 1000.0,
+                run.frames_per_second()
+            );
+        }
         if report.is_clean() {
             AppControl::Exit(exit_code::SUCCESS)
         } else {
@@ -439,10 +485,17 @@ impl App for KoebiApp {
             window.scale_factor()
         );
 
+        if options.shows_frame_times() {
+            koebi_core::info!(
+                "frame-time overlay shown (GPU timestamps: {})",
+                if gpu.timestamps { "yes" } else { "no" }
+            );
+        }
         Ok(Self {
             options,
             interface,
             frames_presented: 0,
+            frame_times: FrameTimes::new(),
             needs_redraw: true,
             rate,
             gpu,

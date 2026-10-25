@@ -30,6 +30,8 @@ pub struct Options {
     pub export: Option<PathBuf>,
     /// File to write every token to, with its base definition.
     pub export_schema: Option<PathBuf>,
+    /// Show (`Some(true)`) or hide the frame-time overlay; `None` shows it in debug builds.
+    pub frame_times: Option<bool>,
     /// Print usage and exit.
     pub help: bool,
     /// Print the version and exit.
@@ -67,6 +69,11 @@ impl fmt::Display for ParseError {
 impl std::error::Error for ParseError {}
 
 impl Options {
+    /// Whether the frame-time overlay is shown: as asked, or in debug builds.
+    pub fn shows_frame_times(&self) -> bool {
+        self.frame_times.unwrap_or(cfg!(debug_assertions))
+    }
+
     /// Usage text printed by `--help`.
     pub const USAGE: &'static str = "\
 Usage: koebi [OPTIONS]
@@ -86,6 +93,7 @@ Options:
   --import <FILE>          Import a theme from a Design Tokens (JSON) file and activate it
   --export <FILE>          Write the active theme to FILE in the Design Tokens format
   --export-schema <FILE>   Write every token, with its base definition, to FILE
+  --fps, --no-fps          Show or hide the frame-time overlay (shown in debug builds)
   -h, --help               Print this help
   -V, --version            Print the version
 
@@ -164,6 +172,8 @@ Environment:
                         .overrides
                         .push((path.trim().to_owned(), definition.trim().to_owned()));
                 }
+                "--fps" => options.frame_times = Some(true),
+                "--no-fps" => options.frame_times = Some(false),
                 "--import" => {
                     let value = args.next().ok_or(ParseError::MissingValue("--import"))?;
                     options.imports.push(PathBuf::from(value.as_ref()));
@@ -284,6 +294,11 @@ mod tests {
         );
         assert_eq!(files.export, Some(PathBuf::from("out.json")));
         assert_eq!(files.export_schema, Some(PathBuf::from("schema.json")));
+        assert_eq!(Options::parse(["--fps"]).unwrap().frame_times, Some(true));
+        assert_eq!(
+            Options::parse(["--fps", "--no-fps"]).unwrap().frame_times,
+            Some(false)
+        );
         for invalid in [["--override", "no-value"], ["--color-vision", "sepia"]] {
             assert!(matches!(
                 Options::parse(invalid),

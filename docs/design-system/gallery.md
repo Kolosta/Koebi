@@ -37,6 +37,29 @@ From top to bottom (the two middle panels stack on narrow windows):
 Every edit shows in the same frame: when a frame changes the design system, the application
 draws it again with the new styles before presenting it.
 
+## Frame times
+
+Debug builds show an overlay at the bottom left (`--fps` shows it in release builds,
+`--no-fps` hides it):
+
+- **FPS**: the frames per second the application could draw at the current cost, whatever
+  the screen's refresh rate: one frame per CPU or GPU frame time, whichever is longer, since
+  the two processors work in parallel.
+- **CPU**: the time to build the interface and record the GPU commands of a frame, without
+  the waits for the display.
+- **GPU**: the time the GPU spends executing a frame, measured with timestamp queries read two
+  frames later, so measuring never stalls (`GPU -` when the GPU has no timestamps).
+
+Values are averages over half a second. The application draws only when something changes,
+so they move while you interact (a pointer move draws a frame) and stay still otherwise.
+Debug builds are about ten times slower on the CPU than release builds: measure with
+`cargo run --release -p koebi -- --fps`. Runs with `--frames N` log the averages of the whole
+run at exit, which makes a quick benchmark:
+
+```sh
+cargo run --release -p koebi -- --frames 600 --present-mode immediate
+```
+
 ## Saved state
 
 Theme, imported themes, overrides and color vision setting are saved
