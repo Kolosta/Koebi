@@ -68,6 +68,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koebi-input"
+version = "0.1.0"
+dependencies = [
+ "koebi-core",
+]
+
+[[package]]
 name = "koebi-platform"
 version = "0.1.0"
 dependencies = [

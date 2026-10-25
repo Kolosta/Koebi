@@ -46,6 +46,8 @@ you work on.
 - [Gitflow](development/gitflow.md): branches, commits, pull requests, releases.
 - [Coding standards](development/coding-standards.md): Rust style, unsafe, errors, performance.
 - [Testing](development/testing.md): test levels, GPU tests, golden images.
+- [Actions and shortcuts](development/actions-and-shortcuts.md): declaring actions, when they
+  run, modal conventions, input settings.
 - [CI/CD](development/ci-cd.md): workflows, required checks, releases, artifacts.
 - [Platforms](development/platforms.md): building and running on each platform.
 - [GitHub setup](development/github-setup.md): branch protection, labels, security features.

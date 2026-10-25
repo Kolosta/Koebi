@@ -5,7 +5,7 @@ use super::*;
 use crate::primitive;
 
 koebi_design::typography! {
-    group TEXT: Semantic, start = MOTION::END;
+    group TEXT: Semantic, start = INPUT::END;
 
     /// Text style of display text, size l.
     TEXT_DISPLAY_L = "text.display.l" {

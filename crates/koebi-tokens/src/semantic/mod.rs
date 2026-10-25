@@ -4,6 +4,7 @@
 mod background;
 mod content;
 mod data_viz;
+mod input;
 mod motion;
 mod role;
 mod scale;
@@ -13,6 +14,7 @@ mod typography;
 pub use background::*;
 pub use content::*;
 pub use data_viz::*;
+pub use input::*;
 pub use motion::*;
 pub use role::*;
 pub use scale::*;

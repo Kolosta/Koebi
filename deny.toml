@@ -50,6 +50,7 @@ allow = [
     "koebi-core",
     "koebi-design",
     "koebi-gpu",
+    "koebi-input",
     "koebi-platform",
     "koebi-render",
     "koebi-testkit",

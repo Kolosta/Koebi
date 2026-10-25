@@ -56,6 +56,7 @@ const SCHEMA: Schema = Schema::new(
         semantic::SCALE::GROUP,
         semantic::TYPOGRAPHY::GROUP,
         semantic::MOTION::GROUP,
+        semantic::INPUT::GROUP,
         semantic::TEXT::GROUP,
         // component::controls
         component::BUTTON::GROUP,

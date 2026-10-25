@@ -31,6 +31,7 @@ flowchart TD
 | `koebi-design` | Design token engine: typed tokens in three tiers, compiled token tables, themes, overrides, views, color vision ([ADR 0008](../adr/0008-design-token-system.md)) | core |
 | `koebi-tokens` | Koebi's token set and built-in themes ([design system](../design-system/README.md)) | design |
 | `koebi-ui` | Components drawn from typed styles of component tokens, immediate-mode interaction ([ADR 0011](../adr/0011-token-driven-components.md)) | render, tokens, design, core |
+| `koebi-input` | Actions and shortcuts: keymap, contexts, gestures, conflicts, overrides ([ADR 0012](../adr/0012-actions-and-shortcuts.md)) | core |
 | `koebi-testkit` | Headless GPU, offscreen readback, PNG golden images (tests only) | gpu, core |
 | `koebi` (app) | Wires the layers, owns application state, theme tokens | all |
 
