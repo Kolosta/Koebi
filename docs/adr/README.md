@@ -23,3 +23,4 @@ one and link both.
 | [0011](0011-token-driven-components.md) | Token-driven components: typed styles and immediate-mode interaction | Accepted, hit testing superseded by 0013 |
 | [0012](0012-actions-and-shortcuts.md) | Actions and shortcuts: an action-centred keymap resolved through pointer contexts | Accepted |
 | [0013](0013-layered-hit-testing.md) | Layered hit testing against the previous frame, and zones as shortcut contexts | Accepted |
+| [0014](0014-text-basics.md) | Text basics: in-house TrueType reading, CPU coverage glyphs, single-line labels | Accepted |
