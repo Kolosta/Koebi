@@ -15,6 +15,7 @@ use koebi_platform::{
     VulkanSupport, Window, WindowDesc, WindowEvent, exit_code,
 };
 use koebi_render::{Renderer2D, Scene};
+use koebi_text::Fonts;
 use koebi_ui::{Input, StyleCache, Ui, UiState};
 
 use crate::design_options;
@@ -33,6 +34,8 @@ struct Gpu {
     present_mode: PresentMode,
     /// Whether the GPU measures frame times.
     timestamps: bool,
+    /// What glyphs are rasterized from: the interface's fonts.
+    fonts: Fonts,
     device: Device,
     instance: Instance,
 }
@@ -42,6 +45,7 @@ impl Gpu {
         window: &Window,
         vulkan: &VulkanSupport,
         present_mode: PresentMode,
+        fonts: Fonts,
     ) -> Result<Self, AppError> {
         let extensions = vulkan.required_extensions();
         let default_validation = if cfg!(debug_assertions) {
@@ -69,6 +73,7 @@ impl Gpu {
             presenter: None,
             present_mode,
             timestamps: adapter.supports_timestamps(),
+            fonts,
             device,
             instance,
         };
@@ -117,6 +122,7 @@ impl Gpu {
             renderer,
             presenter,
             device,
+            fonts,
             ..
         } = self;
         let Some(presenter) = presenter.as_mut() else {
@@ -132,7 +138,10 @@ impl Gpu {
                 .is_none_or(|r| r.target_format() != target.format())
             {
                 match Renderer2D::new(device, target.format()) {
-                    Ok(created) => *renderer = Some(created),
+                    Ok(mut created) => {
+                        created.set_fonts(fonts.clone());
+                        *renderer = Some(created);
+                    }
                     Err(error) => {
                         recorded = Err(error);
                         return;
@@ -192,12 +201,14 @@ struct Interface {
     gallery: Gallery,
     /// `None` when the frame-time overlay is hidden.
     overlay: Option<Overlay>,
+    /// The fonts text is laid out with; the renderer rasterizes glyphs from the same ones.
+    fonts: Fonts,
     scene: Scene,
 }
 
 impl Interface {
     /// Restores the saved design state, then applies the command line's design changes.
-    fn new(context: &AppContext, options: &Options) -> Result<Self, AppError> {
+    fn new(context: &AppContext, options: &Options, fonts: Fonts) -> Result<Self, AppError> {
         let mut design = DesignSystem::new(&koebi_tokens::KOEBI).map_err(|error| {
             AppError::new(exit_code::FAILURE, format!("design system: {error}"))
         })?;
@@ -220,6 +231,7 @@ impl Interface {
             input: Input::new(),
             gallery: Gallery::new(),
             overlay: options.shows_frame_times().then(Overlay::new),
+            fonts,
             scene: Scene::new(),
         })
     }
@@ -244,6 +256,7 @@ impl Interface {
             state,
             gallery,
             overlay,
+            fonts,
             scene,
             ..
         } = self;
@@ -254,7 +267,7 @@ impl Interface {
         gallery.show(&mut ui, design, area);
         drop(ui);
         if let Some(overlay) = overlay {
-            overlay.draw(scene, design, times, area);
+            overlay.draw(scene, design, fonts, times, area);
         }
     }
 
@@ -475,7 +488,8 @@ impl App for KoebiApp {
             IterationRate::WaitEvent
         };
         context.set_iteration_rate(rate);
-        let interface = Interface::new(context, &options)?;
+        let fonts = Fonts::with_embedded();
+        let interface = Interface::new(context, &options, fonts.clone())?;
 
         // Load Vulkan before creating the window: otherwise SDL loads its default library when
         // the first Vulkan window is created, which fails where the loader is not on the system
@@ -495,7 +509,7 @@ impl App for KoebiApp {
                     format!("cannot create the window: {error}"),
                 )
             })?;
-        let gpu = Gpu::new(&window, &vulkan, options.present_mode)?;
+        let gpu = Gpu::new(&window, &vulkan, options.present_mode, fonts)?;
         koebi_core::info!(
             "window {}x{} px, scale {:.2}",
             window.size_in_pixels().width,

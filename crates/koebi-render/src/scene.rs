@@ -2,6 +2,7 @@
 
 use koebi_core::{Color, Rect, Vec2};
 use koebi_gpu::Pod;
+use koebi_text::{FontId, GlyphId, TextLine};
 
 /// A rectangle with optional rounded corners and an inner border.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -73,6 +74,25 @@ impl LinePrimitive {
             color,
         }
     }
+}
+
+/// One glyph, drawn from the renderer's glyph atlas at its physical size.
+///
+/// The renderer rasterizes it from its fonts ([`crate::Renderer2D::set_fonts`]) and places its
+/// bitmap on whole physical pixels, its pen position rounded to a quarter pixel horizontally
+/// and its baseline to a whole pixel, so text stays crisp at every scale factor.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct GlyphPrimitive {
+    /// The glyph's font, in the renderer's fonts.
+    pub font: FontId,
+    /// The glyph.
+    pub glyph: GlyphId,
+    /// Size in logical pixels per em.
+    pub size: f32,
+    /// Pen position on the baseline, in logical pixels.
+    pub origin: Vec2,
+    /// Color.
+    pub color: Color,
 }
 
 /// GPU layout of one rectangle (vertex buffer, per-instance step).
@@ -152,6 +172,7 @@ impl LineInstance {
 pub(crate) enum PrimitiveKind {
     Rect,
     Line,
+    Glyph,
 }
 
 /// Consecutive primitives of one type: one instanced draw.
@@ -187,7 +208,9 @@ pub struct Scene {
     clear_color: Color,
     rects: Vec<RectInstance>,
     lines: Vec<LineInstance>,
-    /// Painter's order across types: runs of rectangles and segments.
+    /// Glyphs stay descriptions: their instances depend on the atlas and the scale factor.
+    glyphs: Vec<GlyphPrimitive>,
+    /// Painter's order across types: runs of rectangles, segments and glyphs.
     batches: Vec<Batch>,
 }
 
@@ -201,6 +224,7 @@ impl Scene {
     pub fn clear(&mut self) {
         self.rects.clear();
         self.lines.clear();
+        self.glyphs.clear();
         self.batches.clear();
     }
 
@@ -239,6 +263,33 @@ impl Scene {
         self.extend_batch(PrimitiveKind::Line, self.lines.len());
     }
 
+    /// Appends a glyph. Glyphs without size or color, or with a non-finite position, are
+    /// culled.
+    pub fn push_glyph(&mut self, glyph: &GlyphPrimitive) {
+        let finite = [glyph.origin.x, glyph.origin.y, glyph.size]
+            .iter()
+            .all(|v| v.is_finite());
+        if !finite || glyph.size <= 0.0 || glyph.color.a <= 0.0 {
+            return;
+        }
+        self.glyphs.push(*glyph);
+        self.extend_batch(PrimitiveKind::Glyph, self.glyphs.len());
+    }
+
+    /// Appends the glyphs of `line`, its baseline starting at `origin` (logical pixels), at
+    /// the size it was laid out at.
+    pub fn push_text(&mut self, line: &TextLine, origin: Vec2, color: Color) {
+        for placed in line.glyphs() {
+            self.push_glyph(&GlyphPrimitive {
+                font: placed.font,
+                glyph: placed.glyph,
+                size: line.size(),
+                origin: Vec2::new(origin.x + placed.x, origin.y),
+                color,
+            });
+        }
+    }
+
     /// Records the instance just pushed (`count` instances of `kind` so far).
     fn extend_batch(&mut self, kind: PrimitiveKind, count: usize) {
         // More than 4 billion primitives cannot be drawn anyway: saturate.
@@ -263,6 +314,11 @@ impl Scene {
         self.lines.len()
     }
 
+    /// Number of glyphs.
+    pub fn glyph_count(&self) -> usize {
+        self.glyphs.len()
+    }
+
     /// Number of draw calls the scene needs: one per run of consecutive primitives of the
     /// same type.
     pub fn draw_count(&self) -> usize {
@@ -280,6 +336,10 @@ impl Scene {
 
     pub(crate) fn line_instances(&self) -> &[LineInstance] {
         &self.lines
+    }
+
+    pub(crate) fn glyphs(&self) -> &[GlyphPrimitive] {
+        &self.glyphs
     }
 
     pub(crate) fn batches(&self) -> &[Batch] {
@@ -407,6 +467,58 @@ mod tests {
             .map(|batch| batch.window(RectInstance::STRIDE))
             .collect();
         assert_eq!(windows, [(0, 2), (0, 1), (128, 1)]);
+    }
+
+    fn glyph() -> GlyphPrimitive {
+        GlyphPrimitive {
+            font: FontId::default(),
+            glyph: GlyphId(36),
+            size: 14.0,
+            origin: Vec2::new(4.0, 12.0),
+            color: Color::WHITE,
+        }
+    }
+
+    #[test]
+    fn invisible_glyphs_are_culled_and_runs_batch() {
+        let mut scene = Scene::new();
+        for invisible in [
+            GlyphPrimitive {
+                size: 0.0,
+                ..glyph()
+            },
+            GlyphPrimitive {
+                color: Color::TRANSPARENT,
+                ..glyph()
+            },
+            GlyphPrimitive {
+                origin: Vec2::new(f32::NAN, 0.0),
+                ..glyph()
+            },
+        ] {
+            scene.push_glyph(&invisible);
+        }
+        assert!(scene.is_empty());
+        scene.push_glyph(&glyph());
+        scene.push_glyph(&glyph());
+        scene.push_rect(&RectPrimitive::new(rect(), Color::WHITE));
+        scene.push_glyph(&glyph());
+        let batches: Vec<_> = scene
+            .batches()
+            .iter()
+            .map(|batch| (batch.kind, batch.window(1)))
+            .collect();
+        assert_eq!(
+            batches,
+            [
+                (PrimitiveKind::Glyph, (0, 2)),
+                (PrimitiveKind::Rect, (0, 1)),
+                (PrimitiveKind::Glyph, (2, 1)),
+            ]
+        );
+        assert_eq!(scene.glyph_count(), 3);
+        scene.clear();
+        assert_eq!(scene.glyph_count(), 0);
     }
 
     #[test]

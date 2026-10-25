@@ -43,6 +43,7 @@ dependencies = [
  "koebi-platform",
  "koebi-render",
  "koebi-testkit",
+ "koebi-text",
  "koebi-tokens",
  "koebi-ui",
 ]
@@ -90,6 +91,7 @@ dependencies = [
  "koebi-core",
  "koebi-gpu",
  "koebi-testkit",
+ "koebi-text",
 ]
 
 [[package]]

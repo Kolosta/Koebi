@@ -97,5 +97,10 @@ cargo xtask ios --release --device  # device build, ad-hoc signed
   transform for now, which costs a compositor rotation on some devices.
 - **Portability subset**: MoltenVK forbids some features (for example triangle fans); the
   device enables `VK_KHR_portability_subset` automatically.
+- **iOS simulator GPU**: it has no base instance (draws start at instance zero, at a vertex
+  buffer offset), and MoltenVK's Metal argument buffers fail there, so the instance turns them
+  off through `VK_EXT_layer_settings` on simulator builds (`cfg(ios_simulator)`). The smoke
+  test runs with Metal API validation (`MTL_DEBUG_LAYER=1`), which reports such misuse instead
+  of a silent crash.
 - **High DPI**: windows are created with high pixel density; the scale factor comes from SDL
   and is applied on the GPU.

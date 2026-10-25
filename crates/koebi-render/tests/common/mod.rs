@@ -7,11 +7,13 @@ use koebi_core::Extent;
 use koebi_gpu::TextureFormat;
 use koebi_render::{Renderer2D, Scene};
 use koebi_testkit::{HeadlessGpu, Image};
+use koebi_text::Fonts;
 
-/// Renders `scene` offscreen into an RGBA8 image.
+/// Renders `scene` offscreen into an RGBA8 image, its glyphs from the embedded fonts.
 pub(crate) fn render(gpu: &HeadlessGpu, extent: Extent, scale_factor: f32, scene: &Scene) -> Image {
     let format = TextureFormat::Rgba8Unorm;
     let mut renderer = Renderer2D::new(&gpu.device, format).expect("renderer creation");
+    renderer.set_fonts(Fonts::with_embedded());
     gpu.render_offscreen(extent, format, |encoder, target| {
         renderer
             .render(encoder, target, scene, 0, scale_factor)

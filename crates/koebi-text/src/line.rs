@@ -31,6 +31,7 @@ pub struct PlacedGlyph {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TextLine {
     glyphs: Vec<PlacedGlyph>,
+    size: f32,
     width: f32,
     ascent: f32,
     descent: f32,
@@ -47,6 +48,7 @@ impl TextLine {
     /// show its missing-glyph box. An unknown font gives an empty line.
     pub fn layout(&mut self, fonts: &Fonts, text: &str, style: &TextStyle) {
         self.glyphs.clear();
+        self.size = style.size;
         self.width = 0.0;
         self.truncated = false;
         let Some(font) = fonts.get(style.font) else {
@@ -153,6 +155,11 @@ impl TextLine {
     /// The glyphs, left to right.
     pub fn glyphs(&self) -> &[PlacedGlyph] {
         &self.glyphs
+    }
+
+    /// The size the line was laid out at, in pixels per em: glyphs are drawn at this size.
+    pub fn size(&self) -> f32 {
+        self.size
     }
 
     /// Width from the start of the first glyph to the end of the last one's advance.
