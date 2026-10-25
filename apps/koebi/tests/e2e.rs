@@ -224,3 +224,67 @@ fn refused_design_options_exit_with_usage_code_and_save_nothing() {
     );
     assert!(!dir.join("design.kds").exists());
 }
+
+/// A theme in the Design Tokens format, with a sunset accent.
+const SUNSET: &str = r##"{
+  "$extensions": { "io.github.kolosta.koebi": { "theme": { "key": "sunset", "name": "Sunset" } } },
+  "semantic": { "accent": { "color": { "700": { "$type": "color", "$value": "#ff7a3d" } } } }
+}"##;
+
+#[test]
+fn imported_themes_are_saved_and_exports_written() {
+    let dir = data_dir("e2e-design-import");
+    std::fs::create_dir_all(&dir).expect("writable target directory");
+    let theme = dir.join("sunset.tokens.json");
+    std::fs::write(&theme, SUNSET).expect("writable target directory");
+    let (export, schema) = (
+        dir.join("export.tokens.json"),
+        dir.join("schema.tokens.json"),
+    );
+    let path = |path: &std::path::Path| path.to_str().expect("UTF-8 path").to_owned();
+    let dir_arg = path(&dir);
+    let first = run_koebi(
+        &[
+            "--frames",
+            "3",
+            "--data-dir",
+            &dir_arg,
+            "--import",
+            &path(&theme),
+            "--export",
+            &path(&export),
+            "--export-schema",
+            &path(&schema),
+        ],
+        Duration::from_secs(120),
+    );
+    if first.code == Some(exit_code::UNSUPPORTED) && !koebi_testkit::require_gpu() {
+        eprintln!(
+            "SKIPPED: no display or Vulkan driver
+{}",
+            first.stderr
+        );
+        return;
+    }
+    assert_eq!(first.code, Some(exit_code::SUCCESS), "{}", first.stderr);
+    assert!(
+        first.stderr.contains("imported theme sunset (Sunset)"),
+        "{}",
+        first.stderr
+    );
+    let exported = std::fs::read_to_string(&export).expect("the active theme was exported");
+    assert!(exported.contains("\"#ff7a3d\""), "{exported}");
+    let tokens = std::fs::read_to_string(&schema).expect("every token was exported");
+    assert!(tokens.contains("\"$type\": \"typography\""));
+
+    let second = run_koebi(
+        &["--frames", "3", "--data-dir", &dir_arg],
+        Duration::from_secs(120),
+    );
+    assert_eq!(second.code, Some(exit_code::SUCCESS), "{}", second.stderr);
+    assert!(
+        second.stderr.contains("design: theme sunset,"),
+        "{}",
+        second.stderr
+    );
+}

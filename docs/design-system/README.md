@@ -240,6 +240,10 @@ let theme = import_theme(&mut design, &file)?;            // strict: every probl
 store.save(&design)?;                                      // an imported theme is kept at once
 ```
 
+The application does the same from the command line: `--import <FILE>` imports a theme,
+activates it and saves the state at once, `--export <FILE>` writes the active theme and
+`--export-schema <FILE>` every token (see the [gallery](gallery.md#command-line)).
+
 An exported token looks like this:
 
 ```json

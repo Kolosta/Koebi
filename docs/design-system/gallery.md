@@ -39,7 +39,7 @@ draws it again with the new styles before presenting it.
 
 ## Saved state
 
-Theme, overrides and color vision setting are saved
+Theme, imported themes, overrides and color vision setting are saved
 ([ADR 0009](../adr/0009-design-state-persistence.md)) half a second after the last change,
 when the application goes to the background, and when it quits. The file is `design.kds`
 in the platform's preferences directory, given by SDL for the organization `Kolosta` and the
@@ -56,18 +56,24 @@ Delete the file to return to the built-in themes.
 
 ## Command line
 
-The same changes can be made at startup, for scripts and tests; they are saved like changes
-made in the window:
+The same changes can be made at startup, for scripts and tests; they are saved as soon as the
+application starts:
 
 ```sh
+cargo run -p koebi -- --import sunset.tokens.json     # a theme from a Design Tokens file
 cargo run -p koebi -- --theme light
 cargo run -p koebi -- --override semantic.radius.control=6 --override component.button.background.color.default=#ff8800
 cargo run -p koebi -- --override "semantic.accent.color.700={primitive.color.green.700}"
 cargo run -p koebi -- --color-vision simulate-deutan
 cargo run -p koebi -- --data-dir target/design-state   # keep the state somewhere else
+cargo run -p koebi -- --export light.tokens.json --export-schema koebi.tokens.json
 ```
 
-`--override` sets a global override: a value of the token's kind (`#rrggbb` colors, numbers
-with an optional `px` or `ms` unit) or an alias written `{path}`. `koebi --help` lists every
-option. The end-to-end tests (`apps/koebi/tests/e2e.rs`) use these options to check that the
+`--import` reads a theme in the [Design Tokens format](README.md#import-and-export), refuses
+the file with every problem and its line if anything is wrong, activates the theme and saves
+the state at once. `--override` sets a global override: a value of the token's kind (`#rrggbb`
+colors, numbers with an optional `px` or `ms` unit) or an alias written `{path}`. `--export`
+writes the active theme (what it changes from the base theme, overrides included) once the
+other options are applied, and `--export-schema` every token with its base definition.
+`koebi --help` lists every option. The end-to-end tests (`apps/koebi/tests/e2e.rs`) use these options to check that the
 state survives a restart.

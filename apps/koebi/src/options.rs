@@ -23,6 +23,13 @@ pub struct Options {
     pub overrides: Vec<(String, String)>,
     /// Color vision setting to apply at startup.
     pub color_vision: Option<ColorVision>,
+    /// Design Tokens files to import as themes, in command-line order; the last one becomes
+    /// the active theme unless `theme` names another.
+    pub imports: Vec<PathBuf>,
+    /// File to write the active theme to, once the other options are applied.
+    pub export: Option<PathBuf>,
+    /// File to write every token to, with its base definition.
+    pub export_schema: Option<PathBuf>,
     /// Print usage and exit.
     pub help: bool,
     /// Print the version and exit.
@@ -76,10 +83,13 @@ Options:
   --color-vision <MODE>    normal, simulate-protan, simulate-deutan, simulate-tritan,
                            simulate-achromatopsia, correct-protan, correct-deutan or
                            correct-tritan
+  --import <FILE>          Import a theme from a Design Tokens (JSON) file and activate it
+  --export <FILE>          Write the active theme to FILE in the Design Tokens format
+  --export-schema <FILE>   Write every token, with its base definition, to FILE
   -h, --help               Print this help
   -V, --version            Print the version
 
-Design changes made with these options are saved, like changes made in the interface.
+Design changes made with these options are saved as soon as the application starts.
 
 Environment:
   KOEBI_LOG=<level>        off, error, warn, info (default), debug, trace
@@ -153,6 +163,20 @@ Environment:
                     options
                         .overrides
                         .push((path.trim().to_owned(), definition.trim().to_owned()));
+                }
+                "--import" => {
+                    let value = args.next().ok_or(ParseError::MissingValue("--import"))?;
+                    options.imports.push(PathBuf::from(value.as_ref()));
+                }
+                "--export" => {
+                    let value = args.next().ok_or(ParseError::MissingValue("--export"))?;
+                    options.export = Some(PathBuf::from(value.as_ref()));
+                }
+                "--export-schema" => {
+                    let value = args
+                        .next()
+                        .ok_or(ParseError::MissingValue("--export-schema"))?;
+                    options.export_schema = Some(PathBuf::from(value.as_ref()));
                 }
                 "--color-vision" => {
                     let value = args
@@ -243,6 +267,23 @@ mod tests {
             options.color_vision,
             Some(ColorVision::Simulate { .. })
         ));
+        let files = Options::parse([
+            "--import",
+            "a.json",
+            "--import",
+            "b.json",
+            "--export",
+            "out.json",
+            "--export-schema",
+            "schema.json",
+        ])
+        .unwrap();
+        assert_eq!(
+            files.imports,
+            [PathBuf::from("a.json"), PathBuf::from("b.json")]
+        );
+        assert_eq!(files.export, Some(PathBuf::from("out.json")));
+        assert_eq!(files.export_schema, Some(PathBuf::from("schema.json")));
         for invalid in [["--override", "no-value"], ["--color-vision", "sepia"]] {
             assert!(matches!(
                 Options::parse(invalid),
