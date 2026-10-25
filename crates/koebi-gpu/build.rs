@@ -13,6 +13,8 @@ fn main() {
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-env-changed=KOEBI_MOLTENVK_XCFRAMEWORK");
     println!("cargo::rerun-if-env-changed=VULKAN_SDK");
+    // `cfg(ios_simulator)`: MoltenVK needs a different configuration there (src/instance.rs).
+    println!("cargo::rustc-check-cfg=cfg(ios_simulator)");
 
     if env::var("CARGO_CFG_TARGET_OS").unwrap_or_default() != "ios" {
         return;
@@ -22,6 +24,9 @@ fn main() {
     let simulator = env::var("CARGO_CFG_TARGET_ENV").is_ok_and(|v| v == "sim")
         || env::var("CARGO_CFG_TARGET_ABI").is_ok_and(|v| v == "sim")
         || env::var("TARGET").is_ok_and(|t| t.ends_with("-sim") || t.starts_with("x86_64"));
+    if simulator {
+        println!("cargo::rustc-cfg=ios_simulator");
+    }
 
     let Some(xcframework) = find_xcframework() else {
         println!(

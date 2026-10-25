@@ -166,6 +166,16 @@ impl Instance {
         if validation_features {
             extensions.push(ash::ext::validation_features::NAME.as_ptr());
         }
+        // MoltenVK's Metal argument buffers fail on the iOS simulator's GPU: Metal validation
+        // reports "No argument buffer is set" at the first descriptor write, and without it the
+        // application crashes. There, descriptor sets bind their resources directly instead.
+        let moltenvk_settings =
+            cfg!(ios_simulator) && has_extension(ash::ext::layer_settings::NAME);
+        if moltenvk_settings {
+            extensions.push(ash::ext::layer_settings::NAME.as_ptr());
+        } else if cfg!(ios_simulator) {
+            koebi_core::warn!("no VK_EXT_layer_settings: MoltenVK keeps Metal argument buffers");
+        }
         let surface = desc.required_extensions.contains(&ash::khr::surface::NAME);
 
         let application_name = CString::new(desc.application_name).unwrap_or_default();
@@ -195,6 +205,18 @@ impl Instance {
         let mut features =
             vk::ValidationFeaturesEXT::default().enabled_validation_features(&enabled_features);
 
+        // MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS_NEVER.
+        let never = 0_i32;
+        let mut argument_buffers = vk::LayerSettingEXT::default()
+            .layer_name(c"MoltenVK")
+            .setting_name(c"MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS")
+            .ty(vk::LayerSettingTypeEXT::INT32);
+        // One 32-bit value: ash's `values` would count bytes.
+        argument_buffers.value_count = 1;
+        argument_buffers.p_values = (&raw const never).cast();
+        let settings = [argument_buffers];
+        let mut layer_settings = vk::LayerSettingsCreateInfoEXT::default().settings(&settings);
+
         let mut create_info = vk::InstanceCreateInfo::default()
             .flags(flags)
             .application_info(&application_info)
@@ -205,6 +227,9 @@ impl Instance {
         }
         if validation_features {
             create_info = create_info.push_next(&mut features);
+        }
+        if moltenvk_settings {
+            create_info = create_info.push_next(&mut layer_settings);
         }
 
         // SAFETY: every pointer in `create_info` references locals that outlive the call.
