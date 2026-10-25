@@ -58,6 +58,10 @@ area) and learns when a split copies an editor or a join removes some.
   between the two hovered areas (`zone.separator.color.default`).
 - **Area menu**: a right click on a gutter offers to swap the two areas, join them, or split
   any area vertically or horizontally.
+- **Corners** (`zone.corner.size`, crosshair cursor): dragged inwards, a corner splits its area
+  along the axis the drag starts on (a horizontal drag makes a vertical line), where the pointer
+  lets go; dragged into a neighbour, it joins that neighbour into its area. The previews are the
+  same as the menu's.
 - **Previews**: a split shows the two halves the area under the pointer would become, a gutter
   apart (`zone-overlay.split-preview`); a join shows the kept area lighter, the part of the
   removed area it takes darker, the parts neighbours take darker still, and the joined area

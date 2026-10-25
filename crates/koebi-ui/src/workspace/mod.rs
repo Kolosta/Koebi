@@ -1,5 +1,6 @@
 //! The workspace view: areas drawn as rounded panels with gutters between them, gutters that
-//! move every aligned edge, an area menu on a right click, and previews of splits and joins.
+//! move every aligned edge, an area menu on a right click, corners that split and join, and
+//! previews of splits and joins.
 //!
 //! [`WorkspaceView`] keeps what outlives a frame: the gutter under the pointer and since when,
 //! the operation in progress, the area menu. [`Ui::workspace`] draws a [`Workspace`] and
@@ -10,7 +11,10 @@
 //! and restore the exact previous state; Shift makes a resize ten times finer and Ctrl snaps
 //! it, both as soon as they are pressed.
 
+mod corner;
 mod geometry;
+mod gutter;
+mod preview;
 
 use core::time::Duration;
 
@@ -20,12 +24,9 @@ use koebi_design::Resolve;
 use koebi_input::{ActionDef, ActionGroup, ButtonTrigger, Context, Shortcut};
 use koebi_render::RectPrimitive;
 use koebi_tokens::{component, semantic};
-use koebi_workspace::{
-    AreaId, EditorId, GRID, GridRect, JoinPlan, Layout, Line, Orientation, Workspace,
-};
+use koebi_workspace::{AreaId, EditorId, Layout, Line, Orientation, Workspace};
 
 use crate::id::WidgetId;
-use crate::routing::Layer;
 use crate::text::Align;
 use crate::ui::Ui;
 use crate::widgets::{MenuItem, MenuState};
@@ -65,12 +66,7 @@ pub static WORKSPACE_ACTIONS: ActionGroup = ActionGroup {
     actions: &[&OPERATION_CANCEL, &OPERATION_CONFIRM],
 };
 
-const GUTTER: WidgetId = WidgetId::new("workspace-gutter");
-const OPERATION: WidgetId = WidgetId::new("workspace-operation");
 const AREA_MENU: WidgetId = WidgetId::new("workspace-area-menu");
-
-/// Ctrl snaps a resized line to multiples of this fraction of the window.
-const SNAP_STEPS: u32 = 48;
 
 /// The application's editors, as the workspace view needs them.
 pub trait EditorHost {
@@ -95,8 +91,12 @@ pub struct WorkspaceStyle {
     pub gap: f32,
     /// Thickness of the strip over a gutter that grabs the pointer.
     pub hit: f32,
+    /// Side of the corners that split and join.
+    pub corner: f32,
     /// Smallest width and height of an area.
     pub min_size: f32,
+    /// How far a corner moves before its drag counts.
+    pub drag_threshold: f32,
     /// The band over the stretch of a gutter between the two hovered areas.
     pub band: Color,
     /// The band along the rest of the line that moves.
@@ -138,7 +138,9 @@ impl WorkspaceStyle {
         Self {
             gap: tokens.get(component::ZONE_SEPARATOR_SIZE_DEFAULT),
             hit: tokens.get(component::ZONE_SEPARATOR_HIT_SIZE_DEFAULT),
+            corner: tokens.get(component::ZONE_CORNER_SIZE_DEFAULT),
             min_size: tokens.get(component::ZONE_MIN_SIZE_DEFAULT),
+            drag_threshold: tokens.get(semantic::INPUT_DRAG_THRESHOLD),
             band: tokens.get(component::ZONE_SEPARATOR_COLOR_DEFAULT),
             band_line: continuation.with_alpha(continuation.a * opacity),
             background: tokens.get(component::EDITOR_BACKGROUND_COLOR_DEFAULT),
@@ -170,18 +172,27 @@ enum Operation {
         last: Vec2,
         before: Box<Workspace>,
     },
-    /// Previewing a split of the area under the pointer.
+    /// Previewing a split of the area under the pointer (from the area menu).
     Split(Orientation),
-    /// Previewing the join of two areas: the one under the pointer goes.
+    /// Previewing the join of two areas: the one under the pointer goes (from the area menu).
     Join { first: AreaId, second: AreaId },
+    /// Dragging a corner of `area`: inwards it splits along the axis the drag started on,
+    /// into a neighbour it joins it.
+    Corner {
+        area: AreaId,
+        corner: u8,
+        origin: Vec2,
+        axis: Option<Orientation>,
+    },
 }
 
 /// What the workspace view remembers between frames. Keep one per workspace.
 #[derive(Debug, Default)]
 pub struct WorkspaceView {
-    /// The layout `segments` were found in.
+    /// The layout `segments` and `areas` were found in.
     layout: Option<Layout>,
     segments: Vec<Segment>,
+    areas: Vec<(AreaId, koebi_workspace::GridRect)>,
     /// The gutter under the pointer, and since when.
     hovered: Option<(Segment, Duration)>,
     operation: Option<Operation>,
@@ -205,6 +216,8 @@ impl WorkspaceView {
     fn refresh(&mut self, layout: &Layout) {
         if self.layout.as_ref() != Some(layout) {
             segments(layout, &mut self.segments);
+            self.areas.clear();
+            self.areas.extend(layout.areas());
             self.layout = Some(layout.clone());
         }
     }
@@ -217,12 +230,7 @@ impl WorkspaceView {
     }
 }
 
-/// The widget id of the gutter between `before` and `after`, stable while they exist.
-fn gutter_id(segment: &Segment) -> WidgetId {
-    GUTTER.with((u64::from(segment.before.get()) << 32) | u64::from(segment.after.get()))
-}
-
-/// The cursor of a gutter on a line of `orientation`.
+/// The cursor of a gutter on a line of `orientation`, or of a split along it.
 fn resize_cursor(orientation: Orientation) -> CursorShape {
     match orientation {
         Orientation::Vertical => CursorShape::ResizeHorizontal,
@@ -230,55 +238,11 @@ fn resize_cursor(orientation: Orientation) -> CursorShape {
     }
 }
 
-/// The part of `a` inside `b`, if any.
-fn intersection(a: GridRect, b: GridRect) -> Option<GridRect> {
-    let rect = GridRect::new(
-        a.x0.max(b.x0),
-        a.y0.max(b.y0),
-        a.x1.min(b.x1),
-        a.y1.min(b.y1),
-    );
-    (!rect.is_empty()).then_some(rect)
-}
-
-/// The arrow pointing from the removed area towards the kept one.
-fn join_cursor(layout: &Layout, plan: &JoinPlan) -> CursorShape {
-    let (Some(kept), Some(removed)) = (layout.rect(plan.kept), layout.rect(plan.removed)) else {
-        return CursorShape::NotAllowed;
-    };
-    if removed.x0 == kept.x1 {
-        CursorShape::ArrowLeft
-    } else if removed.x1 == kept.x0 {
-        CursorShape::ArrowRight
-    } else if removed.y0 == kept.y1 {
-        CursorShape::ArrowUp
-    } else {
-        CursorShape::ArrowDown
-    }
-}
-
-/// Where a resized line goes for a grid position, snapped by Ctrl.
-fn resize_target(position: f64, snap: bool) -> u32 {
-    let position = position.clamp(0.0, f64::from(GRID));
-    let target = if snap {
-        let step = f64::from(GRID / SNAP_STEPS);
-        (position / step).round() * step
-    } else {
-        position.round()
-    };
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        reason = "clamped to 0..=GRID first"
-    )]
-    let target = target.clamp(0.0, f64::from(GRID)) as u32;
-    target
-}
-
 impl Ui<'_> {
     /// Draws `workspace` in `area` (the window) and applies what the user does with its
-    /// areas: resizing lines by their gutters, swapping, joining and splitting areas from the
-    /// area menu (a right click on a gutter), with previews. `host` draws the editors.
+    /// areas: resizing lines by their gutters, splitting and joining by the areas' corners,
+    /// swapping, joining and splitting from the area menu (a right click on a gutter), with
+    /// previews. `host` draws the editors.
     pub fn workspace(
         &mut self,
         view: &mut WorkspaceView,
@@ -298,6 +262,7 @@ impl Ui<'_> {
         self.zone(area, WORKSPACE, |ui| {
             ui.workspace_areas(workspace, frame, &style, host);
             ui.workspace_gutters(view, workspace, frame, &style);
+            ui.workspace_corners(view, workspace, frame, &style, host);
             ui.workspace_operation(view, workspace, frame, &style, host, area);
             ui.workspace_menu(view, workspace, area);
         });
@@ -350,277 +315,6 @@ impl Ui<'_> {
                 self.clipped(content, |ui| host.content(ui, editor, content));
             }
         }
-    }
-
-    /// The gutters: resize cursor, drag to move their line, right click for the area menu,
-    /// and the band along the line after a hover delay or while resizing.
-    fn workspace_gutters(
-        &mut self,
-        view: &mut WorkspaceView,
-        workspace: &mut Workspace,
-        frame: Frame,
-        style: &WorkspaceStyle,
-    ) {
-        let mut hovered = None;
-        for index in 0..view.segments.len() {
-            let segment = view.segments[index];
-            let rect = frame.strip(&segment.line, segment.start, segment.end, style.hit);
-            let response = self.interact_with_cursor(
-                gutter_id(&segment),
-                rect,
-                resize_cursor(segment.line.orientation),
-            );
-            if response.hovered {
-                hovered = Some(segment);
-            }
-            if response.secondary_pressed
-                && view.operation.is_none()
-                && let Some(point) = self.input().pointer()
-            {
-                view.menu.open_at(point);
-                view.menu_gutter = Some(segment);
-            }
-            if response.pressed
-                && view.operation.is_none()
-                && let Some(point) = self.input().pointer()
-            {
-                view.operation = Some(Operation::Resize {
-                    segment,
-                    line: segment.line,
-                    position: f64::from(segment.line.position),
-                    last: point,
-                    before: Box::new(workspace.clone()),
-                });
-            }
-            // The same two areas: the line itself moves while it is dragged.
-            let resizing = matches!(
-                &view.operation,
-                Some(Operation::Resize { segment: held, .. })
-                    if held.before == segment.before && held.after == segment.after
-            );
-            // The release may come with a last movement.
-            if resizing && (response.held || response.released) {
-                self.resize(view, workspace, frame, style);
-            }
-            if resizing && response.released {
-                view.operation = None;
-            }
-        }
-
-        let now = self.input().time();
-        view.hovered = match (hovered, view.hovered) {
-            (Some(segment), Some((previous, since))) if previous == segment => {
-                Some((segment, since))
-            }
-            (Some(segment), _) => Some((segment, now)),
-            (None, _) => None,
-        };
-        let band = match &view.operation {
-            Some(Operation::Resize { segment, line, .. }) => Some((*segment, *line)),
-            Some(_) => None,
-            None => view.hovered.and_then(|(segment, since)| {
-                let shown = since + style.hover_delay;
-                if now >= shown {
-                    Some((segment, segment.line))
-                } else {
-                    self.request_redraw_at(shown);
-                    None
-                }
-            }),
-        };
-        if let Some((segment, line)) = band {
-            let radius = style.gap * 0.5;
-            let whole = frame.strip(&line, line.start, line.end, style.gap);
-            self.scene
-                .push_rect(&RectPrimitive::new(whole, style.band_line).with_corner_radius(radius));
-            let stretch = frame.strip(&line, segment.start, segment.end, style.gap);
-            self.scene
-                .push_rect(&RectPrimitive::new(stretch, style.band).with_corner_radius(radius));
-        }
-    }
-
-    /// Moves the line of the resize in progress with the pointer: ten times slower with Shift,
-    /// snapped with Ctrl, within the minimum sizes.
-    fn resize(
-        &mut self,
-        view: &mut WorkspaceView,
-        workspace: &mut Workspace,
-        frame: Frame,
-        style: &WorkspaceStyle,
-    ) {
-        let Some(Operation::Resize {
-            line,
-            position,
-            last,
-            ..
-        }) = &mut view.operation
-        else {
-            return;
-        };
-        let Some(pointer) = self.input().pointer() else {
-            return;
-        };
-        let modifiers = self.input().modifiers();
-        let delta = match line.orientation {
-            Orientation::Vertical => pointer.x - last.x,
-            Orientation::Horizontal => pointer.y - last.y,
-        };
-        let factor = if modifiers.shift() { 0.1 } else { 1.0 };
-        *position += frame.grid_delta(delta * factor, line.orientation);
-        *last = pointer;
-        let min = frame.grid_length(style.min_size, line.orientation);
-        let target = resize_target(*position, modifiers.ctrl());
-        let landed = workspace.move_line(line, target, min);
-        if landed != target {
-            // Held by a minimum size: the line follows again as soon as the pointer turns.
-            *position = f64::from(landed);
-        }
-        line.position = landed;
-    }
-
-    /// The preview of a split or join in progress, above everything: a press applies it.
-    fn workspace_operation(
-        &mut self,
-        view: &mut WorkspaceView,
-        workspace: &mut Workspace,
-        frame: Frame,
-        style: &WorkspaceStyle,
-        host: &mut dyn EditorHost,
-        window: Rect,
-    ) {
-        let operation = match &view.operation {
-            Some(Operation::Split(orientation)) => Operation::Split(*orientation),
-            Some(Operation::Join { first, second }) => Operation::Join {
-                first: *first,
-                second: *second,
-            },
-            _ => return,
-        };
-        let layout = workspace.layout();
-        let pointed = self
-            .input()
-            .pointer()
-            .and_then(|point| frame.grid_point(point))
-            .and_then(|(x, y)| layout.area_at(x, y).zip(Some((x, y))));
-        match operation {
-            Operation::Split(orientation) => {
-                let min = frame.grid_length(style.min_size, orientation);
-                let preview = pointed.and_then(|(area, (x, y))| {
-                    let rect = layout.rect(area)?;
-                    let (start, end, at) = match orientation {
-                        Orientation::Vertical => (rect.x0, rect.x1, x),
-                        Orientation::Horizontal => (rect.y0, rect.y1, y),
-                    };
-                    let low = start.checked_add(min)?;
-                    let high = end.checked_sub(min)?;
-                    (low <= high).then(|| (area, rect, at.clamp(low, high)))
-                });
-                let cursor =
-                    preview.map_or(CursorShape::NotAllowed, |_| resize_cursor(orientation));
-                let confirmed = self.on_layer(Layer::OVERLAY, |ui| {
-                    let catcher = ui.interact_with_cursor(OPERATION, window, cursor);
-                    if let Some((_, rect, at)) = preview {
-                        let (first, second) = match orientation {
-                            Orientation::Vertical => (
-                                rect.with_edge(koebi_workspace::Side::Right, at),
-                                rect.with_edge(koebi_workspace::Side::Left, at),
-                            ),
-                            Orientation::Horizontal => (
-                                rect.with_edge(koebi_workspace::Side::Bottom, at),
-                                rect.with_edge(koebi_workspace::Side::Top, at),
-                            ),
-                        };
-                        for half in [first, second] {
-                            ui.scene.push_rect(
-                                &RectPrimitive::new(frame.panel(half), style.split_preview)
-                                    .with_corner_radius(style.corner_radius),
-                            );
-                        }
-                    }
-                    if catcher.secondary_pressed {
-                        return None;
-                    }
-                    Some(catcher.pressed || ui.triggered(&OPERATION_CONFIRM))
-                });
-                match (confirmed, preview) {
-                    (None, _) => view.operation = None,
-                    // Where nothing can split, a press does nothing: the preview goes on.
-                    (Some(true), Some((area, _, at))) => {
-                        if let Ok(split) = workspace.split(area, orientation, at, min) {
-                            host.copied(split.copy_of, split.editor);
-                        }
-                        view.operation = None;
-                    }
-                    _ => {}
-                }
-            }
-            Operation::Join { first, second } => {
-                let plan = match pointed {
-                    Some((area, _)) if area == first => layout.plan_join(second, first).ok(),
-                    Some((area, _)) if area == second => layout.plan_join(first, second).ok(),
-                    _ => None,
-                };
-                let cursor = plan
-                    .as_ref()
-                    .map_or(CursorShape::NotAllowed, |plan| join_cursor(layout, plan));
-                let confirmed = self.on_layer(Layer::OVERLAY, |ui| {
-                    let catcher = ui.interact_with_cursor(OPERATION, window, cursor);
-                    if let Some(plan) = &plan {
-                        ui.join_preview(layout, plan, frame, style);
-                    }
-                    if catcher.secondary_pressed {
-                        return None;
-                    }
-                    Some(catcher.pressed || ui.triggered(&OPERATION_CONFIRM))
-                });
-                match (confirmed, plan) {
-                    (None, _) => view.operation = None,
-                    // Where nothing can join, a press does nothing: the preview goes on.
-                    (Some(true), Some(plan)) => {
-                        if let Ok(removed) = workspace.join(plan.kept, plan.removed) {
-                            host.removed(&removed);
-                        }
-                        view.operation = None;
-                    }
-                    _ => {}
-                }
-            }
-            Operation::Resize { .. } => {}
-        }
-    }
-
-    /// The preview of a join: the kept area lighter, the part of the removed area it takes
-    /// darker, the parts neighbours take darker still, and the joined area outlined.
-    fn join_preview(
-        &mut self,
-        layout: &Layout,
-        plan: &JoinPlan,
-        frame: Frame,
-        style: &WorkspaceStyle,
-    ) {
-        let radius = style.corner_radius;
-        let mut fill = |rect: GridRect, color: Color| {
-            self.scene.push_rect(
-                &RectPrimitive::new(frame.panel(rect), color).with_corner_radius(radius),
-            );
-        };
-        if let Some(kept) = layout.rect(plan.kept) {
-            fill(kept, style.join_keep);
-        }
-        if let Some(taken) = layout
-            .rect(plan.removed)
-            .and_then(|removed| intersection(removed, plan.result))
-        {
-            fill(taken, style.join_remove);
-        }
-        for piece in &plan.fills {
-            fill(piece.piece, style.join_residual);
-        }
-        self.scene.push_rect(
-            &RectPrimitive::new(frame.panel(plan.result), Color::TRANSPARENT)
-                .with_corner_radius(radius)
-                .with_border(style.join_frame_width, style.join_frame),
-        );
     }
 
     /// The area menu of a right click on a gutter: swap or join the two areas, or start a

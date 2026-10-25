@@ -25,4 +25,8 @@ koebi_design::tokens! {
         px(8.0), range(2.0, 32.0);
     /// Smallest width and height of an area when resizing or splitting.
     ZONE_MIN_SIZE_DEFAULT = "zone.min-size.default": Dimension = px(40.0), range(16.0, 400.0);
+    /// Side of the square at each corner of an area that splits it when dragged inwards and
+    /// joins a neighbour when dragged into it.
+    ZONE_CORNER_SIZE_DEFAULT = "zone.corner.size.default": Dimension =
+        px(12.0), range(4.0, 40.0);
 }
