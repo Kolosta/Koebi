@@ -160,8 +160,9 @@ impl Presenter {
     ///
     /// Frames are measured with timestamp queries read [`FRAMES_IN_FLIGHT`] frames later,
     /// once their fence has signaled, so measuring never stalls. `None` before the first
-    /// measured frame, or when the queue has no timestamps
-    /// ([`crate::Adapter::supports_timestamps`]).
+    /// measured frame, when the queue has no timestamps
+    /// ([`crate::Adapter::supports_timestamps`]), or when its timestamps never advance (as on
+    /// the iOS simulator).
     pub fn gpu_frame_time(&self) -> Option<Duration> {
         self.gpu_frame_time
     }
@@ -213,8 +214,11 @@ impl Presenter {
                         vk::QueryResultFlags::TYPE_64,
                     )
                 };
-                if read.is_ok() {
-                    self.gpu_frame_time = Some(timestamps.elapsed(ticks[0], ticks[1]));
+                let elapsed = timestamps.elapsed(ticks[0], ticks[1]);
+                // Some drivers (MoltenVK on the iOS simulator) announce timestamps that never
+                // advance: a frame cannot take no time, so such a frame counts as unmeasured.
+                if read.is_ok() && !elapsed.is_zero() {
+                    self.gpu_frame_time = Some(elapsed);
                 }
             }
         }

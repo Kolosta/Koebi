@@ -48,7 +48,8 @@ Debug builds show an overlay at the bottom left (`--fps` shows it in release bui
 - **CPU**: the time to build the interface and record the GPU commands of a frame, without
   the waits for the display.
 - **GPU**: the time the GPU spends executing a frame, measured with timestamp queries read two
-  frames later, so measuring never stalls (`GPU -` when the GPU has no timestamps).
+  frames later, so measuring never stalls (`GPU -` when the GPU has no usable timestamps,
+  as on the iOS simulator).
 
 Values are averages over half a second. The application draws only when something changes,
 so they move while you interact (a pointer move draws a frame) and stay still otherwise.
