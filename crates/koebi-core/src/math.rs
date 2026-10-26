@@ -280,7 +280,9 @@ mod tests {
         assert_eq!(a * b, Vec2::new(3.0, -8.0));
         assert_eq!(b / 2.0, Vec2::new(1.5, -2.0));
         assert_eq!(-a, Vec2::new(-1.0, -2.0));
-        assert!((Vec2::new(3.0, 4.0).length() - 5.0).abs() < f32::EPSILON);
+        // `hypot` has no specified precision (Miri adds an error of a few units in the last
+        // place): compare with a tolerance (#123).
+        assert!((Vec2::new(3.0, 4.0).length() - 5.0).abs() < 1e-5);
         assert!((a.dot(b) - (-5.0)).abs() < f32::EPSILON);
     }
 
