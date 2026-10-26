@@ -43,9 +43,9 @@ koebi_design::tokens! {
         semantic::RADIUS_CONTROL;
     /// Node box: horizontal padding.
     NODE_BOX_PADDING_HORIZONTAL_DEFAULT = "node-box.padding.horizontal.default": Dimension =
-        px(8.0);
+        px(8.0), range(0.0, 32.0);
     /// Node box: vertical padding.
-    NODE_BOX_PADDING_VERTICAL_DEFAULT = "node-box.padding.vertical.default": Dimension = px(6.0);
+    NODE_BOX_PADDING_VERTICAL_DEFAULT = "node-box.padding.vertical.default": Dimension = px(6.0), range(0.0, 32.0);
     /// Node box: header height.
     NODE_BOX_HEADER_SIZE_HEIGHT = "node-box.header.size.height": Dimension ->
         semantic::SIZE_CONTROL_HEIGHT;

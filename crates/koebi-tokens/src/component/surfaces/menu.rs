@@ -23,9 +23,9 @@ koebi_design::tokens! {
     MENU_COLUMN_HEADER_LABEL_COLOR_DEFAULT = "menu.column-header.label.color.default": Color ->
         semantic::TEXT_COLOR_SECONDARY_DEFAULT;
     /// Menu: horizontal padding.
-    MENU_PADDING_HORIZONTAL_DEFAULT = "menu.padding.horizontal.default": Dimension = px(8.0);
+    MENU_PADDING_HORIZONTAL_DEFAULT = "menu.padding.horizontal.default": Dimension = px(8.0), range(0.0, 32.0);
     /// Menu: vertical padding.
-    MENU_PADDING_VERTICAL_DEFAULT = "menu.padding.vertical.default": Dimension = px(6.0);
+    MENU_PADDING_VERTICAL_DEFAULT = "menu.padding.vertical.default": Dimension = px(6.0), range(0.0, 32.0);
     /// Menu: column gap.
     MENU_COLUMN_GAP_DEFAULT = "menu.column-gap.default": Dimension = px(16.0), range(0.0, 64.0);
     /// Menu: item gap.

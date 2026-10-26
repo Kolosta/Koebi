@@ -24,7 +24,7 @@ koebi_design::tokens! {
     TOOLTIP_CORNER_RADIUS_DEFAULT = "tooltip.corner-radius.default": Dimension ->
         semantic::RADIUS_CONTROL;
     /// Tooltip: horizontal padding.
-    TOOLTIP_PADDING_HORIZONTAL_DEFAULT = "tooltip.padding.horizontal.default": Dimension = px(8.0);
+    TOOLTIP_PADDING_HORIZONTAL_DEFAULT = "tooltip.padding.horizontal.default": Dimension = px(8.0), range(0.0, 32.0);
     /// Tooltip: vertical padding.
-    TOOLTIP_PADDING_VERTICAL_DEFAULT = "tooltip.padding.vertical.default": Dimension = px(6.0);
+    TOOLTIP_PADDING_VERTICAL_DEFAULT = "tooltip.padding.vertical.default": Dimension = px(6.0), range(0.0, 32.0);
 }

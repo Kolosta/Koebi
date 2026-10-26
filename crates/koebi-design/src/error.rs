@@ -3,6 +3,7 @@
 use core::fmt;
 
 use crate::kind::KindId;
+use crate::value::Range;
 
 /// An error of the design system. Nothing is changed when an operation fails.
 #[derive(Clone, Debug, PartialEq)]
@@ -54,12 +55,10 @@ pub enum Error {
     OutOfRange {
         /// The token being defined.
         token: String,
-        /// The value received (durations in milliseconds).
+        /// The value received (durations in milliseconds, the alpha of colors).
         value: f64,
-        /// Lowest valid value.
-        min: f64,
-        /// Highest valid value.
-        max: f64,
+        /// The values the token accepts.
+        range: Range,
     },
     /// The change would make a chain of aliases loop back to itself.
     Cycle {
@@ -123,12 +122,8 @@ impl fmt::Display for Error {
             Self::OutOfRange {
                 token,
                 value,
-                min,
-                max,
-            } => write!(
-                f,
-                "{value} is outside the range of {token} ({min} to {max})"
-            ),
+                range,
+            } => write!(f, "{value} is outside the range of {token} ({range})"),
             Self::Cycle { token } => write!(f, "changing {token} would create an alias cycle"),
             Self::InvalidColorVision(reason) => write!(f, "invalid color vision setting: {reason}"),
             Self::Io {

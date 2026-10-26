@@ -138,6 +138,11 @@ pub(crate) const fn literal_problem(info: &TokenInfo, literal: &Literal) -> Opti
             if !color.is_valid() {
                 return Some("color channel out of range");
             }
+            if let Some(range) = info.range()
+                && !range.contains(color.alpha() as f64)
+            {
+                return Some("alpha outside the token's range");
+            }
         }
         Literal::Dimension(v) | Literal::Number(v) => {
             if !v.is_finite() {
@@ -178,8 +183,8 @@ pub(crate) const fn token_problem(info: &TokenInfo) -> Option<&'static str> {
         if !range.is_valid() {
             return Some("invalid range");
         }
-        if !info.kind().is_numeric() {
-            return Some("only numeric kinds have a range");
+        if !info.kind().takes_range() {
+            return Some("only numeric kinds and colors have a range");
         }
     }
     match info.definition() {

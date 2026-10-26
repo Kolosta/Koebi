@@ -251,14 +251,20 @@ impl Graph {
         None
     }
 
-    /// The value of `token` in `theme` with `layers`, color vision applied where allowed.
+    /// The value of `token` in `theme` with `layers`, color vision applied where allowed, and
+    /// kept inside the token's range: an alias to a token that accepts more cannot bring in a
+    /// value this one refuses.
     pub(crate) fn value(&self, token: TokenId, theme: ThemeId, layers: Layers) -> Value {
         let resolution = self.resolve(token, theme, layers);
-        match resolution.value {
+        let value = match resolution.value {
             Value::Color(color) if resolution.color_vision => {
                 Value::Color(self.matrix.apply(*color))
             }
             value => value.clone(),
+        };
+        match self.ranges.get(token.index()).copied().flatten() {
+            Some(range) => limited(value, range),
+            None => value,
         }
     }
 
@@ -340,15 +346,20 @@ impl Graph {
             }
             other => other,
         };
-        if let (Some(range), Some(number)) = (self.ranges[token.index()], value.as_number())
-            && !range.contains(number)
-        {
-            return Err(Error::OutOfRange {
-                token: self.name(token),
-                value: number,
-                min: range.min(),
-                max: range.max(),
-            });
+        if let Some(range) = self.ranges[token.index()] {
+            let checked = match &value {
+                Value::Color(color) => Some(f64::from(color.a)),
+                other => other.as_number(),
+            };
+            if let Some(number) = checked
+                && !range.contains(number)
+            {
+                return Err(Error::OutOfRange {
+                    token: self.name(token),
+                    value: number,
+                    range,
+                });
+            }
         }
         Ok(value)
     }
@@ -413,5 +424,46 @@ impl Graph {
             }
         }
         Ok(())
+    }
+}
+
+/// `value` brought into `range`: numbers clamped (and snapped), the alpha of colors clamped.
+fn limited(value: Value, range: Range) -> Value {
+    #[allow(
+        clippy::cast_possible_truncation,
+        reason = "the limited value lies between bounds of the token's own kind"
+    )]
+    let narrow = |number: f64| number as f32;
+    match value {
+        Value::Color(color) => {
+            Value::Color(color.with_alpha(narrow(range.limit(f64::from(color.a)))))
+        }
+        Value::Dimension(number) => Value::Dimension(narrow(range.limit(f64::from(number)))),
+        Value::Number(number) => Value::Number(narrow(range.limit(f64::from(number)))),
+        Value::Integer(number) => {
+            #[allow(
+                clippy::cast_possible_truncation,
+                reason = "the limited value lies between two integers of the token's range"
+            )]
+            let limited = range.limit(f64::from(number)).round() as i32;
+            Value::Integer(limited)
+        }
+        Value::Duration(duration) => {
+            let millis = range.limit(duration.as_secs_f64() * 1000.0).max(0.0);
+            Value::Duration(core::time::Duration::from_secs_f64(millis / 1000.0))
+        }
+        Value::FontWeight(weight) => {
+            #[allow(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                reason = "clamped to the weights 1 to 1000 first"
+            )]
+            let limited = range
+                .limit(f64::from(weight.get()))
+                .round()
+                .clamp(1.0, 1000.0) as u16;
+            Value::FontWeight(crate::value::FontWeight::new(limited).unwrap_or(weight))
+        }
+        other => other,
     }
 }

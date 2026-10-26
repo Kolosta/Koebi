@@ -215,13 +215,20 @@ fn token_extension(info: &TokenInfo) -> Vec<(String, Json)> {
         extension.push(member("kind", string("integer")));
     }
     if let Some(range) = info.range() {
-        extension.push(member(
-            "range",
-            object(vec![
-                member("min", number(range.min())),
-                member("max", number(range.max())),
-            ]),
-        ));
+        // Open ends are left out; for colors the range bounds the alpha.
+        let mut members = Vec::new();
+        if range.excludes_zero() {
+            members.push(member("above", number(0.0)));
+        } else if range.min().is_finite() {
+            members.push(member("min", number(range.min())));
+        }
+        if range.max().is_finite() {
+            members.push(member("max", number(range.max())));
+        }
+        if range.is_snapped() {
+            members.push(member("step", number(range.step())));
+        }
+        extension.push(member("range", object(members)));
     }
     extension
 }

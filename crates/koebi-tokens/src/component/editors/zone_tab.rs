@@ -11,9 +11,9 @@ koebi_design::tokens! {
     ZONE_TAB_GAP_DEFAULT = "zone-tab.gap.default": Dimension = px(2.0), range(0.0, 24.0);
     /// Zone tab: horizontal padding.
     ZONE_TAB_PADDING_HORIZONTAL_DEFAULT = "zone-tab.padding.horizontal.default": Dimension =
-        px(8.0);
+        px(8.0), range(0.0, 32.0);
     /// Zone tab: vertical padding.
-    ZONE_TAB_PADDING_VERTICAL_DEFAULT = "zone-tab.padding.vertical.default": Dimension = px(2.0);
+    ZONE_TAB_PADDING_VERTICAL_DEFAULT = "zone-tab.padding.vertical.default": Dimension = px(2.0), range(0.0, 32.0);
     /// Zone tab: background color.
     ZONE_TAB_BACKGROUND_COLOR_DEFAULT = "zone-tab.background.color.default": Color ->
         semantic::BACKGROUND_SURFACE_CANVAS;

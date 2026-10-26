@@ -36,10 +36,10 @@ koebi_design::tokens! {
         semantic::RADIUS_XS;
     /// Capture field: horizontal padding.
     CAPTURE_FIELD_PADDING_HORIZONTAL_DEFAULT =
-        "capture-field.padding.horizontal.default": Dimension = px(8.0);
+        "capture-field.padding.horizontal.default": Dimension = px(8.0), range(0.0, 32.0);
     /// Capture field: vertical padding.
     CAPTURE_FIELD_PADDING_VERTICAL_DEFAULT = "capture-field.padding.vertical.default": Dimension =
-        px(4.0);
+        px(4.0), range(0.0, 32.0);
     /// Capture field: minimum width.
     CAPTURE_FIELD_SIZE_MIN_WIDTH = "capture-field.size.min-width": Dimension =
         px(180.0), range(80.0, 600.0);

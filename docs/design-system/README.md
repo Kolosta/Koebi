@@ -110,8 +110,29 @@ koebi_design::tokens! {
 ```
 
 The compiler checks everything: kinds and tiers of aliases, paths and constant names, values
-against their range, and the absence of alias cycles in the base theme and every theme. To add a
-token:
+against their range, and the absence of alias cycles in the base theme and every theme.
+
+### Constraints
+
+A token may constrain its values, after its definition:
+
+| Constraint | Accepts |
+|---|---|
+| `range(min, max)`, `range(min, max, step)` | numbers from `min` to `max`; `step` is a hint for editors |
+| `at_least(min)`, `at_most(max)` | numbers from `min` up, or up to `max` |
+| `positive()` | numbers above zero |
+| `steps(min, max, step)` | multiples of `step` from `min` to `max` |
+| `alpha(min, max)`, `opaque()` | colors whose alpha lies in the range, or is 1 |
+
+Durations count in milliseconds. A token without its own constraint takes the one of the token
+it aliases. Every layer is held to it: token tables while compiling, themes, overrides and
+imports when they are set (out-of-range values are refused with the accepted range in the
+error). Resolved values are also kept inside the token's own range, so a token aliasing one that
+accepts more never receives a value it refuses (`component.window.background.color.default`
+stays opaque whatever it aliases). Every numeric token of Koebi's set has bounds, and the
+built-in themes never need that limiting: `koebi-tokens`' tests check both.
+
+To add a token:
 
 1. Pick the tier: a raw value is primitive, an intent semantic, a component property component.
 2. Name it by its position in a scale (`radius.200`) or its intent (`background.accent.hover`),
@@ -169,8 +190,8 @@ design.reset(Scope::ActiveTheme, semantic::RADIUS_CONTROL)?;
 
 - `Scope::ActiveTheme` and `Scope::Theme(id)` change one theme; `Scope::Global` applies on top
   of every theme.
-- Values are checked against the token's kind and range (inherited along aliases); aliases
-  against the tier rules. A change that would make a chain of aliases loop is rejected, in every
+- Values are checked against the token's kind and constraint (inherited along aliases);
+  aliases against the tier rules. A change that would make a chain of aliases loop is rejected, in every
   theme it affects. On error, nothing changes.
 - Every token that depends on the changed one is resolved again before the call returns.
 

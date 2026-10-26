@@ -20,9 +20,9 @@ koebi_design::tokens! {
     KEY_CAP_CORNER_RADIUS_DEFAULT = "key-cap.corner-radius.default": Dimension ->
         semantic::RADIUS_XS;
     /// Key cap: horizontal padding.
-    KEY_CAP_PADDING_HORIZONTAL_DEFAULT = "key-cap.padding.horizontal.default": Dimension = px(4.0);
+    KEY_CAP_PADDING_HORIZONTAL_DEFAULT = "key-cap.padding.horizontal.default": Dimension = px(4.0), range(0.0, 32.0);
     /// Key cap: vertical padding.
-    KEY_CAP_PADDING_VERTICAL_DEFAULT = "key-cap.padding.vertical.default": Dimension = px(4.0);
+    KEY_CAP_PADDING_VERTICAL_DEFAULT = "key-cap.padding.vertical.default": Dimension = px(4.0), range(0.0, 32.0);
     /// Key cap: font scale.
     KEY_CAP_FONT_SCALE_DEFAULT = "key-cap.font-scale.default": Number = 0.85, range(0.5, 2.0);
 }
