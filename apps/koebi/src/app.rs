@@ -23,9 +23,8 @@ use koebi_workspace::Workspace;
 use crate::actions;
 use crate::cursors::AppCursors;
 use crate::design_options;
-use crate::editors::{self, Editors, Host};
+use crate::editors::{self, Content, Editors, Host};
 use crate::frame_times::FrameTimes;
-use crate::gallery::Gallery;
 use crate::options::Options;
 use crate::overlay::Overlay;
 
@@ -207,7 +206,8 @@ struct Interface {
     workspace: Workspace,
     view: WorkspaceView,
     editors: Editors,
-    gallery: Gallery,
+    /// What the editors show: the gallery, the document, the messages.
+    content: Content,
     /// `None` when the frame-time overlay is hidden.
     overlay: Option<Overlay>,
     /// The fonts text is laid out with; the renderer rasterizes glyphs from the same ones.
@@ -253,7 +253,7 @@ impl Interface {
             workspace,
             view: WorkspaceView::new(),
             editors,
-            gallery: Gallery::new(),
+            content: Content::new(),
             overlay: options.shows_frame_times().then(Overlay::new),
             fonts,
             keymap,
@@ -297,7 +297,7 @@ impl Interface {
             workspace,
             view,
             editors,
-            gallery,
+            content,
             overlay,
             fonts,
             scene,
@@ -307,9 +307,10 @@ impl Interface {
         let styles = styles.update(design);
         scene.set_clear_color(styles.background);
         let mut ui = Ui::new(scene, styles, input, state);
+        content.messages.collect();
         let mut host = Host {
             editors,
-            gallery,
+            content,
             design,
             window: area,
         };
