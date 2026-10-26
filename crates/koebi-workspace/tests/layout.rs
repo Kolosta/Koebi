@@ -160,8 +160,6 @@ fn unaligned_joins_hand_leftovers_to_neighbours() {
         AreaId::from_saved(1),
         AreaId::from_saved(2),
     );
-    // The right area is taller than the top one: it cannot extend across it.
-    assert_eq!(layout.plan_join(right, top), Err(LayoutError::Unaligned));
     // The top area extends across the right one; the rest of it goes to the bottom area.
     let plan = layout.join(top, right).unwrap();
     assert_eq!(plan.result, GridRect::new(0, 0, GRID, GRID / 2));
@@ -321,4 +319,85 @@ fn saved_layouts_are_checked() {
         )
         .unwrap();
     assert_eq!(added.get(), 8);
+}
+
+#[test]
+fn a_longer_kept_area_keeps_only_the_stretch_it_shares() {
+    // Left column cut in two rows, one area on the right.
+    let mut layout = layout(&[
+        (0, GridRect::new(0, 0, GRID / 2, GRID / 2)),
+        (1, GridRect::new(0, GRID / 2, GRID / 2, GRID)),
+        (2, GridRect::new(GRID / 2, 0, GRID, GRID)),
+    ]);
+    let (top, bottom, right) = (
+        AreaId::from_saved(0),
+        AreaId::from_saved(1),
+        AreaId::from_saved(2),
+    );
+    // The right area takes the top one's place: it shrinks to the top half and grows left;
+    // its bottom half goes to the bottom area, beside it.
+    let plan = layout.join(right, top).unwrap();
+    assert_eq!(plan.result, GridRect::new(0, 0, GRID, GRID / 2));
+    assert_eq!(plan.fills.len(), 1);
+    assert_eq!(
+        plan.fills[0].piece,
+        GridRect::new(GRID / 2, GRID / 2, GRID, GRID)
+    );
+    assert_eq!(plan.fills[0].from, Side::Left);
+    assert_eq!(rect(&layout, right), GridRect::new(0, 0, GRID, GRID / 2));
+    assert_eq!(
+        rect(&layout, bottom),
+        GridRect::new(0, GRID / 2, GRID, GRID)
+    );
+    layout.check().unwrap();
+}
+
+/// Two columns cut at different heights: the left top area (A) and the right bottom one (D)
+/// share the middle third of the line between the columns.
+fn staggered() -> Layout {
+    let (third, two_thirds) = (GRID / 3, 2 * (GRID / 3));
+    layout(&[
+        (0, GridRect::new(0, 0, GRID / 2, two_thirds)),
+        (1, GridRect::new(0, two_thirds, GRID / 2, GRID)),
+        (2, GridRect::new(GRID / 2, 0, GRID, third)),
+        (3, GridRect::new(GRID / 2, third, GRID, GRID)),
+    ])
+}
+
+#[test]
+fn partly_aligned_areas_join_and_neighbours_take_both_leftovers() {
+    let (third, two_thirds) = (GRID / 3, 2 * (GRID / 3));
+    let [a, b, c, d] = [0, 1, 2, 3].map(AreaId::from_saved);
+    // Both ways: the kept area keeps the middle third and spans both columns.
+    for (kept, removed) in [(a, d), (d, a)] {
+        let mut layout = staggered();
+        let plan = layout.join(kept, removed).unwrap();
+        assert_eq!(plan.result, GridRect::new(0, third, GRID, two_thirds));
+        // A's top third goes to C beside it, D's bottom third to B beside it.
+        assert_eq!(plan.fills.len(), 2);
+        assert_eq!(rect(&layout, c), GridRect::new(0, 0, GRID, third));
+        assert_eq!(rect(&layout, b), GridRect::new(0, two_thirds, GRID, GRID));
+        assert_eq!(rect(&layout, kept), plan.result);
+        assert_eq!(layout.len(), 3);
+        layout.check().unwrap();
+    }
+}
+
+#[test]
+fn partial_joins_whose_leftovers_cannot_be_filled_are_refused() {
+    // A and D share part of the line between the columns. A's part above that stretch has,
+    // on every side, a neighbour reaching beyond it: a strip above wider than it, an area on
+    // its left and one on its right both taller. Nothing can take it.
+    let (top, two_thirds) = (GRID / 8, 2 * (GRID / 3));
+    let layout = layout(&[
+        (0, GridRect::new(0, 0, GRID / 2, top)),
+        (1, GridRect::new(0, top, GRID / 4, GRID)),
+        (2, GridRect::new(GRID / 4, top, GRID / 2, two_thirds)),
+        (3, GridRect::new(GRID / 4, two_thirds, GRID / 2, GRID)),
+        (4, GridRect::new(GRID / 2, 0, GRID, GRID / 2)),
+        (5, GridRect::new(GRID / 2, GRID / 2, GRID, GRID)),
+    ]);
+    let (a, d) = (AreaId::from_saved(2), AreaId::from_saved(5));
+    assert_eq!(layout.plan_join(a, d), Err(LayoutError::CannotFill));
+    assert_eq!(layout.plan_join(d, a), Err(LayoutError::CannotFill));
 }

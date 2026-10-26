@@ -131,10 +131,16 @@ impl Ui<'_> {
                 {
                     *axis = drag_axis(point - *origin, style.drag_threshold);
                 }
+                let started = matches!(
+                    view.operation,
+                    Some(Operation::Corner { axis: Some(_), .. })
+                );
                 let cursor = if dragging {
                     match current(view, workspace, area, pointer, frame, style) {
                         CornerPreview::Split(split) => resize_cursor(split.orientation),
                         CornerPreview::Join(plan) => join_cursor(workspace.layout(), &plan),
+                        // Once the drag has started, releasing here would do nothing.
+                        CornerPreview::Nothing if started => CursorShape::NotAllowed,
                         CornerPreview::Nothing => CursorShape::Crosshair,
                     }
                 } else {

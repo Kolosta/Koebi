@@ -123,14 +123,17 @@ area) and learns when a split copies an editor or a join removes some.
   any area vertically or horizontally.
 - **Corners** (`zone.corner.size`, crosshair cursor): dragged inwards, a corner splits its area
   along the axis the drag starts on (a horizontal drag makes a vertical line), where the pointer
-  lets go; dragged into a neighbour, it joins that neighbour into its area. The previews are the
+  lets go; dragged into a neighbour, it joins that neighbour into its area, even when their
+  edges only partly meet ([ADR 0016](../adr/0016-partial-joins.md)). Once the drag has
+  started, a place where releasing would do nothing shows "not allowed". The previews are the
   same as the menu's.
 - **Previews**: a split shows the two halves the area under the pointer would become, a gutter
-  apart (`zone-overlay.split-preview`); a join shows the kept area lighter, the part of the
-  removed area it takes darker, the parts neighbours take darker still, and the joined area
-  outlined (`zone-overlay.join.*`), with an arrow cursor from the removed area to the kept one,
-  or "not allowed" where nothing can join. A press applies the preview; a press where nothing
-  can happen does nothing.
+  apart (`zone-overlay.split-preview`); a join shows the part of the kept area that stays
+  lighter, the part of the removed area it takes darker, the parts of both that neighbours take
+  darker still, and the joined area outlined (`zone-overlay.join.*`), with an arrow cursor
+  pointing the way the join goes (from the kept area towards the removed one), or "not allowed"
+  where nothing can join. A press applies the preview; a press where nothing can happen does
+  nothing.
 - **Cancel**: Escape, Delete or a right click (`workspace.cancel`) end any operation and restore
   the exact previous layout; Enter (`workspace.confirm`) applies a preview.
 

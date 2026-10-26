@@ -77,19 +77,20 @@ fn intersection(a: GridRect, b: GridRect) -> Option<GridRect> {
     (!rect.is_empty()).then_some(rect)
 }
 
-/// The arrow pointing from the removed area towards the kept one.
+/// The arrow pointing the way the join goes: from the kept area, which grows, towards the
+/// removed one.
 pub(super) fn join_cursor(layout: &Layout, plan: &JoinPlan) -> CursorShape {
     let (Some(kept), Some(removed)) = (layout.rect(plan.kept), layout.rect(plan.removed)) else {
         return CursorShape::NotAllowed;
     };
     if removed.x0 == kept.x1 {
-        CursorShape::ArrowLeft
-    } else if removed.x1 == kept.x0 {
         CursorShape::ArrowRight
+    } else if removed.x1 == kept.x0 {
+        CursorShape::ArrowLeft
     } else if removed.y0 == kept.y1 {
-        CursorShape::ArrowUp
-    } else {
         CursorShape::ArrowDown
+    } else {
+        CursorShape::ArrowUp
     }
 }
 
@@ -109,8 +110,9 @@ impl Ui<'_> {
         }
     }
 
-    /// The preview of a join: the kept area lighter, the part of the removed area it takes
-    /// darker, the parts neighbours take darker still, and the joined area outlined.
+    /// The preview of a join: the part of the kept area that stays lighter, the part of the
+    /// removed area it takes darker, the parts of both that neighbours take darker still, and
+    /// the joined area outlined.
     pub(super) fn draw_join(
         &mut self,
         layout: &Layout,
@@ -124,14 +126,16 @@ impl Ui<'_> {
                 &RectPrimitive::new(frame.panel(rect), color).with_corner_radius(radius),
             );
         };
-        if let Some(kept) = layout.rect(plan.kept) {
-            fill(kept, style.join_keep);
-        }
-        if let Some(taken) = layout
-            .rect(plan.removed)
-            .and_then(|removed| intersection(removed, plan.result))
-        {
-            fill(taken, style.join_remove);
+        for (area, color) in [
+            (plan.kept, style.join_keep),
+            (plan.removed, style.join_remove),
+        ] {
+            if let Some(part) = layout
+                .rect(area)
+                .and_then(|rect| intersection(rect, plan.result))
+            {
+                fill(part, color);
+            }
         }
         for piece in &plan.fills {
             fill(piece.piece, style.join_residual);

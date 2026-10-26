@@ -24,4 +24,5 @@ one and link both.
 | [0012](0012-actions-and-shortcuts.md) | Actions and shortcuts: an action-centred keymap resolved through pointer contexts | Accepted |
 | [0013](0013-layered-hit-testing.md) | Layered hit testing against the previous frame, and zones as shortcut contexts | Accepted |
 | [0014](0014-text-basics.md) | Text basics: in-house TrueType reading, CPU coverage glyphs, single-line labels | Accepted |
-| [0015](0015-workspace-layout.md) | Workspace layout: areas tiling an integer grid, edited by lines, joins that fill gaps | Accepted |
+| [0015](0015-workspace-layout.md) | Workspace layout: areas tiling an integer grid, edited by lines, joins that fill gaps | Accepted, join item superseded by 0016 |
+| [0016](0016-partial-joins.md) | Joins of partly aligned areas | Accepted |

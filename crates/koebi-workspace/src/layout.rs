@@ -31,9 +31,6 @@ pub enum LayoutError {
     SameArea,
     /// The areas do not share an edge.
     NotAdjacent,
-    /// The kept area's side is longer than the removed area's: it cannot extend across it and
-    /// stay rectangular.
-    Unaligned,
     /// Leftover space that no row of neighbours covers exactly.
     CannotFill,
     /// The last area cannot be closed.
@@ -50,7 +47,6 @@ impl fmt::Display for LayoutError {
             Self::UnknownArea(area) => write!(f, "no area {}", area.0),
             Self::SameArea => f.write_str("an area cannot be joined with itself"),
             Self::NotAdjacent => f.write_str("the areas do not share an edge"),
-            Self::Unaligned => f.write_str("the kept area is longer than the removed one"),
             Self::CannotFill => f.write_str("no neighbours can fill the space left"),
             Self::LastArea => f.write_str("the last area cannot be closed"),
             Self::TooSmall => f.write_str("an area would be smaller than the minimum size"),
@@ -336,12 +332,14 @@ impl Layout {
         position
     }
 
-    /// What joining `removed` into `kept` would do, without doing it.
+    /// What joining `removed` into `kept` would do, without doing it: `kept` keeps the stretch
+    /// of their shared edge both cover and extends across `removed`; the leftovers of both go
+    /// to neighbours.
     ///
     /// # Errors
     ///
-    /// [`LayoutError::UnknownArea`], [`LayoutError::SameArea`], [`LayoutError::NotAdjacent`],
-    /// [`LayoutError::Unaligned`] or [`LayoutError::CannotFill`].
+    /// [`LayoutError::UnknownArea`], [`LayoutError::SameArea`], [`LayoutError::NotAdjacent`]
+    /// or [`LayoutError::CannotFill`].
     pub fn plan_join(&self, kept: AreaId, removed: AreaId) -> Result<JoinPlan> {
         crate::plan::join(self, kept, removed)
     }
@@ -353,12 +351,17 @@ impl Layout {
     /// See [`Layout::plan_join`]; nothing changes on error.
     pub fn join(&mut self, kept: AreaId, removed: AreaId) -> Result<JoinPlan> {
         let plan = self.plan_join(kept, removed)?;
-        self.set_rect(kept, plan.result);
-        self.remove(removed);
+        self.apply_join(&plan);
+        Ok(plan)
+    }
+
+    /// Applies a join planned on this layout.
+    pub(crate) fn apply_join(&mut self, plan: &JoinPlan) {
+        self.set_rect(plan.kept, plan.result);
+        self.remove(plan.removed);
         for fill in &plan.fills {
             self.apply_fill(fill);
         }
-        Ok(plan)
     }
 
     /// What closing `area` would do, without doing it.
