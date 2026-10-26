@@ -29,7 +29,7 @@ flowchart TD
 
 | Crate | Responsibility | Depends on |
 |---|---|---|
-| `koebi-core` | `Vec2`/`Rect`/`Extent`, `Color` (sRGB, linear, OKLab, OKLCH, WCAG contrast), color vision matrices, input vocabulary (`Key`, `Modifiers` with sides, `MouseButton`), logging facade | nothing |
+| `koebi-core` | `Vec2`/`Rect`/`Extent`, `Color` (sRGB, linear, OKLab, OKLCH, WCAG contrast), color vision matrices, input vocabulary (`Key`, `Modifiers` with sides, `MouseButton`), logging facade, arithmetic expressions with units | nothing |
 | `koebi-gpu` | Vulkan loading, instance, adapter selection, device, memory, buffers, textures, samplers, bind groups, pipelines, command recording, swapchain and frame pacing | `ash`, core |
 | `koebi-render` | Retained `Scene` of 2D primitives (rectangles, segments, glyphs), glyph atlas, GPU instance layouts, shaders, batching | gpu, text, core |
 | `koebi-platform` | SDL3 main callbacks (`App` trait), windows, event translation (keys, pointer, wheel, pinch, focus), cursors, Vulkan library and surface | `sdl3-sys`, `ash` (types), core |
