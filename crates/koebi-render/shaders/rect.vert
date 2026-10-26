@@ -15,13 +15,15 @@ layout(push_constant) uniform ViewportConstants {
 layout(location = 0) in vec4 in_rect;          // x, y, width, height (logical px)
 layout(location = 1) in vec4 in_fill;          // premultiplied, gamma-encoded
 layout(location = 2) in vec4 in_border_color;  // premultiplied, gamma-encoded
-layout(location = 3) in vec4 in_params;        // x: corner radius, y: border width (logical px)
+layout(location = 3) in vec4 in_radii;         // top-left, top-right, bottom-right, bottom-left
+layout(location = 4) in vec4 in_borders;       // top, right, bottom, left (logical px)
 
 layout(location = 0) out vec2 v_local;                // position relative to the center (px)
 layout(location = 1) flat out vec2 v_half_size;       // px
 layout(location = 2) flat out vec4 v_fill;
 layout(location = 3) flat out vec4 v_border_color;
-layout(location = 4) flat out vec2 v_radius_border;   // px
+layout(location = 4) flat out vec4 v_radii;           // px, each at most half the smallest side
+layout(location = 5) flat out vec4 v_borders;         // px
 
 const float AA_MARGIN = 1.0;
 
@@ -38,10 +40,10 @@ void main() {
     vec2 ndc = (center + local) / pc.viewport_px * 2.0 - 1.0;
     gl_Position = vec4(ndc, 0.0, 1.0);
 
-    float radius = min(in_params.x * pc.scale_factor, min(half_size.x, half_size.y));
     v_local = local;
     v_half_size = half_size;
     v_fill = in_fill;
     v_border_color = in_border_color;
-    v_radius_border = vec2(radius, in_params.y * pc.scale_factor);
+    v_radii = min(in_radii * pc.scale_factor, vec4(min(half_size.x, half_size.y)));
+    v_borders = in_borders * pc.scale_factor;
 }

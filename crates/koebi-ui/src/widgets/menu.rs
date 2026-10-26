@@ -603,6 +603,29 @@ mod tests {
     }
 
     #[test]
+    fn a_choice_asks_for_the_next_frame_at_once() {
+        // Regression test for #104: the frame that chooses applies the choice after the parts
+        // drawn before it; without another frame, nothing shows it until the pointer moves.
+        let (mut state, mut menu, mut input, styles) = setup();
+        menu.open_at(Vec2::new(10.0, 10.0));
+        frame(&mut state, &mut menu, &mut input, &styles);
+        // Moving the pointer alone changes nothing that was drawn: no extra frame.
+        input.pointer_moved(Vec2::new(30.0, 40.0));
+        frame(&mut state, &mut menu, &mut input, &styles);
+        assert_eq!(state.redraw_at(), None);
+        let style = styles.menu;
+        let second = Vec2::new(
+            30.0,
+            10.0 + style.border_width + style.padding_vertical + style.item_height * 1.5,
+        );
+        input.primary_button(true, second);
+        input.primary_button(false, second);
+        let (chosen, _) = frame(&mut state, &mut menu, &mut input, &styles);
+        assert_eq!(chosen, Some(1));
+        assert_eq!(state.redraw_at(), Some(input.time()));
+    }
+
+    #[test]
     fn presses_outside_close_the_menu_and_reach_nothing() {
         let (mut state, mut menu, mut input, styles) = setup();
         menu.open_at(Vec2::new(10.0, 10.0));

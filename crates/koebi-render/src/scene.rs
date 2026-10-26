@@ -1,20 +1,105 @@
-//! Scene description: what to draw this frame, in painter's order.
+//! Scene description: what to draw this frame, layer by layer, each layer in painter's order.
 
 use koebi_core::{Color, Rect, Vec2};
 use koebi_gpu::Pod;
 use koebi_text::{FontId, GlyphId, TextLine};
 
-/// A rectangle with optional rounded corners and an inner border.
+/// Per-corner values of a rectangle: top-left, top-right, bottom-right, bottom-left.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Corners {
+    /// Top-left corner.
+    pub top_left: f32,
+    /// Top-right corner.
+    pub top_right: f32,
+    /// Bottom-right corner.
+    pub bottom_right: f32,
+    /// Bottom-left corner.
+    pub bottom_left: f32,
+}
+
+impl Corners {
+    /// Every corner square.
+    pub const ZERO: Self = Self::all(0.0);
+
+    /// The same value at every corner.
+    pub const fn all(value: f32) -> Self {
+        Self {
+            top_left: value,
+            top_right: value,
+            bottom_right: value,
+            bottom_left: value,
+        }
+    }
+
+    /// The values in shader order: top-left, top-right, bottom-right, bottom-left.
+    pub const fn to_array(self) -> [f32; 4] {
+        [
+            self.top_left,
+            self.top_right,
+            self.bottom_right,
+            self.bottom_left,
+        ]
+    }
+
+    /// The largest value.
+    pub fn max(self) -> f32 {
+        self.top_left
+            .max(self.top_right)
+            .max(self.bottom_right)
+            .max(self.bottom_left)
+    }
+}
+
+/// Per-side values of a rectangle: top, right, bottom, left.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Sides {
+    /// Top side.
+    pub top: f32,
+    /// Right side.
+    pub right: f32,
+    /// Bottom side.
+    pub bottom: f32,
+    /// Left side.
+    pub left: f32,
+}
+
+impl Sides {
+    /// Nothing on any side.
+    pub const ZERO: Self = Self::all(0.0);
+
+    /// The same value on every side.
+    pub const fn all(value: f32) -> Self {
+        Self {
+            top: value,
+            right: value,
+            bottom: value,
+            left: value,
+        }
+    }
+
+    /// The values in shader order: top, right, bottom, left.
+    pub const fn to_array(self) -> [f32; 4] {
+        [self.top, self.right, self.bottom, self.left]
+    }
+
+    /// The largest value.
+    pub fn max(self) -> f32 {
+        self.top.max(self.right).max(self.bottom).max(self.left)
+    }
+}
+
+/// A rectangle with a fill, a radius per corner and an inner border with a width per side.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RectPrimitive {
     /// Bounds in logical pixels.
     pub rect: Rect,
     /// Fill color.
     pub fill: Color,
-    /// Corner radius in logical pixels (clamped to half the smallest side).
-    pub corner_radius: f32,
-    /// Border width in logical pixels, drawn inside the bounds. `0` disables the border.
-    pub border_width: f32,
+    /// Corner radii in logical pixels, each clamped to half the smallest side.
+    pub corner_radii: Corners,
+    /// Border widths in logical pixels, drawn inside the bounds; zero on every side disables
+    /// the border.
+    pub border_widths: Sides,
     /// Border color.
     pub border_color: Color,
 }
@@ -25,23 +110,39 @@ impl RectPrimitive {
         Self {
             rect,
             fill,
-            corner_radius: 0.0,
-            border_width: 0.0,
+            corner_radii: Corners::ZERO,
+            border_widths: Sides::ZERO,
             border_color: Color::TRANSPARENT,
         }
     }
 
-    /// Sets the corner radius.
+    /// The same radius at every corner.
     #[must_use]
     pub const fn with_corner_radius(mut self, radius: f32) -> Self {
-        self.corner_radius = radius;
+        self.corner_radii = Corners::all(radius);
         self
     }
 
-    /// Adds an inner border.
+    /// A radius per corner.
+    #[must_use]
+    pub const fn with_corner_radii(mut self, radii: Corners) -> Self {
+        self.corner_radii = radii;
+        self
+    }
+
+    /// An inner border of the same width on every side.
     #[must_use]
     pub const fn with_border(mut self, width: f32, color: Color) -> Self {
-        self.border_width = width;
+        self.border_widths = Sides::all(width);
+        self.border_color = color;
+        self
+    }
+
+    /// An inner border with a width per side: a header's bottom border, the shared edge of
+    /// grouped buttons drawn by one of them.
+    #[must_use]
+    pub const fn with_border_widths(mut self, widths: Sides, color: Color) -> Self {
+        self.border_widths = widths;
         self.border_color = color;
         self
     }
@@ -107,30 +208,29 @@ pub(crate) struct RectInstance {
     pub(crate) fill: [f32; 4],
     /// Premultiplied border color.
     pub(crate) border_color: [f32; 4],
-    /// `corner_radius, border_width, 0, 0` in logical pixels.
-    pub(crate) params: [f32; 4],
+    /// Corner radii in logical pixels: top-left, top-right, bottom-right, bottom-left.
+    pub(crate) radii: [f32; 4],
+    /// Border widths in logical pixels: top, right, bottom, left.
+    pub(crate) borders: [f32; 4],
 }
 
-// SAFETY: `repr(C)` struct of four `[f32; 4]` arrays: 64 bytes with no padding, and every bit
+// SAFETY: `repr(C)` struct of five `[f32; 4]` arrays: 80 bytes with no padding, and every bit
 // pattern is a valid value.
 unsafe impl Pod for RectInstance {}
-const _: () = assert!(size_of::<RectInstance>() == 64);
+const _: () = assert!(size_of::<RectInstance>() == 80);
 
 impl RectInstance {
-    pub(crate) const STRIDE: u32 = 64;
+    pub(crate) const STRIDE: u32 = 80;
 
     fn from_primitive(primitive: &RectPrimitive) -> Self {
         let r = primitive.rect;
+        let positive = |values: [f32; 4]| values.map(|value| value.max(0.0));
         Self {
             rect: [r.min.x, r.min.y, r.width(), r.height()],
             fill: primitive.fill.premultiplied(),
             border_color: primitive.border_color.premultiplied(),
-            params: [
-                primitive.corner_radius.max(0.0),
-                primitive.border_width.max(0.0),
-                0.0,
-                0.0,
-            ],
+            radii: positive(primitive.corner_radii.to_array()),
+            borders: positive(primitive.border_widths.to_array()),
         }
     }
 }
@@ -175,7 +275,7 @@ pub(crate) enum PrimitiveKind {
     Glyph,
 }
 
-/// Consecutive primitives of one type and clip: one instanced draw.
+/// Consecutive primitives of one type and clip, on one layer: one instanced draw.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Batch {
     pub(crate) kind: PrimitiveKind,
@@ -201,11 +301,15 @@ impl Batch {
     }
 }
 
-/// The 2D primitives of one frame, drawn in insertion order (later on top).
+/// The 2D primitives of one frame.
 ///
-/// Primitives pushed between [`Scene::push_clip`] and [`Scene::pop_clip`] are clipped to the
-/// rectangle (intersected with the clips around it): an editor's content stays in its area, a
-/// scrolled list in its viewport.
+/// - **Layers**: primitives go to the current layer ([`Scene::push_layer`]); layers draw in
+///   increasing order, each in insertion order (later on top). A menu pushed on a higher layer
+///   covers what the base layer draws after it.
+/// - **Clips**: primitives pushed between [`Scene::push_clip`] and [`Scene::pop_clip`] are
+///   clipped to the rectangle (intersected with the clips around it): an editor's content stays
+///   in its area, a scrolled list in its viewport. A layer pushed inside clips starts unclipped:
+///   a menu is not limited to the area that opened it.
 ///
 /// Reuse one scene across frames with [`Scene::clear`]: storage is kept, so steady-state
 /// frames do not allocate.
@@ -216,10 +320,16 @@ pub struct Scene {
     lines: Vec<LineInstance>,
     /// Glyphs stay descriptions: their instances depend on the atlas and the scale factor.
     glyphs: Vec<GlyphPrimitive>,
-    /// Painter's order across types: runs of rectangles, segments and glyphs.
-    batches: Vec<Batch>,
-    /// The clips in force, each intersected with the one before it.
+    /// The runs of each layer, by layer number, each in painter's order.
+    layers: Vec<Vec<Batch>>,
+    /// The layer primitives go to.
+    layer: u8,
+    /// The clips in force, each intersected with the one before it in its layer context.
     clips: Vec<Rect>,
+    /// Where the clips of the current layer context start in `clips`.
+    clip_base: usize,
+    /// The layer and clip base of each enclosing layer context.
+    layer_stack: Vec<(u8, usize)>,
 }
 
 impl Scene {
@@ -233,28 +343,57 @@ impl Scene {
         self.rects.clear();
         self.lines.clear();
         self.glyphs.clear();
-        self.batches.clear();
+        for layer in &mut self.layers {
+            layer.clear();
+        }
+        self.layer = 0;
         self.clips.clear();
+        self.clip_base = 0;
+        self.layer_stack.clear();
+    }
+
+    /// Pushes the primitives that follow to `layer`, without the clips in force, until the
+    /// matching [`Scene::pop_layer`]. Layers draw in increasing order: 0 is the base.
+    pub fn push_layer(&mut self, layer: u8) {
+        self.layer_stack.push((self.layer, self.clip_base));
+        self.layer = layer;
+        self.clip_base = self.clips.len();
+    }
+
+    /// Returns to the layer and clips of before the matching [`Scene::push_layer`].
+    pub fn pop_layer(&mut self) {
+        self.clips.truncate(self.clip_base);
+        if let Some((layer, clip_base)) = self.layer_stack.pop() {
+            self.layer = layer;
+            self.clip_base = clip_base;
+        }
+    }
+
+    /// The layer primitives are pushed to.
+    pub fn layer(&self) -> u8 {
+        self.layer
     }
 
     /// Clips the primitives pushed from now on to `rect` (logical pixels), within the current
     /// clip, until the matching [`Scene::pop_clip`].
     pub fn push_clip(&mut self, rect: Rect) {
-        let clip = match self.clips.last() {
+        let clip = match self.clip() {
             Some(outer) => outer.intersection(&rect).unwrap_or(Rect::ZERO),
             None => rect,
         };
         self.clips.push(clip);
     }
 
-    /// Ends the innermost clip.
+    /// Ends the innermost clip of the current layer context.
     pub fn pop_clip(&mut self) {
-        self.clips.pop();
+        if self.clips.len() > self.clip_base {
+            self.clips.pop();
+        }
     }
 
     /// The clip primitives are pushed with, if any.
     pub fn clip(&self) -> Option<Rect> {
-        self.clips.last().copied()
+        self.clips[self.clip_base..].last().copied()
     }
 
     /// `false` when `bounds` lie entirely outside the current clip.
@@ -276,7 +415,7 @@ impl Scene {
     /// Appends a rectangle. Empty or fully transparent rectangles are culled.
     pub fn push_rect(&mut self, primitive: &RectPrimitive) {
         let invisible = primitive.fill.a <= 0.0
-            && (primitive.border_width <= 0.0 || primitive.border_color.a <= 0.0);
+            && (primitive.border_widths.max() <= 0.0 || primitive.border_color.a <= 0.0);
         if primitive.rect.is_empty() || invisible || !self.visible(primitive.rect) {
             return;
         }
@@ -330,14 +469,21 @@ impl Scene {
         }
     }
 
-    /// Records the instance just pushed (`count` instances of `kind` so far).
+    /// Records the instance just pushed (`count` instances of `kind` so far) in the current
+    /// layer.
     fn extend_batch(&mut self, kind: PrimitiveKind, count: usize) {
         // More than 4 billion primitives cannot be drawn anyway: saturate.
         let end = u32::try_from(count).unwrap_or(u32::MAX);
         let clip = self.clip();
-        match self.batches.last_mut() {
+        let index = usize::from(self.layer);
+        if self.layers.len() <= index {
+            // A new layer number: grows once, then reused frame after frame.
+            self.layers.resize_with(index + 1, Vec::new);
+        }
+        let batches = &mut self.layers[index];
+        match batches.last_mut() {
             Some(batch) if batch.kind == kind && batch.clip == clip => batch.end = end,
-            _ => self.batches.push(Batch {
+            _ => batches.push(Batch {
                 kind,
                 start: end - 1,
                 end,
@@ -362,14 +508,14 @@ impl Scene {
     }
 
     /// Number of draw calls the scene needs: one per run of consecutive primitives of the
-    /// same type.
+    /// same type and clip on one layer.
     pub fn draw_count(&self) -> usize {
-        self.batches.len()
+        self.layers.iter().map(Vec::len).sum()
     }
 
     /// `true` when nothing will be drawn (the target is still cleared).
     pub fn is_empty(&self) -> bool {
-        self.batches.is_empty()
+        self.layers.iter().all(Vec::is_empty)
     }
 
     pub(crate) fn rect_instances(&self) -> &[RectInstance] {
@@ -384,8 +530,9 @@ impl Scene {
         &self.glyphs
     }
 
-    pub(crate) fn batches(&self) -> &[Batch] {
-        &self.batches
+    /// The runs in drawing order: layer by layer, each in painter's order.
+    pub(crate) fn batches(&self) -> impl Iterator<Item = &Batch> + '_ {
+        self.layers.iter().flatten()
     }
 }
 
@@ -410,7 +557,28 @@ mod tests {
         assert_eq!(instance.rect, [10.0, 20.0, 30.0, 40.0]);
         assert_eq!(instance.fill, [0.5, 0.25, 0.0, 0.5]);
         assert_eq!(instance.border_color, [1.0, 1.0, 1.0, 1.0]);
-        assert_eq!(instance.params, [4.0, 2.0, 0.0, 0.0]);
+        assert_eq!(instance.radii, [4.0; 4]);
+        assert_eq!(instance.borders, [2.0; 4]);
+        // Per corner and per side, in shader order; negative values become zero.
+        let primitive = primitive
+            .with_corner_radii(Corners {
+                top_left: 1.0,
+                top_right: 2.0,
+                bottom_right: 3.0,
+                bottom_left: -4.0,
+            })
+            .with_border_widths(
+                Sides {
+                    top: 0.0,
+                    right: 1.0,
+                    bottom: 2.0,
+                    left: 3.0,
+                },
+                Color::BLACK,
+            );
+        let instance = RectInstance::from_primitive(&primitive);
+        assert_eq!(instance.radii, [1.0, 2.0, 3.0, 0.0]);
+        assert_eq!(instance.borders, [0.0, 1.0, 2.0, 3.0]);
     }
 
     #[test]
@@ -479,7 +647,6 @@ mod tests {
         // With a stride of 1, a window is (first instance, instance count).
         let batches: Vec<_> = scene
             .batches()
-            .iter()
             .map(|batch| (batch.kind, batch.window(1)))
             .collect();
         assert_eq!(
@@ -505,10 +672,9 @@ mod tests {
         scene.push_rect(&rect);
         let windows: Vec<_> = scene
             .batches()
-            .iter()
             .map(|batch| batch.window(RectInstance::STRIDE))
             .collect();
-        assert_eq!(windows, [(0, 2), (0, 1), (128, 1)]);
+        assert_eq!(windows, [(0, 2), (0, 1), (160, 1)]);
     }
 
     fn glyph() -> GlyphPrimitive {
@@ -547,7 +713,6 @@ mod tests {
         scene.push_glyph(&glyph());
         let batches: Vec<_> = scene
             .batches()
-            .iter()
             .map(|batch| (batch.kind, batch.window(1)))
             .collect();
         assert_eq!(
@@ -584,7 +749,7 @@ mod tests {
         scene.push_rect(&rect);
         scene.pop_clip();
         scene.push_rect(&rect);
-        let clips: Vec<_> = scene.batches().iter().map(|batch| batch.clip).collect();
+        let clips: Vec<_> = scene.batches().map(|batch| batch.clip).collect();
         assert_eq!(clips, [None, Some(area), Some(inner), Some(area), None]);
         scene.push_clip(area);
         scene.clear();
@@ -639,7 +804,7 @@ mod tests {
         let capacities = (
             scene.rects.capacity(),
             scene.lines.capacity(),
-            scene.batches.capacity(),
+            scene.layers[0].capacity(),
         );
         scene.clear();
         assert!(scene.is_empty());
@@ -648,9 +813,54 @@ mod tests {
             (
                 scene.rects.capacity(),
                 scene.lines.capacity(),
-                scene.batches.capacity()
+                scene.layers[0].capacity()
             ),
             capacities
         );
+    }
+
+    #[test]
+    fn higher_layers_draw_after_the_base_whatever_the_order() {
+        let mut scene = Scene::new();
+        let rect = RectPrimitive::new(rect(), Color::WHITE);
+        scene.push_rect(&rect);
+        scene.push_layer(2);
+        scene.push_line(&line());
+        scene.pop_layer();
+        // Pushed after the line, but on the base layer: drawn before it.
+        scene.push_rect(&rect);
+        let batches: Vec<_> = scene
+            .batches()
+            .map(|batch| (batch.kind, batch.window(1)))
+            .collect();
+        assert_eq!(
+            batches,
+            [(PrimitiveKind::Rect, (0, 2)), (PrimitiveKind::Line, (0, 1)),]
+        );
+        assert_eq!(scene.layer(), 0);
+    }
+
+    #[test]
+    fn layers_start_outside_the_clips_and_restore_them() {
+        let mut scene = Scene::new();
+        let area = Rect::from_origin_size(Vec2::ZERO, Vec2::new(100.0, 100.0));
+        scene.push_clip(area);
+        scene.push_layer(1);
+        // A menu opened inside a clipped area is not clipped by it.
+        assert_eq!(scene.clip(), None);
+        let menu = Rect::from_origin_size(Vec2::new(50.0, 50.0), Vec2::new(200.0, 10.0));
+        scene.push_clip(menu);
+        assert_eq!(scene.clip(), Some(menu));
+        // Left unbalanced on purpose: popping the layer drops its clips.
+        scene.pop_layer();
+        assert_eq!(scene.clip(), Some(area));
+        scene.pop_clip();
+        assert_eq!(scene.clip(), None);
+        // Popping more clips than pushed in a layer context leaves the outer ones.
+        scene.push_clip(area);
+        scene.push_layer(1);
+        scene.pop_clip();
+        scene.pop_layer();
+        assert_eq!(scene.clip(), Some(area));
     }
 }

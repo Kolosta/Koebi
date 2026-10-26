@@ -212,6 +212,18 @@ impl Input {
             .any(|button| self.button_pressed_at(*button).is_some())
     }
 
+    /// `true` when something happened since the last frame besides pointer moves: a button
+    /// went down or up, the wheel turned, or the keymap triggered an action. Such a frame may
+    /// change what parts drawn before the change show.
+    pub fn has_events(&self) -> bool {
+        self.any_pressed()
+            || PointerButton::ALL
+                .iter()
+                .any(|button| self.button_released(*button))
+            || self.wheel != Vec2::ZERO
+            || self.actions.len > 0
+    }
+
     /// The wheel turns since the last frame, in notches.
     pub fn wheel(&self) -> Vec2 {
         self.wheel
