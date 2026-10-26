@@ -428,3 +428,75 @@ fn groups_shrink_into_rectangles_smaller_than_their_size() {
     let (response, _) = harness.frame(|ui| ButtonGroup::vertical().show(ui, at, &mut cells));
     assert_eq!(response.clicked, None);
 }
+
+#[test]
+fn menu_buttons_open_their_menu_and_square_the_corners_it_meets() {
+    use crate::widgets::menu::MenuState;
+    use crate::widgets::parts::Placement;
+
+    let mut harness = Harness::new();
+    let mut menu = MenuState::new();
+    harness.frame(|ui| {
+        Button::new(SAVE)
+            .label("Render")
+            .menu(&mut menu, Placement::BELOW)
+            .show(ui, rect())
+    });
+    harness.click(Vec2::new(20.0, 20.0));
+    let (response, _) = harness.frame(|ui| {
+        Button::new(SAVE)
+            .label("Render")
+            .menu(&mut menu, Placement::BELOW)
+            .show(ui, rect())
+    });
+    assert!(response.clicked && menu.is_open());
+    // Shown with its menu: the menu opens below, and the button squares its bottom corners.
+    let window = Rect::from_origin_size(Vec2::ZERO, Vec2::new(300.0, 200.0));
+    let (radii, _) = harness.frame(|ui| {
+        let button = Button::new(SAVE)
+            .label("Render")
+            .menu(&mut menu, Placement::BELOW);
+        assert!(button.is_selected());
+        let (_, state) = button.show_with_menu(ui, rect());
+        let state = state.expect("a menu button");
+        ui.menu(
+            WidgetId::new("menu"),
+            state,
+            &[crate::widgets::menu::MenuItem::action("Image")],
+            window,
+        );
+        Button::new(SAVE)
+            .menu(state, Placement::BELOW)
+            .junction(rect(), Corners::all(4.0))
+    });
+    assert_eq!((radii.bottom_left, radii.bottom_right), (0.0, 0.0));
+    assert_eq!((radii.top_left, radii.top_right), (4.0, 4.0));
+}
+
+#[test]
+fn a_menu_button_in_a_group_opens_its_menu() {
+    use crate::widgets::menu::MenuState;
+    use crate::widgets::parts::Placement;
+
+    let mut harness = Harness::new();
+    let mut menu = MenuState::new();
+    let at = Rect::from_origin_size(Vec2::ZERO, Vec2::new(120.0, 20.0));
+    let show = |harness: &mut Harness, menu: &mut MenuState| {
+        let mut cells = [
+            GroupCell::new(Button::new(WidgetId::new("play")).icon(Icon::ChevronRight)),
+            GroupCell::new(
+                Button::new(WidgetId::new("render"))
+                    .label("Render")
+                    .menu(menu, Placement::BELOW),
+            ),
+        ];
+        harness
+            .frame(|ui| ButtonGroup::horizontal().show(ui, at, &mut cells))
+            .0
+    };
+    show(&mut harness, &mut menu);
+    harness.click(Vec2::new(90.0, 10.0));
+    let response = show(&mut harness, &mut menu);
+    assert_eq!(response.clicked, Some(1));
+    assert!(menu.is_open());
+}

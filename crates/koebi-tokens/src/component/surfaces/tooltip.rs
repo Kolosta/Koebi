@@ -1,4 +1,4 @@
-//! Tooltips.
+//! Tooltips: a line of help shown near the pointer after it rests on a control.
 
 use super::*;
 use crate::component::EDITOR_TOP_BAR_BACKGROUND_COLOR_DEFAULT;
@@ -27,4 +27,6 @@ koebi_design::tokens! {
     TOOLTIP_PADDING_HORIZONTAL_DEFAULT = "tooltip.padding.horizontal.default": Dimension = px(8.0), range(0.0, 32.0);
     /// Tooltip: vertical padding.
     TOOLTIP_PADDING_VERTICAL_DEFAULT = "tooltip.padding.vertical.default": Dimension = px(6.0), range(0.0, 32.0);
+    /// Tooltip: distance between the pointer and the tooltip.
+    TOOLTIP_OFFSET_DEFAULT = "tooltip.offset.default": Dimension = px(16.0), range(0.0, 64.0);
 }

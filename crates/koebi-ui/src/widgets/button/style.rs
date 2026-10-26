@@ -56,6 +56,12 @@ impl ButtonStyle {
             get(c::BUTTON_BORDER_COLOR_DISABLED),
             get(c::BUTTON_LABEL_COLOR_DISABLED),
         );
+        let label = States {
+            selected: get(c::BUTTON_LABEL_COLOR_SELECTED),
+            selected_hovered: get(c::BUTTON_LABEL_COLOR_SELECTED),
+            disabled: disabled.2,
+            ..States::all(get(c::BUTTON_LABEL_COLOR_DEFAULT))
+        };
         let default = ToneColors {
             background: States {
                 normal: get(c::BUTTON_BACKGROUND_COLOR_DEFAULT),
@@ -73,12 +79,8 @@ impl ButtonStyle {
                 selected_hovered: get(c::BUTTON_BORDER_COLOR_SELECTED),
                 disabled: disabled.1,
             },
-            content: States {
-                selected: get(c::BUTTON_LABEL_COLOR_SELECTED),
-                selected_hovered: get(c::BUTTON_LABEL_COLOR_SELECTED),
-                disabled: disabled.2,
-                ..States::all(get(c::BUTTON_LABEL_COLOR_DEFAULT))
-            },
+            content: label,
+            icon: label,
         };
         let shades = Shades {
             hover: tokens.get(c::BUTTON_SHADE_HOVER_LIGHTNESS),
@@ -101,6 +103,10 @@ impl ButtonStyle {
                 ..States::all(border)
             },
             content: States {
+                disabled: disabled.2,
+                ..States::all(label)
+            },
+            icon: States {
                 disabled: disabled.2,
                 ..States::all(label)
             },
@@ -212,6 +218,14 @@ impl ButtonStyle {
             };
             Variant::ALL.map(|variant| hued(variant, &variants[variant.index()], family, shades))
         });
+        let toggle_label = States {
+            normal: get(c::TOGGLE_LABEL_COLOR_DEFAULT),
+            hovered: get(c::TOGGLE_LABEL_COLOR_HOVER),
+            pressed: get(c::TOGGLE_LABEL_COLOR_HOVER),
+            selected: get(c::TOGGLE_LABEL_COLOR_SELECTED),
+            selected_hovered: get(c::TOGGLE_LABEL_COLOR_SELECTED),
+            disabled: get(c::TOGGLE_LABEL_COLOR_DISABLED),
+        };
         let toggle = ToneColors {
             background: States {
                 normal: get(c::TOGGLE_BACKGROUND_COLOR_DEFAULT),
@@ -229,14 +243,8 @@ impl ButtonStyle {
                 selected_hovered: get(c::TOGGLE_BORDER_COLOR_SELECTED),
                 disabled: get(c::TOGGLE_BORDER_COLOR_DISABLED),
             },
-            content: States {
-                normal: get(c::TOGGLE_LABEL_COLOR_DEFAULT),
-                hovered: get(c::TOGGLE_LABEL_COLOR_HOVER),
-                pressed: get(c::TOGGLE_LABEL_COLOR_HOVER),
-                selected: get(c::TOGGLE_LABEL_COLOR_SELECTED),
-                selected_hovered: get(c::TOGGLE_LABEL_COLOR_SELECTED),
-                disabled: get(c::TOGGLE_LABEL_COLOR_DISABLED),
-            },
+            content: toggle_label,
+            icon: toggle_label,
         };
         Self {
             height: tokens.get(c::BUTTON_HEIGHT_DEFAULT),

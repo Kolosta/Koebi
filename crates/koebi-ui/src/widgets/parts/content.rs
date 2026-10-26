@@ -30,15 +30,25 @@ pub struct Content<'a> {
 pub(crate) struct ContentMetrics<'f> {
     pub(crate) gap: f32,
     pub(crate) icon_size: f32,
+    /// Side of the trailing icon (a dropdown's chevron is smaller than icons).
+    pub(crate) trailing_size: f32,
     pub(crate) stroke_width: f32,
     pub(crate) dot_size: f32,
     pub(crate) font: &'f FontStyle,
 }
 
+/// The colors content is drawn in.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct ContentColors {
+    pub(crate) label: Color,
+    pub(crate) icon: Color,
+}
+
 /// One part of laid-out content.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Part<'a> {
-    Icon(Icon),
+    /// An icon, and its side.
+    Icon(Icon, f32),
     Label(&'a str, f32),
     Dot(Color),
 }
@@ -102,20 +112,20 @@ impl<'a> Content<'a> {
     /// The parts in order, the label with its natural width; calls `each` with each part.
     fn parts(&self, ui: &mut Ui<'_>, metrics: &ContentMetrics<'_>, mut each: impl FnMut(Part<'a>)) {
         if let Some(icon) = self.leading {
-            each(Part::Icon(icon));
+            each(Part::Icon(icon, metrics.icon_size));
         }
         if let Some(label) = self.label {
             let width = ui.text_width(label, metrics.font);
             each(Part::Label(label, width));
         }
         if let Some(icon) = self.icon {
-            each(Part::Icon(icon));
+            each(Part::Icon(icon, metrics.icon_size));
         }
         if let Some(color) = self.dot {
             each(Part::Dot(color));
         }
         if let Some(icon) = self.trailing {
-            each(Part::Icon(icon));
+            each(Part::Icon(icon, metrics.trailing_size));
         }
     }
 
@@ -133,8 +143,11 @@ impl<'a> Content<'a> {
     /// ([`Ui::line_height`]).
     pub(crate) fn height(&self, ui: &mut Ui<'_>, metrics: &ContentMetrics<'_>) -> f32 {
         let mut height = 0.0_f32;
-        if self.leading.is_some() || self.icon.is_some() || self.trailing.is_some() {
+        if self.leading.is_some() || self.icon.is_some() {
             height = height.max(metrics.icon_size);
+        }
+        if self.trailing.is_some() {
+            height = height.max(metrics.trailing_size);
         }
         if self.label.is_some() {
             height = height.max(ui.line_height(metrics.font));
@@ -153,7 +166,7 @@ impl<'a> Content<'a> {
         ui: &mut Ui<'_>,
         rect: Rect,
         bounds: Rect,
-        color: Color,
+        colors: ContentColors,
         metrics: &ContentMetrics<'_>,
     ) {
         let mut parts = [None; 5];
@@ -189,14 +202,14 @@ impl<'a> Content<'a> {
             }
             first = false;
             match part {
-                Part::Icon(icon) => {
+                Part::Icon(icon, size) => {
                     let slot = Rect::from_min_max(
                         Vec2::new(x, rect.min.y),
-                        Vec2::new(x + metrics.icon_size, rect.max.y),
+                        Vec2::new(x + size, rect.max.y),
                     );
-                    let bounds = Icon::centered(slot, metrics.icon_size);
-                    icon.draw(ui.scene(), bounds, color, metrics.stroke_width);
-                    x += metrics.icon_size;
+                    let bounds = Icon::centered(slot, size);
+                    icon.draw(ui.scene(), bounds, colors.icon, metrics.stroke_width);
+                    x += size;
                 }
                 Part::Label(label, natural_width) => {
                     let width = natural_width.min(room);
@@ -204,7 +217,7 @@ impl<'a> Content<'a> {
                         Vec2::new(x, rect.min.y),
                         Vec2::new(x + width, rect.max.y),
                     );
-                    ui.label(label, slot, metrics.font, color, Align::Start);
+                    ui.label(label, slot, metrics.font, colors.label, Align::Start);
                     x += width;
                 }
                 Part::Dot(dot) => {
@@ -226,7 +239,7 @@ impl<'a> Content<'a> {
 /// The width of one part.
 fn part_width(part: Part<'_>, metrics: &ContentMetrics<'_>) -> f32 {
     match part {
-        Part::Icon(_) => metrics.icon_size,
+        Part::Icon(_, size) => size,
         Part::Label(_, width) => width,
         Part::Dot(_) => metrics.dot_size,
     }
@@ -240,6 +253,11 @@ mod tests {
     use super::*;
     use crate::{Input, UiState};
 
+    const WHITE: ContentColors = ContentColors {
+        label: Color::WHITE,
+        icon: Color::WHITE,
+    };
+
     #[test]
     fn content_measures_its_parts_and_gaps() {
         let styles = crate::test_styles();
@@ -249,6 +267,7 @@ mod tests {
         let metrics = ContentMetrics {
             gap: 4.0,
             icon_size: 16.0,
+            trailing_size: 16.0,
             stroke_width: 1.5,
             dot_size: 6.0,
             font: &styles.text.label,
@@ -272,7 +291,7 @@ mod tests {
         assert_eq!(Content::icon(Icon::Plus).height(&mut ui, &metrics), 16.0);
         // Drawn in a rectangle too narrow, the label is cut and the icons stay.
         let narrow = Rect::from_origin_size(Vec2::ZERO, Vec2::new(50.0, 20.0));
-        full.draw(&mut ui, narrow, narrow, Color::WHITE, &metrics);
+        full.draw(&mut ui, narrow, narrow, WHITE, &metrics);
         assert_eq!(ui.scene().clip(), None);
         drop(ui);
         assert_eq!(scene.line_count(), 4);
@@ -288,6 +307,7 @@ mod tests {
         let metrics = ContentMetrics {
             gap: 4.0,
             icon_size: 16.0,
+            trailing_size: 16.0,
             stroke_width: 1.5,
             dot_size: 6.0,
             font: &styles.text.label,
@@ -300,7 +320,7 @@ mod tests {
         // Three icons and two gaps need 56 pixels: drawn from the left of a 10 pixel wide
         // button, the second and third icons fall outside it and are clipped away.
         let rect = Rect::from_origin_size(Vec2::ZERO, Vec2::new(10.0, 20.0));
-        icons.draw(&mut ui, rect, rect, Color::WHITE, &metrics);
+        icons.draw(&mut ui, rect, rect, WHITE, &metrics);
         // The clip ends with the content.
         assert_eq!(ui.scene().clip(), None);
         drop(ui);

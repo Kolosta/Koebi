@@ -12,6 +12,7 @@ use crate::id::WidgetId;
 use crate::input::{Input, PointerButton};
 use crate::routing::{Layer, Region, Regions};
 use crate::style::Styles;
+use crate::widgets::TooltipState;
 
 /// What must outlive a frame: the widget that holds the pointer, where it took it, and the
 /// regions of the last frame, which decide what is under the pointer.
@@ -50,6 +51,8 @@ pub struct UiState {
     pub(crate) line: TextLine,
     /// When the last frame wants to be drawn again, if it does.
     redraw_at: Option<Duration>,
+    /// The widget under the pointer for tooltips, and the last tooltip shown.
+    pub(crate) tooltip: TooltipState,
 }
 
 impl UiState {
@@ -222,6 +225,9 @@ impl<'a> Ui<'a> {
                 .and_then(|(_, region)| region.widget)
         };
         state.hovered = topmost(input.pointer());
+        state
+            .tooltip
+            .update(state.hovered, input.any_pressed(), input.time());
         state.press_target = topmost(input.pressed_at());
         state.secondary_target = topmost(input.button_pressed_at(PointerButton::Secondary));
         state.grabbing.clear();

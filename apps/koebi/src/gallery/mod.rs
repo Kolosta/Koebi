@@ -6,6 +6,8 @@
 //!   the active theme; every component that depends on them follows in the same frame.
 //! - **Buttons** ([`buttons`]): every variant and color family, groups, content, behaviours
 //!   and checkboxes.
+//! - **Menus** ([`menus`]): dropdowns, a menu button in a group, a context menu with
+//!   submenus, and tooltips.
 //! - **Color vision** ([`editor`]): the simulation and correction modes, each previewed on
 //!   four chart colors.
 //! - **Grid**: hundreds of components, to show that styling costs nothing per component.
@@ -14,6 +16,7 @@
 
 mod buttons;
 mod editor;
+mod menus;
 
 use koebi_core::{Color, Oklch, Rect, Vec2};
 use koebi_design::kind::Color as ColorKind;
@@ -147,6 +150,8 @@ pub(crate) struct Gallery {
     grid: Vec<bool>,
     /// The values of the buttons panel.
     buttons: buttons::Buttons,
+    /// The values and menus of the menus panel.
+    menus: menus::Menus,
     /// The color vision dropdown's menu.
     vision_menu: MenuState,
     /// How far the gallery is scrolled when its area is too small for it.
@@ -162,6 +167,7 @@ impl Gallery {
             sheet: Sheet::default(),
             grid: Vec::new(),
             buttons: buttons::Buttons::new(),
+            menus: menus::Menus::new(),
             vision_menu: MenuState::new(),
             scroll: ScrollState::new(),
         }
@@ -208,9 +214,10 @@ impl Gallery {
             sheet + gap + tokens
         };
         let buttons = metrics.panel_height(ui, buttons::ROWS);
+        let menus = metrics.panel_height(ui, menus::ROWS);
         let vision = metrics.panel_height(ui, 1);
         let grid = metrics.panel_height(ui, 6);
-        2.0 * gap + cards + gap + top + gap + buttons + gap + vision + gap + grid
+        2.0 * gap + cards + gap + top + gap + buttons + gap + menus + gap + vision + gap + grid
     }
 
     /// Lays the gallery out in `area`, its full size.
@@ -250,6 +257,12 @@ impl Gallery {
             metrics.gap,
         );
         self.buttons.show(ui, buttons, metrics);
+        let menus = cut_top(
+            &mut rest,
+            metrics.panel_height(ui, menus::ROWS),
+            metrics.gap,
+        );
+        self.menus.show(ui, menus, window, metrics);
         let vision = cut_top(&mut rest, vision_height, metrics.gap);
         editor::color_vision(ui, design, vision, metrics, &mut self.vision_menu, window);
         self.grid(ui, design, rest, metrics);
@@ -455,10 +468,12 @@ mod tests {
             "{} grid cells",
             gallery.grid.len()
         );
+        // Every cell of the grid draws at least one rectangle, besides the other panels.
         assert!(
-            scene.rect_count() > 600,
-            "{} rectangles",
-            scene.rect_count()
+            scene.rect_count() > gallery.grid.len() + 100,
+            "{} rectangles for {} grid cells",
+            scene.rect_count(),
+            gallery.grid.len()
         );
         assert_eq!(design.revision(), revision, "drawing alone changes nothing");
         // Narrow windows stack the panels.
