@@ -19,6 +19,8 @@ mod gallery;
 mod messages;
 mod options;
 mod overlay;
+mod preferences;
+mod saved;
 
 pub use koebi_platform::exit_code;
 pub use options::{Options, ParseError};

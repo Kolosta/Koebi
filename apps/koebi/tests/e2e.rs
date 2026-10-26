@@ -288,3 +288,61 @@ fn imported_themes_are_saved_and_exports_written() {
         second.stderr
     );
 }
+
+#[test]
+fn the_workspace_and_shortcuts_survive_a_restart() {
+    let dir = data_dir("e2e-workspace");
+    let dir_arg = dir.to_str().expect("the target directory has a UTF-8 path");
+    let first = run_koebi(
+        &["--frames", "3", "--data-dir", dir_arg],
+        Duration::from_secs(120),
+    );
+    if first.code == Some(exit_code::UNSUPPORTED) && !koebi_testkit::require_gpu() {
+        eprintln!("SKIPPED: no display or Vulkan driver\n{}", first.stderr);
+        return;
+    }
+    assert_eq!(first.code, Some(exit_code::SUCCESS), "{}", first.stderr);
+    let workspace = dir.join("workspace.txt");
+    let saved = std::fs::read_to_string(&workspace).expect("the workspace is saved on exit");
+    assert!(saved.contains("editor 0 gallery"), "{saved}");
+
+    // The user's changes, as a later session would have saved them.
+    std::fs::write(
+        &workspace,
+        saved.replace("editor 0 gallery", "editor 0 timeline"),
+    )
+    .expect("write the workspace");
+    std::fs::write(
+        dir.join("shortcuts.txt"),
+        format!("{}\nviewport.view-all = F\n", koebi_input::HEADER),
+    )
+    .expect("write the shortcuts");
+    let second = run_koebi(
+        &["--frames", "3", "--data-dir", dir_arg],
+        Duration::from_secs(120),
+    );
+    assert_eq!(second.code, Some(exit_code::SUCCESS), "{}", second.stderr);
+    assert!(
+        second.stderr.contains("workspace restored from") && second.stderr.contains("(4 areas)"),
+        "{}",
+        second.stderr
+    );
+    assert!(
+        second.stderr.contains("shortcuts restored from"),
+        "{}",
+        second.stderr
+    );
+    // Nothing changed during the session: nothing is written again.
+    assert!(
+        !second.stderr.contains("workspace saved to"),
+        "{}",
+        second.stderr
+    );
+    assert!(
+        !second.stderr.contains("shortcuts saved to"),
+        "{}",
+        second.stderr
+    );
+    let kept = std::fs::read_to_string(&workspace).expect("read the workspace");
+    assert!(kept.contains("editor 0 timeline"), "{kept}");
+}

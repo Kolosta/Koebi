@@ -33,6 +33,22 @@ own context inside it, which gives the list's keys (arrows, Ctrl+A) to every lis
 key may mean something else in another template (keypad + zooms a viewport, unfolds an
 outliner). The ctrl shortcuts use Command on Apple platforms.
 
+## Saved workspace and shortcuts
+
+The areas, the editors of each area and each editor's kind are saved in `workspace.txt`, and
+the shortcuts that differ from their defaults in `shortcuts.txt`, next to `design.kds` in the
+data directory ([Gallery](../design-system/gallery.md#saved-state)). The workspace is saved a
+second after the last change (one write per pause while a gutter drags); both files are
+saved when the application goes to the background or quits, only when they changed. Each
+write goes to a temporary file, flushed, then renamed over the file, whose previous version
+stays as `.bak`; a damaged or missing file falls back to its backup.
+
+Both files are text keyed by stable names: kinds (`gallery`, `viewport`, `outliner`, `info`,
+`timeline`) and action identifiers (`viewport.view-all = F`). Lines a version of Koebi does
+not know are skipped with a warning, so files survive code changes; a layout that does not
+tile the window is refused and the default workspace opens. Editors' views (scrolling, folds,
+zoom) are not saved yet.
+
 ## Messages
 
 `messages::install` puts a log sink in front of the platform's (stderr, logcat): it keeps

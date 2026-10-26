@@ -76,7 +76,9 @@ application `Koebi`:
 | macOS | `~/Library/Application Support/Kolosta/Koebi/` |
 | Android, iOS | the application's private storage |
 
-Delete the file to return to the built-in themes.
+Delete the file to return to the built-in themes. The same directory holds the workspace
+(`workspace.txt`) and the shortcut overrides (`shortcuts.txt`), described in
+[Editors](../development/editors.md#saved-workspace-and-shortcuts).
 
 ## Command line
 

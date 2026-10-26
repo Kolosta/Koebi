@@ -1,5 +1,6 @@
 //! The application state machine: SDL callbacks in, frames out.
 
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use koebi_core::{Extent, Rect, Vec2};
@@ -27,6 +28,7 @@ use crate::editors::{self, Content, Editors, Host};
 use crate::frame_times::FrameTimes;
 use crate::options::Options;
 use crate::overlay::Overlay;
+use crate::preferences::Preferences;
 
 /// Everything Vulkan. Declared before the window in [`KoebiApp`] so that it drops first:
 /// surfaces must be destroyed before their native window.
@@ -199,6 +201,8 @@ struct Interface {
     design: DesignSystem,
     /// `None` without a place to save to: changes then last until the application quits.
     store: Option<Store>,
+    /// The saved workspace and shortcuts, `None` without a place to save to.
+    preferences: Option<Preferences>,
     styles: StyleCache,
     state: UiState,
     input: Input,
@@ -228,7 +232,10 @@ impl Interface {
         let mut design = DesignSystem::new(&koebi_tokens::KOEBI).map_err(|error| {
             AppError::new(exit_code::FAILURE, format!("design system: {error}"))
         })?;
-        let mut store = open_store(context, options, &mut design);
+        let directory = data_directory(context, options);
+        let mut store = directory
+            .as_deref()
+            .map(|directory| open_store(directory, &mut design));
         design_options::apply(&mut design, options)
             .map_err(|message| AppError::new(exit_code::USAGE, message))?;
         koebi_core::info!("{}", design_options::summary(&design));
@@ -239,15 +246,23 @@ impl Interface {
         }
         design_options::export(&design, options)
             .map_err(|message| AppError::new(exit_code::FAILURE, message))?;
-        let keymap = Keymap::new(&actions::GROUPS)
+        let mut keymap = Keymap::new(&actions::GROUPS)
             .map_err(|error| AppError::new(exit_code::FAILURE, format!("shortcuts: {error}")))?;
         let mut state = UiState::new();
         state.set_fonts(fonts.clone());
-        let (workspace, editors) = editors::default_workspace();
+        let mut preferences = directory.as_deref().map(Preferences::new);
+        let (workspace, editors) = preferences
+            .as_mut()
+            .and_then(Preferences::load_workspace)
+            .unwrap_or_else(editors::default_workspace);
+        if let Some(preferences) = &mut preferences {
+            preferences.load_shortcuts(&mut keymap);
+        }
         Ok(Self {
             styles: StyleCache::new(&design),
             design,
             store,
+            preferences,
             state,
             input: Input::new(),
             workspace,
@@ -392,6 +407,10 @@ impl Interface {
         self.store
             .as_ref()
             .is_some_and(|store| store.is_dirty(&self.design))
+            || self
+                .preferences
+                .as_ref()
+                .is_some_and(|preferences| preferences.is_dirty(&self.workspace, &self.editors))
     }
 
     /// Saves the design state once changes have settled: one write per pause while a slider
@@ -401,6 +420,9 @@ impl Interface {
             let result = store.save_if_due(&self.design, Instant::now());
             report_save(store, result);
         }
+        if let Some(preferences) = &mut self.preferences {
+            preferences.save_if_due(&self.workspace, &self.editors, Instant::now());
+        }
     }
 
     /// Saves now if anything changed: before quitting or going to the background.
@@ -409,21 +431,29 @@ impl Interface {
             let result = store.save(&self.design);
             report_save(store, result);
         }
+        if let Some(preferences) = &mut self.preferences {
+            preferences.save(&self.workspace, &self.editors, &self.keymap);
+        }
     }
 }
 
-/// Opens the store in the data directory and restores the saved state into `design`.
-fn open_store(context: &AppContext, options: &Options, design: &mut DesignSystem) -> Option<Store> {
-    let directory = match &options.data_dir {
-        Some(directory) => directory.clone(),
+/// Where the design state, the workspace and the shortcuts are saved: the command line's
+/// directory, else the platform's preferences directory; `None` when there is none.
+fn data_directory(context: &AppContext, options: &Options) -> Option<PathBuf> {
+    match &options.data_dir {
+        Some(directory) => Some(directory.clone()),
         None => match context.preferences_dir() {
-            Ok(directory) => directory,
+            Ok(directory) => Some(directory),
             Err(error) => {
                 koebi_core::warn!("no preferences directory ({error}): changes will not be saved");
-                return None;
+                None
             }
         },
-    };
+    }
+}
+
+/// Opens the store in `directory` and restores the saved state into `design`.
+fn open_store(directory: &Path, design: &mut DesignSystem) -> Store {
     let mut store = Store::new(directory);
     match store.load(design) {
         Ok(Some(report)) => {
@@ -438,7 +468,7 @@ fn open_store(context: &AppContext, options: &Options, design: &mut DesignSystem
             store.path().display()
         ),
     }
-    Some(store)
+    store
 }
 
 fn report_save(store: &Store, result: koebi_design::Result<bool>) {
