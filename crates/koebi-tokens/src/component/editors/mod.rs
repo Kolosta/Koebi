@@ -1,5 +1,5 @@
-//! Editors: zones and their tabs, viewports, edit handles, the outliner, lists and node
-//! graphs.
+//! Editors: zones and their tabs, viewports, edit handles, the outliner, lists, node graphs
+//! and the timeline.
 //!
 //! One module per component, each holding the component's token group. Each group starts
 //! where the previous one ends; `lib.rs` lists the groups in schema order.
@@ -14,6 +14,7 @@ mod node_cable;
 mod node_graph;
 mod node_port;
 mod outliner;
+mod timeline;
 mod tool_palette;
 mod viewport;
 mod zone;
@@ -30,6 +31,7 @@ pub use node_cable::*;
 pub use node_graph::*;
 pub use node_port::*;
 pub use outliner::*;
+pub use timeline::*;
 pub use tool_palette::*;
 pub use viewport::*;
 pub use zone::*;

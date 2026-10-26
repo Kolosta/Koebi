@@ -1,21 +1,24 @@
 //! The application's editors: what each area of the workspace shows.
 //!
 //! Each editor keeps a state for every kind it has shown: switching its type and back finds
-//! it as it was. The gallery shows the component sheet; [`outliner`] and [`info`] are
-//! templates on the list and tree view; the viewport and the timeline are placeholders until
-//! their templates exist.
+//! it as it was. The gallery shows the component sheet; the other kinds are templates:
+//! [`viewport`] (a canvas that pans and zooms, rulers), [`outliner`] and [`info`] (on the list
+//! and tree view) and [`timeline`] (scrolling both ways).
 
 pub(crate) mod info;
 pub(crate) mod outliner;
+pub(crate) mod timeline;
+pub(crate) mod viewport;
 
 use koebi_core::Rect;
 use koebi_design::DesignSystem;
-use koebi_ui::{Align, EditorHost, ListItem, ListState, Ui, WidgetId};
+use koebi_ui::{BarLayout, EditorHost, ListItem, ListState, Ui, WidgetId};
 use koebi_workspace::{EditorId, GRID, Orientation, Workspace};
 
 use crate::gallery::Gallery;
 use crate::messages::Messages;
 use outliner::Tree;
+use timeline::Playhead;
 
 /// An empty vector of rows on the allocation of `items`: rows borrow the data they show for
 /// one frame, the allocation stays from frame to frame.
@@ -73,8 +76,10 @@ impl EditorKind {
 struct Entry {
     id: EditorId,
     kind: EditorKind,
+    viewport: viewport::View,
     outliner: ListState,
     info: ListState,
+    timeline: timeline::View,
 }
 
 impl Entry {
@@ -82,8 +87,10 @@ impl Entry {
         Self {
             id,
             kind,
+            viewport: viewport::View::default(),
             outliner: ListState::new(),
             info: ListState::new(),
+            timeline: timeline::View::default(),
         }
     }
 }
@@ -179,6 +186,8 @@ pub(crate) struct Content {
     pub(crate) tree: Tree,
     /// The messages the Info editors show.
     pub(crate) messages: Messages,
+    /// The frames the timelines show, and the current one.
+    pub(crate) playhead: Playhead,
     /// The rows of the list being drawn.
     items: Vec<ListItem<'static>>,
 }
@@ -189,6 +198,7 @@ impl Content {
             gallery: Gallery::new(),
             tree: Tree::template(),
             messages: Messages::new(),
+            playhead: Playhead::new(),
             items: Vec::new(),
         }
     }
@@ -249,12 +259,23 @@ impl EditorHost for Host<'_> {
                 &mut entry.info,
                 &mut content.items,
             ),
-            kind => {
-                // A placeholder: the editor's name in the middle of its area.
-                let styles = ui.styles();
-                let (font, color) = (styles.text.body.clone(), styles.text.secondary);
-                ui.label(kind.title(), rect, &font, color, Align::Center);
-            }
+            EditorKind::Viewport => viewport::show(ui, rect, self.design, &mut entry.viewport),
+            EditorKind::Timeline => timeline::show(
+                ui,
+                id,
+                rect,
+                self.design,
+                &mut content.playhead,
+                &mut entry.timeline,
+            ),
+        }
+    }
+
+    fn top_bar(&mut self, ui: &mut Ui<'_>, editor: EditorId, mut bar: BarLayout) {
+        let id = WidgetId::new("editor").with(u64::from(editor.get()));
+        let entry = self.editors.entry(editor);
+        if entry.kind == EditorKind::Viewport {
+            viewport::top_bar(ui, id, &mut entry.viewport, &mut bar);
         }
     }
 

@@ -114,6 +114,7 @@ const SCHEMA: Schema = Schema::new(
         component::NODE_BOX::GROUP,
         component::NODE_PORT::GROUP,
         component::NODE_CABLE::GROUP,
+        component::TIMELINE::GROUP,
     ],
     themes::BUILT_IN,
 );
