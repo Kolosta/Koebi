@@ -1,6 +1,7 @@
-//! [`Input`]: the pointer, the modifiers and the triggered actions as components see them
-//! during one frame.
+//! [`Input`]: the pointer, the modifiers, typed text and the triggered actions as components
+//! see them during one frame.
 
+use core::fmt;
 use core::time::Duration;
 
 use koebi_core::Vec2;
@@ -63,6 +64,52 @@ impl Actions {
     }
 }
 
+/// Text typed during a frame, kept inline so that input stays plain copyable data.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct Typed {
+    bytes: [u8; Typed::CAPACITY],
+    len: usize,
+}
+
+impl Typed {
+    /// More text between two frames is dropped: more than typing or an input method gives.
+    const CAPACITY: usize = 256;
+
+    /// Appends the whole characters of `text` that fit.
+    fn push(&mut self, text: &str) {
+        let room = Self::CAPACITY - self.len;
+        let mut end = text.len().min(room);
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        if end < text.len() {
+            koebi_core::debug!("typed text dropped: too much in one frame");
+        }
+        self.bytes[self.len..self.len + end].copy_from_slice(&text.as_bytes()[..end]);
+        self.len += end;
+    }
+
+    fn as_str(&self) -> &str {
+        // Whole characters copied from `&str`s.
+        core::str::from_utf8(&self.bytes[..self.len]).unwrap_or_default()
+    }
+}
+
+impl Default for Typed {
+    fn default() -> Self {
+        Self {
+            bytes: [0; Self::CAPACITY],
+            len: 0,
+        }
+    }
+}
+
+impl fmt::Debug for Typed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.as_str(), f)
+    }
+}
+
 /// The input of one frame, fed by the application from platform events and from the keymap.
 ///
 /// Positions are in logical pixels. Call [`Input::end_frame`] after each frame: presses,
@@ -73,8 +120,11 @@ impl Actions {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Input {
     pointer: Option<Vec2>,
+    /// How far the pointer moved during the frame, locked or not.
+    motion: Vec2,
     buttons: [ButtonState; 3],
     wheel: Vec2,
+    typed: Typed,
     modifiers: Modifiers,
     actions: Actions,
     /// When the frame is drawn, since a moment the application chose.
@@ -90,6 +140,17 @@ impl Input {
     /// The pointer moved to `position`.
     pub fn pointer_moved(&mut self, position: Vec2) {
         self.pointer = Some(position);
+    }
+
+    /// The pointer moved by `delta`: what a locked pointer reports while its position stays.
+    /// Motions add up until the frame ends.
+    pub fn pointer_moved_by(&mut self, delta: Vec2) {
+        self.motion += delta;
+    }
+
+    /// `text` was typed. Typed text adds up until the frame ends (up to 256 bytes a frame).
+    pub fn typed(&mut self, text: &str) {
+        self.typed.push(text);
     }
 
     /// The pointer left the window: nothing is under it any more.
@@ -159,7 +220,9 @@ impl Input {
     #[must_use]
     pub fn settled(&self) -> Self {
         let mut settled = Self {
+            motion: Vec2::ZERO,
             wheel: Vec2::ZERO,
+            typed: Typed::default(),
             actions: Actions::default(),
             ..*self
         };
@@ -221,7 +284,19 @@ impl Input {
                 .iter()
                 .any(|button| self.button_released(*button))
             || self.wheel != Vec2::ZERO
+            || self.typed.len > 0
             || self.actions.len > 0
+    }
+
+    /// How far the pointer moved since the last frame, in logical pixels: the drag of a
+    /// locked pointer.
+    pub fn motion(&self) -> Vec2 {
+        self.motion
+    }
+
+    /// The text typed since the last frame.
+    pub fn text(&self) -> &str {
+        self.typed.as_str()
     }
 
     /// The wheel turns since the last frame, in notches.
@@ -339,5 +414,23 @@ mod tests {
         assert_eq!(input.actions().count(), Actions::CAPACITY);
         input.end_frame();
         assert_eq!(input.actions().count(), 0);
+    }
+
+    #[test]
+    fn motion_and_typed_text_add_up_until_the_frame_ends() {
+        let mut input = Input::new();
+        input.pointer_moved_by(Vec2::new(2.0, -1.0));
+        input.pointer_moved_by(Vec2::new(3.0, 1.0));
+        input.typed("1.5");
+        input.typed("\u{b0}");
+        assert_eq!(input.motion(), Vec2::new(5.0, 0.0));
+        assert_eq!(input.text(), "1.5\u{b0}");
+        assert!(input.has_events());
+        input.end_frame();
+        assert_eq!((input.motion(), input.text()), (Vec2::ZERO, ""));
+        // Text past the capacity is dropped whole characters at a time.
+        input.typed(&"\u{e9}".repeat(200));
+        assert_eq!(input.text().len(), 256);
+        assert!(input.text().chars().all(|c| c == '\u{e9}'));
     }
 }

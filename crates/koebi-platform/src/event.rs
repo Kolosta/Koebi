@@ -2,7 +2,10 @@
 //!
 //! [`translate`] is a pure function of the SDL event (and of the modifier state SDL tracks,
 //! passed in), unit-tested from zeroed `SDL_Event`s. Pointer positions come out in SDL window
-//! coordinates; the event callback converts them to logical pixels with [`to_logical`].
+//! coordinates; the event callback converts them to logical pixels with [`to_logical`]. Typed
+//! text arrives in [`TextChunk`]s ([`text_input`]), so that events stay plain copyable data.
+
+use core::fmt;
 
 use koebi_core::input::{Key, Modifiers, MouseButton};
 use koebi_core::{Extent, Vec2};
@@ -10,11 +13,11 @@ use sdl3_sys::events::{
     SDL_EVENT_DID_ENTER_BACKGROUND, SDL_EVENT_DID_ENTER_FOREGROUND, SDL_EVENT_KEY_DOWN,
     SDL_EVENT_KEY_UP, SDL_EVENT_LOW_MEMORY, SDL_EVENT_MOUSE_BUTTON_DOWN, SDL_EVENT_MOUSE_BUTTON_UP,
     SDL_EVENT_MOUSE_MOTION, SDL_EVENT_MOUSE_WHEEL, SDL_EVENT_PINCH_BEGIN, SDL_EVENT_PINCH_END,
-    SDL_EVENT_PINCH_UPDATE, SDL_EVENT_QUIT, SDL_EVENT_TERMINATING, SDL_EVENT_WILL_ENTER_BACKGROUND,
-    SDL_EVENT_WILL_ENTER_FOREGROUND, SDL_EVENT_WINDOW_CLOSE_REQUESTED,
-    SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED, SDL_EVENT_WINDOW_EXPOSED,
-    SDL_EVENT_WINDOW_FOCUS_GAINED, SDL_EVENT_WINDOW_FOCUS_LOST, SDL_EVENT_WINDOW_MINIMIZED,
-    SDL_EVENT_WINDOW_MOUSE_ENTER, SDL_EVENT_WINDOW_MOUSE_LEAVE,
+    SDL_EVENT_PINCH_UPDATE, SDL_EVENT_QUIT, SDL_EVENT_TERMINATING, SDL_EVENT_TEXT_INPUT,
+    SDL_EVENT_WILL_ENTER_BACKGROUND, SDL_EVENT_WILL_ENTER_FOREGROUND,
+    SDL_EVENT_WINDOW_CLOSE_REQUESTED, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED,
+    SDL_EVENT_WINDOW_EXPOSED, SDL_EVENT_WINDOW_FOCUS_GAINED, SDL_EVENT_WINDOW_FOCUS_LOST,
+    SDL_EVENT_WINDOW_MINIMIZED, SDL_EVENT_WINDOW_MOUSE_ENTER, SDL_EVENT_WINDOW_MOUSE_LEAVE,
     SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED, SDL_EVENT_WINDOW_RESIZED, SDL_EVENT_WINDOW_RESTORED,
     SDL_Event, SDL_EventType,
 };
@@ -81,8 +84,12 @@ pub enum Event {
     MouseMotion {
         /// Window under the mouse.
         window: WindowId,
-        /// Position in logical pixels, the unit of the window's scene.
+        /// Position in logical pixels, the unit of the window's scene. It stays put while
+        /// the pointer is locked ([`crate::AppContext::lock_pointer`]).
         position: Vec2,
+        /// Motion since the previous motion event, in logical pixels, at the speed of the
+        /// system's pointer; it keeps coming while the pointer is locked.
+        delta: Vec2,
         /// Modifier keys held.
         modifiers: Modifiers,
     },
@@ -114,6 +121,15 @@ pub enum Event {
         /// Modifier keys held.
         modifiers: Modifiers,
     },
+    /// Text was typed while text input was on ([`crate::AppContext::start_text_input`]): a
+    /// character, a composed one, or what an input method committed. Longer text arrives as
+    /// several events, in order.
+    TextInput {
+        /// Window with keyboard focus.
+        window: WindowId,
+        /// The text.
+        text: TextChunk,
+    },
     /// A two-finger pinch on a touchpad or touch screen.
     Pinch {
         /// Window under the fingers.
@@ -124,6 +140,54 @@ pub enum Event {
         /// (1 for the begin and end phases).
         scale: f32,
     },
+}
+
+/// A piece of typed text: at most [`TextChunk::CAPACITY`] bytes of UTF-8, never cut inside a
+/// character.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TextChunk {
+    bytes: [u8; Self::CAPACITY],
+    len: u8,
+}
+
+impl TextChunk {
+    /// The most bytes a chunk holds.
+    pub const CAPACITY: usize = 32;
+
+    /// The text.
+    pub fn as_str(&self) -> &str {
+        // The bytes are whole characters copied from a `&str`.
+        core::str::from_utf8(&self.bytes[..usize::from(self.len)]).unwrap_or_default()
+    }
+}
+
+impl fmt::Debug for TextChunk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.as_str(), f)
+    }
+}
+
+/// Splits `text` into chunks, each as long as fits without cutting a character.
+pub(crate) fn text_chunks(text: &str) -> impl Iterator<Item = TextChunk> + '_ {
+    let mut rest = text;
+    core::iter::from_fn(move || {
+        if rest.is_empty() {
+            return None;
+        }
+        let mut end = rest.len().min(TextChunk::CAPACITY);
+        while !rest.is_char_boundary(end) {
+            end -= 1;
+        }
+        // A single character longer than a chunk cannot exist (4 bytes at most).
+        let (head, tail) = rest.split_at(end);
+        rest = tail;
+        let mut chunk = TextChunk {
+            bytes: [0; TextChunk::CAPACITY],
+            len: u8::try_from(head.len()).unwrap_or(0),
+        };
+        chunk.bytes[..head.len()].copy_from_slice(head.as_bytes());
+        Some(chunk)
+    })
 }
 
 /// The phase of a continuous gesture.
@@ -361,10 +425,12 @@ pub(crate) fn to_logical(event: Event, scale: f32) -> Event {
         Event::MouseMotion {
             window,
             position,
+            delta,
             modifiers,
         } => Event::MouseMotion {
             window,
             position: position * scale,
+            delta: delta * scale,
             modifiers,
         },
         Event::MouseButton {
@@ -435,6 +501,7 @@ pub(crate) fn translate(event: &SDL_Event, modifiers: Modifiers) -> Option<Event
         return Some(Event::MouseMotion {
             window: WindowId(motion.windowID.0),
             position: Vec2::new(motion.x, motion.y),
+            delta: Vec2::new(motion.xrel, motion.yrel),
             modifiers,
         });
     }
@@ -512,6 +579,24 @@ pub(crate) fn translate(event: &SDL_Event, modifiers: Modifiers) -> Option<Event
         window: WindowId(window.windowID.0),
         event: window_event,
     })
+}
+
+/// The window and text of a text input event, `None` for any other event (or text SDL left
+/// empty). The text is valid for the duration of the event callback.
+pub(crate) fn text_input(event: &SDL_Event) -> Option<(WindowId, &core::ffi::CStr)> {
+    // SAFETY: `type` is the common first member of every event variant.
+    if SDL_EventType(unsafe { event.r#type }) != SDL_EVENT_TEXT_INPUT {
+        return None;
+    }
+    // SAFETY: text input events use the `text` member.
+    let text = unsafe { event.text };
+    if text.text.is_null() {
+        return None;
+    }
+    // SAFETY: SDL passes a valid NUL-terminated UTF-8 string, alive during the callback that
+    // received `event`, which the returned borrow cannot outlive.
+    let string = unsafe { core::ffi::CStr::from_ptr(text.text) };
+    Some((WindowId(text.windowID.0), string))
 }
 
 #[cfg(test)]
@@ -716,6 +801,7 @@ mod tests {
         let motion = Event::MouseMotion {
             window,
             position: Vec2::new(400.0, 200.0),
+            delta: Vec2::new(2.0, 0.0),
             modifiers: Modifiers::NONE,
         };
         assert_eq!(to_logical(motion, 1.0), motion);
@@ -742,5 +828,62 @@ mod tests {
         let mut event = blank();
         event.r#type = sdl3_sys::events::SDL_EVENT_CLIPBOARD_UPDATE.0;
         assert_eq!(translate(&event, Modifiers::NONE), None);
+    }
+}
+
+#[cfg(test)]
+mod text_tests {
+    use super::*;
+
+    #[test]
+    fn text_input_events_carry_their_window_and_text() {
+        // SAFETY: `SDL_Event` is a C union of plain data for which all-zero bytes are valid.
+        let mut event: SDL_Event = unsafe { core::mem::zeroed() };
+        let typed = c"\u{e9}t\u{e9}";
+        event.text.r#type = SDL_EVENT_TEXT_INPUT;
+        event.text.windowID = sdl3_sys::video::SDL_WindowID(3);
+        event.text.text = typed.as_ptr();
+        let (window, text) = text_input(&event).expect("a text input event");
+        assert_eq!((window, text.to_str()), (WindowId(3), Ok("\u{e9}t\u{e9}")));
+        // Other events are not text.
+        event.r#type = SDL_EVENT_QUIT.0;
+        assert_eq!(text_input(&event), None);
+    }
+
+    #[test]
+    fn long_text_splits_into_chunks_between_characters() {
+        let text = "\u{4f60}\u{597d}".repeat(10);
+        let chunks: Vec<TextChunk> = text_chunks(&text).collect();
+        assert!(chunks.len() > 1);
+        assert!(
+            chunks
+                .iter()
+                .all(|chunk| chunk.as_str().len() <= TextChunk::CAPACITY)
+        );
+        let joined: String = chunks.iter().map(TextChunk::as_str).collect();
+        assert_eq!(joined, text);
+        assert_eq!(text_chunks("").count(), 0);
+        assert_eq!(format!("{:?}", text_chunks("a").next().unwrap()), "\"a\"");
+    }
+
+    #[test]
+    fn motion_carries_the_relative_motion_scaled_like_positions() {
+        // SAFETY: `SDL_Event` is a C union of plain data for which all-zero bytes are valid.
+        let mut event: SDL_Event = unsafe { core::mem::zeroed() };
+        event.motion.r#type = SDL_EVENT_MOUSE_MOTION;
+        event.motion.x = 10.0;
+        event.motion.y = 20.0;
+        event.motion.xrel = 3.0;
+        event.motion.yrel = -4.0;
+        let event = to_logical(translate(&event, Modifiers::NONE).expect("motion"), 0.5);
+        match event {
+            Event::MouseMotion {
+                position, delta, ..
+            } => {
+                assert_eq!(position, Vec2::new(5.0, 10.0));
+                assert_eq!(delta, Vec2::new(1.5, -2.0));
+            }
+            other => panic!("unexpected {other:?}"),
+        }
     }
 }

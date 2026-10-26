@@ -104,3 +104,18 @@ cargo xtask ios --release --device  # device build, ad-hoc signed
   of a silent crash.
 - **High DPI**: windows are created with high pixel density; the scale factor comes from SDL
   and is applied on the GPU.
+- **Pointer lock**: `AppContext::lock_pointer` puts the window in SDL's relative mouse mode:
+  the cursor disappears and stays put, and motion events keep reporting relative motion
+  (`Event::MouseMotion::delta`), scaled like the system's pointer
+  (`SDL_HINT_MOUSE_RELATIVE_SYSTEM_SCALE`), which is what drags of number fields follow. The
+  interface asks for it each frame (`Ui::lock_pointer`); the application locks the pointer,
+  stops moving the interface's pointer position meanwhile, and on release warps the cursor
+  back where the interface says (`AppContext::warp_pointer`). Touch screens have no cursor to
+  lock; the relative motion of the finger still comes.
+- **Text input**: `AppContext::start_text_input` turns on text events (`Event::TextInput`,
+  in chunks of at most 32 bytes so that events stay copyable) and shows the on-screen
+  keyboard on Android and iOS; the area given (`set_text_input_area`) places input method
+  windows. Input methods draw their own composition and candidate windows. The interface asks
+  for text input while a field edits (`Ui::text_input`) and reads the typed text from
+  `Input::text`.
+- **Clipboard**: `AppContext::clipboard_text` and `set_clipboard_text` (plain text).

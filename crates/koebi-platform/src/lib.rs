@@ -26,7 +26,7 @@ mod window;
 pub use app::{App, AppContext, AppControl, AppError, IterationRate, exit_code, run, run_sdl_main};
 pub use cursor::{Cursor, CursorId, CursorImage, SystemCursor};
 pub use error::PlatformError;
-pub use event::{Event, GesturePhase, WindowEvent};
+pub use event::{Event, GesturePhase, TextChunk, WindowEvent};
 pub use koebi_core::input::{Key, Modifiers, MouseButton};
 pub use vulkan::VulkanSupport;
 pub use window::{Window, WindowDesc, WindowId};
