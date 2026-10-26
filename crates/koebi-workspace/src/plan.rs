@@ -1,9 +1,10 @@
 //! Plans of joins and closes: what each area becomes, for the operation and its preview.
 //!
-//! A kept area extends across the area it absorbs when its side along their shared edge lies
-//! within the other's; the absorbed area's leftovers, and a closed area, are filled by the
-//! neighbours along one of their sides, which must cover that side exactly so that every area
-//! stays rectangular.
+//! A kept area extends across the area it absorbs, keeping only the stretch of their shared
+//! edge both cover: it shrinks along the edge where the two areas are not aligned and grows
+//! in the direction of the join. The leftovers of both areas outside that stretch, and a
+//! closed area, are filled by the neighbours along one of their sides, which must cover that
+//! side exactly so that every area stays rectangular.
 
 use crate::grid::{GridRect, Orientation, Side};
 use crate::layout::{AreaId, Layout, LayoutError, Result};
@@ -28,7 +29,8 @@ pub struct JoinPlan {
     pub removed: AreaId,
     /// The kept area's rectangle after the join.
     pub result: GridRect,
-    /// The removed area's leftovers, given to neighbours (none when the areas are aligned).
+    /// The leftovers of both areas outside the stretch of edge they share, given to
+    /// neighbours (none when the areas are aligned).
     pub fills: Vec<Fill>,
 }
 
@@ -59,39 +61,59 @@ pub(crate) fn join(layout: &Layout, kept: AreaId, removed: AreaId) -> Result<Joi
         })
         .ok_or(LayoutError::NotAdjacent)?;
     let orientation = side.orientation();
-    let (k_start, k_end) = k.span(orientation);
-    let (r_start, r_end) = r.span(orientation);
-    if k_start < r_start || k_end > r_end {
-        return Err(LayoutError::Unaligned);
-    }
-    // The kept area extends across the removed one, keeping its own extent along the edge.
-    let result = k.with_edge(side, r.edge(side));
-    // Leftovers before and after the kept area along the shared edge.
     let (before_side, after_side) = match orientation {
         Orientation::Vertical => (Side::Top, Side::Bottom),
         Orientation::Horizontal => (Side::Left, Side::Right),
     };
-    let leftovers = [
-        (r.with_edge(after_side, k_start), before_side),
-        (r.with_edge(before_side, k_end), after_side),
-    ];
-    let excluded = [kept, removed];
-    let mut fills = Vec::new();
-    for (piece, opposite) in leftovers {
-        if piece.is_empty() {
-            continue;
+    // The stretch of the shared edge both areas cover: the joined area's extent along it.
+    let (k_start, k_end) = k.span(orientation);
+    let (r_start, r_end) = r.span(orientation);
+    let (start, end) = (k_start.max(r_start), k_end.min(r_end));
+    let result = k
+        .with_edge(before_side, start)
+        .with_edge(after_side, end)
+        .with_edge(side, r.edge(side));
+    // What each area has before and after that stretch, with the side facing the other
+    // area's column: the kept area's leftovers face the removed one, and the other way round.
+    let mut leftovers = Vec::new();
+    for (rect, towards) in [(k, side), (r, side.opposite())] {
+        let (rect_start, rect_end) = rect.span(orientation);
+        if rect_start < start {
+            leftovers.push((rect.with_edge(after_side, start), before_side, towards));
         }
-        // Opposite the kept area first, then towards it, then the far side.
-        let preference = [opposite, side.opposite(), side];
+        if rect_end > end {
+            leftovers.push((rect.with_edge(before_side, end), after_side, towards));
+        }
+    }
+    let excluded = [kept, removed];
+    let mut fills: Vec<Fill> = Vec::new();
+    for (piece, away, towards) in leftovers {
+        // Away from the joined area first, then from the other area's column, then the far
+        // side.
+        let preference = [away, towards, towards.opposite()];
         let fill = fill(layout, piece, &preference, &excluded).ok_or(LayoutError::CannotFill)?;
+        // An area cannot grow in two directions at once.
+        let taken = |area: AreaId| {
+            fills
+                .iter()
+                .any(|other| other.areas.iter().any(|(id, _)| *id == area))
+        };
+        if fill.areas.iter().any(|(area, _)| taken(*area)) {
+            return Err(LayoutError::CannotFill);
+        }
         fills.push(fill);
     }
-    Ok(JoinPlan {
+    let plan = JoinPlan {
         kept,
         removed,
         result,
         fills,
-    })
+    };
+    // Whatever the neighbours, the outcome must still tile the grid.
+    let mut outcome = layout.clone();
+    outcome.apply_join(&plan);
+    outcome.check().map_err(|_| LayoutError::CannotFill)?;
+    Ok(plan)
 }
 
 pub(crate) fn close(layout: &Layout, area: AreaId) -> Result<ClosePlan> {

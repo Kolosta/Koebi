@@ -71,6 +71,18 @@ impl Harness {
         workspace
             .split(first, Orientation::Vertical, GRID / 2, 1)
             .unwrap();
+        Self::with(workspace)
+    }
+
+    /// The areas of `areas`, one editor each, laid out once.
+    fn tiled(areas: &[(u32, GridRect)]) -> Self {
+        let layout = Layout::from_areas(areas).unwrap();
+        let stacks: Vec<(u32, Vec<u32>, usize)> =
+            areas.iter().map(|(id, _)| (*id, vec![*id], 0)).collect();
+        Self::with(Workspace::from_saved(layout, &stacks).unwrap())
+    }
+
+    fn with(workspace: Workspace) -> Self {
         let mut state = UiState::new();
         state.set_fonts(koebi_text::Fonts::with_embedded());
         let mut harness = Self {
@@ -345,12 +357,13 @@ fn the_join_preview_removes_the_area_under_the_pointer() {
     harness.input.primary_button(false, Vec2::new(1.0, 1.0));
     harness.frame();
     assert_eq!(harness.areas().len(), 2);
-    // Over the right area: it goes, into the left one; the arrow points left.
+    // Over the right area: it goes, into the left one; the arrow points the way the left
+    // area grows, towards the right one (#99).
     let target = Vec2::new(600.0, 300.0);
     harness.input.pointer_moved(target);
     harness.frame();
     harness.frame();
-    assert_eq!(harness.state.cursor(), CursorShape::ArrowLeft);
+    assert_eq!(harness.state.cursor(), CursorShape::ArrowRight);
     harness.input.primary_button(true, target);
     harness.frame();
     assert_eq!(harness.areas(), [GridRect::FULL]);
@@ -612,4 +625,92 @@ fn the_editor_type_dropdown_changes_the_kind() {
     harness.input.primary_button(false, second);
     harness.frame();
     assert_eq!(harness.host.set, [(left_editor, 1)]);
+}
+
+/// Moves the pointer to `to` with the button held since `from`, and lays out a frame.
+fn hold_at(harness: &mut Harness, from: Vec2, to: Vec2) {
+    harness.input.pointer_moved(from);
+    harness.frame();
+    harness.input.primary_button(true, from);
+    harness.frame();
+    harness.input.pointer_moved((from + to) * 0.5);
+    harness.frame();
+    harness.input.pointer_moved(to);
+    harness.frame();
+    harness.frame();
+}
+
+#[test]
+fn corner_drags_point_where_the_area_grows_and_refuse_elsewhere() {
+    // #99: three columns; a drag from the left column's corner.
+    let (third, two_thirds) = (GRID / 3, 2 * (GRID / 3));
+    let mut harness = Harness::tiled(&[
+        (0, GridRect::new(0, 0, third, GRID)),
+        (1, GridRect::new(third, 0, two_thirds, GRID)),
+        (2, GridRect::new(two_thirds, 0, GRID, GRID)),
+    ]);
+    // The top-right corner of the left column, within the top bar's padding.
+    let corner = Vec2::new(2.0 + 800.0 / 3.0 - 6.0, 6.0);
+    // Into the middle column: the left one grows right.
+    hold_at(&mut harness, corner, Vec2::new(400.0, 300.0));
+    assert_eq!(harness.state.cursor(), CursorShape::ArrowRight);
+    // Over the right column, not adjacent: nothing can happen there.
+    harness.input.pointer_moved(Vec2::new(700.0, 300.0));
+    harness.frame();
+    harness.frame();
+    assert_eq!(harness.state.cursor(), CursorShape::NotAllowed);
+    // Outside every area as well.
+    harness.input.pointer_moved(Vec2::new(1.0, 300.0));
+    harness.frame();
+    harness.frame();
+    assert_eq!(harness.state.cursor(), CursorShape::NotAllowed);
+    harness.input.primary_button(false, Vec2::new(1.0, 300.0));
+    harness.frame();
+    assert_eq!(harness.areas().len(), 3);
+}
+
+#[test]
+fn a_corner_drag_joins_areas_that_only_partly_share_an_edge() {
+    // #98: A (top left, two thirds high) and D (bottom right, two thirds high) share the
+    // middle third of the line between the columns.
+    let (third, two_thirds) = (GRID / 3, 2 * (GRID / 3));
+    let mut harness = Harness::tiled(&[
+        (0, GridRect::new(0, 0, GRID / 2, two_thirds)),
+        (1, GridRect::new(0, two_thirds, GRID / 2, GRID)),
+        (2, GridRect::new(GRID / 2, 0, GRID, third)),
+        (3, GridRect::new(GRID / 2, third, GRID, GRID)),
+    ]);
+    // A's bottom-right corner, into D.
+    let corner = Vec2::new(396.0, 2.0 + 400.0 - 6.0);
+    hold_at(&mut harness, corner, Vec2::new(600.0, 350.0));
+    assert_eq!(harness.state.cursor(), CursorShape::ArrowRight);
+    // The preview darkens both leftovers: four translucent pieces and an outline at least.
+    let preview = harness.frame();
+    assert!(preview.rect_count() >= 5);
+    harness.input.primary_button(false, Vec2::new(600.0, 350.0));
+    harness.frame();
+    assert_eq!(
+        harness.areas(),
+        [
+            GridRect::new(0, third, GRID, two_thirds),
+            GridRect::new(0, two_thirds, GRID, GRID),
+            GridRect::new(0, 0, GRID, third),
+        ]
+    );
+    assert_eq!(harness.host.removed, [EditorId::from_saved(3)]);
+    harness.workspace.check().unwrap();
+}
+
+#[test]
+fn the_area_menu_offers_to_join_partly_aligned_areas() {
+    let (third, two_thirds) = (GRID / 3, 2 * (GRID / 3));
+    let layout = Layout::from_areas(&[
+        (0, GridRect::new(0, 0, GRID / 2, two_thirds)),
+        (1, GridRect::new(0, two_thirds, GRID / 2, GRID)),
+        (2, GridRect::new(GRID / 2, 0, GRID, third)),
+        (3, GridRect::new(GRID / 2, third, GRID, GRID)),
+    ])
+    .unwrap();
+    let (a, d) = (AreaId::from_saved(0), AreaId::from_saved(3));
+    assert!(layout.plan_join(a, d).is_ok() && layout.plan_join(d, a).is_ok());
 }

@@ -1,6 +1,6 @@
 # 0015. Workspace layout: areas tiling an integer grid, edited by lines, joins that fill gaps
 
-- Status: Accepted
+- Status: Accepted, join item superseded by [0016](0016-partial-joins.md)
 - Date: 2026-10-25
 - Deciders: @Kolosta
 
