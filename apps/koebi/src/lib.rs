@@ -16,6 +16,7 @@ mod design_options;
 mod editors;
 mod frame_times;
 mod gallery;
+mod messages;
 mod options;
 mod overlay;
 
@@ -26,6 +27,7 @@ pub use options::{Options, ParseError};
 ///
 /// Entry point for desktop and iOS (`src/main.rs`).
 pub fn run() -> i32 {
+    messages::install();
     koebi_platform::run::<app::KoebiApp>()
 }
 
@@ -40,6 +42,7 @@ pub unsafe extern "C" fn SDL_main(
     argc: std::ffi::c_int,
     argv: *mut *mut std::ffi::c_char,
 ) -> std::ffi::c_int {
+    messages::install();
     // SAFETY: SDL's Java glue passes valid arguments (contract of this function).
     unsafe { koebi_platform::run_sdl_main::<app::KoebiApp>(argc, argv) }
 }

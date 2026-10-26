@@ -172,7 +172,7 @@ pub fn __private_log(level: Level, target: &str, args: fmt::Arguments<'_>) {
         args,
         elapsed: start.elapsed(),
     };
-    let sink = SINK.get().copied().unwrap_or(default_sink);
+    let sink = SINK.get().copied().unwrap_or(platform_sink);
     sink(&record);
 }
 
@@ -195,13 +195,17 @@ pub fn stderr_sink(record: &Record<'_>) {
     if writeln!(std::io::stderr().lock(), "{line}").is_err() {}
 }
 
+/// The platform's sink, used when no other is installed: stderr, logcat on Android. A sink
+/// that keeps records (to show them in the interface) passes them on to it.
 #[cfg(not(target_os = "android"))]
-fn default_sink(record: &Record<'_>) {
+pub fn platform_sink(record: &Record<'_>) {
     stderr_sink(record);
 }
 
+/// The platform's sink, used when no other is installed: stderr, logcat on Android. A sink
+/// that keeps records (to show them in the interface) passes them on to it.
 #[cfg(target_os = "android")]
-fn default_sink(record: &Record<'_>) {
+pub fn platform_sink(record: &Record<'_>) {
     android::logcat_sink(record);
 }
 

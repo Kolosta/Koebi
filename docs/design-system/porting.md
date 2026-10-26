@@ -318,3 +318,28 @@ New component tokens for the workspace (#72), scroll areas (#71) and lists (#73)
 - `component.drop-target.border.color.default` → `semantic.background.drop-target.default`
 
 </details>
+
+New component tokens for the viewport and timeline templates (#76) (18):
+
+<details><summary>show</summary>
+
+- `component.viewport.grid.color` → `semantic.border.color.tree-line.default`
+- `component.viewport.grid.spacing` = 24 px
+- `component.viewport.page.background` → `semantic.static.text.color.white`
+- `component.viewport.ruler.size` = 20 px
+- `component.viewport.ruler.background` → `semantic.background.raised.default`
+- `component.viewport.ruler.tick` → `semantic.border.color.default`
+- `component.viewport.ruler.label` → `semantic.text.color.secondary.default`
+- `component.viewport.zoom-step` = 1.25
+- `component.timeline.ruler.height` → `semantic.size.control-height`
+- `component.timeline.ruler.background` → `semantic.background.raised.default`
+- `component.timeline.ruler.tick` → `semantic.border.color.default`
+- `component.timeline.ruler.label` → `semantic.text.color.secondary.default`
+- `component.timeline.playhead.color` → `semantic.background.accent.default`
+- `component.timeline.playhead.label` → `semantic.static.text.color.white`
+- `component.timeline.keyframe.color` → `semantic.icon.color.secondary.default`
+- `component.timeline.keyframe.size` = 8 px
+- `component.timeline.frame.width` = 12 px
+- `component.timeline.range.dim` → `semantic.background.dim.default`
+
+</details>

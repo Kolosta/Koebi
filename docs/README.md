@@ -48,6 +48,7 @@ you work on.
 - [Testing](development/testing.md): test levels, GPU tests, golden images.
 - [Actions and shortcuts](development/actions-and-shortcuts.md): declaring actions, when they
   run, modal conventions, input settings.
+- [Editors](development/editors.md): kinds and their state, templates, their shortcuts.
 - [CI/CD](development/ci-cd.md): workflows, required checks, releases, artifacts.
 - [Platforms](development/platforms.md): building and running on each platform.
 - [GitHub setup](development/github-setup.md): branch protection, labels, security features.
