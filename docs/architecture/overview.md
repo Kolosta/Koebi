@@ -87,11 +87,13 @@ presenter (swapchain and surface) on `WillEnterBackground` and recreates it on
 ## One frame
 
 1. The app rebuilds the `Scene` (logical pixels; `Scene::clear` keeps its allocations).
+   Primitives go to numbered layers (the base, floating menus, overlays): layers draw in
+   increasing order, each in insertion order, so a menu covers what is pushed after it.
 2. `Presenter::render` waits for the frame slot's fence (frame *N - 2*), releases deferred
    garbage, acquires a swapchain image and opens a command buffer.
 3. `Renderer2D::render` uploads instance data into the slot's streaming buffers, begins a
    dynamic rendering pass cleared to the scene's background and records one instanced draw per
-   primitive run.
+   primitive run, layer by layer.
 4. The presenter transitions the image for presentation, submits (signalling the image's
    `render_finished` semaphore and the slot fence) and presents.
 

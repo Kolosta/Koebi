@@ -270,10 +270,16 @@ impl<'a> Ui<'a> {
         self.layer
     }
 
-    /// Draws with `add` on `layer`, above or below what the current layer holds.
+    /// Draws with `add` on `layer`, above or below what the current layer holds, whatever the
+    /// drawing order: the scene draws its layers in order. A layer starts outside the clips in
+    /// force: a menu opened from an area is not limited to it.
     pub fn on_layer<R>(&mut self, layer: Layer, add: impl FnOnce(&mut Self) -> R) -> R {
         let previous = core::mem::replace(&mut self.layer, layer);
+        let clip = self.clip.take();
+        self.scene.push_layer(layer.0);
         let result = add(self);
+        self.scene.pop_layer();
+        self.clip = clip;
         self.layer = previous;
         result
     }
@@ -460,6 +466,13 @@ impl Drop for Ui<'_> {
                     .and_then(|point| state.current.cursor_at(point))
             })
             .unwrap_or_default();
+        // A frame that handled a press, a release, the wheel or an action may have changed
+        // what parts drawn before the change show (a menu choice applied after the area that
+        // shows it): it is drawn once more at once (#104).
+        if self.input.has_events() {
+            let now = self.input.time();
+            state.redraw_at = Some(state.redraw_at.map_or(now, |at| at.min(now)));
+        }
         // The regions and grabs of this frame decide where the next one's input goes.
         core::mem::swap(&mut state.previous, &mut state.current);
         core::mem::swap(&mut state.grabs, &mut state.grabbing);

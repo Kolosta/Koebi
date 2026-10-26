@@ -9,12 +9,13 @@ mod common;
 use common::{assert_pixel, render};
 use koebi_core::{Color, Extent, Rect, Vec2};
 use koebi_design::{ColorVision, Deficiency, DesignSystem, Scope};
+use koebi_render::RectPrimitive;
 use koebi_render::Scene;
 use koebi_testkit::gpu_or_skip;
 use koebi_tokens::{KOEBI, component, semantic};
 use koebi_ui::{
-    Input, ListItem, ListOptions, ListState, PanelLevel, Styles, ThemePreview, Ui, UiState,
-    WidgetId,
+    Input, ListItem, ListOptions, ListState, MenuItem, MenuState, PanelLevel, Styles, ThemePreview,
+    Ui, UiState, WidgetId,
 };
 
 const SIZE: Extent = Extent::new(200, 100);
@@ -312,5 +313,36 @@ fn list_rows_alternate_zebra_colors_and_show_the_selection() {
     let image = render(&gpu, SIZE, &scene(&design, &mut list));
     assert_pixel(&image, 150, 30, red.to_rgba8());
     assert_pixel(&image, 150, 10, even.to_rgba8());
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn menus_cover_what_is_drawn_after_them() {
+    let Some(gpu) = gpu_or_skip("menus_cover_what_is_drawn_after_them") else {
+        return;
+    };
+    // Regression test for #102: a menu opened from a top bar used to draw under the areas
+    // drawn after it.
+    let design = design();
+    let mut menu = MenuState::new();
+    menu.open_at(Vec2::new(10.0, 10.0));
+    let items = [MenuItem::action(""), MenuItem::action("")];
+    let red = Color::from_rgba8(200, 30, 90, 255);
+    let scene = draw(&design, |ui| {
+        ui.menu(
+            WidgetId::new("menu"),
+            &mut menu,
+            &items,
+            rect(0.0, 0.0, 200.0, 100.0),
+        );
+        // An area drawn after the menu, over the whole window.
+        ui.scene()
+            .push_rect(&RectPrimitive::new(rect(0.0, 0.0, 200.0, 100.0), red));
+    });
+    let image = render(&gpu, SIZE, &scene);
+    // The menu has no labels: it is narrow, from x = 10 to about 36.
+    let background = design.get(component::MENU_BACKGROUND_COLOR_DEFAULT);
+    assert_pixel(&image, 18, 24, background.to_rgba8());
+    assert_pixel(&image, 150, 80, red.to_rgba8());
     gpu.assert_no_validation_errors();
 }

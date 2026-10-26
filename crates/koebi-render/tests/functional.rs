@@ -8,7 +8,7 @@ mod common;
 
 use common::{assert_pixel, render};
 use koebi_core::{Color, Extent, Rect, Vec2};
-use koebi_render::{LinePrimitive, RectPrimitive, Scene};
+use koebi_render::{Corners, LinePrimitive, RectPrimitive, Scene, Sides};
 use koebi_testkit::gpu_or_skip;
 
 const BACKGROUND: Color = Color::from_rgba8(16, 32, 48, 255);
@@ -266,5 +266,75 @@ fn clips_cut_primitives_exactly_at_their_edges() {
             }
         }
     }
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn each_corner_takes_its_own_radius() {
+    let Some(gpu) = gpu_or_skip("each_corner_takes_its_own_radius") else {
+        return;
+    };
+    // Only the top-left and bottom-right corners are rounded, by 8 pixels.
+    let radii = Corners {
+        top_left: 8.0,
+        top_right: 0.0,
+        bottom_right: 8.0,
+        bottom_left: 0.0,
+    };
+    let scene =
+        scene_with(
+            &[RectPrimitive::new(rect(0.0, 0.0, 32.0, 32.0), FILL).with_corner_radii(radii)],
+        );
+    let image = render(&gpu, Extent::new(32, 32), 1.0, &scene);
+    // The rounded corners' outermost pixels are outside the arc; the square ones are filled.
+    assert_pixel(&image, 0, 0, BACKGROUND.to_rgba8(), 1);
+    assert_pixel(&image, 31, 31, BACKGROUND.to_rgba8(), 1);
+    assert_pixel(&image, 31, 0, FILL.to_rgba8(), 1);
+    assert_pixel(&image, 0, 31, FILL.to_rgba8(), 1);
+    assert_pixel(&image, 16, 16, FILL.to_rgba8(), 1);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn borders_take_a_width_per_side() {
+    let Some(gpu) = gpu_or_skip("borders_take_a_width_per_side") else {
+        return;
+    };
+    // A 2-pixel border at the bottom, 1 pixel on the left, none at the top and right.
+    let widths = Sides {
+        top: 0.0,
+        right: 0.0,
+        bottom: 2.0,
+        left: 1.0,
+    };
+    let scene = scene_with(&[
+        RectPrimitive::new(rect(4.0, 4.0, 24.0, 24.0), FILL).with_border_widths(widths, STROKE)
+    ]);
+    let image = render(&gpu, Extent::new(32, 32), 1.0, &scene);
+    assert_pixel(&image, 16, 4, FILL.to_rgba8(), 1);
+    assert_pixel(&image, 27, 16, FILL.to_rgba8(), 1);
+    assert_pixel(&image, 16, 26, STROKE.to_rgba8(), 1);
+    assert_pixel(&image, 16, 27, STROKE.to_rgba8(), 1);
+    assert_pixel(&image, 16, 25, FILL.to_rgba8(), 1);
+    assert_pixel(&image, 4, 16, STROKE.to_rgba8(), 1);
+    assert_pixel(&image, 5, 16, FILL.to_rgba8(), 1);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn higher_layers_cover_what_the_base_draws_later() {
+    let Some(gpu) = gpu_or_skip("higher_layers_cover_what_the_base_draws_later") else {
+        return;
+    };
+    // Regression test for #102: a menu pushed before the areas drawn after it still covers
+    // them.
+    let mut scene = scene_with(&[]);
+    scene.push_layer(1);
+    scene.push_rect(&RectPrimitive::new(rect(4.0, 4.0, 8.0, 8.0), STROKE));
+    scene.pop_layer();
+    scene.push_rect(&RectPrimitive::new(rect(0.0, 0.0, 16.0, 16.0), FILL));
+    let image = render(&gpu, Extent::new(16, 16), 1.0, &scene);
+    assert_pixel(&image, 8, 8, STROKE.to_rgba8(), 1);
+    assert_pixel(&image, 1, 1, FILL.to_rgba8(), 1);
     gpu.assert_no_validation_errors();
 }
