@@ -1,6 +1,7 @@
 # 0011. Token-driven components: typed styles and immediate-mode interaction
 
-- Status: Accepted
+- Status: Accepted, hit testing superseded by [0013](0013-layered-hit-testing.md), components as
+  `Ui` methods superseded by builders in [0017](0017-component-library.md)
 - Date: 2026-10-25
 - Deciders: @Kolosta
 

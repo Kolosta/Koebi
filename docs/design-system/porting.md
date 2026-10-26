@@ -13,7 +13,7 @@ Koebi's token set comes from the previous C++ application (`TokenSchema.cpp`): t
 | Koebi token definitions | 1463 |
 | Koebi tokens, typography fields included | 1547 |
 
-Koebi has added tokens since the port; they are listed in [Added after the port](#added-after-the-port).
+Koebi has added tokens since the port; they are listed in [Added after the port](#added-after-the-port). A few ported tokens point elsewhere since; they are listed in [Changed after the port](#changed-after-the-port).
 
 Every source token not listed below is ported with the same path, the same value or the same alias, and the same per-theme aliases.
 
@@ -343,3 +343,112 @@ New component tokens for the viewport and timeline templates (#76) (18):
 - `component.timeline.range.dim` → `semantic.background.dim.default`
 
 </details>
+
+New component tokens for buttons, button groups, toggle buttons and checkboxes (#108, #111):
+the states every button, toggle and checkbox has (hovered and pressed borders, selected,
+disabled), their metrics, the colored variants, the color families and the group borders (89):
+
+<details><summary>show</summary>
+
+- `component.button.border.color.hover` → `semantic.border.color.strong.default`
+- `component.button.border.color.pressed` → `semantic.border.color.strong.default`
+- `component.button.background.color.selected` → `semantic.background.accent.default`
+- `component.button.background.color.selected-hover` → `semantic.background.accent.hover`
+- `component.button.label.color.selected` → `semantic.static.text.color.white`
+- `component.button.border.color.selected` → `semantic.border.color.accent.default`
+- `component.button.background.color.disabled` → `semantic.background.app.control`
+- `component.button.label.color.disabled` → `semantic.text.color.disabled.default`
+- `component.button.border.color.disabled` → `semantic.border.color.disabled.default`
+- `component.button.height.default` → `semantic.size.control-height`
+- `component.button.min-width.default` → `semantic.size.control-height`
+- `component.button.padding.horizontal.default` = 8 px
+- `component.button.gap.default` = 4 px
+- `component.button.status-dot.size.default` = 6 px
+- `component.button.accent.background.color.default` → `semantic.background.accent.default`
+- `component.button.accent.background.color.hover` → `semantic.background.accent.hover`
+- `component.button.accent.background.color.pressed` → `semantic.accent.color.800`
+- `component.button.accent.label.color.default` → `semantic.static.text.color.white`
+- `component.button.accent.border.color.default` → `semantic.border.color.accent.default`
+- `component.button.positive.background.color.default` → `semantic.background.positive.default`
+- `component.button.positive.background.color.hover` → `semantic.background.positive.hover`
+- `component.button.positive.background.color.pressed` → `semantic.positive.color.800`
+- `component.button.positive.label.color.default` → `semantic.static.text.color.white`
+- `component.button.positive.border.color.default` → `semantic.positive.color.500`
+- `component.button.negative.background.color.default` → `semantic.background.negative.default`
+- `component.button.negative.background.color.hover` → `semantic.background.negative.hover`
+- `component.button.negative.background.color.pressed` → `semantic.negative.color.800`
+- `component.button.negative.label.color.default` → `semantic.static.text.color.white`
+- `component.button.negative.border.color.default` → `semantic.border.color.negative.default`
+- `component.button.info.background.color.default` → `semantic.background.info.default`
+- `component.button.info.background.color.hover` → `semantic.background.info.hover`
+- `component.button.info.background.color.pressed` → `semantic.info.color.800`
+- `component.button.info.label.color.default` → `semantic.static.text.color.white`
+- `component.button.info.border.color.default` → `semantic.info.color.500`
+- `component.button.neutral.background.color.default` → `semantic.background.neutral.default`
+- `component.button.neutral.background.color.hover` → `semantic.background.neutral.hover`
+- `component.button.neutral.background.color.pressed` → `semantic.neutral.color.600`
+- `component.button.neutral.label.color.default` → `semantic.static.text.color.white`
+- `component.button.neutral.border.color.default` → `semantic.border.color.strong.default`
+- `component.button.notice.background.color.default` → `semantic.background.notice.default`
+- `component.button.notice.background.color.hover` → `semantic.notice.color.500`
+- `component.button.notice.background.color.pressed` → `semantic.notice.color.700`
+- `component.button.notice.label.color.default` → `semantic.static.text.color.black`
+- `component.button.notice.border.color.default` → `semantic.notice.color.500`
+- `component.button.shade.hover.lightness` = 0.06
+- `component.button.shade.pressed.lightness` = -0.05
+- `component.button.hue.disabled.tint` = 0.35
+- `component.button.hue.blue.fill` → `semantic.background.blue.default`
+- `component.button.hue.blue.subtle` → `semantic.background.blue.subtle.default`
+- `component.button.hue.blue.text` → `semantic.text.color.blue.default`
+- `component.button.hue.cyan.fill` → `semantic.background.cyan.default`
+- `component.button.hue.cyan.subtle` → `semantic.background.cyan.subtle.default`
+- `component.button.hue.cyan.text` → `semantic.text.color.cyan.default`
+- `component.button.hue.green.fill` → `semantic.background.green.default`
+- `component.button.hue.green.subtle` → `semantic.background.green.subtle.default`
+- `component.button.hue.green.text` → `semantic.text.color.green.default`
+- `component.button.hue.yellow.fill` → `semantic.background.yellow.default`
+- `component.button.hue.yellow.subtle` → `semantic.background.yellow.subtle.default`
+- `component.button.hue.yellow.text` → `semantic.text.color.yellow.default`
+- `component.button.hue.orange.fill` → `semantic.background.orange.default`
+- `component.button.hue.orange.subtle` → `semantic.background.orange.subtle.default`
+- `component.button.hue.orange.text` → `semantic.text.color.orange.default`
+- `component.button.hue.red.fill` → `semantic.background.red.default`
+- `component.button.hue.red.subtle` → `semantic.background.red.subtle.default`
+- `component.button.hue.red.text` → `semantic.text.color.red.default`
+- `component.button.hue.magenta.fill` → `semantic.background.magenta.default`
+- `component.button.hue.magenta.subtle` → `semantic.background.magenta.subtle.default`
+- `component.button.hue.magenta.text` → `semantic.text.color.magenta.default`
+- `component.button.hue.purple.fill` → `semantic.background.purple.default`
+- `component.button.hue.purple.subtle` → `semantic.background.purple.subtle.default`
+- `component.button.hue.purple.text` → `semantic.text.color.purple.default`
+- `component.button.group.border.width.default` → `semantic.border.width.thin`
+- `component.checkbox.border.color.hover` → `semantic.border.color.strong.default`
+- `component.checkbox.background.color.disabled` → `semantic.background.app.control`
+- `component.checkbox.border.color.disabled` → `semantic.border.color.disabled.default`
+- `component.checkbox.mark.color.disabled` → `semantic.text.color.disabled.default`
+- `component.checkbox.label.color.default` → `semantic.text.color.primary.default`
+- `component.checkbox.label.color.disabled` → `semantic.text.color.disabled.default`
+- `component.checkbox.description.color.default` → `semantic.text.color.secondary.default`
+- `component.checkbox.description.color.disabled` → `semantic.text.color.disabled.default`
+- `component.checkbox.gap.default` = 6 px
+- `component.checkbox.line-height.default` → `semantic.size.control-height`
+- `component.toggle.background.color.pressed` → `semantic.background.app.child`
+- `component.toggle.background.color.selected-hover` → `semantic.background.accent.hover`
+- `component.toggle.background.color.disabled` → `semantic.background.app.control`
+- `component.toggle.border.color.hover` → `semantic.border.color.strong.default`
+- `component.toggle.border.color.disabled` → `semantic.border.color.disabled.default`
+- `component.toggle.label.color.hover` → `semantic.text.color.primary.default`
+- `component.toggle.label.color.disabled` → `semantic.text.color.disabled.default`
+
+</details>
+
+## Changed after the port
+
+- `component.button.background.color.default`, `.hover` and `.pressed` aliased
+  `semantic.background.accent.*`: in the source, every button was an accent button. Buttons
+  now have variants ([ADR 0017](../adr/0017-component-library.md)): the default variant is a
+  neutral control (`semantic.background.app.frame`, `semantic.background.app.frame-hover` and
+  `semantic.background.app.child`), and the accent button reads the new
+  `component.button.accent.*` tokens, which alias `semantic.background.accent.*`.
+- `component.toggle.*` now styles the toggle buttons of the default tone (`Button::toggle`),
+  completed with the states it lacked (pressed, selected and hovered, disabled).

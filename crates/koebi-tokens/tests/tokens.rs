@@ -22,7 +22,7 @@ fn hex(rgb: u32) -> Color {
 #[test]
 fn schema_passes_the_run_time_validation() {
     assert_eq!(KOEBI.validate(), Ok(()));
-    assert_eq!(KOEBI.len(), 1628);
+    assert_eq!(KOEBI.len(), 1717);
     assert_eq!(KOEBI.composites().count(), 21);
     let keys: Vec<_> = design().themes().map(|(_, t)| t.key().to_owned()).collect();
     assert_eq!(keys, ["dark", "light", "muted-green", "high-contrast"]);
@@ -122,10 +122,16 @@ fn renamed_tokens_keep_their_values() {
     assert!(design.find("primitive.font-size.60").is_none());
     // `border-width` joined the `border` family.
     assert_eq!(design.get(semantic::BORDER_WIDTH_THIN), 1.0);
-    // `down` became `pressed`.
+    // `down` became `pressed` (the button's own value changed later: its default variant is a
+    // neutral control, see the porting report).
     assert_eq!(
-        design.get(component::BUTTON_BACKGROUND_COLOR_PRESSED),
-        design.get(semantic::BACKGROUND_ACCENT_PRESSED)
+        design.get(component::CHECKBOX_BACKGROUND_COLOR_PRESSED),
+        design.get(semantic::BACKGROUND_APP_CHILD)
+    );
+    assert!(
+        design
+            .find("component.button.background.color.pressed")
+            .is_some()
     );
     // `accent.color.visual` moved beside the `accent.color.visual.*` group.
     assert_eq!(
@@ -166,7 +172,7 @@ fn semantic_aliases_follow_the_source() {
 fn component_tokens_alias_or_hold_their_values() {
     let design = design();
     assert_eq!(
-        design.get(component::BUTTON_BACKGROUND_COLOR_DEFAULT),
+        design.get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT),
         design.get(semantic::BACKGROUND_ACCENT_DEFAULT)
     );
     assert_eq!(design.get(component::SCROLLBAR_SIZE_DEFAULT), 14.0);
@@ -224,7 +230,7 @@ fn themes_redefine_what_differs_from_the_base() {
     let muted = theme(&design, "muted-green");
     design.set_active_theme(muted).unwrap();
     assert_eq!(
-        design.get(component::BUTTON_BACKGROUND_COLOR_DEFAULT),
+        design.get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT),
         design.get(primitive::COLOR_GREEN_700)
     );
     assert_eq!(

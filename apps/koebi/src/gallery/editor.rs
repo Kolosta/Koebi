@@ -12,7 +12,7 @@ use koebi_design::tier::Tier;
 use koebi_design::{DesignSystem, Layers, Scope, Token};
 use koebi_render::{LinePrimitive, RectPrimitive};
 use koebi_tokens::{component, semantic};
-use koebi_ui::{Icon, MenuItem, MenuState, PanelLevel, Ui, WidgetId};
+use koebi_ui::{Button, Icon, MenuItem, MenuState, PanelLevel, Tone, Ui, WidgetId};
 
 use super::{Gallery, Metrics, PALETTE, cut_left, cut_top};
 use crate::design_options::COLOR_VISION_MODES;
@@ -247,23 +247,27 @@ pub(super) fn tokens(
     let mut line = cut_top(&mut content, row, gap);
     for (index, scope) in [Scope::Global, Scope::ActiveTheme].into_iter().enumerate() {
         let area = cut_left(&mut line, row, gap);
-        let mut on = gallery.scope == scope;
-        if ui
-            .toggle(ID.with(index as u64), area, &mut on, None)
+        let selected = gallery.scope == scope;
+        if Button::new(ID.with(index as u64))
+            .selected(selected)
+            .show(ui, area)
             .clicked
         {
             gallery.scope = scope;
         }
-        let style = &ui.styles().toggle;
+        let colors = ui.styles().button.colors(Tone::DEFAULT).content;
         let color = if gallery.scope == scope {
-            style.label_selected
+            colors.selected
         } else {
-            style.label
+            colors.normal
         };
         scope_icon(ui, area, scope == Scope::Global, color);
     }
     let clear = Rect::from_origin_size(Vec2::new(line.max.x - row, line.min.y), Vec2::splat(row));
-    if ui.button(ID.with(2), clear, Some(Icon::Close)).clicked
+    if Button::new(ID.with(2))
+        .icon(Icon::Close)
+        .show(ui, clear)
+        .clicked
         && let Err(error) = design.reset_scope(gallery.scope)
     {
         koebi_core::warn!("cannot reset the overrides: {error}");
@@ -428,9 +432,9 @@ pub(super) fn color_vision(
             cut_left(&mut content, 0.0, gap);
         }
         let area = cut_left(&mut content, width, gap);
-        let mut on = current == mode;
-        if ui
-            .toggle(ID.with(index as u64), area, &mut on, None)
+        if Button::new(ID.with(index as u64))
+            .selected(current == mode)
+            .show(ui, area)
             .clicked
         {
             chosen = Some(mode);

@@ -1,4 +1,5 @@
-//! Toggle buttons.
+//! Toggle buttons: buttons of the default tone that switch a value on and off
+//! (`Button::toggle`).
 
 use super::*;
 use crate::semantic;
@@ -33,4 +34,26 @@ koebi_design::tokens! {
     /// Toggle: border width.
     TOGGLE_BORDER_WIDTH_DEFAULT = "toggle.border.width.default": Dimension =
         px(1.0), range(0.0, 4.0);
+
+    /// Toggle: background color, pressed.
+    TOGGLE_BACKGROUND_COLOR_PRESSED = "toggle.background.color.pressed": Color ->
+        semantic::BACKGROUND_APP_CHILD;
+    /// Toggle: background color, selected and hovered.
+    TOGGLE_BACKGROUND_COLOR_SELECTED_HOVER = "toggle.background.color.selected-hover": Color ->
+        semantic::BACKGROUND_ACCENT_HOVER;
+    /// Toggle: background color, disabled.
+    TOGGLE_BACKGROUND_COLOR_DISABLED = "toggle.background.color.disabled": Color ->
+        semantic::BACKGROUND_APP_CONTROL;
+    /// Toggle: border color, hovered or pressed.
+    TOGGLE_BORDER_COLOR_HOVER = "toggle.border.color.hover": Color ->
+        semantic::BORDER_COLOR_STRONG_DEFAULT;
+    /// Toggle: border color, disabled.
+    TOGGLE_BORDER_COLOR_DISABLED = "toggle.border.color.disabled": Color ->
+        semantic::BORDER_COLOR_DISABLED_DEFAULT;
+    /// Toggle: label color, hovered or pressed.
+    TOGGLE_LABEL_COLOR_HOVER = "toggle.label.color.hover": Color ->
+        semantic::TEXT_COLOR_PRIMARY_DEFAULT;
+    /// Toggle: label color, disabled.
+    TOGGLE_LABEL_COLOR_DISABLED = "toggle.label.color.disabled": Color ->
+        semantic::TEXT_COLOR_DISABLED_DEFAULT;
 }

@@ -16,7 +16,7 @@
 //! use koebi_tokens::{KOEBI, component};
 //!
 //! let design = DesignSystem::new(&KOEBI)?;
-//! let background = design.get(component::BUTTON_BACKGROUND_COLOR_DEFAULT);
+//! let background = design.get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT);
 //! assert_eq!(background.to_string(), "#5d89ff");
 //! # Ok::<(), koebi_design::Error>(())
 //! ```

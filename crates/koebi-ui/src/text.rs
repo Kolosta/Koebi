@@ -92,6 +92,18 @@ impl Ui<'_> {
         })
     }
 
+    /// The height of a line of text set in `font`: its ascent plus its descent, the box
+    /// [`Ui::label`] centers in its rectangle; 0 without fonts. A rectangle at least this
+    /// high holds any label in `font`.
+    pub fn line_height(&mut self, font: &FontStyle) -> f32 {
+        let Some(style) = self.text_style(font) else {
+            return 0.0;
+        };
+        let state = &mut *self.state;
+        state.line.layout(&state.fonts, "", &style);
+        state.line.ascent() + state.line.descent()
+    }
+
     /// The width of `text` set in `font`, in logical pixels; 0 without fonts.
     pub fn text_width(&mut self, text: &str, font: &FontStyle) -> f32 {
         let Some(style) = self.text_style(font) else {
@@ -165,6 +177,9 @@ mod tests {
         assert!(
             (ui.label("Viewport", wide, &font, Color::WHITE, Align::Start) - full).abs() < 1e-3
         );
+        // The line box holds the ascent and the descent: more than the font size.
+        let line = ui.line_height(&font);
+        assert!(line > font.size && line < 2.0 * font.size, "{line}");
         let narrow = rect(0.0, 0.0, full / 2.0, 20.0);
         let cut = ui.label("Viewport", narrow, &font, Color::WHITE, Align::End);
         assert!(cut <= full / 2.0 && cut > 0.0);

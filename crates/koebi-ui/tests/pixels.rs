@@ -6,7 +6,7 @@
 
 mod common;
 
-use common::{assert_pixel, render};
+use common::{assert_pixel, over, render};
 use koebi_core::{Color, Extent, Rect, Vec2};
 use koebi_design::{ColorVision, Deficiency, DesignSystem, Scope};
 use koebi_render::RectPrimitive;
@@ -14,8 +14,8 @@ use koebi_render::Scene;
 use koebi_testkit::gpu_or_skip;
 use koebi_tokens::{KOEBI, component, semantic};
 use koebi_ui::{
-    Input, ListItem, ListOptions, ListState, MenuItem, MenuState, PanelLevel, Styles, ThemePreview,
-    Ui, UiState, WidgetId,
+    Button, Checkbox, Input, ListItem, ListOptions, ListState, MenuItem, MenuState, PanelLevel,
+    Styles, ThemePreview, Tone, Ui, UiState, WidgetId,
 };
 
 const SIZE: Extent = Extent::new(200, 100);
@@ -38,20 +38,14 @@ fn draw(design: &DesignSystem, build: impl FnOnce(&mut Ui<'_>)) -> Scene {
     scene
 }
 
-/// `top` over the opaque `bottom`, blended as the renderer does: premultiplied, in the
-/// gamma-encoded values of the UNORM target.
-fn over(top: Color, bottom: Color) -> Color {
-    let mix = |t: f32, b: f32| t * top.a + b * (1.0 - top.a);
-    Color::new(
-        mix(top.r, bottom.r),
-        mix(top.g, bottom.g),
-        mix(top.b, bottom.b),
-        1.0,
-    )
+fn button(ui: &mut Ui<'_>) {
+    Button::new(WidgetId::new("button")).show(ui, rect(20.0, 20.0, 80.0, 40.0));
 }
 
-fn button(ui: &mut Ui<'_>) {
-    ui.button(WidgetId::new("button"), rect(20.0, 20.0, 80.0, 40.0), None);
+fn accent_button(ui: &mut Ui<'_>) {
+    Button::new(WidgetId::new("button"))
+        .tone(Tone::ACCENT)
+        .show(ui, rect(20.0, 20.0, 80.0, 40.0));
 }
 
 #[test]
@@ -91,8 +85,8 @@ fn semantic_edits_reach_components_through_aliases() {
             green,
         )
         .unwrap();
-    // component.button.background.color.default -> semantic.background.accent.default
-    let image = render(&gpu, SIZE, &draw(&design, button));
+    // component.button.accent.background.color.default -> semantic.background.accent.default
+    let image = render(&gpu, SIZE, &draw(&design, accent_button));
     assert_pixel(&image, 60, 40, green.to_rgba8());
     gpu.assert_no_validation_errors();
 }
@@ -133,16 +127,17 @@ fn color_vision_transforms_component_colors() {
         return;
     };
     let mut design = design();
-    let normal = design.get(component::BUTTON_BACKGROUND_COLOR_DEFAULT);
+    // A colored component: the neutral grays look the same to every vision.
+    let normal = design.get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT);
     design
         .set_color_vision(ColorVision::Simulate {
             deficiency: Deficiency::Tritan,
             severity: 1.0,
         })
         .unwrap();
-    let simulated = design.get(component::BUTTON_BACKGROUND_COLOR_DEFAULT);
+    let simulated = design.get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT);
     assert_ne!(simulated.to_rgba8(), normal.to_rgba8());
-    let image = render(&gpu, SIZE, &draw(&design, button));
+    let image = render(&gpu, SIZE, &draw(&design, accent_button));
     assert_pixel(&image, 60, 40, simulated.to_rgba8());
     gpu.assert_no_validation_errors();
 }
@@ -187,11 +182,7 @@ fn check_marks_use_their_tokens() {
         .unwrap();
     let scene = draw(&design, |ui| {
         let mut checked = true;
-        ui.checkbox(
-            WidgetId::new("check"),
-            rect(8.0, 8.0, 120.0, 16.0),
-            &mut checked,
-        );
+        Checkbox::new(WidgetId::new("check"), &mut checked).show(ui, rect(8.0, 8.0, 120.0, 16.0));
     });
     let image = render(&gpu, SIZE, &scene);
     // The 16 px box sits at (8, 8); the mark's corner is at (6.5, 11.5) in the box.

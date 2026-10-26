@@ -1,9 +1,9 @@
 # The gallery
 
-Until Koebi has editors, its window shows the design system gallery
-([`apps/koebi/src/gallery/`](../../apps/koebi/src/gallery/)): every component, drawn from the
-tokens, and the means to change those tokens while the application runs. Components have no
-labels until Koebi renders text, so this page says what each part does.
+The gallery editor ([`apps/koebi/src/gallery/`](../../apps/koebi/src/gallery/)) shows the
+design system: every component, drawn from the tokens, and the means to change those tokens
+while the application runs. Most of its controls have no label yet, so this page says what
+each part does.
 
 ## Layout
 
@@ -27,10 +27,20 @@ From top to bottom (the two middle panels stack on narrow windows):
      arrows at their ends to step.
    - A dot at the start of a row means its token is overridden in the current scope; click
      the dot to remove that override.
-4. **Color vision**: normal vision, the simulations of protanopia, deuteranopia, tritanopia
+4. **Buttons**:
+   - the seven variants, then a disabled button;
+   - the eight color families, filled, then as default-variant toggles (every other one on);
+   - a segmented choice (a group whose selected cell is the current mode), a toolbar group of
+     icon buttons, and a button with a leading icon, a label, a status dot and a chevron;
+   - the Ctrl key above L and R toggles (a group on a grid), up and down buttons that repeat
+     while held and change the number beside them, a button that adds 10 as soon as it is
+     pressed, and one that resets the number on a double click;
+   - checkboxes with descriptions: a checked one, a mixed one (a click checks it) and a
+     disabled one.
+5. **Color vision**: normal vision, the simulations of protanopia, deuteranopia, tritanopia
    and achromatopsia, then the corrections of the three dichromacies. Each button previews its
    mode on four chart colors; click one to apply it to every color token of the interface.
-5. **Grid**: as many checkboxes, toggles, buttons and swatches as the window holds, about
+6. **Grid**: as many checkboxes, toggles, buttons and swatches as the window holds, about
    nine hundred in the default 1280 x 800 window. They are all interactive, and none of them
    reads a token while drawing: styles are resolved once per change of the design system.
 

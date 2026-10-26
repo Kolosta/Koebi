@@ -55,7 +55,12 @@ impl DesignSystem {
         })
     }
 
-    /// The schema.
+    /// Number of tokens of the schema.
+    pub(crate) fn schema_len(&self) -> usize {
+        self.graph.len()
+    }
+
+    /// The schema the design system was built from.
     pub fn schema(&self) -> &'static Schema {
         self.graph.schema
     }

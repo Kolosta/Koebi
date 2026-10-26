@@ -8,7 +8,7 @@ use core::time::Duration;
 use common::{component, hex, primitive, semantic};
 use koebi_design::kind::{self, Kind};
 use koebi_design::value::{CubicBezier, FontWeight, Value};
-use koebi_design::{DesignSystem, Origin, TokenId};
+use koebi_design::{DesignSystem, Layers, Origin, Resolve, Scope, TokenId};
 
 static SCHEMA: koebi_design::schema::Schema = common::SCHEMA;
 
@@ -73,10 +73,10 @@ fn component_tokens_may_hold_their_own_value() {
         .expect("declared range");
     assert_eq!((range.min(), range.max()), (1.0, 32.0));
     design
-        .set_value(koebi_design::Scope::Global, component::SCROLLBAR_SIZE, 10.0)
+        .set_value(Scope::Global, component::SCROLLBAR_SIZE, 10.0)
         .unwrap();
     assert_eq!(design.get(component::SCROLLBAR_SIZE), 10.0);
-    let too_big = design.set_value(koebi_design::Scope::Global, component::SCROLLBAR_SIZE, 40.0);
+    let too_big = design.set_value(Scope::Global, component::SCROLLBAR_SIZE, 40.0);
     assert!(too_big.is_err());
 }
 
@@ -136,4 +136,39 @@ fn every_token_comes_from_the_base_theme_at_first() {
         assert_eq!(design.origin(id), Origin::Base);
     }
     assert_eq!(design.revision(), 0);
+}
+
+#[test]
+fn snapshots_read_like_their_source_and_capture_again_in_place() {
+    let mut design = design();
+    let snapshot = design.snapshot();
+    assert_eq!(snapshot.len(), SCHEMA.len());
+    assert_eq!(
+        snapshot.get(component::BUTTON_BACKGROUND_HOVER),
+        design.get(component::BUTTON_BACKGROUND_HOVER)
+    );
+    assert_eq!(
+        snapshot.get(primitive::DURATION_FAST),
+        Duration::from_millis(100)
+    );
+    // Captured again after a change, a snapshot shows it; the earlier one keeps its values.
+    let red = hex(0xFF_00_00);
+    design
+        .set_value(Scope::Global, primitive::COLOR_BLUE_700, red)
+        .unwrap();
+    let mut again = snapshot.clone();
+    design.snapshot_into(&mut again);
+    assert_eq!(again.get(component::BUTTON_BACKGROUND_HOVER), red);
+    assert_ne!(snapshot.get(component::BUTTON_BACKGROUND_HOVER), red);
+    // A view captures its own layers: here, the definitions without the override.
+    let view = design
+        .view(design.active_theme(), Layers::NONE)
+        .expect("live theme");
+    view.snapshot_into(&mut again);
+    assert_eq!(
+        again.get(component::BUTTON_BACKGROUND_HOVER),
+        hex(0x5D_89_FF)
+    );
+    // A snapshot of a snapshot is a copy.
+    assert_eq!(again.snapshot(), again);
 }

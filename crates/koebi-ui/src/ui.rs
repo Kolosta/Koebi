@@ -24,6 +24,12 @@ pub struct UiState {
     press_origin: Vec2,
     /// The active widget's value when it was pressed: drag values move relative to it.
     press_value: f32,
+    /// When the active widget was pressed, and when it repeats next while held.
+    press_time: Duration,
+    next_repeat: Option<Duration>,
+    /// The last press, by widget, time and place: the next press on it soon after, near the
+    /// same place, completes a double click.
+    last_press: Option<(WidgetId, Duration, Vec2)>,
     /// Whether the active widget took part in the current frame.
     active_seen: bool,
     /// The regions of the last complete frame, and of the frame being built.
@@ -128,6 +134,10 @@ pub struct Response {
     pub clicked: bool,
     /// The secondary button went down on the component this frame: open its context menu.
     pub secondary_pressed: bool,
+    /// This press followed another one on the component within the double-click time and the
+    /// drag threshold: the second press of a double click (platforms report double clicks on
+    /// the press).
+    pub double_clicked: bool,
     /// The component let go of the pointer this frame: a click or the end of a drag.
     pub released: bool,
     /// The component changed its value this frame.
@@ -166,6 +176,7 @@ impl Response {
             held: self.held || part.held,
             clicked: self.clicked || part.clicked,
             secondary_pressed: self.secondary_pressed || part.secondary_pressed,
+            double_clicked: self.double_clicked || part.double_clicked,
             released: self.released || part.released,
             changed: self.changed || part.changed,
             drag_delta: if self.held {
@@ -406,8 +417,19 @@ impl<'a> Ui<'a> {
             && self.state.press_target == Some(id)
             && let Some(origin) = self.input.pressed_at()
         {
+            let now = self.input.time();
+            let input = &self.styles.input;
+            response.double_clicked = self.state.last_press.is_some_and(|(widget, at, place)| {
+                widget == id
+                    && now.saturating_sub(at) <= input.double_click
+                    && (origin - place).length() <= input.drag_threshold
+            });
+            // A double click ends the run: a third press starts over.
+            self.state.last_press = (!response.double_clicked).then_some((id, now, origin));
             self.state.active = Some(id);
             self.state.press_origin = origin;
+            self.state.press_time = now;
+            self.state.next_repeat = None;
             response.pressed = true;
         }
         response.secondary_pressed = self.state.secondary_target == Some(id)
@@ -432,6 +454,32 @@ impl<'a> Ui<'a> {
             }
         }
         response
+    }
+
+    /// `true` when the widget of `response`, held down under the pointer, repeats this frame:
+    /// after the input settings' repeat delay since its press, then every repeat interval
+    /// (step buttons). Repeats pause while the pointer is off the widget and resume when it
+    /// comes back. Asks for the frame of the next repeat.
+    pub fn repeats(&mut self, response: &Response) -> bool {
+        if !response.held || response.pressed || !response.hovered {
+            return false;
+        }
+        let now = self.input.time();
+        let input = self.styles.input;
+        let state = &mut *self.state;
+        let next = *state
+            .next_repeat
+            .get_or_insert(state.press_time.saturating_add(input.repeat_delay));
+        if now < next {
+            self.request_redraw_at(next);
+            return false;
+        }
+        // One repeat per frame, however long the frame took.
+        let interval = input.repeat_interval.max(Duration::from_millis(1));
+        let following = next.saturating_add(interval).max(now);
+        self.state.next_repeat = Some(following);
+        self.request_redraw_at(following);
+        true
     }
 
     /// The value recorded by [`Ui::set_press_value`] when the active widget was pressed.

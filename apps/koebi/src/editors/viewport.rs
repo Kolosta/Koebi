@@ -10,7 +10,7 @@ use koebi_design::DesignSystem;
 use koebi_input::{ActionDef, ActionGroup, Context, Shortcut};
 use koebi_render::RectPrimitive;
 use koebi_tokens::component;
-use koebi_ui::{Align, BarLayout, Icon, PointerButton, Ui, WidgetId};
+use koebi_ui::{Align, BarLayout, Button, Icon, PointerButton, Ui, WidgetId};
 
 /// The viewport's canvas: its keys apply where the pointer is over one.
 pub(crate) const VIEWPORT: Context = Context::new("viewport");
@@ -244,12 +244,10 @@ pub(crate) fn top_bar(ui: &mut Ui<'_>, id: WidgetId, view: &mut View, bar: &mut 
     let side = bar.rect().height();
     for (index, icon) in icons.into_iter().enumerate().rev() {
         let rect = bar.right(side);
-        ui.toggle(
-            id.with(100 + index as u64),
-            rect,
-            &mut view.rulers[index],
-            Some(icon),
-        );
+        Button::new(id.with(100 + index as u64))
+            .icon(icon)
+            .toggle(&mut view.rulers[index])
+            .show(ui, rect);
     }
 }
 

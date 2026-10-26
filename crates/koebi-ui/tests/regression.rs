@@ -14,8 +14,8 @@ use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    Icon, Input, ListItem, ListOptions, ListState, PanelLevel, Styles, ThemePreview, Ui, UiState,
-    WidgetId,
+    Button, Checkbox, Icon, Input, ListItem, ListOptions, ListState, PanelLevel, Styles,
+    ThemePreview, Ui, UiState, WidgetId,
 };
 
 /// Anti-aliased edges may differ by a few units between drivers.
@@ -48,36 +48,28 @@ fn draw_sheet(ui: &mut Ui<'_>, design: &DesignSystem) {
     let id = WidgetId::new;
 
     // Buttons, toggles and checkboxes.
-    ui.button(id("plain"), rect(12.0, 12.0, 64.0, 24.0), None);
-    ui.button(
-        id("hovered"),
-        rect(84.0, 12.0, 32.0, 24.0),
-        Some(Icon::Plus),
-    );
-    ui.toggle(
-        id("off"),
-        rect(124.0, 12.0, 24.0, 24.0),
-        &mut false,
-        Some(Icon::ChevronDown),
-    );
-    ui.toggle(
-        id("on"),
-        rect(152.0, 12.0, 24.0, 24.0),
-        &mut true,
-        Some(Icon::Check),
-    );
-    ui.checkbox(id("unchecked"), rect(188.0, 16.0, 24.0, 16.0), &mut false);
-    ui.checkbox(id("checked"), rect(212.0, 16.0, 24.0, 16.0), &mut true);
+    Button::new(id("plain")).show(ui, rect(12.0, 12.0, 64.0, 24.0));
+    Button::new(id("hovered"))
+        .icon(Icon::Plus)
+        .show(ui, rect(84.0, 12.0, 32.0, 24.0));
+    Button::new(id("off"))
+        .icon(Icon::ChevronDown)
+        .toggle(&mut false)
+        .show(ui, rect(124.0, 12.0, 24.0, 24.0));
+    Button::new(id("on"))
+        .icon(Icon::Check)
+        .toggle(&mut true)
+        .show(ui, rect(152.0, 12.0, 24.0, 24.0));
+    Checkbox::new(id("unchecked"), &mut false).show(ui, rect(188.0, 16.0, 24.0, 16.0));
+    Checkbox::new(id("checked"), &mut true).show(ui, rect(212.0, 16.0, 24.0, 16.0));
     for (index, icon) in [Icon::Minus, Icon::Close, Icon::ChevronUp]
         .into_iter()
         .enumerate()
     {
         let x = 240.0 + 24.0 * index as f32;
-        ui.button(
-            id("icons").with(index as u64),
-            rect(x, 12.0, 20.0, 24.0),
-            Some(icon),
-        );
+        Button::new(id("icons").with(index as u64))
+            .icon(icon)
+            .show(ui, rect(x, 12.0, 20.0, 24.0));
     }
 
     // Value components.

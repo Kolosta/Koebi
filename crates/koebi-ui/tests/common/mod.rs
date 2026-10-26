@@ -3,7 +3,7 @@
 //! Each test binary compiles this module separately and may not use every helper.
 #![allow(dead_code, reason = "not every test binary uses every helper")]
 
-use koebi_core::Extent;
+use koebi_core::{Color, Extent};
 use koebi_gpu::TextureFormat;
 use koebi_render::{Renderer2D, Scene};
 use koebi_testkit::{HeadlessGpu, Image};
@@ -32,4 +32,16 @@ pub(crate) fn assert_pixel(image: &Image, x: u32, y: u32, expected: [u8; 4]) {
         close,
         "pixel ({x}, {y}) is {actual:?}, expected {expected:?}"
     );
+}
+
+/// `top` over the opaque `bottom`, blended as the renderer does: premultiplied, in the
+/// gamma-encoded values of the UNORM target.
+pub(crate) fn over(top: Color, bottom: Color) -> Color {
+    let mix = |t: f32, b: f32| t * top.a + b * (1.0 - top.a);
+    Color::new(
+        mix(top.r, bottom.r),
+        mix(top.g, bottom.g),
+        mix(top.b, bottom.b),
+        1.0,
+    )
 }

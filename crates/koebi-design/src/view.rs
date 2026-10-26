@@ -38,6 +38,11 @@ impl<'a> View<'a> {
         }
     }
 
+    /// Number of tokens of the schema.
+    pub(crate) fn schema_len(&self) -> usize {
+        self.graph.len()
+    }
+
     /// The theme of the view.
     pub fn theme(&self) -> ThemeId {
         self.theme
