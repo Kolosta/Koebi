@@ -69,6 +69,33 @@ impl Icon {
         }
     }
 
+    /// Draws the icon like [`Icon::draw`], turned clockwise by `angle` radians around the
+    /// center of `bounds`: a fold arrow turning as its fold opens.
+    pub(crate) fn draw_rotated(
+        self,
+        scene: &mut Scene,
+        bounds: Rect,
+        color: Color,
+        stroke_width: f32,
+        angle: f32,
+    ) {
+        let scale = bounds.width().min(bounds.height()) / GRID;
+        let center = bounds.center();
+        let (sin, cos) = angle.sin_cos();
+        let point = |x: f32, y: f32| {
+            let local = Vec2::new(x - GRID * 0.5, y - GRID * 0.5) * scale;
+            center + Vec2::new(local.x * cos - local.y * sin, local.x * sin + local.y * cos)
+        };
+        for &[x0, y0, x1, y1] in self.strokes() {
+            scene.push_line(&LinePrimitive::new(
+                point(x0, y0),
+                point(x1, y1),
+                stroke_width,
+                color,
+            ));
+        }
+    }
+
     /// The square of side `size` centered in `area`, shrunk to fit it, with its corner on a
     /// whole logical pixel.
     pub fn centered(area: Rect, size: f32) -> Rect {

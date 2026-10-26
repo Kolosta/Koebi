@@ -8,6 +8,7 @@ mod button;
 mod checkbox;
 mod drag_value;
 mod dropdown;
+mod list;
 mod menu;
 mod panel;
 mod scroll;
@@ -21,6 +22,12 @@ pub use button::ButtonStyle;
 pub use checkbox::CheckboxStyle;
 pub use drag_value::DragValueStyle;
 pub use dropdown::DropdownStyle;
+pub use list::{
+    DropPlace, ItemMark, LIST, LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT,
+    LIST_EXTEND_PREVIOUS, LIST_FOLD, LIST_NEXT, LIST_PREVIOUS, LIST_SELECT_ALL, LIST_UNFOLD,
+    ListContextMenu, ListDelegate, ListItem, ListOptions, ListResponse, ListSelection, ListState,
+    ListStyle,
+};
 pub use menu::{
     MENU, MENU_ACTIONS, MENU_CHOOSE, MENU_CLOSE, MENU_NEXT, MENU_PREVIOUS, MenuAction, MenuItem,
     MenuState, MenuStyle,
@@ -33,7 +40,18 @@ pub use swatch::SwatchStyle;
 pub use theme_card::{ThemeCardStyle, ThemePreview};
 pub use toggle::ToggleStyle;
 
+use koebi_core::input::Key;
 use koebi_core::{Rect, Vec2};
+use koebi_input::{KeyTrigger, Shortcut, Trigger};
+
+/// The press of `key`, repeating while it is held: moving through items.
+pub(crate) const fn repeating(key: Key) -> Shortcut {
+    Shortcut::new(Trigger::Key {
+        key,
+        when: KeyTrigger::Press,
+        repeat: true,
+    })
+}
 
 /// `rect` with its origin and size rounded to whole logical pixels, so that its edges stay
 /// crisp and its size does not depend on where it lands.

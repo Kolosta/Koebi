@@ -28,6 +28,12 @@ koebi_design::tokens! {
     /// Outliner: tree line inset.
     OUTLINER_TREE_LINE_INSET_DEFAULT = "outliner.tree-line.inset.default": Dimension =
         px(4.0), range(0.0, 16.0);
+    /// Outliner: color of the lines joining a row to its children.
+    OUTLINER_TREE_LINE_COLOR_DEFAULT = "outliner.tree-line.color.default": Color ->
+        semantic::BORDER_COLOR_TREE_LINE_DEFAULT;
+    /// Outliner: width of those lines.
+    OUTLINER_TREE_LINE_WIDTH_DEFAULT = "outliner.tree-line.width.default": Dimension ->
+        semantic::BORDER_WIDTH_THIN;
     /// Outliner: row search background visual.
     OUTLINER_ROW_SEARCH_BACKGROUND_VISUAL = "outliner.row.search.background.visual": Color ->
         semantic::ACCENT_COLOR_VISUAL_POSITIVE;

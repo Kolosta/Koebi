@@ -170,6 +170,19 @@ fn track(
     })
 }
 
+/// The part of a scroll area over `rect` its content may use: without the margins the
+/// scrollbars of `axes` live in, kept even when nothing overflows so that the content never
+/// shifts when a scrollbar appears.
+pub(crate) fn viewport(rect: Rect, axes: ScrollAxes, style: &ScrollStyle) -> Rect {
+    Rect::from_min_max(
+        rect.min,
+        Vec2::new(
+            rect.max.x - if axes.has(1) { style.margin } else { 0.0 },
+            rect.max.y - if axes.has(0) { style.margin } else { 0.0 },
+        ),
+    )
+}
+
 /// `a` moved towards `b` by `t`.
 fn mix(a: Color, b: Color, t: f32) -> Color {
     Color::new(
@@ -195,14 +208,7 @@ impl Ui<'_> {
         add: impl FnOnce(&mut Self, ScrollContent) -> R,
     ) -> R {
         let style = self.styles().scroll;
-        // The margins are always kept: the content never shifts when a scrollbar appears.
-        let viewport = Rect::from_min_max(
-            rect.min,
-            Vec2::new(
-                rect.max.x - if axes.has(1) { style.margin } else { 0.0 },
-                rect.max.y - if axes.has(0) { style.margin } else { 0.0 },
-            ),
-        );
+        let viewport = viewport(rect, axes, &style);
         let visible = viewport.size().max(Vec2::ZERO);
         let overflow = (content - visible).max(Vec2::ZERO);
         let clamp = |offset: Vec2| {

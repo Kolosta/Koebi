@@ -12,8 +12,8 @@ use koebi_tokens::component;
 use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
-    ButtonStyle, CheckboxStyle, DragValueStyle, DropdownStyle, MenuStyle, PanelStyle, ScrollStyle,
-    SeparatorStyle, SliderStyle, SwatchStyle, ThemeCardStyle, ToggleStyle,
+    ButtonStyle, CheckboxStyle, DragValueStyle, DropdownStyle, ListStyle, MenuStyle, PanelStyle,
+    ScrollStyle, SeparatorStyle, SliderStyle, SwatchStyle, ThemeCardStyle, ToggleStyle,
 };
 use crate::workspace::WorkspaceStyle;
 
@@ -93,6 +93,8 @@ pub struct Styles {
     pub workspace: WorkspaceStyle,
     /// [`Ui::scroll_area`](crate::Ui::scroll_area).
     pub scroll: ScrollStyle,
+    /// [`Ui::list`](crate::Ui::list).
+    pub list: ListStyle,
 }
 
 impl Styles {
@@ -116,6 +118,7 @@ impl Styles {
             dropdown: DropdownStyle::resolve(tokens),
             workspace: WorkspaceStyle::resolve(tokens),
             scroll: ScrollStyle::resolve(tokens),
+            list: ListStyle::resolve(tokens),
         }
     }
 }

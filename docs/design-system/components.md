@@ -21,6 +21,7 @@ reads its tokens and how to write a new one.
 | Dropdown | `Ui::dropdown(id, rect, &mut state, current, &items, bounds)` | `component.dropdown.*`, then the menu's |
 | Label | `Ui::label(text, rect, &font, color, align)`, `Ui::text_width(text, &font)` | `semantic.font.*`, `semantic.text.*` |
 | Scroll area | `Ui::scroll_area(id, rect, &mut state, content_size, axes, add)` | `component.scrollbar.*` |
+| List and tree | `Ui::list(id, rect, &mut state, &items, &options, &mut delegate)` returns a `ListResponse` | `component.list-row.*`, `component.outliner.*`, `component.table.row.*`, `component.drop-target.*` |
 
 Line icons (`Icon::Check`, `Icon::Plus`, chevrons...) use `component.icon.*`. Labels use the
 fonts given to `UiState::set_fonts`, in the roles of `Styles::text` (label, body, detail): one
@@ -39,6 +40,43 @@ overflows, thin at rest, growing and brightening as the pointer comes within
 `scrollbar.overlay.proximity` (eased, the area asking for frames until it settles); dragging
 the grab scrolls, a press on the track brings the grab under the pointer. Which axes scroll is
 the content's choice (`ScrollAxes`): lists vertically, timelines both ways.
+
+## Lists and trees
+
+One component draws every list of the application (outliner, layers, color usage, messages);
+`ListOptions` turns each behaviour on or off (`ListOptions::LIST` for a flat list,
+`ListOptions::TREE` for everything).
+
+- **Rows** come from the application in display order, depth first: a `ListItem` has the
+  application's stable key, a depth (a row is the parent of the deeper rows after it), a label
+  and an icon or a color. Rows are `list-row.height` high (one interface unit, or
+  `ListOptions::row_height`), alternate `table.row.background.color.default` and `.alt`, and
+  show per level a fold arrow slot `list-row.indent` wide, then the mark, the label cut with an
+  ellipsis, and the items the `ListDelegate` draws at their end.
+- **Folding**: a click on the arrow folds or unfolds a row, with Shift its whole subtree. The
+  subtree slides in or out like a drawer (`list-row.expand.duration`,
+  `list-row.collapse.duration`), and a folded row shows how many rows it hides
+  (`list-row.count.color`). Lines run from parents along their children
+  (`outliner.tree-line.*`).
+- **Selection** lives in `ListState`, with the folds, the active row and the scroll position:
+  a click selects a row and makes it active, Ctrl (Command on Apple platforms) adds or removes
+  one, Shift selects the visible rows from the last row clicked, and a click on the empty
+  space clears the selection. Double clicks and secondary presses come back in the
+  `ListResponse` (`double_clicked`, `context_menu`). Over the list, the keyboard walks the
+  rows: `list.next`, `list.previous`, `list.extend-next`, `list.extend-previous`,
+  `list.unfold`, `list.fold` and `list.select-all` (arrows, Shift and arrows, Ctrl+A).
+- **Drag and drop**: past `semantic.input.drag-threshold`, a press drags its row, or the
+  topmost rows of the selection when the row was selected; the selection itself does not
+  change. Where the pointer is in a row picks before it (top quarter), into it (middle half)
+  or after it (bottom quarter); below an unfolded parent, rows go first inside it; below the
+  last child of subtrees, the pointer's indentation picks the level. The list refuses places
+  inside the dragged rows, `ListDelegate::can_drop` decides the rest, and a refused place
+  gives way to the next one. A line (`list-row.drop-line.*`) or a frame (`drop-target.*`)
+  previews the drop; the dragged rows fade and their label follows the pointer
+  (`list-row.drag.*`); pressing against the top or bottom edge scrolls. Escape, Delete or a
+  right click cancel (`list.cancel-drag`). The list moves nothing itself: when
+  `ListResponse::dropped` says where, the application moves the rows `ListState::dragged`
+  lists.
 
 ## Menus
 

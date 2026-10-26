@@ -12,7 +12,10 @@ use koebi_design::{ColorVision, Deficiency, DesignSystem, Scope};
 use koebi_render::Scene;
 use koebi_testkit::gpu_or_skip;
 use koebi_tokens::{KOEBI, component, semantic};
-use koebi_ui::{Input, PanelLevel, Styles, ThemePreview, Ui, UiState, WidgetId};
+use koebi_ui::{
+    Input, ListItem, ListOptions, ListState, PanelLevel, Styles, ThemePreview, Ui, UiState,
+    WidgetId,
+};
 
 const SIZE: Extent = Extent::new(200, 100);
 
@@ -32,6 +35,18 @@ fn draw(design: &DesignSystem, build: impl FnOnce(&mut Ui<'_>)) -> Scene {
     let (mut state, input) = (UiState::new(), Input::new());
     build(&mut Ui::new(&mut scene, &styles, &input, &mut state));
     scene
+}
+
+/// `top` over the opaque `bottom`, blended as the renderer does: premultiplied, in the
+/// gamma-encoded values of the UNORM target.
+fn over(top: Color, bottom: Color) -> Color {
+    let mix = |t: f32, b: f32| t * top.a + b * (1.0 - top.a);
+    Color::new(
+        mix(top.r, bottom.r),
+        mix(top.g, bottom.g),
+        mix(top.b, bottom.b),
+        1.0,
+    )
 }
 
 fn button(ui: &mut Ui<'_>) {
@@ -243,5 +258,59 @@ fn theme_cards_paint_other_themes() {
     assert_pixel(&image, 145, 10, preview.background.to_rgba8());
     let frame = design.get(component::THEME_CARD_BORDER_COLOR_DEFAULT);
     assert_pixel(&image, 80, 0, frame.to_rgba8());
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn list_rows_alternate_zebra_colors_and_show_the_selection() {
+    let Some(gpu) = gpu_or_skip("list_rows_alternate_zebra_colors_and_show_the_selection") else {
+        return;
+    };
+    let mut design = design();
+    let items: Vec<ListItem<'_>> = (0..5).map(|id| ListItem::new(id, "")).collect();
+    let mut list = ListState::new();
+    list.set_selected(2, true);
+    list.set_active(Some(3));
+    let scene = |design: &DesignSystem, list: &mut ListState| {
+        draw(design, |ui| {
+            ui.list(
+                WidgetId::new("list"),
+                rect(0.0, 0.0, 200.0, 100.0),
+                list,
+                &items,
+                &ListOptions::LIST,
+                &mut (),
+            );
+        })
+    };
+    let image = render(&gpu, SIZE, &scene(&design, &mut list));
+    let styles = Styles::resolve(&design);
+    let (style, background) = (styles.list, styles.background);
+    let even = over(style.zebra[0], background);
+    let odd = over(style.zebra[1], background);
+    // Rows are one unit (20 pixels) high: even and odd rows alternate under the selected
+    // row and the active one.
+    let rows = [
+        even,
+        odd,
+        over(style.selected, even),
+        over(style.active, odd),
+        even,
+    ];
+    for (row, expected) in (0_u32..).zip(rows) {
+        assert_pixel(&image, 150, 10 + 20 * row, expected.to_rgba8());
+    }
+    // The zebra follows its token.
+    let red = Color::from_rgba8(200, 30, 90, 255);
+    design
+        .set_value(
+            Scope::Global,
+            component::TABLE_ROW_BACKGROUND_COLOR_ALT,
+            red,
+        )
+        .unwrap();
+    let image = render(&gpu, SIZE, &scene(&design, &mut list));
+    assert_pixel(&image, 150, 30, red.to_rgba8());
+    assert_pixel(&image, 150, 10, even.to_rgba8());
     gpu.assert_no_validation_errors();
 }
