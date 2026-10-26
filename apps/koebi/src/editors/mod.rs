@@ -7,6 +7,7 @@
 
 pub(crate) mod info;
 pub(crate) mod outliner;
+pub(crate) mod saved;
 pub(crate) mod timeline;
 pub(crate) mod viewport;
 

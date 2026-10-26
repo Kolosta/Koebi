@@ -154,6 +154,41 @@ impl Workspace {
         }
     }
 
+    /// A workspace from saved data: a layout, and for each area its editors in tab order with
+    /// the position of the one shown.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LayoutError::Invalid`] unless every area has exactly one stack, every stack
+    /// shows one of its editors, and no editor appears twice.
+    pub fn from_saved(layout: Layout, stacks: &[(u32, Vec<u32>, usize)]) -> Result<Self> {
+        let next_editor = stacks
+            .iter()
+            .flat_map(|(_, editors, _)| editors.iter().map(|id| id + 1))
+            .max()
+            .unwrap_or(0);
+        let workspace = Self {
+            layout,
+            stacks: stacks
+                .iter()
+                .map(|(area, editors, active)| {
+                    (
+                        AreaId(*area),
+                        Stack {
+                            editors: editors.iter().map(|id| EditorId(*id)).collect(),
+                            active: *active,
+                        },
+                    )
+                })
+                .collect(),
+            next_editor,
+        };
+        workspace
+            .check()
+            .map_err(|reason| WorkspaceError::Layout(LayoutError::Invalid(reason)))?;
+        Ok(workspace)
+    }
+
     /// The layout.
     pub fn layout(&self) -> &Layout {
         &self.layout

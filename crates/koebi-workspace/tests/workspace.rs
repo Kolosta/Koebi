@@ -1,7 +1,8 @@
 //! Workspace operations: editors in stacks, docking, and a long run of random operations.
 
 use koebi_workspace::{
-    AreaId, EditorId, GRID, GridRect, LayoutError, Orientation, Side, Workspace, WorkspaceError,
+    AreaId, EditorId, GRID, GridRect, Layout, LayoutError, Orientation, Side, Workspace,
+    WorkspaceError,
 };
 
 const MIN: u32 = 1_000;
@@ -277,4 +278,38 @@ fn random_operations_keep_the_workspace_consistent() {
         applied > 1_000 && refused > 200,
         "{applied} applied, {refused} refused"
     );
+}
+
+#[test]
+fn saved_workspaces_come_back_as_they_were() {
+    let (workspace, ..) = halves_with_tabs();
+    let areas: Vec<(u32, GridRect)> = workspace
+        .layout()
+        .areas()
+        .map(|(id, rect)| (id.get(), rect))
+        .collect();
+    let stacks: Vec<(u32, Vec<u32>, usize)> = workspace
+        .layout()
+        .areas()
+        .map(|(id, _)| {
+            let stack = workspace.stack(id).unwrap();
+            let editors = stack.editors().iter().map(|editor| editor.get()).collect();
+            (id.get(), editors, stack.active_index())
+        })
+        .collect();
+    let layout = Layout::from_areas(&areas).unwrap();
+    let mut restored = Workspace::from_saved(layout.clone(), &stacks).unwrap();
+    assert_eq!(restored, workspace);
+    // New editors never reuse a saved identifier.
+    let area = workspace.layout().areas().next().unwrap().0;
+    let added = restored.add_tab(area).unwrap();
+    assert!(workspace.editors().all(|editor| editor != added));
+    // Broken data is refused.
+    let mut twice = stacks.clone();
+    twice[0].1.push(stacks[1].1[0]);
+    assert!(Workspace::from_saved(layout.clone(), &twice).is_err());
+    let mut hidden = stacks.clone();
+    hidden[0].2 = 9;
+    assert!(Workspace::from_saved(layout.clone(), &hidden).is_err());
+    assert!(Workspace::from_saved(layout, &stacks[..1]).is_err());
 }
