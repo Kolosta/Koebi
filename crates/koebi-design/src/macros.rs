@@ -16,7 +16,16 @@
 /// CONSTANT = "path": Kind -> TARGET;   // semantic and component tokens
 /// ```
 ///
-/// optionally followed by `, range(min, max)` or `, range(min, max, step)` for numeric tokens.
+/// optionally followed by the values the token accepts (a [`Range`](crate::value::Range)):
+///
+/// | Constraint | Accepts |
+/// |---|---|
+/// | `range(min, max)`, `range(min, max, step)` | numbers from `min` to `max`; `step` is a hint for editors |
+/// | `at_least(min)`, `at_most(max)` | numbers from `min` up, or up to `max` |
+/// | `positive()` | numbers above zero |
+/// | `steps(min, max, step)` | multiples of `step` from `min` to `max` |
+/// | `alpha(min, max)`, `opaque()` | colors whose alpha lies in the range, or is 1 |
+///
 /// The constant is the path in upper case, `.` and `-` becoming `_`. The `///` comment is the
 /// token's description. Values are built with the constructors of [`define`](crate::define):
 /// `hex("#3B63FB")`, `px(4.0)`, `ms(150)`... The tier rules are checked while compiling:
@@ -84,7 +93,7 @@ macro_rules! tokens {
         $(
             $(#[doc = $doc:literal])*
             $name:ident = $path:literal: $kind:ident $op:tt $definition:expr
-            $(, range($min:expr, $max:expr $(, $step:expr)?))?;
+            $(, $constraint:ident($($argument:expr),*))?;
         )*
     ) => {
         $crate::__token_group! {
@@ -92,7 +101,7 @@ macro_rules! tokens {
             $(
                 [$($doc)*] $name $path $kind [$op $definition]
                 ($crate::__token_definition!($op, $kind, $tier, $definition))
-                [$($min, $max $(, $step)?)?]
+                [$($constraint($($argument),*))?]
             )*
         }
     };
@@ -181,11 +190,14 @@ macro_rules! __token_range {
     () => {
         ::core::option::Option::None
     };
-    ($min:expr, $max:expr) => {
+    (range($min:expr, $max:expr)) => {
         ::core::option::Option::Some($crate::value::Range::new($min, $max, 0.0))
     };
-    ($min:expr, $max:expr, $step:expr) => {
+    (range($min:expr, $max:expr, $step:expr)) => {
         ::core::option::Option::Some($crate::value::Range::new($min, $max, $step))
+    };
+    ($constraint:ident($($argument:expr),*)) => {
+        ::core::option::Option::Some($crate::value::Range::$constraint($($argument),*))
     };
 }
 

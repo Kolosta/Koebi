@@ -46,13 +46,13 @@ koebi_design::tokens! {
     FONT_SIZE_190 = "font.size.190": Dimension = px(96.0), range(6.0, 200.0);
 
     /// Font scale factor of 75 %.
-    FONT_SCALE_75 = "font-scale.75": Number = 0.75;
+    FONT_SCALE_75 = "font-scale.75": Number = 0.75, range(0.5, 4.0);
     /// Font scale factor of 100 %.
-    FONT_SCALE_100 = "font-scale.100": Number = 1.0;
+    FONT_SCALE_100 = "font-scale.100": Number = 1.0, range(0.5, 4.0);
     /// Font scale factor of 125 %.
-    FONT_SCALE_125 = "font-scale.125": Number = 1.25;
+    FONT_SCALE_125 = "font-scale.125": Number = 1.25, range(0.5, 4.0);
     /// Font scale factor of 150 %.
-    FONT_SCALE_150 = "font-scale.150": Number = 1.5;
+    FONT_SCALE_150 = "font-scale.150": Number = 1.5, range(0.5, 4.0);
 
     /// Base font size of the modular type scale.
     FONT_SCALE_BASE = "font.scale.base": Dimension = px(16.0), range(8.0, 32.0);

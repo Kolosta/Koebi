@@ -203,10 +203,10 @@ fn untyped_overrides_are_validated_at_run_time() {
         component::BUTTON_RADIUS.id(),
         Definition::Value(Value::Dimension(-1.0)),
     );
-    let Err(Error::OutOfRange { min, max, .. }) = range else {
+    let Err(Error::OutOfRange { range, .. }) = range else {
         panic!("expected an out-of-range error, got {range:?}");
     };
-    assert_eq!((min, max), (0.0, 32.0));
+    assert_eq!((range.min(), range.max()), (0.0, 32.0));
     let nan = set(
         &mut design,
         primitive::OPACITY_500.id(),

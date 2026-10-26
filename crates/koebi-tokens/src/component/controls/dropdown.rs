@@ -11,9 +11,9 @@ koebi_design::tokens! {
     DROPDOWN_SIZE_HEIGHT = "dropdown.size.height": Dimension -> semantic::SIZE_CONTROL_HEIGHT;
     /// Dropdown: horizontal padding.
     DROPDOWN_PADDING_HORIZONTAL_DEFAULT = "dropdown.padding.horizontal.default": Dimension =
-        px(8.0);
+        px(8.0), range(0.0, 32.0);
     /// Dropdown: vertical padding.
-    DROPDOWN_PADDING_VERTICAL_DEFAULT = "dropdown.padding.vertical.default": Dimension = px(2.0);
+    DROPDOWN_PADDING_VERTICAL_DEFAULT = "dropdown.padding.vertical.default": Dimension = px(2.0), range(0.0, 32.0);
     /// Dropdown: chevron size.
     DROPDOWN_CHEVRON_SIZE = "dropdown.chevron.size": Dimension = px(8.0), range(0.0, 32.0);
     /// Dropdown: icon size.

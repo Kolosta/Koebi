@@ -40,7 +40,7 @@ koebi_design::tokens! {
     COMBO_BORDER_WIDTH_DEFAULT = "combo.border.width.default": Dimension ->
         semantic::BORDER_WIDTH_THIN;
     /// Combo: horizontal padding.
-    COMBO_PADDING_HORIZONTAL_DEFAULT = "combo.padding.horizontal.default": Dimension = px(4.0);
+    COMBO_PADDING_HORIZONTAL_DEFAULT = "combo.padding.horizontal.default": Dimension = px(4.0), range(0.0, 32.0);
     /// Combo: vertical padding.
-    COMBO_PADDING_VERTICAL_DEFAULT = "combo.padding.vertical.default": Dimension = px(4.0);
+    COMBO_PADDING_VERTICAL_DEFAULT = "combo.padding.vertical.default": Dimension = px(4.0), range(0.0, 32.0);
 }

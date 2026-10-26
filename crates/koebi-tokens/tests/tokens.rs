@@ -29,6 +29,54 @@ fn schema_passes_the_run_time_validation() {
 }
 
 #[test]
+fn every_numeric_token_has_bounds() {
+    let design = design();
+    let unbounded: Vec<String> = KOEBI
+        .tokens()
+        .filter(|(token, info)| info.kind().is_numeric() && design.range(*token).is_none())
+        .map(|(_, info)| info.qualified().to_string())
+        .collect();
+    assert_eq!(unbounded, Vec::<String>::new());
+}
+
+#[test]
+fn built_in_themes_stay_inside_every_range() {
+    // Resolved values are kept inside each token's range; the built-in themes never rely on
+    // it: a token's own range accepts what it aliases.
+    let mut design = design();
+    let ids: Vec<_> = design.themes().map(|(id, _)| id).collect();
+    let mut outside = Vec::new();
+    for id in ids {
+        design.set_active_theme(id).unwrap();
+        let view = design.view(id, Layers::ALL).unwrap();
+        for (token, info) in KOEBI.tokens() {
+            let Some(range) = design.range(token) else {
+                continue;
+            };
+            // The value before limiting: the one at the end of the alias chain.
+            let mut current = token;
+            let raw = loop {
+                match view.definition(current) {
+                    Some(koebi_design::value::Definition::Alias(target)) => current = *target,
+                    Some(koebi_design::value::Definition::Value(value)) => break value.clone(),
+                    None => unreachable!("every token has a definition"),
+                }
+            };
+            let number = match &raw {
+                koebi_design::value::Value::Color(color) => Some(f64::from(color.a)),
+                other => other.as_number(),
+            };
+            if let Some(number) = number
+                && !range.contains(number)
+            {
+                outside.push(format!("{} = {number} ({range})", info.qualified()));
+            }
+        }
+    }
+    assert_eq!(outside, Vec::<String>::new());
+}
+
+#[test]
 fn every_token_resolves_in_every_theme() {
     let mut design = design();
     let ids: Vec<_> = design.themes().map(|(id, _)| id).collect();

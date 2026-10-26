@@ -23,9 +23,9 @@ koebi_design::tokens! {
     FRAME_BORDER_WIDTH_DEFAULT = "frame.border.width.default": Dimension ->
         semantic::BORDER_WIDTH_THIN;
     /// Frame: horizontal padding.
-    FRAME_PADDING_HORIZONTAL_DEFAULT = "frame.padding.horizontal.default": Dimension = px(4.0);
+    FRAME_PADDING_HORIZONTAL_DEFAULT = "frame.padding.horizontal.default": Dimension = px(4.0), range(0.0, 32.0);
     /// Frame: vertical padding.
-    FRAME_PADDING_VERTICAL_DEFAULT = "frame.padding.vertical.default": Dimension = px(4.0);
+    FRAME_PADDING_VERTICAL_DEFAULT = "frame.padding.vertical.default": Dimension = px(4.0), range(0.0, 32.0);
     /// Frame: input text cursor color.
     FRAME_INPUT_TEXT_CURSOR_COLOR_DEFAULT = "frame.input-text.cursor.color.default": Color ->
         semantic::TEXT_COLOR_PRIMARY_DEFAULT;

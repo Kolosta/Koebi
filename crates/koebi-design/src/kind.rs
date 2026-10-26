@@ -113,12 +113,19 @@ impl KindId {
         Self::ALL.into_iter().find(|kind| kind.name() == name)
     }
 
-    /// `true` for kinds whose values are compared against a [`Range`](crate::value::Range).
+    /// `true` for kinds whose values are numbers, compared against a
+    /// [`Range`](crate::value::Range).
     pub const fn is_numeric(self) -> bool {
         matches!(
             self,
             Self::Dimension | Self::Number | Self::Integer | Self::Duration | Self::FontWeight
         )
+    }
+
+    /// `true` for kinds a [`Range`](crate::value::Range) can constrain: numeric kinds, and
+    /// colors through their alpha.
+    pub const fn takes_range(self) -> bool {
+        self.is_numeric() || matches!(self, Self::Color)
     }
 }
 
