@@ -1,19 +1,26 @@
-//! [`Styles`]: what every component draws with, resolved from design tokens.
+//! [`Styles`]: what every component draws with, resolved from design tokens, and [`Prop`]: a
+//! property a call gives a component, as a token or a value.
 //!
 //! Each component has a typed style (`ButtonStyle`, `SliderStyle`...) whose fields are read
-//! from its `component.*` tokens by a `resolve` function. Resolving reads a few hundred
-//! values, so it happens when the design system changes, not per component: drawing reads
-//! plain fields.
+//! from its `component.*` tokens by a `resolve` function (ADR 0017). Resolving reads a few
+//! hundred values, so it happens when the design system changes, not per component: drawing
+//! reads plain fields. [`Styles::tokens`] keeps a snapshot of every token, so that a token a
+//! call gives a component is read in constant time.
+
+use core::time::Duration;
 
 use koebi_core::Color;
-use koebi_design::{DesignSystem, Resolve};
-use koebi_tokens::component;
+use koebi_design::kind::{self, Kind};
+use koebi_design::tier::Tier;
+use koebi_design::{DesignSystem, Resolve, Snapshot, Token, TokenId};
+use koebi_render::Corners;
+use koebi_tokens::{component, semantic};
 
 use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
     ButtonStyle, CheckboxStyle, DragValueStyle, DropdownStyle, ListStyle, MenuStyle, PanelStyle,
-    ScrollStyle, SeparatorStyle, SliderStyle, SwatchStyle, ThemeCardStyle, ToggleStyle,
+    ScrollStyle, SeparatorStyle, SliderStyle, SwatchStyle, ThemeCardStyle,
 };
 use crate::workspace::WorkspaceStyle;
 
@@ -35,6 +42,189 @@ impl StateColors {
             WidgetState::Normal => self.normal,
             WidgetState::Hovered => self.hovered,
             WidgetState::Pressed => self.pressed,
+        }
+    }
+}
+
+/// A property a call gives a component: a token of the design system, or a value.
+///
+/// Builders take `impl Into<Prop<K>>`, so a call writes either:
+///
+/// ```
+/// # use koebi_ui::Prop;
+/// # use koebi_design::kind;
+/// let radius: Prop<kind::Dimension> = 0.0.into();
+/// let themed: Prop<kind::Dimension> = koebi_tokens::semantic::RADIUS_M.into();
+/// # let _ = (radius, themed);
+/// ```
+pub enum Prop<K: Kind> {
+    /// The value of a token, read in [`Styles::tokens`].
+    Token(TokenId),
+    /// A value.
+    Value(K::Value),
+}
+
+impl<K: Kind> Clone for Prop<K> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Token(token) => Self::Token(*token),
+            Self::Value(value) => Self::Value(value.clone()),
+        }
+    }
+}
+
+impl<K: Kind> PartialEq for Prop<K> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Token(a), Self::Token(b)) => a == b,
+            (Self::Value(a), Self::Value(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl<K: Kind> core::fmt::Debug for Prop<K> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Token(token) => f.debug_tuple("Token").field(token).finish(),
+            Self::Value(value) => f.debug_tuple("Value").field(value).finish(),
+        }
+    }
+}
+
+impl<K: Kind> Prop<K> {
+    /// The value of the property in `tokens`.
+    pub fn resolve(&self, tokens: &Snapshot) -> K::Value {
+        match self {
+            Self::Token(token) => tokens
+                .value(*token)
+                .and_then(K::from_value)
+                .unwrap_or_else(K::fallback),
+            Self::Value(value) => value.clone(),
+        }
+    }
+}
+
+impl<K: Kind, T: Tier> From<Token<K, T>> for Prop<K> {
+    fn from(token: Token<K, T>) -> Self {
+        Self::Token(token.id())
+    }
+}
+
+impl From<Color> for Prop<kind::Color> {
+    fn from(color: Color) -> Self {
+        Self::Value(color)
+    }
+}
+
+impl From<f32> for Prop<kind::Dimension> {
+    fn from(value: f32) -> Self {
+        Self::Value(value)
+    }
+}
+
+impl From<f32> for Prop<kind::Number> {
+    fn from(value: f32) -> Self {
+        Self::Value(value)
+    }
+}
+
+impl From<Duration> for Prop<kind::Duration> {
+    fn from(value: Duration) -> Self {
+        Self::Value(value)
+    }
+}
+
+/// The radius of each corner of a control, as tokens or values ([`Prop`]).
+#[derive(Clone, Debug, PartialEq)]
+pub struct CornerRadii {
+    /// Top left.
+    pub top_left: Prop<kind::Dimension>,
+    /// Top right.
+    pub top_right: Prop<kind::Dimension>,
+    /// Bottom right.
+    pub bottom_right: Prop<kind::Dimension>,
+    /// Bottom left.
+    pub bottom_left: Prop<kind::Dimension>,
+}
+
+impl CornerRadii {
+    /// Each corner its radius, clockwise from the top left.
+    pub fn new(
+        top_left: impl Into<Prop<kind::Dimension>>,
+        top_right: impl Into<Prop<kind::Dimension>>,
+        bottom_right: impl Into<Prop<kind::Dimension>>,
+        bottom_left: impl Into<Prop<kind::Dimension>>,
+    ) -> Self {
+        Self {
+            top_left: top_left.into(),
+            top_right: top_right.into(),
+            bottom_right: bottom_right.into(),
+            bottom_left: bottom_left.into(),
+        }
+    }
+
+    /// The same radius for every corner.
+    pub fn all(radius: impl Into<Prop<kind::Dimension>>) -> Self {
+        let radius = radius.into();
+        Self {
+            top_left: radius.clone(),
+            top_right: radius.clone(),
+            bottom_right: radius.clone(),
+            bottom_left: radius,
+        }
+    }
+
+    /// The radii in `tokens`.
+    pub fn resolve(&self, tokens: &Snapshot) -> Corners {
+        Corners {
+            top_left: self.top_left.resolve(tokens),
+            top_right: self.top_right.resolve(tokens),
+            bottom_right: self.bottom_right.resolve(tokens),
+            bottom_left: self.bottom_left.resolve(tokens),
+        }
+    }
+}
+
+impl From<Corners> for CornerRadii {
+    fn from(corners: Corners) -> Self {
+        Self::new(
+            corners.top_left,
+            corners.top_right,
+            corners.bottom_right,
+            corners.bottom_left,
+        )
+    }
+}
+
+/// Timings and distances of interaction, from the `semantic.input.*` tokens: the input
+/// settings a theme or the user may change.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct InputStyle {
+    /// How far the pointer moves before a press becomes a drag.
+    pub drag_threshold: f32,
+    /// Longest time between the two clicks of a double click.
+    pub double_click: Duration,
+    /// How long a held button waits before repeating.
+    pub repeat_delay: Duration,
+    /// Time between two repeats.
+    pub repeat_interval: Duration,
+    /// How long the pointer rests before a tooltip shows.
+    pub tooltip_delay: Duration,
+    /// How long the pointer rests on an item before it acts (a submenu opens).
+    pub hover_delay: Duration,
+}
+
+impl InputStyle {
+    /// Reads the settings from `tokens`.
+    pub fn resolve(tokens: &impl Resolve) -> Self {
+        Self {
+            drag_threshold: tokens.get(semantic::INPUT_DRAG_THRESHOLD),
+            double_click: tokens.get(semantic::INPUT_DOUBLE_CLICK_TIME),
+            repeat_delay: tokens.get(semantic::INPUT_REPEAT_DELAY),
+            repeat_interval: tokens.get(semantic::INPUT_REPEAT_INTERVAL),
+            tooltip_delay: tokens.get(semantic::INPUT_TOOLTIP_DELAY),
+            hover_delay: tokens.get(semantic::INPUT_HOVER_DELAY),
         }
     }
 }
@@ -61,17 +251,20 @@ impl IconStyle {
 /// The style of every component, resolved together.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Styles {
+    /// Every token's value when the styles were resolved: where tokens given at a call are
+    /// read ([`Prop`]).
+    pub tokens: Snapshot,
+    /// Input settings: drag threshold, double click, repeats, delays.
+    pub input: InputStyle,
     /// Window background: the clear color of the scene.
     pub background: Color,
     /// Line icons.
     pub icon: IconStyle,
     /// Typography and text colors.
     pub text: TextStyles,
-    /// [`Ui::button`](crate::Ui::button).
+    /// [`Button`](crate::Button) and [`ButtonGroup`](crate::ButtonGroup).
     pub button: ButtonStyle,
-    /// [`Ui::toggle`](crate::Ui::toggle).
-    pub toggle: ToggleStyle,
-    /// [`Ui::checkbox`](crate::Ui::checkbox).
+    /// [`Checkbox`](crate::Checkbox).
     pub checkbox: CheckboxStyle,
     /// [`Ui::slider`](crate::Ui::slider).
     pub slider: SliderStyle,
@@ -101,12 +294,26 @@ impl Styles {
     /// Reads every style from `tokens`: the active theme ([`DesignSystem`]) or a
     /// [`View`](koebi_design::View) of any theme.
     pub fn resolve(tokens: &impl Resolve) -> Self {
+        Self::resolve_with(tokens, tokens.snapshot())
+    }
+
+    /// Reads every style again from `tokens`, reusing the memory of the token snapshot: what
+    /// a frame that changed the design system costs.
+    pub fn refresh(&mut self, tokens: &impl Resolve) {
+        let mut snapshot = core::mem::take(&mut self.tokens);
+        tokens.snapshot_into(&mut snapshot);
+        *self = Self::resolve_with(tokens, snapshot);
+    }
+
+    /// Every style from `tokens`, with `snapshot` already captured from them.
+    fn resolve_with(tokens: &impl Resolve, snapshot: Snapshot) -> Self {
         Self {
+            tokens: snapshot,
+            input: InputStyle::resolve(tokens),
             background: tokens.get(component::WINDOW_BACKGROUND_COLOR_DEFAULT),
             icon: IconStyle::resolve(tokens),
             text: TextStyles::resolve(tokens),
             button: ButtonStyle::resolve(tokens),
-            toggle: ToggleStyle::resolve(tokens),
             checkbox: CheckboxStyle::resolve(tokens),
             slider: SliderStyle::resolve(tokens),
             drag_value: DragValueStyle::resolve(tokens),
@@ -146,7 +353,7 @@ impl StyleCache {
     pub fn update(&mut self, design: &DesignSystem) -> &Styles {
         if design.revision() != self.revision {
             self.revision = design.revision();
-            self.styles = Styles::resolve(design);
+            self.styles.refresh(design);
         }
         &self.styles
     }
@@ -163,6 +370,7 @@ mod tests {
     use koebi_tokens::{KOEBI, semantic};
 
     use super::*;
+    use crate::widgets::Tone;
 
     fn design() -> DesignSystem {
         DesignSystem::new(&KOEBI).expect("Koebi's schema is valid")
@@ -173,7 +381,7 @@ mod tests {
         let design = design();
         let styles = Styles::resolve(&design);
         assert_eq!(
-            styles.button.background.normal,
+            styles.button.colors(Tone::DEFAULT).background.normal,
             design.get(component::BUTTON_BACKGROUND_COLOR_DEFAULT)
         );
         assert_eq!(
@@ -207,14 +415,15 @@ mod tests {
     fn the_cache_resolves_again_after_a_change_only() {
         let mut design = design();
         let mut cache = StyleCache::new(&design);
-        let before = cache.styles().button.background.normal;
-        assert_eq!(cache.update(&design).button.background.normal, before);
+        let accent = |styles: &Styles| styles.button.colors(Tone::ACCENT).background.normal;
+        let before = accent(cache.styles());
+        assert_eq!(accent(cache.update(&design)), before);
 
         let red = Color::from_hex(0xFF_00_00);
         design
             .set_value(Scope::Global, semantic::BACKGROUND_ACCENT_DEFAULT, red)
             .unwrap();
-        // The button aliases the semantic token: the change flows to the component style.
-        assert_eq!(cache.update(&design).button.background.normal, red);
+        // The accent button aliases the semantic token: the change flows to its style.
+        assert_eq!(accent(cache.update(&design)), red);
     }
 }

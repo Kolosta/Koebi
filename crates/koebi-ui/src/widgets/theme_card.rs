@@ -57,9 +57,9 @@ pub struct ThemePreview {
     pub text_primary: Color,
     /// Secondary text.
     pub text_secondary: Color,
-    /// Button background.
+    /// Background of the accent button.
     pub accent: Color,
-    /// Button label.
+    /// Label of the accent button.
     pub accent_label: Color,
     /// Background of a checked checkbox.
     pub check_background: Color,
@@ -78,8 +78,8 @@ impl ThemePreview {
             panel_border: tokens.get(component::PANEL_BORDER_COLOR_DEFAULT),
             text_primary: tokens.get(semantic::TEXT_COLOR_PRIMARY_DEFAULT),
             text_secondary: tokens.get(semantic::TEXT_COLOR_SECONDARY_DEFAULT),
-            accent: tokens.get(component::BUTTON_BACKGROUND_COLOR_DEFAULT),
-            accent_label: tokens.get(component::BUTTON_LABEL_COLOR_DEFAULT),
+            accent: tokens.get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT),
+            accent_label: tokens.get(component::BUTTON_ACCENT_LABEL_COLOR_DEFAULT),
             check_background: tokens.get(component::CHECKBOX_BACKGROUND_COLOR_SELECTED),
             check_mark: tokens.get(component::CHECKBOX_MARK_COLOR_DEFAULT),
             corner_radius: tokens.get(component::PANEL_CORNER_RADIUS_DEFAULT),

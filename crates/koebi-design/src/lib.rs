@@ -114,7 +114,7 @@ mod vision;
 pub use error::{Error, Result};
 pub use koebi_core::color_vision::{ColorMatrix, Deficiency};
 pub use layers::{Layers, Origin};
-pub use resolve::Resolve;
+pub use resolve::{Resolve, Snapshot};
 pub use system::{DesignSystem, Scope};
 pub use theme::{NewTheme, Theme, ThemeId, ThemeOrigin};
 pub use token::{TextStyle, Token, TokenId, Typography};

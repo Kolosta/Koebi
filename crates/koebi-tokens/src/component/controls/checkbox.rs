@@ -45,4 +45,33 @@ koebi_design::tokens! {
     /// Checkbox: stroke width of the check mark.
     CHECKBOX_MARK_WIDTH_DEFAULT = "checkbox.mark.width.default": Dimension =
         px(2.0), range(0.5, 6.0);
+    /// Checkbox: border color, hovered.
+    CHECKBOX_BORDER_COLOR_HOVER = "checkbox.border.color.hover": Color ->
+        semantic::BORDER_COLOR_STRONG_DEFAULT;
+    /// Checkbox: background color, disabled.
+    CHECKBOX_BACKGROUND_COLOR_DISABLED = "checkbox.background.color.disabled": Color ->
+        semantic::BACKGROUND_APP_CONTROL;
+    /// Checkbox: border color, disabled.
+    CHECKBOX_BORDER_COLOR_DISABLED = "checkbox.border.color.disabled": Color ->
+        semantic::BORDER_COLOR_DISABLED_DEFAULT;
+    /// Checkbox: mark color, disabled.
+    CHECKBOX_MARK_COLOR_DISABLED = "checkbox.mark.color.disabled": Color ->
+        semantic::TEXT_COLOR_DISABLED_DEFAULT;
+    /// Checkbox: label color.
+    CHECKBOX_LABEL_COLOR_DEFAULT = "checkbox.label.color.default": Color ->
+        semantic::TEXT_COLOR_PRIMARY_DEFAULT;
+    /// Checkbox: label color, disabled.
+    CHECKBOX_LABEL_COLOR_DISABLED = "checkbox.label.color.disabled": Color ->
+        semantic::TEXT_COLOR_DISABLED_DEFAULT;
+    /// Checkbox: color of the description below the label.
+    CHECKBOX_DESCRIPTION_COLOR_DEFAULT = "checkbox.description.color.default": Color ->
+        semantic::TEXT_COLOR_SECONDARY_DEFAULT;
+    /// Checkbox: color of the description, disabled.
+    CHECKBOX_DESCRIPTION_COLOR_DISABLED = "checkbox.description.color.disabled": Color ->
+        semantic::TEXT_COLOR_DISABLED_DEFAULT;
+    /// Checkbox: space between the box and the label.
+    CHECKBOX_GAP_DEFAULT = "checkbox.gap.default": Dimension = px(6.0), range(0.0, 24.0);
+    /// Checkbox: height of a line of label or description.
+    CHECKBOX_LINE_HEIGHT_DEFAULT = "checkbox.line-height.default": Dimension ->
+        semantic::SIZE_CONTROL_HEIGHT;
 }

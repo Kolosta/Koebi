@@ -1,14 +1,23 @@
 //! Koebi's interface components, drawn from design tokens.
 //!
+//! - **Components**: a component is configured by a builder, then shown in its rectangle:
+//!   `Button::new(id).label("Save").tone(Tone::ACCENT).show(ui, rect)`. Every property has a
+//!   default read from the component's tokens, and a call can replace it with another token or
+//!   a plain value ([`Prop`]), state by state where it changes with the state
+//!   ([`ControlState`]). Behaviours are options as well: when a button fires
+//!   ([`Activation`]), whether it repeats while held, whether it toggles a value. Families of
+//!   controls share their roles and colors ([`Tone`]: a [`Variant`] and an optional [`Hue`]).
+//!   Simpler components are methods of [`Ui`] ([`Ui::slider`], [`Ui::panel`]...). ADR 0017
+//!   records the design of the library.
 //! - **Styles**: each component draws with a typed style ([`ButtonStyle`], [`SliderStyle`]...)
 //!   whose fields come from its `component.*` tokens. [`Styles::resolve`] reads every style
 //!   from the active theme or from any other theme ([`koebi_design::Resolve`]), and
 //!   [`StyleCache`] resolves again only when the design system changes: frames read plain
 //!   fields, however many components they draw.
-//! - **Immediate mode**: a [`Ui`] lives for one frame. Components are its methods: they react
-//!   to the [`Input`], draw into a [`koebi_render::Scene`] and return a [`Response`]
-//!   (hovered, pressed, clicked, dragged, changed). [`UiState`] keeps what outlives a frame:
-//!   the widget that holds the pointer.
+//! - **Immediate mode**: a [`Ui`] lives for one frame. Components react to the [`Input`], draw
+//!   into a [`koebi_render::Scene`] and return a [`Response`] (hovered, pressed, clicked,
+//!   dragged, changed). [`UiState`] keeps what outlives a frame: the widget that holds the
+//!   pointer, the last click of a double click.
 //! - **Actions**: the application turns events into `koebi_input` actions through the chain
 //!   of contexts under the pointer ([`UiState::chain_at`]); components read them with
 //!   [`Ui::triggered`], and an open menu or an operation in progress takes the keyboard with
@@ -26,7 +35,7 @@
 //! use koebi_core::{Rect, Vec2};
 //! use koebi_design::DesignSystem;
 //! use koebi_render::Scene;
-//! use koebi_ui::{Icon, Input, StyleCache, Ui, UiState, WidgetId};
+//! use koebi_ui::{Button, Icon, Input, StyleCache, Ui, UiState, WidgetId};
 //!
 //! let design = DesignSystem::new(&koebi_tokens::KOEBI)?;
 //! let mut styles = StyleCache::new(&design);
@@ -38,7 +47,10 @@
 //! let mut frame = |input: &mut Input, grid: &mut bool| {
 //!     scene.clear();
 //!     let mut ui = Ui::new(&mut scene, styles.update(&design), input, &mut state);
-//!     let response = ui.toggle(WidgetId::new("grid"), toggle, grid, Some(Icon::Plus));
+//!     let response = Button::new(WidgetId::new("grid"))
+//!         .icon(Icon::Plus)
+//!         .toggle(grid)
+//!         .show(&mut ui, toggle);
 //!     drop(ui);
 //!     input.end_frame();
 //!     response
@@ -70,17 +82,19 @@ pub use icon::Icon;
 pub use id::WidgetId;
 pub use input::{Input, PointerButton};
 pub use routing::Layer;
-pub use style::{IconStyle, StateColors, StyleCache, Styles};
+pub use style::{CornerRadii, IconStyle, InputStyle, Prop, StateColors, StyleCache, Styles};
 pub use text::{Align, FontStyle, TextStyles};
 pub use ui::{Response, Ui, UiState, WidgetState};
 pub use widgets::{
-    ButtonStyle, CheckboxStyle, DragValueStyle, DropPlace, DropdownStyle, ItemMark, LIST,
-    LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT, LIST_EXTEND_PREVIOUS, LIST_FOLD,
-    LIST_NEXT, LIST_PREVIOUS, LIST_SELECT_ALL, LIST_UNFOLD, ListContextMenu, ListDelegate,
-    ListItem, ListOptions, ListResponse, ListSelection, ListState, ListStyle, MENU, MENU_ACTIONS,
-    MENU_CHOOSE, MENU_CLOSE, MENU_NEXT, MENU_PREVIOUS, MenuAction, MenuItem, MenuState, MenuStyle,
-    PanelLevel, PanelStyle, SCROLL, ScrollAxes, ScrollContent, ScrollState, ScrollStyle,
-    SeparatorStyle, SliderStyle, SwatchStyle, ThemeCardStyle, ThemePreview, ToggleStyle,
+    Activation, Button, ButtonGroup, ButtonStyle, Checkbox, CheckboxStyle, Content, ControlState,
+    DragValueStyle, DropPlace, DropdownStyle, GroupCell, GroupResponse, Hue, HueColors, ItemMark,
+    LIST, LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT, LIST_EXTEND_PREVIOUS,
+    LIST_FOLD, LIST_NEXT, LIST_PREVIOUS, LIST_SELECT_ALL, LIST_UNFOLD, ListContextMenu,
+    ListDelegate, ListItem, ListOptions, ListResponse, ListSelection, ListState, ListStyle, MENU,
+    MENU_ACTIONS, MENU_CHOOSE, MENU_CLOSE, MENU_NEXT, MENU_PREVIOUS, MenuAction, MenuItem,
+    MenuState, MenuStyle, PanelLevel, PanelStyle, SCROLL, ScrollAxes, ScrollContent, ScrollState,
+    ScrollStyle, SeparatorStyle, Shades, SliderStyle, States, SwatchStyle, ThemeCardStyle,
+    ThemePreview, Tone, ToneColors, Track, Variant,
 };
 pub use workspace::{
     EditorHost, OPERATION_CANCEL, OPERATION_CONFIRM, WORKSPACE, WORKSPACE_ACTIONS,

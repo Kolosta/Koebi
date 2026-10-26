@@ -20,9 +20,10 @@ one and link both.
 | [0008](0008-design-token-system.md) | Design token system: typed tiers, compiled tables, layered resolution | Accepted |
 | [0009](0009-design-state-persistence.md) | Persistence of the design system state: a versioned binary file keyed by paths | Accepted |
 | [0010](0010-design-token-interchange.md) | Design token interchange: the W3C Design Tokens format with a Koebi extension | Accepted |
-| [0011](0011-token-driven-components.md) | Token-driven components: typed styles and immediate-mode interaction | Accepted, hit testing superseded by 0013 |
+| [0011](0011-token-driven-components.md) | Token-driven components: typed styles and immediate-mode interaction | Accepted, hit testing superseded by 0013, `Ui` methods by builders in 0017 |
 | [0012](0012-actions-and-shortcuts.md) | Actions and shortcuts: an action-centred keymap resolved through pointer contexts | Accepted |
 | [0013](0013-layered-hit-testing.md) | Layered hit testing against the previous frame, and zones as shortcut contexts | Accepted |
 | [0014](0014-text-basics.md) | Text basics: in-house TrueType reading, CPU coverage glyphs, single-line labels | Accepted |
 | [0015](0015-workspace-layout.md) | Workspace layout: areas tiling an integer grid, edited by lines, joins that fill gaps | Accepted, join item superseded by 0016 |
 | [0016](0016-partial-joins.md) | Joins of partly aligned areas | Accepted |
+| [0017](0017-component-library.md) | Component library: theme values declared once, overridable per call, configurable behaviours | Accepted |

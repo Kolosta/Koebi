@@ -4,13 +4,15 @@
 //! - **Components**: every component of `koebi-ui`, interactive.
 //! - **Token editor** ([`editor`]): sliders and fields that edit tokens in every theme or in
 //!   the active theme; every component that depends on them follows in the same frame.
+//! - **Buttons** ([`buttons`]): every variant and color family, groups, content, behaviours
+//!   and checkboxes.
 //! - **Color vision** ([`editor`]): the simulation and correction modes, each previewed on
 //!   four chart colors.
 //! - **Grid**: hundreds of components, to show that styling costs nothing per component.
 //!
-//! Components have no labels until Koebi renders text: previews beside the editor's controls
-//! show what each one edits.
+//! Previews beside the token editor's controls show what each one edits.
 
+mod buttons;
 mod editor;
 
 use koebi_core::{Color, Oklch, Rect, Vec2};
@@ -18,7 +20,10 @@ use koebi_design::kind::Color as ColorKind;
 use koebi_design::tier::Semantic;
 use koebi_design::{DesignSystem, Scope, Token};
 use koebi_tokens::semantic;
-use koebi_ui::{Icon, MenuState, PanelLevel, ScrollAxes, ScrollState, ThemePreview, Ui, WidgetId};
+use koebi_ui::{
+    Button, Checkbox, Icon, MenuState, PanelLevel, ScrollAxes, ScrollState, ThemePreview, Ui,
+    WidgetId,
+};
 
 /// The twelve chart colors, shown as swatches and in the grid.
 const PALETTE: [Token<ColorKind, Semantic>; 12] = [
@@ -140,6 +145,8 @@ pub(crate) struct Gallery {
     sheet: Sheet,
     /// States of the grid's checkboxes, toggles and swatches.
     grid: Vec<bool>,
+    /// The values of the buttons panel.
+    buttons: buttons::Buttons,
     /// The color vision dropdown's menu.
     vision_menu: MenuState,
     /// How far the gallery is scrolled when its area is too small for it.
@@ -154,6 +161,7 @@ impl Gallery {
             accent_source: None,
             sheet: Sheet::default(),
             grid: Vec::new(),
+            buttons: buttons::Buttons::new(),
             vision_menu: MenuState::new(),
             scroll: ScrollState::new(),
         }
@@ -199,9 +207,10 @@ impl Gallery {
         } else {
             sheet + gap + tokens
         };
+        let buttons = metrics.panel_height(ui, buttons::ROWS);
         let vision = metrics.panel_height(ui, 1);
         let grid = metrics.panel_height(ui, 6);
-        2.0 * gap + cards + gap + top + gap + vision + gap + grid
+        2.0 * gap + cards + gap + top + gap + buttons + gap + vision + gap + grid
     }
 
     /// Lays the gallery out in `area`, its full size.
@@ -235,6 +244,12 @@ impl Gallery {
             let tokens = cut_top(&mut rest, editor_height, metrics.gap);
             editor::tokens(self, ui, design, tokens, metrics);
         }
+        let buttons = cut_top(
+            &mut rest,
+            metrics.panel_height(ui, buttons::ROWS),
+            metrics.gap,
+        );
+        self.buttons.show(ui, buttons, metrics);
         let vision = cut_top(&mut rest, vision_height, metrics.gap);
         editor::color_vision(ui, design, vision, metrics, &mut self.vision_menu, window);
         self.grid(ui, design, rest, metrics);
@@ -248,32 +263,27 @@ impl Gallery {
         let sheet = &mut self.sheet;
 
         let mut line = cut_top(&mut content, row, gap);
-        ui.button(ID.with(0), cut_left(&mut line, 4.0 * row, gap), None);
+        Button::new(ID.with(0))
+            .label("Button")
+            .show(ui, cut_left(&mut line, 4.0 * row, gap));
         for (index, icon) in [Icon::Plus, Icon::Minus, Icon::Close]
             .into_iter()
             .enumerate()
         {
-            ui.button(
-                ID.with(1 + index as u64),
-                cut_left(&mut line, row, gap),
-                Some(icon),
-            );
+            Button::new(ID.with(1 + index as u64))
+                .icon(icon)
+                .show(ui, cut_left(&mut line, row, gap));
         }
         let icons = [Icon::ChevronDown, Icon::Check];
         for (index, (on, icon)) in sheet.toggles.iter_mut().zip(icons).enumerate() {
-            ui.toggle(
-                ID.with(4 + index as u64),
-                cut_left(&mut line, row, gap),
-                on,
-                Some(icon),
-            );
+            Button::new(ID.with(4 + index as u64))
+                .icon(icon)
+                .toggle(on)
+                .show(ui, cut_left(&mut line, row, gap));
         }
         for (index, checked) in sheet.checkboxes.iter_mut().enumerate() {
-            ui.checkbox(
-                ID.with(6 + index as u64),
-                cut_left(&mut line, row, gap),
-                checked,
-            );
+            Checkbox::new(ID.with(6 + index as u64), checked)
+                .show(ui, cut_left(&mut line, row, gap));
         }
 
         let mut line = cut_top(&mut content, row, gap);
@@ -335,14 +345,17 @@ impl Gallery {
             let id = ID.with(index as u64);
             match index % 4 {
                 0 => {
-                    ui.checkbox(id, rect, state);
+                    Checkbox::new(id, state).show(ui, rect);
                 }
                 1 => {
-                    ui.toggle(id, rect, state, Some(Icon::Check));
+                    Button::new(id)
+                        .icon(Icon::Check)
+                        .toggle(state)
+                        .show(ui, rect);
                 }
                 2 => {
                     let icon = if *state { Icon::Minus } else { Icon::Plus };
-                    if ui.button(id, rect, Some(icon)).clicked {
+                    if Button::new(id).icon(icon).show(ui, rect).clicked {
                         *state = !*state;
                     }
                 }

@@ -1,16 +1,18 @@
 # Components
 
 `koebi-ui` draws Koebi's interface components from design tokens
-([ADR 0011](../adr/0011-token-driven-components.md)). This page explains how a component
-reads its tokens and how to write a new one.
+([ADR 0011](../adr/0011-token-driven-components.md)), as a library whose components take
+their defaults from the tokens and every property from the call
+([ADR 0017](../adr/0017-component-library.md)). This page explains how a component reads its
+tokens and how to write a new one.
 
 ## The components
 
-| Component | Method | Tokens |
+| Component | Call | Tokens |
 |---|---|---|
-| Button | `Ui::button(id, rect, icon)` | `component.button.*` |
-| Toggle button | `Ui::toggle(id, rect, &mut on, icon)` | `component.toggle.*` |
-| Checkbox | `Ui::checkbox(id, rect, &mut checked)` | `component.checkbox.*` |
+| Button, toggle button | `Button::new(id)` + options, then `.show(ui, rect)` | `component.button.*` |
+| Button group | `ButtonGroup::horizontal()` or `::vertical()` + options, then `.show(ui, rect, &mut cells)` | `component.button.*`, `component.button.group.*` |
+| Checkbox | `Checkbox::new(id, &mut checked)` + options, then `.show(ui, rect)` | `component.checkbox.*` |
 | Slider | `Ui::slider(id, rect, &mut value, range)` | `component.slider.*` |
 | Drag value | `Ui::drag_value(id, rect, &mut value, range, step)` | `component.drag-value.*` |
 | Panel | `Ui::panel(rect, level)` returns the content area | `component.panel.*` |
@@ -27,6 +29,68 @@ Line icons (`Icon::Check`, `Icon::Plus`, chevrons...) use `component.icon.*`. La
 fonts given to `UiState::set_fonts`, in the roles of `Styles::text` (label, body, detail): one
 line, cut with an ellipsis when too long ([ADR 0014](../adr/0014-text-basics.md)). Theme cards
 still draw text as bars.
+
+## Buttons and checkboxes
+
+Builders take their options in any order, then `size(ui)` measures the control and
+`show(ui, rect)` draws it and returns its `Response`:
+
+```rust
+let save = Button::new(WidgetId::new("save"))
+    .leading_icon(Icon::Check)
+    .label("Save")
+    .tone(Tone::ACCENT);
+let size = save.size(ui);
+if save.show(ui, Rect::from_origin_size(origin, size)).clicked {
+    // ...
+}
+```
+
+- **Tones**: a `Tone` is a `Variant` (default, accent, positive, negative, info, neutral,
+  notice: `button.*`, then `button.<variant>.*`) and an optional `Hue` replacing its color
+  (`Tone::POSITIVE.with_hue(Hue::Orange)`). A family has three colors (`button.hue.<hue>.fill`,
+  `.subtle` and `.text`): filled variants take its fill, the default variant its subtle
+  background and its text color. Hovered and pressed shades add `button.shade.hover.lightness`
+  and `button.shade.pressed.lightness` to the OKLCH lightness (a selected filled variant,
+  hovered, is shaded the same way); disabled ones keep `button.hue.disabled.tint` of the
+  family over the disabled colors. A toggle of the default tone has the look of toggles
+  (`toggle.*`: colors, corner radius and border width), like Blender's toggle theme.
+- **States** (`ControlState`): normal, hovered, pressed, selected (a toggle switched on, the
+  current choice), selected and hovered, disabled. `States<T>` holds a value per state.
+- **Overrides**: every property takes a `Prop`, a token or a value:
+  `.corner_radius(0.0)`, `.padding(semantic::SPACING_EDITOR_INSET)`,
+  `.background(ControlState::Hovered, Color::from_hex(0xE0_30_30))`; `.corner_radii(...)`
+  takes one radius per corner (`CornerRadii`), and the last of the two calls applies.
+- **Content** (`Content`): a leading icon, a label or an icon, a status dot and a trailing
+  icon, placed by `align`; a label too long is cut with an ellipsis, and content that cannot
+  fit is clipped to the button.
+- **Size**: one interface unit high (`button.height`), never lower than the content (an icon,
+  or the line box of the label's font); as wide as the content, paddings and borders within
+  `button.min-width` and `.max_width(...)`, or `.width(...)` for a fixed width. A button
+  showing an icon alone is square.
+- **Behaviour**: the action fires on release (moving away first cancels), on press, or on the
+  second press of a double click (`Activation`: within `semantic.input.double-click.time` of
+  the first press and `semantic.input.drag-threshold` of its place, as platforms count
+  them); `.repeat(true)` fires on press then every `semantic.input.repeat.interval` after
+  `semantic.input.repeat.delay` while held under the pointer, pausing while the pointer is
+  off the button, the frames asked for in advance; `.toggle(&mut on)` flips a value and shows
+  the button selected while it is on. A disabled button ignores the pointer but still covers
+  what lies under it.
+- **Groups** (`ButtonGroup`): cells (`GroupCell::new(button).at(column, row).span(columns,
+  rows)`) tile a grid, the Ctrl key above L and R for example; columns and rows fit their
+  buttons, or take a fixed size or a share of the room (`Track`); cells without a place take
+  the next free one along the group's direction, and a group in a rectangle smaller than its
+  size shrinks its fitting tracks first. Neighbours share one border
+  (`button.group.border.width`) whose color is the one of the cell of highest state priority
+  (pressed, hovered, selected, rest, disabled); only the group's outer corners are rounded. The
+  `GroupResponse` says which cell fired, was double-clicked, pressed with the secondary
+  button or hovered.
+- **Checkboxes**: the box, a label beside it and an optional description below
+  (`checkbox.description.color`), all of it clickable; `.mixed(true)` shows the mixed mark of a
+  partly checked set, which a click checks. The box's colors (`background`,
+  `checked_background`, `border_color`, `checked_border_color`), size, radius and border, the
+  mark and the label colors take overrides like buttons; the first line grows to hold a larger
+  box or font.
 
 ## Scroll areas
 
@@ -140,7 +204,7 @@ area) and learns when a split copies an editor or a join removes some.
 ## One frame
 
 ```rust
-use koebi_ui::{Input, StyleCache, Ui, UiState, WidgetId};
+use koebi_ui::{Button, Icon, Input, StyleCache, Ui, UiState, WidgetId};
 
 // Once per window.
 let mut styles = StyleCache::new(&design);
@@ -154,7 +218,11 @@ scene.clear();
 let styles = styles.update(&design); // resolves again only if the design system changed
 scene.set_clear_color(styles.background);
 let mut ui = Ui::new(&mut scene, styles, &input, &mut state);
-if ui.button(WidgetId::new("apply"), apply_rect, Some(Icon::Check)).clicked {
+if Button::new(WidgetId::new("apply"))
+    .icon(Icon::Check)
+    .show(&mut ui, apply_rect)
+    .clicked
+{
     // ...
 }
 ui.slider(WidgetId::new("radius"), slider_rect, &mut radius, 0.0..=16.0);
@@ -165,7 +233,7 @@ input.end_frame();
 - **Ids** identify a widget across frames, so that a press or a drag survives redraws.
   Derive the ids of repeated widgets with `WidgetId::with(index)`.
 - **Responses** say what happened this frame: `hovered`, `pressed`, `held`, `clicked`,
-  `released`, `changed` and `drag_delta`.
+  `double_clicked`, `secondary_pressed`, `released`, `changed` and `drag_delta`.
 - **Values** belong to the application: components take `&mut` references and report
   `changed`.
 - **What is on top wins** ([ADR 0013](../adr/0013-layered-hit-testing.md)): each frame
@@ -185,26 +253,26 @@ Each component has a style made of plain values, filled from its component token
 `resolve` function:
 
 ```rust
-pub struct ButtonStyle {
-    pub background: StateColors, // normal, hovered, pressed
-    pub label: Color,
-    pub border_color: Color,
-    pub border_width: f32,
+pub struct CheckboxStyle {
+    pub background: States<Color>, // one color per ControlState
+    pub mark: Color,
+    pub box_size: f32,
     pub corner_radius: f32,
+    // ...
 }
 
-impl ButtonStyle {
+impl CheckboxStyle {
     pub fn resolve(tokens: &impl Resolve) -> Self {
         Self {
-            background: StateColors {
-                normal: tokens.get(component::BUTTON_BACKGROUND_COLOR_DEFAULT),
-                hovered: tokens.get(component::BUTTON_BACKGROUND_COLOR_HOVER),
-                pressed: tokens.get(component::BUTTON_BACKGROUND_COLOR_PRESSED),
+            background: States {
+                normal: tokens.get(component::CHECKBOX_BACKGROUND_COLOR_DEFAULT),
+                hovered: tokens.get(component::CHECKBOX_BACKGROUND_COLOR_HOVER),
+                // ...
             },
-            label: tokens.get(component::BUTTON_LABEL_COLOR_DEFAULT),
-            border_color: tokens.get(component::BUTTON_BORDER_COLOR_DEFAULT),
-            border_width: tokens.get(component::BUTTON_BORDER_WIDTH_DEFAULT),
-            corner_radius: tokens.get(component::BUTTON_CORNER_RADIUS_DEFAULT),
+            mark: tokens.get(component::CHECKBOX_MARK_COLOR_DEFAULT),
+            box_size: tokens.get(component::CHECKBOX_BOX_SIZE_DEFAULT),
+            corner_radius: tokens.get(component::CHECKBOX_CORNER_RADIUS_DEFAULT),
+            // ...
         }
     }
 }
@@ -218,6 +286,8 @@ with its overrides and the color vision setting, for a theme card.
 `Styles::resolve` resolves every component's style together. `StyleCache` keeps them in step
 with the design system and resolves again only after a change: a slider that edits a token
 every frame costs one resolution per frame, and frames without changes read no token.
+`Styles::tokens` keeps a snapshot of every token's value, which resolves the tokens calls give
+(`Prop::Token`) without a lookup in the design system.
 
 ## Writing a component
 
@@ -227,19 +297,28 @@ every frame costs one resolution per frame, and frames without changes read no t
    [defining tokens](README.md#defining-tokens)) under the component's name, aliasing
    semantic tokens (or holding a value when no semantic token fits). Avoid aliasing another
    component's tokens: two components that look alike today may diverge tomorrow.
-2. **Style.** In `crates/koebi-ui/src/widgets/<component>.rs`, define `<Component>Style` with
-   one field per token and its `resolve` function. Use `StateColors` for per-state colors.
-   Add the style to `Styles` and to `Styles::resolve`.
-3. **Drawing.** Add the method to `Ui` in the same file: call `self.interact(id, rect)` for
-   interactive components, update the value and set `response.changed`, then push primitives
-   with the style's values. Read `self.styles()` (it outlives the borrow of `self`), never a
-   token. Keep edges on whole logical pixels (`widgets::snap`) and allocate nothing.
+   Give the component every property even when the current themes leave it at zero (a border
+   width, the border colors of every state), so that a theme can use it.
+2. **Style.** In `crates/koebi-ui/src/widgets/<component>.rs` (or a folder for a component
+   with parts), define `<Component>Style` with one field per token and its `resolve`
+   function. Use `States<T>` for values per state. Add the style to `Styles` and to
+   `Styles::resolve`.
+3. **Builder.** `<Component>::new(id, ...)` takes what the component cannot do without (its
+   identifier, the value it edits); every other option has a method returning `Self`
+   (`#[must_use]`), properties as `impl Into<Prop<K>>`. `size(ui)` measures the component,
+   `show(self, ui, rect)` calls `ui.interact(id, rect)`, updates the value, sets
+   `response.changed`, then draws with the style's values and the call's overrides. Read
+   `ui.styles()` (it outlives the borrow of `ui`), never the design system. Shared parts live
+   in `widgets/parts` (`ControlState`, `Tone`, `Content`). Keep edges on whole logical pixels
+   (`widgets::snap`) and allocate nothing.
 4. **Tests.**
-   - Unit tests beside the code: interaction (clicks, drags, values, clamping) and the
-     primitives drawn.
-   - A pixel test in `crates/koebi-ui/tests/pixels.rs` proving that the component's tokens
-     reach the screen: override a token, render offscreen, read the pixel.
-   - Add the component to the sheet in `tests/regression.rs`, run `cargo xtask bless` and
-     review the golden images.
+   - Unit tests beside the code: interaction (clicks, drags, values, clamping), options,
+     overrides and sizes.
+   - A pixel test proving that the component's tokens reach the screen in every state
+     (`crates/koebi-ui/tests/buttons.rs` shows how to put a component in each state).
+   - The component at every numeric token's extremes stays inside its rectangle (the same
+     file's `components_stay_inside_their_rectangles_at_every_token_extreme`).
+   - A golden image of the component in its states and variants (`assert_golden!`); run
+     `cargo xtask bless` and review the images.
 5. **Docs.** Add the component to the table above and its new tokens to the
    [porting report](porting.md#added-after-the-port).
