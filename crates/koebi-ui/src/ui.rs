@@ -12,7 +12,7 @@ use crate::id::WidgetId;
 use crate::input::{Input, PointerButton};
 use crate::routing::{Layer, Region, Regions};
 use crate::style::Styles;
-use crate::widgets::TooltipState;
+use crate::widgets::{TextState, TooltipState};
 
 /// What must outlive a frame: the widget that holds the pointer, where it took it, and the
 /// regions of the last frame, which decide what is under the pointer.
@@ -59,6 +59,8 @@ pub struct UiState {
     consumed: Vec<&'static ActionDef>,
     /// The widget under the pointer for tooltips, and the last tooltip shown.
     pub(crate) tooltip: TooltipState,
+    /// The text field editing text, the fields' order, and the clipboard exchanges.
+    pub(crate) text: TextState,
 }
 
 impl UiState {
@@ -91,6 +93,29 @@ impl UiState {
     /// devices), and stops it once frames stop asking.
     pub fn text_input_area(&self) -> Option<Rect> {
         self.text_area
+    }
+
+    /// Text a field copied during the last frame (copy or cut): the application puts it on
+    /// the clipboard.
+    pub fn copied(&self) -> Option<&str> {
+        self.text.copied.as_deref()
+    }
+
+    /// `true` when a field asked for the clipboard's text during the last frame: the
+    /// application reads it and gives it with [`UiState::paste`] before the next frame.
+    pub fn paste_requested(&self) -> bool {
+        self.text.paste_requested
+    }
+
+    /// The clipboard's text, answering [`UiState::paste_requested`]: the field editing text
+    /// inserts it during the next frame.
+    pub fn paste(&mut self, text: String) {
+        self.text.pasted = Some(text);
+    }
+
+    /// `true` while a text field edits text.
+    pub fn is_editing_text(&self) -> bool {
+        self.text.session.is_some()
     }
 
     /// The widget that holds the pointer: pressed, and not released yet.
@@ -255,6 +280,7 @@ impl<'a> Ui<'a> {
         state.pointer_lock = None;
         state.text_area = None;
         state.consumed.clear();
+        state.text.begin_frame();
         Self {
             scene,
             styles,
@@ -579,6 +605,7 @@ impl Drop for Ui<'_> {
         // The regions and grabs of this frame decide where the next one's input goes.
         core::mem::swap(&mut state.previous, &mut state.current);
         core::mem::swap(&mut state.grabs, &mut state.grabbing);
+        state.text.end_frame();
     }
 }
 

@@ -18,6 +18,7 @@ mod scroll;
 mod separator;
 mod slider;
 mod swatch;
+mod text_field;
 mod theme_card;
 mod tooltip;
 
@@ -44,6 +45,16 @@ pub use scroll::{SCROLL, ScrollAxes, ScrollContent, ScrollState, ScrollStyle};
 pub use separator::SeparatorStyle;
 pub use slider::SliderStyle;
 pub use swatch::SwatchStyle;
+pub(crate) use text_field::TextState;
+pub use text_field::{
+    EditEnd, OutsidePress, SelectOnFocus, TEXT, TEXT_ACTIONS, TEXT_CANCEL, TEXT_CONFIRM, TEXT_COPY,
+    TEXT_CUT, TEXT_DELETE_BACKWARD, TEXT_DELETE_FORWARD, TEXT_DELETE_WORD_BACKWARD,
+    TEXT_DELETE_WORD_FORWARD, TEXT_END, TEXT_LEFT, TEXT_NEXT_FIELD, TEXT_PASTE,
+    TEXT_PREVIOUS_FIELD, TEXT_REDO, TEXT_RIGHT, TEXT_SELECT_ALL, TEXT_SELECT_END, TEXT_SELECT_LEFT,
+    TEXT_SELECT_RIGHT, TEXT_SELECT_START, TEXT_SELECT_WORD_LEFT, TEXT_SELECT_WORD_RIGHT,
+    TEXT_START, TEXT_UNDO, TEXT_WORD_LEFT, TEXT_WORD_RIGHT, TextField, TextFieldResponse,
+    TextFieldStyle,
+};
 pub use theme_card::{ThemeCardStyle, ThemePreview};
 pub(crate) use tooltip::TooltipState;
 pub use tooltip::TooltipStyle;

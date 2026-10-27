@@ -1,6 +1,6 @@
-//! Buttons and checkboxes on screen: every tone shows its tokens' colors in every state,
-//! components stay inside their rectangles whatever the values of their tokens, and sheets of
-//! buttons, groups and checkboxes match their golden images.
+//! Buttons, checkboxes and text fields on screen: every tone shows its tokens' colors in every
+//! state, components stay inside their rectangles whatever the values of their tokens, and
+//! sheets of buttons, groups and checkboxes match their golden images.
 
 mod common;
 
@@ -14,8 +14,8 @@ use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    Align, Button, ButtonGroup, Checkbox, ControlState, GroupCell, Hue, Icon, Input, Styles, Tone,
-    Ui, UiState, Variant, WidgetId,
+    Align, Button, ButtonGroup, Checkbox, ControlState, GroupCell, Hue, Icon, Input, Styles,
+    TextField, Tone, Ui, UiState, Variant, WidgetId,
 };
 
 /// Anti-aliased edges may differ by a few units between drivers.
@@ -361,7 +361,9 @@ fn at_extremes(high: bool) -> DesignSystem {
         .tokens()
         .filter(|(_, info)| {
             let path = info.path();
-            path.starts_with("button.") || path.starts_with("checkbox.")
+            ["button.", "checkbox.", "text-field."]
+                .iter()
+                .any(|prefix| path.starts_with(prefix))
         })
         .filter_map(|(token, info)| Some((token, info.kind(), design.range(token)?)))
         .collect();
@@ -438,6 +440,17 @@ fn fitted_components(design: &DesignSystem) -> (Scene, Vec<Rect>) {
         let size = checkbox.size(&mut ui);
         checkbox.show(&mut ui, next(size));
     }
+    let (mut name, mut search) = (String::from("Cube.001"), String::new());
+    let fields = [
+        TextField::new(id("name"), &mut name),
+        TextField::new(id("search"), &mut search)
+            .placeholder("Search")
+            .icon(Icon::Search),
+    ];
+    for field in fields {
+        let size = field.size(&mut ui);
+        field.show(&mut ui, next(Vec2::new(size.x.max(120.0), size.y)));
+    }
     drop(ui);
     (scene, rects)
 }
@@ -448,12 +461,12 @@ fn components_stay_inside_their_rectangles_at_every_token_extreme() {
     else {
         return;
     };
-    let extent = Extent::new(400, 640);
+    let extent = Extent::new(400, 900);
     for high in [false, true] {
         let design = at_extremes(high);
         let (scene, rects) = fitted_components(&design);
         let bottom = rects.iter().map(|rect| rect.max.y).fold(0.0, f32::max);
-        assert!(bottom < 640.0, "the components fit the image: {bottom}");
+        assert!(bottom < 900.0, "the components fit the image: {bottom}");
         let image = render(&gpu, extent, &scene);
         let clear = scene.clear_color().to_rgba8();
         // Anti-aliasing may reach one pixel past an edge.

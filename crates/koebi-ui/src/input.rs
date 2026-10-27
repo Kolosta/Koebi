@@ -39,17 +39,18 @@ struct ButtonState {
     released: bool,
 }
 
+/// The most actions a frame holds: more between two frames are dropped, as a person cannot
+/// trigger that many.
+pub(crate) const MAX_ACTIONS: usize = 16;
+
 /// Actions triggered during a frame, in order.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 struct Actions {
-    items: [Option<&'static ActionDef>; Actions::CAPACITY],
+    items: [Option<&'static ActionDef>; MAX_ACTIONS],
     len: usize,
 }
 
 impl Actions {
-    /// More actions between two frames are dropped: a person cannot trigger that many.
-    const CAPACITY: usize = 16;
-
     fn push(&mut self, action: &'static ActionDef) {
         if let Some(slot) = self.items.get_mut(self.len) {
             *slot = Some(action);
@@ -408,10 +409,10 @@ mod tests {
     #[test]
     fn actions_beyond_the_capacity_are_dropped() {
         let mut input = Input::new();
-        for _ in 0..Actions::CAPACITY + 3 {
+        for _ in 0..MAX_ACTIONS + 3 {
             input.trigger(&CLOSE);
         }
-        assert_eq!(input.actions().count(), Actions::CAPACITY);
+        assert_eq!(input.actions().count(), MAX_ACTIONS);
         input.end_frame();
         assert_eq!(input.actions().count(), 0);
     }
