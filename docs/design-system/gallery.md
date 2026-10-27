@@ -40,12 +40,15 @@ From top to bottom (the two middle panels stack on narrow windows):
 5. **Menus**: a dropdown with its tooltip, a vertical dropdown opening beside it, a menu
    button fused between two step buttons (with tooltips), the last action chosen, and an area
    whose right click opens a context menu with nested submenus, a check item and radio items.
-6. **Color vision**: a dropdown (normal vision, then the simulations and the corrections in
+6. **Fields**: text fields with a name, a search field (placeholder and magnifier, the caret
+   at the end), a centered one, one taking four digits at most, one too narrow for its text
+   (the caret goes where the press is), a disabled one, and what the last edit did.
+7. **Color vision**: a dropdown (normal vision, then the simulations and the corrections in
    two submenus, the current mode marked), then a button per mode: normal vision, the
    simulations of protanopia, deuteranopia, tritanopia and achromatopsia, and the corrections
    of the three dichromacies. Each button previews its mode on four chart colors; click one to
    apply it to every color token of the interface.
-7. **Grid**: as many checkboxes, toggles, buttons and swatches as the window holds, several
+8. **Grid**: as many checkboxes, toggles, buttons and swatches as the window holds, several
    hundred in the default 1280 x 800 window. They are all interactive, and none of them
    reads a token while drawing: styles are resolved once per change of the design system.
 

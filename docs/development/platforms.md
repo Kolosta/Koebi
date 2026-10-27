@@ -118,4 +118,6 @@ cargo xtask ios --release --device  # device build, ad-hoc signed
   windows. Input methods draw their own composition and candidate windows. The interface asks
   for text input while a field edits (`Ui::text_input`) and reads the typed text from
   `Input::text`.
-- **Clipboard**: `AppContext::clipboard_text` and `set_clipboard_text` (plain text).
+- **Clipboard**: `AppContext::clipboard_text` and `set_clipboard_text` (plain text). The
+  interface asks through its state: after each frame the application copies
+  `UiState::copied` and answers `UiState::paste_requested` with `UiState::paste`.
