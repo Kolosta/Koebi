@@ -19,8 +19,10 @@ tokens and how to write a new one.
 | Separator | `Ui::separator(rect)` | `component.separator.*` |
 | Color swatch | `Ui::swatch(id, rect, color, selected)` | `component.color-swatch.*` |
 | Theme card | `Ui::theme_card(id, rect, &preview, selected)` | `component.theme-card.*` |
-| Menu | `Ui::menu(id, &mut state, &items, bounds)` returns the chosen item | `component.menu.*`, `component.separator.*` |
-| Dropdown | `Ui::dropdown(id, rect, &mut state, current, &items, bounds)` | `component.dropdown.*`, then the menu's |
+| Menu | `Ui::menu(id, &mut state, &items, bounds)` returns the chosen item (`MenuChoice`) | `component.menu.*`, `component.separator.*` |
+| Popup | `Ui::popup(id, &mut state, size, bounds, add)` draws custom content | `component.menu.*` |
+| Dropdown | `Dropdown::new(id, &mut state, &items)` + options, then `.show(ui, rect, bounds)` | `component.dropdown.*`, then the menu's |
+| Tooltip | `Ui::tooltip(id, text, bounds)` after the widget | `component.tooltip.*` |
 | Label | `Ui::label(text, rect, &font, color, align)`, `Ui::text_width(text, &font)` | `semantic.font.*`, `semantic.text.*` |
 | Scroll area | `Ui::scroll_area(id, rect, &mut state, content_size, axes, add)` | `component.scrollbar.*` |
 | List and tree | `Ui::list(id, rect, &mut state, &items, &options, &mut delegate)` returns a `ListResponse` | `component.list-row.*`, `component.outliner.*`, `component.table.row.*`, `component.drop-target.*` |
@@ -144,15 +146,61 @@ One component draws every list of the application (outliner, layers, color usage
 
 ## Menus
 
-- A `MenuState` per menu, kept by the application, opens it at a point (`open_at`, a context
-  menu, usually on `Response::secondary_pressed`) or below a control (`open_below`, what a
-  dropdown does). `Ui::menu` draws it on the floating layer, kept inside the window, and
-  returns the item chosen this frame; items are actions with an optional shortcut text,
-  separators and titles (`MenuItem`), disabled or marked as the current choice.
-- While open, a menu takes the keyboard (`Ui::grab(MENU)`): `menu.next`, `menu.previous`,
-  `menu.choose` and `menu.close` (arrows, Enter or Space, Escape by default) work wherever the
-  pointer is. A press outside closes the menu and reaches nothing else; nothing under the menu
-  receives its clicks.
+- **Items** (`MenuItem`): actions with an icon, a label, a shortcut hint, a check or radio
+  mark (`MenuMark`, set with `.checked(on)` or `.radio(on)`), disabled or marked as the
+  current choice (`.selected(true)`); submenus (`MenuItem::submenu(label, &items)`), eight
+  levels deep at most; separators and titles.
+  Columns line up across a menu: marks, icons, labels, shortcuts, submenu arrows.
+- **Opening**: a `MenuState` per menu, kept by the application, opens it at a point
+  (`open_at`, a context menu, usually on `Response::secondary_pressed`) or beside a control
+  (`open_for(rect, placement)`). `Ui::menu` draws it and its open submenus on the floating
+  layer, kept inside the window, and returns the item chosen this frame: `MenuChoice::index`
+  in its own list, `MenuChoice::path` from the root (`[2, 0]`: the first item of the submenu
+  of the root's third item).
+- **Placement** (`Placement`): a side of the control (`Side`: below, above, right, left) and
+  an alignment along it (`PanelAlign`: start, end); the menu flips to the other side or alignment when the
+  window has no room, unless `flip` is off. A menu below or above its control is at least as
+  wide; where the two meet, their corners are square (`Placed::control_corners`,
+  `Placed::panel_corners`). An open menu follows its control when the layout moves
+  (`MenuState::follow`).
+- **Submenus** open beside their item when the pointer rests on it for
+  `semantic.input.submenu.delay` or at a click, cascading the way the previous level went
+  (a level that flipped left keeps the next ones on the left). While the pointer heads from the item
+  towards the open submenu, the items it crosses wait for `semantic.input.submenu.grace`
+  before taking over.
+- **Closing**: choosing closes every menu; a press outside closes them and reaches nothing
+  else; the pointer going farther than `semantic.input.menu.close-distance` from the menus and
+  their control closes them, once it came near them (0 turns this off). Leaving a menu closes
+  nothing by itself.
+- **Keyboard**, while open, wherever the pointer is: `menu.next`, `menu.previous`,
+  `menu.open-submenu`, `menu.close-submenu`, `menu.choose` and `menu.close` (arrows, Enter or
+  Space, Escape by default); Escape closes the innermost menu. The pointer takes the
+  highlight back only when it moves, so the keyboard keeps it while a long menu scrolls under
+  a still pointer.
+- **Long menus** stop at `menu.max-height` (or the window), scroll with the wheel
+  (`menu.wheel-step`) and follow the keyboard's highlight.
+- **Menu buttons**: `Button::menu(&mut state, placement)` opens the menu beside the button,
+  shows the button selected while it is open and squares the corners where they meet, also
+  inside a `ButtonGroup` (buttons fused around a menu button). Show the menu with `Ui::menu`
+  after the button or the group.
+- **Dropdowns** (`Dropdown`): a menu button with the dropdowns' look (`dropdown.*`, darker
+  than buttons) and a chevron (`dropdown.chevron.size`) pointing where the menu opens, turned
+  back while it is open. `.placement(Placement::RIGHT)` makes a vertical dropdown; every
+  button option (content, sizes, colors per state) applies, and a tone colors the control
+  while its metrics and chevron stay the dropdowns'. `Dropdown::measure(ui, label)` gives
+  the size of a dropdown showing `label`, to reserve the width of the widest choice.
+- **Popups** (`Ui::popup`): a panel of custom content that opens, places itself and closes
+  like a menu (but never by moving away, so that its content can be dragged). Escape closes
+  a menu open inside the popup first: a component that uses an action this frame marks it
+  used (`Ui::consume`), and the components asking after it no longer see it triggered.
+
+## Tooltips
+
+`Ui::tooltip(id, text, bounds)`, called after the widget `id`, shows `text` near the pointer
+(`tooltip.offset`, flipping above near the bottom of the window) on the overlay layer once the
+pointer has rested on the widget for `semantic.input.tooltip.delay`, or for
+`semantic.input.tooltip.delay-short` right after another tooltip. A press hides it until the
+pointer moves to another widget; tooltips never take the pointer.
 
 [`crates/koebi-ui/tests/golden/`](../../crates/koebi-ui/tests/golden/) shows every component
 in the dark and light themes, and the application shows them all in its

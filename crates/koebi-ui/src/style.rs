@@ -20,7 +20,7 @@ use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
     ButtonStyle, CheckboxStyle, DragValueStyle, DropdownStyle, ListStyle, MenuStyle, PanelStyle,
-    ScrollStyle, SeparatorStyle, SliderStyle, SwatchStyle, ThemeCardStyle,
+    ScrollStyle, SeparatorStyle, SliderStyle, SwatchStyle, ThemeCardStyle, TooltipStyle,
 };
 use crate::workspace::WorkspaceStyle;
 
@@ -203,7 +203,7 @@ impl From<Corners> for CornerRadii {
 pub struct InputStyle {
     /// How far the pointer moves before a press becomes a drag.
     pub drag_threshold: f32,
-    /// Longest time between the two clicks of a double click.
+    /// Longest time between the two presses of a double click.
     pub double_click: Duration,
     /// How long a held button waits before repeating.
     pub repeat_delay: Duration,
@@ -211,8 +211,17 @@ pub struct InputStyle {
     pub repeat_interval: Duration,
     /// How long the pointer rests before a tooltip shows.
     pub tooltip_delay: Duration,
-    /// How long the pointer rests on an item before it acts (a submenu opens).
+    /// How long the pointer rests before the tooltip of the next control shows while a
+    /// tooltip is shown.
+    pub tooltip_delay_short: Duration,
+    /// How long the pointer rests on a hover-revealed element before it appears.
     pub hover_delay: Duration,
+    /// How long the pointer rests on the item of a submenu before the submenu opens.
+    pub submenu_delay: Duration,
+    /// How long an open submenu waits for the pointer heading towards it.
+    pub submenu_grace: Duration,
+    /// How far the pointer goes from the open menus before they close; 0 never.
+    pub menu_close_distance: f32,
 }
 
 impl InputStyle {
@@ -224,7 +233,11 @@ impl InputStyle {
             repeat_delay: tokens.get(semantic::INPUT_REPEAT_DELAY),
             repeat_interval: tokens.get(semantic::INPUT_REPEAT_INTERVAL),
             tooltip_delay: tokens.get(semantic::INPUT_TOOLTIP_DELAY),
+            tooltip_delay_short: tokens.get(semantic::INPUT_TOOLTIP_DELAY_SHORT),
             hover_delay: tokens.get(semantic::INPUT_HOVER_DELAY),
+            submenu_delay: tokens.get(semantic::INPUT_SUBMENU_DELAY),
+            submenu_grace: tokens.get(semantic::INPUT_SUBMENU_GRACE),
+            menu_close_distance: tokens.get(semantic::INPUT_MENU_CLOSE_DISTANCE),
         }
     }
 }
@@ -280,7 +293,7 @@ pub struct Styles {
     pub theme_card: ThemeCardStyle,
     /// [`Ui::menu`](crate::Ui::menu).
     pub menu: MenuStyle,
-    /// [`Ui::dropdown`](crate::Ui::dropdown).
+    /// [`Dropdown`](crate::Dropdown).
     pub dropdown: DropdownStyle,
     /// [`Ui::workspace`](crate::Ui::workspace).
     pub workspace: WorkspaceStyle,
@@ -288,6 +301,8 @@ pub struct Styles {
     pub scroll: ScrollStyle,
     /// [`Ui::list`](crate::Ui::list).
     pub list: ListStyle,
+    /// [`Ui::tooltip`](crate::Ui::tooltip).
+    pub tooltip: TooltipStyle,
 }
 
 impl Styles {
@@ -326,6 +341,7 @@ impl Styles {
             workspace: WorkspaceStyle::resolve(tokens),
             scroll: ScrollStyle::resolve(tokens),
             list: ListStyle::resolve(tokens),
+            tooltip: TooltipStyle::resolve(tokens),
         }
     }
 }

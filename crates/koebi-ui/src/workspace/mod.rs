@@ -388,7 +388,10 @@ impl Ui<'_> {
             MenuItem::action("Vertical split"),
             MenuItem::action("Horizontal split"),
         ];
-        match self.menu(AREA_MENU, &mut view.menu, &items, window) {
+        match self
+            .menu(AREA_MENU, &mut view.menu, &items, window)
+            .map(|choice| choice.index())
+        {
             Some(0) => {
                 if let Err(error) = workspace.swap(gutter.before, gutter.after) {
                     koebi_core::warn!("cannot swap the areas: {error}");

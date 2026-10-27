@@ -12,7 +12,9 @@ use koebi_design::tier::Tier;
 use koebi_design::{DesignSystem, Layers, Scope, Token};
 use koebi_render::{LinePrimitive, RectPrimitive};
 use koebi_tokens::{component, semantic};
-use koebi_ui::{Button, Icon, MenuItem, MenuState, PanelLevel, Tone, Ui, WidgetId};
+use koebi_ui::{
+    Button, Dropdown, Icon, MenuChoice, MenuItem, MenuState, PanelLevel, Tone, Ui, WidgetId,
+};
 
 use super::{Gallery, Metrics, PALETTE, cut_left, cut_top};
 use crate::design_options::COLOR_VISION_MODES;
@@ -379,21 +381,23 @@ const COLOR_VISION_LABELS: [&str; 8] = [
     "Tritan correction",
 ];
 
-/// The dropdown's entries: normal vision, the simulations, then the corrections, and the mode
-/// each entry chooses.
-fn vision_entries(current: usize) -> ([MenuItem<'static>; 10], [Option<usize>; 10]) {
-    let mut items = [MenuItem::Separator; 10];
-    let mut modes = [None; 10];
-    let mut slot = 0;
-    for (mode, label) in COLOR_VISION_LABELS.into_iter().enumerate() {
-        if mode == 1 || mode == 5 {
-            slot += 1;
-        }
-        items[slot] = MenuItem::action(label).selected(mode == current);
-        modes[slot] = Some(mode);
-        slot += 1;
+/// The entries of the modes `first..first + N`, the current one marked.
+fn vision_items<const N: usize>(first: usize, current: Option<usize>) -> [MenuItem<'static>; N] {
+    core::array::from_fn(|index| {
+        let mode = first + index;
+        MenuItem::action(COLOR_VISION_LABELS[mode]).radio(current == Some(mode))
+    })
+}
+
+/// The mode a choice of the dropdown picks: normal vision, then the simulations and the
+/// corrections in their submenus.
+fn vision_mode(choice: MenuChoice) -> Option<usize> {
+    match choice.path() {
+        [0] => Some(0),
+        [2, index] => Some(1 + *index),
+        [3, index] => Some(5 + *index),
+        _ => None,
     }
-    (items, modes)
 }
 
 /// The color vision modes: a dropdown, and one toggle each previewing the mode on four chart
@@ -414,12 +418,20 @@ pub(super) fn color_vision(
     let current_index = COLOR_VISION_MODES
         .iter()
         .position(|(_, mode)| *mode == current);
-    let (items, modes) = vision_entries(current_index.unwrap_or(usize::MAX));
+    let simulations: [MenuItem<'_>; 4] = vision_items(1, current_index);
+    let corrections: [MenuItem<'_>; 3] = vision_items(5, current_index);
+    let items = [
+        MenuItem::action(COLOR_VISION_LABELS[0]).radio(current_index == Some(0)),
+        MenuItem::Separator,
+        MenuItem::submenu("Simulate", &simulations),
+        MenuItem::submenu("Correct", &corrections),
+    ];
     let label = current_index.map_or("Custom", |index| COLOR_VISION_LABELS[index]);
     let dropdown = cut_left(&mut content, (row * 8.0).round(), gap);
-    let picked = ui
-        .dropdown(ID.with(100), dropdown, menu, label, &items, window)
-        .and_then(|slot| modes[slot])
+    let picked = Dropdown::new(ID.with(100), menu, &items)
+        .label(label)
+        .show(ui, dropdown, window)
+        .and_then(vision_mode)
         .map(|index| COLOR_VISION_MODES[index].1);
     // Normal, then four simulations, then three corrections, with a wider gap between groups.
     let count = COLOR_VISION_MODES.len() as f32;

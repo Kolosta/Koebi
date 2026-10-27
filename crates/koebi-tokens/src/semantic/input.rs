@@ -26,4 +26,11 @@ koebi_design::tokens! {
     INPUT_REPEAT_DELAY = "input.repeat.delay": Duration -> primitive::DURATION_SLOWER;
     /// Time between two repetitions of a held action.
     INPUT_REPEAT_INTERVAL = "input.repeat.interval": Duration -> primitive::DURATION_FAST;
+    /// Time the pointer rests on the item of a submenu before the submenu opens.
+    INPUT_SUBMENU_DELAY = "input.submenu.delay": Duration -> primitive::DURATION_NORMAL;
+    /// Time an open submenu waits for the pointer heading towards it across other items.
+    INPUT_SUBMENU_GRACE = "input.submenu.grace": Duration -> primitive::DURATION_SLOW;
+    /// Distance from the open menus, and from the control that opened them, past which the
+    /// pointer closes the menus; 0 keeps them open until a press outside.
+    INPUT_MENU_CLOSE_DISTANCE = "input.menu.close-distance": Dimension -> primitive::SIZE_400;
 }
