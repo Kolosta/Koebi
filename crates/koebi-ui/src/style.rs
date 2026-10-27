@@ -20,7 +20,8 @@ use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
     ButtonStyle, CheckboxStyle, DragValueStyle, DropdownStyle, ListStyle, MenuStyle, PanelStyle,
-    ScrollStyle, SeparatorStyle, SliderStyle, SwatchStyle, ThemeCardStyle, TooltipStyle,
+    ScrollStyle, SeparatorStyle, SliderStyle, SwatchStyle, TextFieldStyle, ThemeCardStyle,
+    TooltipStyle,
 };
 use crate::workspace::WorkspaceStyle;
 
@@ -295,6 +296,8 @@ pub struct Styles {
     pub menu: MenuStyle,
     /// [`Dropdown`](crate::Dropdown).
     pub dropdown: DropdownStyle,
+    /// [`TextField`](crate::TextField).
+    pub text_field: TextFieldStyle,
     /// [`Ui::workspace`](crate::Ui::workspace).
     pub workspace: WorkspaceStyle,
     /// [`Ui::scroll_area`](crate::Ui::scroll_area).
@@ -338,6 +341,7 @@ impl Styles {
             theme_card: ThemeCardStyle::resolve(tokens),
             menu: MenuStyle::resolve(tokens),
             dropdown: DropdownStyle::resolve(tokens),
+            text_field: TextFieldStyle::resolve(tokens),
             workspace: WorkspaceStyle::resolve(tokens),
             scroll: ScrollStyle::resolve(tokens),
             list: ListStyle::resolve(tokens),

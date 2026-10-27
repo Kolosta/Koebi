@@ -21,6 +21,7 @@ mod scrollbar;
 mod separator;
 mod slider;
 mod tab;
+mod text_field;
 mod theme_card;
 mod toggle;
 
@@ -41,5 +42,6 @@ pub use scrollbar::*;
 pub use separator::*;
 pub use slider::*;
 pub use tab::*;
+pub use text_field::*;
 pub use theme_card::*;
 pub use toggle::*;

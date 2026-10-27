@@ -40,6 +40,17 @@ and Sun active.
 | `tree_drag_into.png` | 200x160 | Background dragged into Lights: the frame around Lights, the dragged row faded, its label near the pointer, the selection unchanged |
 | `tree_drag_after.png` | 200x160 | the same drag below Fill, the pointer at Lights' level: the line after Lights |
 
+## The text fields
+
+`text_field_sheet()` draws six text fields, 184x22, in the dark theme: `Cube.001`, an empty
+search field (placeholder and magnifier), centered text, `Snap to grid` editing with `grid`
+selected (focus border, selection, caret), a long name cut with an ellipsis, and a disabled
+field.
+
+| File | Size | Shows |
+|---|---|---|
+| `text_fields_dark.png` | 200x190 | every state of a text field but hover |
+
 ## Comparison and updates
 
 Same tolerance as the renderer's golden images: `Tolerance::new(3, 8)`. Never edit these

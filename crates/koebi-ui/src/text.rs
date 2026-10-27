@@ -104,6 +104,20 @@ impl Ui<'_> {
         state.line.ascent() + state.line.descent()
     }
 
+    /// Lays `text` out in `font` on the shared line (`UiState::line`), for components that
+    /// place a caret or hit-test characters; `false` without fonts (the line is then empty).
+    pub(crate) fn lay_out(&mut self, text: &str, font: &FontStyle) -> bool {
+        let style = self.text_style(font);
+        let state = &mut *self.state;
+        if let Some(style) = style {
+            state.line.layout(&state.fonts, text, &style);
+            true
+        } else {
+            state.line = TextLine::new();
+            false
+        }
+    }
+
     /// The width of `text` set in `font`, in logical pixels; 0 without fonts.
     pub fn text_width(&mut self, text: &str, font: &FontStyle) -> f32 {
         let Some(style) = self.text_style(font) else {
