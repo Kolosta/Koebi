@@ -267,7 +267,7 @@ or hold a value where no semantic token fits (32):
 - `component.slider.track.color.hover` → `semantic.background.app.frame-hover`
 - `component.slider.track.border.color.default` → `semantic.border.color.default`
 - `component.slider.track.border.width.default` → `semantic.border.width.thin`
-- `component.drag-value.fill.color.default` → `semantic.background.accent.default`
+- `component.number-field.fill.color.default` (`drag-value` in the C++ port) → `semantic.background.accent.default`
 - `component.panel.border.width.default` → `semantic.border.width.thin`
 - `component.panel.padding.default` = 8 px
 - `component.color-swatch.corner-radius.default` → `semantic.radius.xs`

@@ -5,7 +5,7 @@ use crate::semantic;
 use koebi_design::define::*;
 
 koebi_design::tokens! {
-    group TEXT_FIELD: Component, start = DRAG_VALUE::END;
+    group TEXT_FIELD: Component, start = NUMBER_FIELD::END;
 
     /// Text field: height.
     TEXT_FIELD_SIZE_HEIGHT = "text-field.size.height": Dimension -> semantic::SIZE_CONTROL_HEIGHT;

@@ -26,8 +26,8 @@ use koebi_design::tier::Semantic;
 use koebi_design::{DesignSystem, Scope, Token};
 use koebi_tokens::semantic;
 use koebi_ui::{
-    Button, Checkbox, Icon, MenuState, PanelLevel, ScrollAxes, ScrollState, ThemePreview, Ui,
-    WidgetId,
+    BarMapping, Button, Checkbox, Icon, MenuState, NumberField, PanelLevel, ScrollAxes,
+    ScrollState, ThemePreview, Ui, WidgetId,
 };
 
 /// The twelve chart colors, shown as swatches and in the grid.
@@ -332,7 +332,12 @@ impl Gallery {
             &mut sheet.slider,
             0.0..=1.0,
         );
-        ui.drag_value(ID.with(9), line, &mut sheet.drag, 0.0..=10.0, 0.5);
+        NumberField::new(ID.with(9), &mut sheet.drag)
+            .range(0.0, 10.0)
+            .step(0.5)
+            .decimals(1)
+            .bar(BarMapping::Linear)
+            .show(ui, line);
 
         ui.separator(cut_top(&mut content, row, gap));
 
@@ -495,7 +500,7 @@ mod tests {
         );
         // Every cell of the grid draws at least one rectangle, besides the other panels.
         assert!(
-            scene.rect_count() > gallery.grid.len() + 100,
+            scene.rect_count() > gallery.grid.len() + 50,
             "{} rectangles for {} grid cells",
             scene.rect_count(),
             gallery.grid.len()

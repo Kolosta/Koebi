@@ -12,7 +12,7 @@ use crate::id::WidgetId;
 use crate::input::{Input, PointerButton};
 use crate::routing::{Layer, Region, Regions};
 use crate::style::Styles;
-use crate::widgets::{TextState, TooltipState};
+use crate::widgets::{NumberState, TextState, TooltipState};
 
 /// What must outlive a frame: the widget that holds the pointer, where it took it, and the
 /// regions of the last frame, which decide what is under the pointer.
@@ -23,8 +23,6 @@ pub struct UiState {
     active: Option<WidgetId>,
     /// Pointer position when the active widget was pressed.
     press_origin: Vec2,
-    /// The active widget's value when it was pressed: drag values move relative to it.
-    press_value: f32,
     /// When the active widget was pressed, and when it repeats next while held.
     press_time: Duration,
     next_repeat: Option<Duration>,
@@ -65,6 +63,8 @@ pub struct UiState {
     pub(crate) tooltip: TooltipState,
     /// The text field editing text, the fields' order, and the clipboard exchanges.
     pub(crate) text: TextState,
+    /// The number field being dragged or typed.
+    pub(crate) number: NumberState,
 }
 
 impl UiState {
@@ -288,6 +288,7 @@ impl<'a> Ui<'a> {
         state.text_area = None;
         state.consumed.clear();
         state.text.begin_frame();
+        state.number.begin_frame();
         Self {
             scene,
             styles,
@@ -577,16 +578,6 @@ impl<'a> Ui<'a> {
         self.request_redraw_at(following);
         true
     }
-
-    /// The value recorded by [`Ui::set_press_value`] when the active widget was pressed.
-    pub(crate) fn press_value(&self) -> f32 {
-        self.state.press_value
-    }
-
-    /// Records the value of the widget pressed this frame.
-    pub(crate) fn set_press_value(&mut self, value: f32) {
-        self.state.press_value = value;
-    }
 }
 
 impl Drop for Ui<'_> {
@@ -622,6 +613,7 @@ impl Drop for Ui<'_> {
         core::mem::swap(&mut state.grabs, &mut state.grabbing);
         state.grabs_keyboard = core::mem::take(&mut state.grabbing_keyboard);
         state.text.end_frame();
+        state.number.end_frame();
     }
 }
 

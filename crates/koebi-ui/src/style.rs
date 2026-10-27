@@ -19,7 +19,7 @@ use koebi_tokens::{component, semantic};
 use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
-    ButtonStyle, CheckboxStyle, DragValueStyle, DropdownStyle, ListStyle, MenuStyle, PanelStyle,
+    ButtonStyle, CheckboxStyle, DropdownStyle, ListStyle, MenuStyle, NumberFieldStyle, PanelStyle,
     ScrollStyle, SeparatorStyle, SliderStyle, SwatchStyle, TextFieldStyle, ThemeCardStyle,
     TooltipStyle,
 };
@@ -282,8 +282,8 @@ pub struct Styles {
     pub checkbox: CheckboxStyle,
     /// [`Ui::slider`](crate::Ui::slider).
     pub slider: SliderStyle,
-    /// [`Ui::drag_value`](crate::Ui::drag_value).
-    pub drag_value: DragValueStyle,
+    /// [`NumberField`](crate::NumberField).
+    pub number_field: NumberFieldStyle,
     /// [`Ui::panel`](crate::Ui::panel).
     pub panel: PanelStyle,
     /// [`Ui::separator`](crate::Ui::separator).
@@ -334,7 +334,7 @@ impl Styles {
             button: ButtonStyle::resolve(tokens),
             checkbox: CheckboxStyle::resolve(tokens),
             slider: SliderStyle::resolve(tokens),
-            drag_value: DragValueStyle::resolve(tokens),
+            number_field: NumberFieldStyle::resolve(tokens),
             panel: PanelStyle::resolve(tokens),
             separator: SeparatorStyle::resolve(tokens),
             swatch: SwatchStyle::resolve(tokens),
