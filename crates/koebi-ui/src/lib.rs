@@ -89,16 +89,17 @@ pub use style::{CornerRadii, IconStyle, InputStyle, Prop, StateColors, StyleCach
 pub use text::{Align, FontStyle, TextStyles};
 pub use ui::{Response, Ui, UiState, WidgetState};
 pub use widgets::{
-    Activation, Alignment, Button, ButtonGroup, ButtonStyle, Checkbox, CheckboxStyle, Content,
-    ControlState, DragValueStyle, DropPlace, Dropdown, DropdownStyle, GroupCell, GroupResponse,
-    Hue, HueColors, ItemMark, LIST, LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT,
+    Activation, Button, ButtonGroup, ButtonStyle, Checkbox, CheckboxStyle, Content, ControlState,
+    DragValueStyle, DropPlace, Dropdown, DropdownStyle, GroupCell, GroupResponse, Hue, HueColors,
+    ItemMark, LIST, LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT,
     LIST_EXTEND_PREVIOUS, LIST_FOLD, LIST_NEXT, LIST_PREVIOUS, LIST_SELECT_ALL, LIST_UNFOLD,
     ListContextMenu, ListDelegate, ListItem, ListOptions, ListResponse, ListSelection, ListState,
     ListStyle, MENU, MENU_ACTIONS, MENU_CHOOSE, MENU_CLOSE, MENU_CLOSE_SUBMENU, MENU_NEXT,
-    MENU_OPEN_SUBMENU, MENU_PREVIOUS, Mark, MenuAction, MenuChoice, MenuItem, MenuState, MenuStyle,
-    PanelLevel, PanelStyle, Placed, Placement, SCROLL, ScrollAxes, ScrollContent, ScrollState,
-    ScrollStyle, SeparatorStyle, Shades, Side, SliderStyle, States, Submenu, SwatchStyle,
-    ThemeCardStyle, ThemePreview, Tone, ToneColors, TooltipStyle, Track, Variant,
+    MENU_OPEN_SUBMENU, MENU_PREVIOUS, MenuAction, MenuChoice, MenuItem, MenuMark, MenuState,
+    MenuStyle, PanelAlign, PanelLevel, PanelStyle, Placed, Placement, SCROLL, ScrollAxes,
+    ScrollContent, ScrollState, ScrollStyle, SeparatorStyle, Shades, Side, SliderStyle, States,
+    Submenu, SwatchStyle, ThemeCardStyle, ThemePreview, Tone, ToneColors, TooltipStyle, Track,
+    Variant,
 };
 pub use workspace::{
     EditorHost, OPERATION_CANCEL, OPERATION_CONFIRM, WORKSPACE, WORKSPACE_ACTIONS,

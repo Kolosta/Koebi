@@ -166,7 +166,7 @@ impl Menus {
         self.last = describe(choice);
         match choice.path() {
             [6] => self.snap = !self.snap,
-            [7, index] => self.pivot = usize::from(*index),
+            [7, index] => self.pivot = *index,
             _ => {}
         }
     }

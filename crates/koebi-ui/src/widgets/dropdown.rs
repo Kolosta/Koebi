@@ -171,7 +171,8 @@ impl<'a> Dropdown<'a> {
         self.with(|button| button.menu_placement_to(placement))
     }
 
-    /// Colors the control by `tone` in place of the dropdowns' colors.
+    /// Colors the control by `tone` in place of the dropdowns' colors; its metrics and chevron
+    /// stay the dropdowns'.
     #[must_use]
     pub fn tone(self, tone: Tone) -> Self {
         self.with(|button| button.tone(tone))
@@ -259,6 +260,17 @@ impl<'a> Dropdown<'a> {
     /// chevron within its limits.
     pub fn size(&self, ui: &mut Ui<'_>) -> Vec2 {
         self.button.size(ui)
+    }
+
+    /// The size a dropdown of the default look showing `label` asks for, without a menu: what
+    /// a layout reserves for the widest of its choices.
+    pub fn measure(ui: &mut Ui<'_>, label: &str) -> Vec2 {
+        Button::new(WidgetId::new("dropdown-measure"))
+            .dropdown_look()
+            .align(Align::Start)
+            .label(label)
+            .trailing_icon(Icon::ChevronDown)
+            .size(ui)
     }
 
     /// Shows the dropdown in `rect` and its menu when open, kept inside `bounds` (the

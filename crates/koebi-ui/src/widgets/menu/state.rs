@@ -51,7 +51,7 @@ pub(super) struct Aim {
 
 /// Whether a menu is open, where, its open submenus and their highlighted items. Keep one per
 /// menu, between frames.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct MenuState {
     pub(super) anchor: Option<Anchor>,
     /// Open levels: the root, then its open submenus.
@@ -59,9 +59,13 @@ pub struct MenuState {
     pub(super) levels: [Level; MAX_DEPTH],
     pub(super) rest: Option<Rest>,
     pub(super) aim: Option<Aim>,
-    /// The item under the pointer on the last frame: the pointer takes the highlight over
-    /// from the keyboard only when it moves to another item.
+    /// The item under the pointer when the pointer last took the highlight.
     pub(super) pointed: Option<(usize, usize)>,
+    /// Where the pointer was on the last frame: it takes the highlight over from the
+    /// keyboard only when it moves.
+    pub(super) pointer: Option<Vec2>,
+    /// The aim held an item back: it takes over once the grace ends, moved or not.
+    pub(super) waiting: bool,
     /// Where the root opened on the last frame.
     pub(super) placed: Option<Placed>,
     /// Whether the pointer came near the menus since they opened: only then does moving away
@@ -84,6 +88,8 @@ impl MenuState {
             rest: None,
             aim: None,
             pointed: None,
+            pointer: None,
+            waiting: false,
             placed: None,
             armed: false,
         }
@@ -145,24 +151,31 @@ impl MenuState {
         self.placed.filter(|_| self.is_open())
     }
 
-    /// The control the menu belongs to, if it opened beside one.
-    pub(super) fn control(&self) -> Option<Rect> {
+    /// The control the menu opens beside and its placement, while open.
+    pub(crate) fn opened_for(&self) -> Option<(Rect, Placement)> {
         match self.anchor {
-            Some(Anchor::Control(rect, _)) => Some(rect),
+            Some(Anchor::Control(rect, placement)) if self.is_open() => Some((rect, placement)),
             _ => None,
         }
+    }
+
+    /// The control the menu belongs to, if it opened beside one.
+    pub(super) fn control(&self) -> Option<Rect> {
+        self.opened_for().map(|(rect, _)| rect)
     }
 
     /// Keeps the open levels `0..=level` and closes the deeper ones.
     pub(super) fn close_below(&mut self, level: usize) {
         self.depth = self.depth.min(level + 1);
         self.aim = None;
+        self.waiting = false;
     }
 
-    /// Opens the submenu of `item` of `level` (closing what was open deeper).
-    pub(super) fn open_submenu(&mut self, level: usize, item: usize) {
+    /// Opens the submenu of `item` of `level` (closing what was open deeper); `false` past
+    /// the deepest level, where nothing opens.
+    pub(super) fn open_submenu(&mut self, level: usize, item: usize) -> bool {
         if level + 1 >= MAX_DEPTH {
-            return;
+            return false;
         }
         self.depth = level + 2;
         self.levels[level].highlighted = Some(item);
@@ -171,6 +184,8 @@ impl MenuState {
             ..Level::default()
         };
         self.aim = None;
+        self.waiting = false;
+        true
     }
 
     /// The items of `level`, following the open submenus from `root`; `None` when the items
@@ -181,22 +196,43 @@ impl MenuState {
         level: usize,
     ) -> Option<&'a [MenuItem<'a>]> {
         let mut items = root;
-        for open in &self.levels[1..=level] {
-            match items.get(open.parent) {
-                Some(MenuItem::Submenu(submenu)) => items = submenu.items,
-                _ => return None,
-            }
+        for (parent_level, open) in self.levels[1..=level].iter().enumerate() {
+            items = items.get(open.parent)?.opens(parent_level)?;
         }
         Some(items)
     }
 
-    /// Closes the levels whose items vanished, after the application changed them.
+    /// Adapts the state to items the application changed: closes the submenus whose item
+    /// vanished or was disabled, and forgets highlights and rests on items that cannot hold
+    /// them any more.
     pub(super) fn prune(&mut self, root: &[MenuItem<'_>]) {
         let mut open = 1;
         while open < self.depth && self.items_at(root, open).is_some() {
             open += 1;
         }
         self.depth = self.depth.min(open);
+        for level in 0..self.depth {
+            let items = self.items_at(root, level).unwrap_or_default();
+            let fits = |item: Option<usize>| {
+                item.is_some_and(|index| {
+                    items
+                        .get(index)
+                        .is_some_and(|item| item.is_active_at(level))
+                })
+            };
+            if !fits(self.levels[level].highlighted) {
+                self.levels[level].highlighted = None;
+            }
+            if self
+                .rest
+                .is_some_and(|rest| rest.level == level && !fits(Some(rest.item)))
+            {
+                self.rest = None;
+            }
+        }
+        if self.rest.is_some_and(|rest| rest.level >= self.depth) {
+            self.rest = None;
+        }
     }
 
     /// Moves the highlight of `level` to the next item that can be highlighted after the
@@ -206,7 +242,9 @@ impl MenuState {
         if count == 0 {
             return;
         }
-        let current = self.levels[level].highlighted;
+        let current = self.levels[level]
+            .highlighted
+            .filter(|index| *index < count);
         let start = match (current, forward) {
             (Some(index), true) => index + 1,
             (Some(index), false) => index + count - 1,
@@ -221,7 +259,7 @@ impl MenuState {
                     (start + count - offset) % count
                 }
             })
-            .find(|index| items[*index].is_active());
+            .find(|index| items[*index].is_active_at(level));
         if next.is_some() {
             self.levels[level].highlighted = next;
         }
@@ -231,9 +269,9 @@ impl MenuState {
     pub(super) fn choice(&self, level: usize, item: usize) -> MenuChoice {
         let mut path = [0; MAX_DEPTH];
         for (step, open) in path.iter_mut().zip(&self.levels[1..=level]) {
-            *step = u16::try_from(open.parent).unwrap_or(u16::MAX);
+            *step = open.parent;
         }
-        path[level] = u16::try_from(item).unwrap_or(u16::MAX);
+        path[level] = item;
         MenuChoice {
             path,
             len: level + 1,
@@ -245,19 +283,19 @@ impl MenuState {
 /// is in, from the root.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MenuChoice {
-    path: [u16; MAX_DEPTH],
+    path: [usize; MAX_DEPTH],
     len: usize,
 }
 
 impl MenuChoice {
     /// The index of the item in its own list (a submenu's, for a nested item).
     pub fn index(&self) -> usize {
-        usize::from(self.path[self.len - 1])
+        self.path[self.len - 1]
     }
 
     /// The indices from the root menu down to the item: `[2, 0]` is the first item of the
     /// submenu of the root's third item.
-    pub fn path(&self) -> &[u16] {
+    pub fn path(&self) -> &[usize] {
         &self.path[..self.len]
     }
 }

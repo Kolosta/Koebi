@@ -394,8 +394,8 @@ fn vision_items<const N: usize>(first: usize, current: Option<usize>) -> [MenuIt
 fn vision_mode(choice: MenuChoice) -> Option<usize> {
     match choice.path() {
         [0] => Some(0),
-        [2, index] => Some(1 + usize::from(*index)),
-        [3, index] => Some(5 + usize::from(*index)),
+        [2, index] => Some(1 + *index),
+        [3, index] => Some(5 + *index),
         _ => None,
     }
 }

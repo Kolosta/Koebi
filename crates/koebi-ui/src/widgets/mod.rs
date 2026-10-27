@@ -33,11 +33,11 @@ pub use list::{
 };
 pub use menu::{
     MENU, MENU_ACTIONS, MENU_CHOOSE, MENU_CLOSE, MENU_CLOSE_SUBMENU, MENU_NEXT, MENU_OPEN_SUBMENU,
-    MENU_PREVIOUS, Mark, MenuAction, MenuChoice, MenuItem, MenuState, MenuStyle, Submenu,
+    MENU_PREVIOUS, MenuAction, MenuChoice, MenuItem, MenuMark, MenuState, MenuStyle, Submenu,
 };
 pub use panel::{PanelLevel, PanelStyle};
 pub use parts::{
-    Alignment, Content, ControlState, Hue, HueColors, Placed, Placement, Shades, Side, States,
+    Content, ControlState, Hue, HueColors, PanelAlign, Placed, Placement, Shades, Side, States,
     Tone, ToneColors, Variant,
 };
 pub use scroll::{SCROLL, ScrollAxes, ScrollContent, ScrollState, ScrollStyle};

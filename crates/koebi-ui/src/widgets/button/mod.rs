@@ -31,6 +31,7 @@
 //!   ([`Button::menu`]).
 
 mod group;
+mod look;
 mod style;
 
 #[cfg(test)]
@@ -39,20 +40,19 @@ mod tests;
 pub use group::{ButtonGroup, GroupCell, GroupResponse, Track};
 pub use style::ButtonStyle;
 
+pub(crate) use look::Look;
+
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::kind;
-use koebi_render::{Corners, RectPrimitive};
+use koebi_render::RectPrimitive;
 
 use crate::icon::Icon;
 use crate::id::WidgetId;
 use crate::style::{CornerRadii, Prop};
 use crate::text::Align;
 use crate::ui::{Response, Ui};
-use crate::widgets::dropdown::chevron;
 use crate::widgets::menu::MenuState;
-use crate::widgets::parts::{
-    Content, ContentColors, ContentMetrics, ControlState, Placement, Tone, ToneColors,
-};
+use crate::widgets::parts::{Content, ContentColors, ControlState, Placement, Tone};
 
 /// When a button's action fires.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -75,31 +75,6 @@ const BACKGROUND: usize = 0;
 const BORDER: usize = 1;
 const CONTENT: usize = 2;
 const ICON: usize = 3;
-
-/// Which tokens draw a button.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Look {
-    /// `component.button.*`.
-    Button,
-    /// `component.toggle.*`: a toggle of the default tone.
-    Toggle,
-    /// `component.dropdown.*`: the control of a [`Dropdown`](crate::Dropdown).
-    Dropdown,
-}
-
-/// The metrics a look gives the button, before the call's overrides.
-#[derive(Clone, Copy, Debug)]
-struct Defaults {
-    height: f32,
-    min_width: f32,
-    padding: f32,
-    padding_vertical: f32,
-    gap: f32,
-    corner_radius: f32,
-    border_width: f32,
-    icon_size: f32,
-    trailing_size: f32,
-}
 
 /// A button, configured then shown with [`Button::show`]. Every option has a default: no
 /// content, the default tone, enabled, firing on release, as wide as its content.
@@ -370,22 +345,6 @@ impl<'a> Button<'a> {
         self
     }
 
-    /// The content as shown: a dropdown's chevron points where its menu opens, and back
-    /// while it is open.
-    fn shown_content(&self) -> Content<'a> {
-        let mut content = self.content;
-        if self.look() == Look::Dropdown
-            && content.trailing.is_some()
-            && let Some((menu, placement)) = &self.menu
-        {
-            let open = menu
-                .is_open()
-                .then(|| menu.placed().map_or(placement.side, |placed| placed.side));
-            content.trailing = Some(chevron(placement.side, open));
-        }
-        content
-    }
-
     /// The state of the button's menu, if it opens one.
     pub(crate) fn menu_state(&self) -> Option<&MenuState> {
         self.menu.as_ref().map(|(state, _)| &**state)
@@ -394,104 +353,6 @@ impl<'a> Button<'a> {
     /// The identifier of the button.
     pub fn id(&self) -> WidgetId {
         self.id
-    }
-
-    /// The tokens the button draws with: a dropdown's, a toggle's of the default tone, or a
-    /// button's.
-    pub(crate) fn look(&self) -> Look {
-        if self.look == Some(Look::Dropdown) && self.tone == Tone::DEFAULT {
-            Look::Dropdown
-        } else if self.toggle.is_some() && self.menu.is_none() && self.tone == Tone::DEFAULT {
-            Look::Toggle
-        } else {
-            Look::Button
-        }
-    }
-
-    /// The metrics of the look, before the call's overrides.
-    fn defaults(&self, ui: &Ui<'_>) -> Defaults {
-        let styles = ui.styles();
-        let button = &styles.button;
-        let dropdown = &styles.dropdown;
-        let base = Defaults {
-            height: button.height,
-            min_width: button.min_width,
-            padding: button.padding,
-            padding_vertical: 0.0,
-            gap: button.gap,
-            corner_radius: button.corner_radius,
-            border_width: button.border_width,
-            icon_size: button.icon_size,
-            trailing_size: button.icon_size,
-        };
-        match self.look() {
-            Look::Button => base,
-            Look::Toggle => Defaults {
-                corner_radius: button.toggle_corner_radius,
-                border_width: button.toggle_border_width,
-                ..base
-            },
-            Look::Dropdown => Defaults {
-                height: dropdown.height,
-                min_width: dropdown.min_width,
-                padding: dropdown.padding,
-                padding_vertical: dropdown.padding_vertical,
-                gap: dropdown.gap,
-                corner_radius: dropdown.corner_radius,
-                border_width: dropdown.border_width,
-                icon_size: dropdown.icon_size,
-                trailing_size: dropdown.chevron_size,
-            },
-        }
-    }
-
-    /// The colors the button draws with: its look's or its tone's, with the overrides of the
-    /// call.
-    pub fn colors(&self, ui: &Ui<'_>) -> ToneColors {
-        let styles = ui.styles();
-        let mut colors = match self.look() {
-            Look::Toggle => styles.button.toggle,
-            Look::Dropdown => styles.dropdown.colors,
-            Look::Button => *styles.button.colors(self.tone),
-        };
-        for (part, overrides) in self.colors.iter().enumerate() {
-            for (state, prop) in ControlState::ALL.into_iter().zip(overrides) {
-                let Some(prop) = prop else {
-                    continue;
-                };
-                let color = prop.resolve(&styles.tokens);
-                match part {
-                    BACKGROUND => colors.background.set(state, color),
-                    BORDER => colors.border.set(state, color),
-                    CONTENT => {
-                        colors.content.set(state, color);
-                        colors.icon.set(state, color);
-                    }
-                    _ => colors.icon.set(state, color),
-                }
-            }
-        }
-        // Icons take their own overrides over the content's.
-        for (state, prop) in ControlState::ALL.into_iter().zip(&self.colors[ICON]) {
-            if let Some(prop) = prop {
-                colors.icon.set(state, prop.resolve(&styles.tokens));
-            }
-        }
-        colors
-    }
-
-    /// The metrics of the content.
-    fn metrics<'s>(&self, ui: &Ui<'s>) -> ContentMetrics<'s> {
-        let styles = ui.styles();
-        let defaults = self.defaults(ui);
-        ContentMetrics {
-            gap: defaults.gap,
-            icon_size: defaults.icon_size,
-            trailing_size: defaults.trailing_size,
-            stroke_width: styles.button.stroke_width,
-            dot_size: styles.button.dot_size,
-            font: &styles.text.label,
-        }
     }
 
     /// Resolves a dimension given at the call, or takes the style's.
@@ -532,28 +393,6 @@ impl<'a> Button<'a> {
                 .map_or(fitted, |max| fitted.min(max.resolve(&ui.styles().tokens)))
         };
         Vec2::new(width, height)
-    }
-
-    /// The border width: the call's, or the style's.
-    fn border(&self, ui: &Ui<'_>) -> f32 {
-        let fallback = self.defaults(ui).border_width;
-        Self::dimension(ui, self.border_width.as_ref(), fallback)
-    }
-
-    /// The corner radii: the call's, or the look's.
-    fn radii(&self, ui: &Ui<'_>) -> Corners {
-        match &self.radii {
-            Some(radii) => radii.resolve(&ui.styles().tokens),
-            None => Corners::all(self.defaults(ui).corner_radius),
-        }
-    }
-
-    /// `radii` of the button in `rect` with the corners where its open menu meets it squared.
-    pub(crate) fn junction(&self, rect: Rect, radii: Corners) -> Corners {
-        match self.menu_state().and_then(MenuState::placed) {
-            Some(placed) => placed.control_corners(rect, radii),
-            None => radii,
-        }
     }
 
     /// Shows the button in `rect` and returns what happened: `clicked` when its action fired

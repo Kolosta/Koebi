@@ -41,7 +41,7 @@ impl Side {
 
 /// Where a panel lines up along the side of its control.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub enum Alignment {
+pub enum PanelAlign {
     /// With the control's left edge (its top edge on the left and right sides).
     #[default]
     Start,
@@ -49,7 +49,7 @@ pub enum Alignment {
     End,
 }
 
-impl Alignment {
+impl PanelAlign {
     /// The other alignment.
     #[must_use]
     pub const fn opposite(self) -> Self {
@@ -67,7 +67,7 @@ pub struct Placement {
     /// The side of the control.
     pub side: Side,
     /// The alignment along that side.
-    pub align: Alignment,
+    pub align: PanelAlign,
     /// Whether the panel moves to the other side or alignment when it does not fit.
     pub flip: bool,
 }
@@ -86,7 +86,7 @@ pub struct Placed {
     /// The side it opened on, after flipping.
     pub side: Side,
     /// Its alignment, after flipping.
-    pub align: Alignment,
+    pub align: PanelAlign,
 }
 
 impl Placement {
@@ -100,14 +100,14 @@ impl Placement {
     pub const fn new(side: Side) -> Self {
         Self {
             side,
-            align: Alignment::Start,
+            align: PanelAlign::Start,
             flip: true,
         }
     }
 
     /// The same placement, aligned `align`.
     #[must_use]
-    pub const fn aligned(mut self, align: Alignment) -> Self {
+    pub const fn aligned(mut self, align: PanelAlign) -> Self {
         self.align = align;
         self
     }
@@ -171,14 +171,14 @@ impl Placement {
         } else {
             (control.min.y, control.max.y)
         };
-        let origin_of = |align: Alignment| match align {
-            Alignment::Start => edge_start,
-            Alignment::End => edge_end - cross,
+        let origin_of = |align: PanelAlign| match align {
+            PanelAlign::Start => edge_start,
+            PanelAlign::End => edge_end - cross,
         };
         let fits = |origin: f32| origin >= cross_low && origin + cross <= cross_high;
-        let room_of = |align: Alignment| match align {
-            Alignment::Start => cross_high - edge_start,
-            Alignment::End => edge_end - cross_low,
+        let room_of = |align: PanelAlign| match align {
+            PanelAlign::Start => cross_high - edge_start,
+            PanelAlign::End => edge_end - cross_low,
         };
         let flip_align = self.flip
             && !fits(origin_of(self.align))
@@ -314,7 +314,10 @@ mod tests {
     fn panels_open_below_at_the_start_when_they_fit() {
         let placed = Placement::BELOW.place(rect(20.0, 20.0, 80.0, 20.0), SIZE, window());
         assert_eq!(placed.rect, rect(20.0, 40.0, 120.0, 80.0));
-        assert_eq!((placed.side, placed.align), (Side::Below, Alignment::Start));
+        assert_eq!(
+            (placed.side, placed.align),
+            (Side::Below, PanelAlign::Start)
+        );
     }
 
     #[test]
@@ -322,13 +325,13 @@ mod tests {
         // Near the bottom right corner: above, aligned with the control's right edge.
         let control = rect(300.0, 260.0, 80.0, 20.0);
         let placed = Placement::BELOW.place(control, SIZE, window());
-        assert_eq!((placed.side, placed.align), (Side::Above, Alignment::End));
+        assert_eq!((placed.side, placed.align), (Side::Above, PanelAlign::End));
         assert_eq!(placed.rect, rect(260.0, 180.0, 120.0, 80.0));
         // Without flipping, the panel stays below and is pushed inside the window.
         let fixed = Placement::BELOW
             .flipping(false)
             .place(control, SIZE, window());
-        assert_eq!((fixed.side, fixed.align), (Side::Below, Alignment::Start));
+        assert_eq!((fixed.side, fixed.align), (Side::Below, PanelAlign::Start));
         assert_eq!(fixed.rect, rect(280.0, 220.0, 120.0, 80.0));
     }
 
@@ -338,7 +341,7 @@ mod tests {
         assert_eq!(placed.rect, rect(100.0, 20.0, 120.0, 80.0));
         let control = rect(320.0, 250.0, 60.0, 20.0);
         let placed = Placement::RIGHT.place(control, SIZE, window());
-        assert_eq!((placed.side, placed.align), (Side::Left, Alignment::End));
+        assert_eq!((placed.side, placed.align), (Side::Left, PanelAlign::End));
         assert_eq!(placed.rect, rect(200.0, 190.0, 120.0, 80.0));
     }
 

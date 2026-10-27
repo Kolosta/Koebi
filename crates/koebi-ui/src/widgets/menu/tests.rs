@@ -7,7 +7,9 @@ use koebi_render::Scene;
 use koebi_text::Fonts;
 
 use super::*;
-use crate::{Input, PointerButton, Styles, UiState};
+use crate::icon::Icon;
+use crate::widgets::parts::Placement;
+use crate::{Input, PointerButton, ScrollAxes, ScrollState, Styles, UiState};
 
 const MENU_ID: WidgetId = WidgetId::new("menu");
 
@@ -411,4 +413,273 @@ fn popups_draw_their_content_and_close_like_menus() {
     harness.click(Vec2::new(390.0, 290.0));
     assert_eq!(frame(&mut harness), None);
     assert!(!harness.menu.is_open());
+}
+
+/// Nine nested levels, one more than menus open.
+const DEEP_8: [MenuItem<'static>; 1] = [MenuItem::action("Leaf")];
+const DEEP_7: [MenuItem<'static>; 1] = [MenuItem::submenu("8", &DEEP_8)];
+const DEEP_6: [MenuItem<'static>; 1] = [MenuItem::submenu("7", &DEEP_7)];
+const DEEP_5: [MenuItem<'static>; 1] = [MenuItem::submenu("6", &DEEP_6)];
+const DEEP_4: [MenuItem<'static>; 1] = [MenuItem::submenu("5", &DEEP_5)];
+const DEEP_3: [MenuItem<'static>; 1] = [MenuItem::submenu("4", &DEEP_4)];
+const DEEP_2: [MenuItem<'static>; 1] = [MenuItem::submenu("3", &DEEP_3)];
+const DEEP_1: [MenuItem<'static>; 1] = [MenuItem::submenu("2", &DEEP_2)];
+const DEEP: [MenuItem<'static>; 1] = [MenuItem::submenu("1", &DEEP_1)];
+
+#[test]
+fn submenus_past_the_depth_limit_do_not_open() {
+    // Regression test: the keyboard opened a ninth level, past the end of the levels.
+    let mut harness = Harness::new();
+    harness.menu.open_at(Vec2::new(4.0, 4.0));
+    harness.input.trigger(&MENU_NEXT);
+    harness.frame_with(&DEEP);
+    for _ in 0..10 {
+        harness.input.trigger(&MENU_OPEN_SUBMENU);
+        harness.frame_with(&DEEP);
+    }
+    assert_eq!(harness.menu.depth(), 8);
+    // The submenu of the eighth level is not active: nothing to highlight there.
+    assert_eq!(harness.menu.highlighted(), None);
+}
+
+#[test]
+fn items_changing_under_an_open_menu_forget_what_they_lost() {
+    // Regression test: a highlight past the end of the new items made the keyboard panic.
+    let labels: Vec<String> = (0..10).map(|index| format!("Recent {index}")).collect();
+    let recent: Vec<MenuItem<'_>> = labels.iter().map(|label| MenuItem::action(label)).collect();
+    let mut harness = Harness::new();
+    harness.menu.open_at(Vec2::new(4.0, 4.0));
+    harness.input.trigger(&MENU_PREVIOUS);
+    harness.frame_with(&recent);
+    assert_eq!(harness.menu.highlighted(), Some(9));
+    let fewer = [MenuItem::action("Gone").enabled(false)];
+    harness.input.trigger(&MENU_NEXT);
+    harness.frame_with(&fewer);
+    assert_eq!(harness.menu.highlighted(), None);
+    // A submenu whose item is disabled while open closes.
+    harness.menu.open_at(Vec2::new(4.0, 4.0));
+    harness.input.trigger(&MENU_PREVIOUS);
+    harness.frame();
+    harness.input.trigger(&MENU_OPEN_SUBMENU);
+    harness.frame();
+    assert_eq!(harness.menu.depth(), 2);
+    let mut disabled = items();
+    disabled[5] = MenuItem::submenu("Add", &ADD).enabled(false);
+    harness.frame_with(&disabled);
+    assert_eq!(harness.menu.depth(), 1);
+}
+
+#[test]
+fn the_frame_that_ends_a_rest_shows_the_submenu() {
+    // Regression test: the submenu opened after the frame was drawn, and nothing asked for
+    // the frame that would show it.
+    let mut harness = Harness::new();
+    let delay = harness.styles.input.submenu_delay;
+    harness.menu.open_at(Vec2::new(10.0, 10.0));
+    harness.frame();
+    let add = harness.row(0, 5, &items());
+    harness.input.pointer_moved(add);
+    let (_, entered) = harness.frame_with(&items());
+    harness.at(delay);
+    let (_, ended) = harness.frame_with(&items());
+    assert_eq!(harness.menu.depth(), 2);
+    // The submenu's panel and its items are in the frame that opened it.
+    assert!(ended.rect_count() > entered.rect_count());
+    assert!(ended.glyph_count() > entered.glyph_count());
+}
+
+#[test]
+fn entering_an_item_highlights_it_in_the_same_frame() {
+    // Regression test: the highlight was decided after the rows were drawn.
+    let mut harness = Harness::new();
+    harness.menu.open_at(Vec2::new(10.0, 10.0));
+    let (_, before) = harness.frame_with(&items());
+    let swap = harness.row(0, 1, &items());
+    harness.input.pointer_moved(swap);
+    let (_, entered) = harness.frame_with(&items());
+    assert_eq!(harness.menu.highlighted(), Some(1));
+    assert_eq!(entered.rect_count(), before.rect_count() + 1);
+}
+
+#[test]
+fn moving_over_plain_items_asks_for_no_frame() {
+    let plain = [
+        MenuItem::action("Swap areas"),
+        MenuItem::action("Vertical split"),
+    ];
+    let mut harness = Harness::new();
+    harness.menu.open_at(Vec2::new(10.0, 10.0));
+    harness.frame_with(&plain);
+    let row = harness.row(0, 1, &plain);
+    harness.input.pointer_moved(row);
+    harness.frame_with(&plain);
+    assert_eq!(harness.menu.highlighted(), Some(1));
+    assert_eq!(harness.state.redraw_at(), None);
+}
+
+#[test]
+fn the_keyboard_keeps_the_highlight_while_the_menu_scrolls_under_a_still_pointer() {
+    // Regression test: rows scrolled under a still pointer took the highlight back.
+    let labels: Vec<String> = (0..40).map(|index| format!("Item {index}")).collect();
+    let items: Vec<MenuItem<'_>> = labels.iter().map(|label| MenuItem::action(label)).collect();
+    let mut harness = Harness::new();
+    harness.menu.open_at(Vec2::new(10.0, 0.0));
+    harness.frame_with(&items);
+    let third = harness.row(0, 3, &items);
+    harness.input.pointer_moved(third);
+    harness.frame_with(&items);
+    assert_eq!(harness.menu.highlighted(), Some(3));
+    for _ in 0..16 {
+        harness.input.trigger(&MENU_NEXT);
+        harness.frame_with(&items);
+    }
+    assert_eq!(harness.menu.highlighted(), Some(19));
+    // Moving the pointer gives it back the highlight.
+    harness.input.pointer_moved(third + Vec2::new(4.0, 0.0));
+    harness.frame_with(&items);
+    assert_ne!(harness.menu.highlighted(), Some(19));
+}
+
+#[test]
+fn submenus_keep_cascading_the_way_the_previous_level_went() {
+    // Regression test: once a level flipped left, the next one opened over the root.
+    const THIRD: [MenuItem<'static>; 1] = [MenuItem::action("Deep")];
+    const SECOND: [MenuItem<'static>; 1] = [MenuItem::submenu("Third", &THIRD)];
+    const FIRST: [MenuItem<'static>; 1] = [MenuItem::submenu("Second", &SECOND)];
+    let mut harness = Harness::new();
+    let control = Rect::from_origin_size(Vec2::new(300.0, 10.0), Vec2::new(90.0, 20.0));
+    harness.menu.open_for(control, Placement::BELOW);
+    harness.input.trigger(&MENU_NEXT);
+    harness.frame_with(&FIRST);
+    for _ in 0..2 {
+        harness.input.trigger(&MENU_OPEN_SUBMENU);
+        harness.frame_with(&FIRST);
+    }
+    harness.frame_with(&FIRST);
+    assert_eq!(harness.menu.depth(), 3);
+    let [root, first, second] = [0, 1, 2].map(|level| harness.menu.levels[level].rect);
+    assert!(first.max.x <= root.min.x + 1.0, "{root:?} {first:?}");
+    assert!(second.max.x <= first.min.x + 1.0, "{first:?} {second:?}");
+}
+
+#[test]
+fn the_wheel_over_an_open_menu_leaves_the_area_below_alone() {
+    // Regression test: floating content inherited the zones of the area that opened it.
+    let labels: Vec<String> = (0..40).map(|index| format!("Item {index}")).collect();
+    let items: Vec<MenuItem<'_>> = labels.iter().map(|label| MenuItem::action(label)).collect();
+    let mut harness = Harness::new();
+    let mut scroll = ScrollState::new();
+    let area = Rect::from_origin_size(Vec2::ZERO, Vec2::new(400.0, 300.0));
+    let frame = |harness: &mut Harness, scroll: &mut ScrollState| {
+        let mut scene = Scene::new();
+        {
+            let mut ui = Ui::new(
+                &mut scene,
+                &harness.styles,
+                &harness.input,
+                &mut harness.state,
+            );
+            ui.scroll_area(
+                WidgetId::new("area"),
+                area,
+                scroll,
+                Vec2::new(400.0, 2000.0),
+                ScrollAxes::Vertical,
+                |ui, _| ui.menu(MENU_ID, &mut harness.menu, &items, bounds()),
+            );
+        }
+        harness.input.end_frame();
+    };
+    harness.menu.open_at(Vec2::new(10.0, 10.0));
+    frame(&mut harness, &mut scroll);
+    // Beside the menu, then over it.
+    for at in [Vec2::new(380.0, 280.0), Vec2::new(30.0, 40.0)] {
+        harness.input.pointer_moved(at);
+        frame(&mut harness, &mut scroll);
+        harness.input.scrolled(Vec2::new(0.0, -1.0));
+        frame(&mut harness, &mut scroll);
+        assert_eq!(scroll.offset(), Vec2::ZERO, "at {at:?}");
+    }
+}
+
+#[test]
+fn escape_in_a_popup_closes_the_menu_inside_it_first() {
+    let mut harness = Harness::new();
+    let mut inner = MenuState::new();
+    let frame = |harness: &mut Harness, inner: &mut MenuState| {
+        let mut scene = Scene::new();
+        {
+            let mut ui = Ui::new(
+                &mut scene,
+                &harness.styles,
+                &harness.input,
+                &mut harness.state,
+            );
+            ui.popup(
+                MENU_ID,
+                &mut harness.menu,
+                Vec2::new(120.0, 40.0),
+                bounds(),
+                |ui, _| {
+                    ui.menu(WidgetId::new("inner"), inner, &items(), bounds());
+                },
+            );
+        }
+        harness.input.end_frame();
+    };
+    harness.menu.open_at(Vec2::new(10.0, 10.0));
+    inner.open_at(Vec2::new(40.0, 40.0));
+    frame(&mut harness, &mut inner);
+    harness.input.trigger(&MENU_CLOSE);
+    frame(&mut harness, &mut inner);
+    assert!(!inner.is_open() && harness.menu.is_open());
+    harness.input.trigger(&MENU_CLOSE);
+    frame(&mut harness, &mut inner);
+    assert!(!harness.menu.is_open());
+}
+
+#[test]
+fn popups_beside_a_control_square_where_they_meet() {
+    let mut harness = Harness::new();
+    let control = Rect::from_origin_size(Vec2::new(20.0, 20.0), Vec2::new(100.0, 20.0));
+    harness.menu.open_for(control, Placement::BELOW);
+    let mut scene = Scene::new();
+    {
+        let mut ui = Ui::new(
+            &mut scene,
+            &harness.styles,
+            &harness.input,
+            &mut harness.state,
+        );
+        ui.popup(
+            MENU_ID,
+            &mut harness.menu,
+            Vec2::new(80.0, 30.0),
+            bounds(),
+            |_, _| (),
+        );
+    }
+    let placed = harness.menu.placed().expect("placed beside its control");
+    assert_eq!(placed.rect.min, Vec2::new(20.0, 40.0));
+    let corners = placed.panel_corners(control, Corners::all(4.0));
+    assert_eq!((corners.top_left, corners.bottom_left), (0.0, 4.0));
+}
+
+#[test]
+fn closing_by_distance_asks_for_the_next_frame() {
+    // Regression test: the control drawn open before the menu closed kept its open look.
+    let mut harness = Harness::new();
+    let limit = harness.styles.input.menu_close_distance;
+    harness.menu.open_at(Vec2::new(10.0, 10.0));
+    harness.frame();
+    let swap = harness.row(0, 1, &items());
+    harness.input.pointer_moved(swap);
+    harness.frame();
+    let panel = harness.menu.levels[0].rect;
+    harness
+        .input
+        .pointer_moved(Vec2::new(panel.max.x + limit + 2.0, swap.y));
+    harness.frame();
+    assert!(!harness.menu.is_open());
+    assert_eq!(harness.state.redraw_at(), Some(harness.input.time()));
 }

@@ -147,8 +147,9 @@ One component draws every list of the application (outliner, layers, color usage
 ## Menus
 
 - **Items** (`MenuItem`): actions with an icon, a label, a shortcut hint, a check or radio
-  mark (`.checked(on)`, `.radio(on)`), disabled or marked as the current choice
-  (`.selected(true)`); submenus (`MenuItem::submenu(label, &items)`); separators and titles.
+  mark (`MenuMark`, set with `.checked(on)` or `.radio(on)`), disabled or marked as the
+  current choice (`.selected(true)`); submenus (`MenuItem::submenu(label, &items)`), eight
+  levels deep at most; separators and titles.
   Columns line up across a menu: marks, icons, labels, shortcuts, submenu arrows.
 - **Opening**: a `MenuState` per menu, kept by the application, opens it at a point
   (`open_at`, a context menu, usually on `Response::secondary_pressed`) or beside a control
@@ -156,14 +157,15 @@ One component draws every list of the application (outliner, layers, color usage
   layer, kept inside the window, and returns the item chosen this frame: `MenuChoice::index`
   in its own list, `MenuChoice::path` from the root (`[2, 0]`: the first item of the submenu
   of the root's third item).
-- **Placement** (`Placement`): a side of the control (below, above, right, left) and an
-  alignment along it (start, end); the menu flips to the other side or alignment when the
+- **Placement** (`Placement`): a side of the control (`Side`: below, above, right, left) and
+  an alignment along it (`PanelAlign`: start, end); the menu flips to the other side or alignment when the
   window has no room, unless `flip` is off. A menu below or above its control is at least as
   wide; where the two meet, their corners are square (`Placed::control_corners`,
   `Placed::panel_corners`). An open menu follows its control when the layout moves
   (`MenuState::follow`).
-- **Submenus** open beside their item, flipping like any panel, when the pointer rests on it
-  for `semantic.input.submenu.delay` or at a click. While the pointer heads from the item
+- **Submenus** open beside their item when the pointer rests on it for
+  `semantic.input.submenu.delay` or at a click, cascading the way the previous level went
+  (a level that flipped left keeps the next ones on the left). While the pointer heads from the item
   towards the open submenu, the items it crosses wait for `semantic.input.submenu.grace`
   before taking over.
 - **Closing**: choosing closes every menu; a press outside closes them and reaches nothing
@@ -172,7 +174,9 @@ One component draws every list of the application (outliner, layers, color usage
   nothing by itself.
 - **Keyboard**, while open, wherever the pointer is: `menu.next`, `menu.previous`,
   `menu.open-submenu`, `menu.close-submenu`, `menu.choose` and `menu.close` (arrows, Enter or
-  Space, Escape by default); Escape closes the innermost menu.
+  Space, Escape by default); Escape closes the innermost menu. The pointer takes the
+  highlight back only when it moves, so the keyboard keeps it while a long menu scrolls under
+  a still pointer.
 - **Long menus** stop at `menu.max-height` (or the window), scroll with the wheel
   (`menu.wheel-step`) and follow the keyboard's highlight.
 - **Menu buttons**: `Button::menu(&mut state, placement)` opens the menu beside the button,
@@ -182,9 +186,13 @@ One component draws every list of the application (outliner, layers, color usage
 - **Dropdowns** (`Dropdown`): a menu button with the dropdowns' look (`dropdown.*`, darker
   than buttons) and a chevron (`dropdown.chevron.size`) pointing where the menu opens, turned
   back while it is open. `.placement(Placement::RIGHT)` makes a vertical dropdown; every
-  button option (content, tone, sizes, colors per state) applies.
+  button option (content, sizes, colors per state) applies, and a tone colors the control
+  while its metrics and chevron stay the dropdowns'. `Dropdown::measure(ui, label)` gives
+  the size of a dropdown showing `label`, to reserve the width of the widest choice.
 - **Popups** (`Ui::popup`): a panel of custom content that opens, places itself and closes
-  like a menu (but never by moving away, so that its content can be dragged).
+  like a menu (but never by moving away, so that its content can be dragged). Escape closes
+  a menu open inside the popup first: a component that uses an action this frame marks it
+  used (`Ui::consume`), and the components asking after it no longer see it triggered.
 
 ## Tooltips
 

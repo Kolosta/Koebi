@@ -106,7 +106,7 @@ fn dropdown_sheet(design: &DesignSystem) -> Scene {
     let above = rect(8.0, 212.0, 96.0, 20.0);
     let beside = rect(120.0, 150.0, 80.0, 20.0);
     let fused = rect(120.0, 8.0, 132.0, 20.0);
-    let mut menus = [MenuState::new(); 4];
+    let mut menus: [MenuState; 4] = core::array::from_fn(|_| MenuState::new());
     menus[0].open_for(below, Placement::BELOW);
     menus[1].open_for(above, Placement::BELOW);
     menus[2].open_for(beside, Placement::RIGHT);

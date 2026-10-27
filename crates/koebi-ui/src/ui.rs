@@ -51,6 +51,8 @@ pub struct UiState {
     pub(crate) line: TextLine,
     /// When the last frame wants to be drawn again, if it does.
     redraw_at: Option<Duration>,
+    /// Actions components used this frame ([`Ui::consume`]).
+    consumed: Vec<&'static ActionDef>,
     /// The widget under the pointer for tooltips, and the last tooltip shown.
     pub(crate) tooltip: TooltipState,
 }
@@ -232,6 +234,7 @@ impl<'a> Ui<'a> {
         state.secondary_target = topmost(input.button_pressed_at(PointerButton::Secondary));
         state.grabbing.clear();
         state.redraw_at = None;
+        state.consumed.clear();
         Self {
             scene,
             styles,
@@ -255,7 +258,15 @@ impl<'a> Ui<'a> {
 
     /// `true` when the keymap triggered `action` since the last frame.
     pub fn triggered(&self, action: &ActionDef) -> bool {
-        self.input.triggered(action)
+        self.input.triggered(action) && !self.state.consumed.iter().any(|used| used.id == action.id)
+    }
+
+    /// Marks `action` used this frame: components that ask after this one see it as not
+    /// triggered (the menu open in a popup closes on Escape, not the popup).
+    pub fn consume(&mut self, action: &'static ActionDef) {
+        if !self.state.consumed.iter().any(|used| used.id == action.id) {
+            self.state.consumed.push(action);
+        }
     }
 
     /// Asks for the frame to be drawn again at `time` ([`Input::time`] scale), even without
@@ -292,10 +303,14 @@ impl<'a> Ui<'a> {
     /// force: a menu opened from an area is not limited to it.
     pub fn on_layer<R>(&mut self, layer: Layer, add: impl FnOnce(&mut Self) -> R) -> R {
         let previous = core::mem::replace(&mut self.layer, layer);
+        // Floating content starts outside the clips and the zones of what opened it: the
+        // area's shortcuts, wheel and cursor stay with the area.
         let clip = self.clip.take();
+        let zone = self.zone.take();
         self.scene.push_layer(layer.0);
         let result = add(self);
         self.scene.pop_layer();
+        self.zone = zone;
         self.clip = clip;
         self.layer = previous;
         result

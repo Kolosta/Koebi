@@ -500,3 +500,42 @@ fn a_menu_button_in_a_group_opens_its_menu() {
     assert_eq!(response.clicked, Some(1));
     assert!(menu.is_open());
 }
+
+#[test]
+fn the_frame_that_opens_a_menu_squares_the_side_it_opens_on() {
+    // Regression test: drawn before its menu was placed, the button kept its round corners in
+    // the frame that opened the menu.
+    use crate::widgets::menu::MenuState;
+    use crate::widgets::parts::Placement;
+
+    let mut menu = MenuState::new();
+    menu.open_for(rect(), Placement::RIGHT);
+    assert_eq!(menu.placed(), None);
+    let radii = Button::new(SAVE)
+        .menu(&mut menu, Placement::RIGHT)
+        .junction(rect(), Corners::all(4.0));
+    assert_eq!((radii.top_right, radii.bottom_right), (0.0, 0.0));
+    assert_eq!((radii.top_left, radii.bottom_left), (4.0, 4.0));
+}
+
+#[test]
+fn toned_dropdowns_keep_the_metrics_of_dropdowns() {
+    // Regression test: a tone turned a dropdown into a button, with a button's size.
+    let mut harness = Harness::new();
+    let dropdown = |tone| {
+        Button::new(SAVE)
+            .dropdown_look()
+            .tone(tone)
+            .label("Viewport")
+            .trailing_icon(Icon::ChevronDown)
+    };
+    let ((plain, toned), _) = harness.frame(|ui| {
+        let plain = dropdown(Tone::DEFAULT);
+        let toned = dropdown(Tone::ACCENT);
+        assert_eq!(toned.look(), Look::Dropdown);
+        assert_eq!(plain.colors(ui), ui.styles().dropdown.colors);
+        assert_eq!(toned.colors(ui), *ui.styles().button.colors(Tone::ACCENT));
+        (plain.size(ui), toned.size(ui))
+    });
+    assert_eq!(plain, toned);
+}

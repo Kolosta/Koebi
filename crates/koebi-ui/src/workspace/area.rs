@@ -256,14 +256,11 @@ impl Ui<'_> {
         }
         let id = EDITOR_TYPE.with(u64::from(editor.get()));
         // As wide as the widest kind: the control keeps its size whatever the choice.
-        let width = Dropdown::new(id, &mut MenuState::new(), &items[..count])
-            .label(widest_label)
-            .size(self)
-            .x;
+        let width = Dropdown::measure(self, widest_label).x;
         let rect = layout.left(width);
         // One menu opens at a time: the others get a closed one.
         let mut menu = if view.type_menu_editor == Some(editor) {
-            view.type_menu
+            core::mem::take(&mut view.type_menu)
         } else {
             MenuState::new()
         };

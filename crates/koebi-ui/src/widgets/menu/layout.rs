@@ -1,13 +1,138 @@
-//! The layout of a menu panel: its columns (marks, icons, labels, shortcuts, submenu arrows),
-//! its rows and its size; and the drawing of each row.
+//! The layout of menus: the columns of a panel (marks, icons, labels, shortcuts, submenu
+//! arrows), its rows and its size; where each open level goes (the root beside its control or
+//! at its point, each submenu beside its item, cascading the way the previous one went); and
+//! the drawing of each row.
 
 use koebi_core::{Color, Rect, Vec2};
 use koebi_render::{LinePrimitive, RectPrimitive};
 
-use super::{Mark, MenuItem, MenuStyle};
+use super::state::{Anchor, MAX_DEPTH};
+use super::{MenuItem, MenuMark, MenuState, MenuStyle, at_point};
 use crate::icon::Icon;
 use crate::text::Align;
 use crate::ui::Ui;
+use crate::widgets::parts::{PanelAlign, Placed, Placement, Side};
+
+/// One open level laid out for this frame.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct Frame {
+    pub(super) placed: Option<Placed>,
+    pub(super) columns: Columns,
+    /// How far the items reach past the panel: what the wheel can scroll.
+    pub(super) overflow: f32,
+}
+
+impl Frame {
+    pub(super) fn rect(&self) -> Rect {
+        self.placed.map_or(Rect::ZERO, |placed| placed.rect)
+    }
+}
+
+/// The offset of the top of `item`'s row from the top of the items, and its height.
+fn row_span(style: &MenuStyle, items: &[MenuItem<'_>], item: usize) -> (f32, f32) {
+    let top = items
+        .iter()
+        .take(item)
+        .map(|item| row_height(style, item))
+        .sum();
+    let height = items.get(item).map_or(0.0, |item| row_height(style, item));
+    (top, height)
+}
+
+impl Ui<'_> {
+    /// Lays every open level out: the root beside its control (at least as wide when above or
+    /// below it) or at its point, each submenu beside its item, its first row level with the
+    /// item, on the side the previous level went. Scrolls the level the keyboard moved in to
+    /// show its highlight.
+    pub(super) fn menu_layout(
+        &mut self,
+        state: &mut MenuState,
+        items: &[MenuItem<'_>],
+        bounds: Rect,
+        moved: Option<usize>,
+    ) -> [Frame; MAX_DEPTH] {
+        let style = &self.styles().menu;
+        let mut frames = [Frame::default(); MAX_DEPTH];
+        // The open child's row, its panel and the side its panel went, for the next level.
+        let mut parent: Option<(Rect, Rect, Side)> = None;
+        let depth = state.depth;
+        for (level, frame) in frames.iter_mut().enumerate().take(depth) {
+            let Some(level_items) = state.items_at(items, level) else {
+                state.close_below(level.saturating_sub(1));
+                break;
+            };
+            let columns = measure(self, level_items);
+            let content = columns.size.y;
+            let mut size = Vec2::new(
+                columns.size.x,
+                content.min(style.max_height).min(bounds.height()).max(0.0),
+            );
+            let placed = match (level, state.anchor, parent) {
+                (0, Some(Anchor::Point(point)), _) => Placed {
+                    rect: at_point(point, size, bounds),
+                    side: Side::Right,
+                    align: PanelAlign::Start,
+                },
+                (0, Some(Anchor::Control(control, placement)), _) => {
+                    if placement.side.is_vertical() {
+                        size.x = size.x.max(control.width());
+                    }
+                    let placed = placement.place(control, size, bounds);
+                    state.placed = Some(placed);
+                    placed
+                }
+                (_, _, Some((row, panel, side))) => {
+                    let inset = style.border_width + style.padding_vertical;
+                    let control = Rect::from_min_max(
+                        Vec2::new(panel.min.x, row.min.y - inset),
+                        Vec2::new(panel.max.x, row.max.y + inset),
+                    );
+                    Placement::new(side).place(control, size, bounds)
+                }
+                _ => break,
+            };
+            let overflow = (content - placed.rect.height()).max(0.0);
+            let visible = placed.rect.height() - 2.0 * style.border_width;
+            let current = &mut state.levels[level];
+            if moved == Some(level)
+                && let Some(highlighted) = current.highlighted
+            {
+                let (top, height) = row_span(style, level_items, highlighted);
+                let top = style.padding_vertical + top;
+                // With the padding around it: the first and last items scroll to the ends.
+                current.scroll = current
+                    .scroll
+                    .min(top - style.padding_vertical)
+                    .max(top + height + style.padding_vertical - visible);
+            }
+            current.scroll = current.scroll.clamp(0.0, overflow);
+            *frame = Frame {
+                placed: Some(placed),
+                columns,
+                overflow,
+            };
+            parent = (level + 1 < depth).then(|| {
+                let child = state.levels[level + 1].parent;
+                let (offset, height) = row_span(style, level_items, child);
+                let top = placed.rect.min.y + style.border_width + style.padding_vertical
+                    - state.levels[level].scroll
+                    + offset;
+                let row = Rect::from_min_max(
+                    Vec2::new(placed.rect.min.x, top),
+                    Vec2::new(placed.rect.max.x, top + height),
+                );
+                // Submenus cascade the way the previous level went: left once one went left.
+                let side = if placed.side == Side::Left {
+                    Side::Left
+                } else {
+                    Side::Right
+                };
+                (row, placed.rect, side)
+            });
+        }
+        frames
+    }
+}
 
 /// The columns of a panel and its natural size.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -46,7 +171,7 @@ pub(super) fn measure(ui: &mut Ui<'_>, items: &[MenuItem<'_>]) -> Columns {
                         .shortcut
                         .max(ui.text_width(shortcut, &styles.text.detail));
                 }
-                columns.mark |= action.mark != Mark::None;
+                columns.mark |= action.mark != MenuMark::None;
                 columns.icon |= action.icon.is_some();
             }
             MenuItem::Submenu(submenu) => {
@@ -96,14 +221,15 @@ pub(super) enum RowLook {
     Selected,
 }
 
-/// Draws `item` in `row`, the rectangle of its row inside the panel. `toward_left` points the
-/// arrow of a submenu left, where it opens.
+/// Draws `item` in `row`, the rectangle of its row inside the panel, shown enabled when
+/// `active`. `toward_left` points the arrow of a submenu left, where it opens.
 pub(super) fn draw_row(
     ui: &mut Ui<'_>,
     item: &MenuItem<'_>,
     row: Rect,
     columns: &Columns,
     look: RowLook,
+    active: bool,
     toward_left: bool,
 ) {
     let styles = ui.styles();
@@ -135,7 +261,7 @@ pub(super) fn draw_row(
             );
         }
         MenuItem::Action(_) | MenuItem::Submenu(_) => {
-            let enabled = item.is_active();
+            let enabled = active;
             let background = match look {
                 RowLook::Highlighted if enabled => Some(style.item_hover),
                 RowLook::Selected => Some(style.item_selected),
@@ -204,7 +330,7 @@ fn draw_parts(
     let style = &styles.menu;
     let (label, icon, shortcut, mark) = match item {
         MenuItem::Action(action) => (action.label, action.icon, action.shortcut, action.mark),
-        MenuItem::Submenu(submenu) => (submenu.label, submenu.icon, None, Mark::None),
+        MenuItem::Submenu(submenu) => (submenu.label, submenu.icon, None, MenuMark::None),
         _ => return,
     };
     let slot = |x: f32| {
@@ -220,10 +346,10 @@ fn draw_parts(
     if columns.mark {
         let bounds = slot(x);
         match mark {
-            Mark::Check(true) => {
+            MenuMark::Check(true) => {
                 Icon::Check.draw(ui.scene(), bounds, colors.mark, style.stroke_width);
             }
-            Mark::Radio(true) => {
+            MenuMark::Radio(true) => {
                 let dot = Rect::from_center_size(bounds.center(), Vec2::splat(style.radio_size));
                 ui.scene().push_rect(
                     &RectPrimitive::new(dot, colors.mark)
