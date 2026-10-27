@@ -1,15 +1,18 @@
 //! What text fields keep between frames, in [`UiState`](crate::UiState): the one field editing
 //! text and its [`TextEdit`], the order fields were shown in (for Tab), the field asked to
-//! edit next, and the exchanges with the clipboard.
+//! edit next, the edits that ended away from their field, and the exchanges with the
+//! clipboard.
 //!
 //! One field edits at a time. Its text changes as the user types; the session keeps the text
 //! it started with, so that cancelling restores it. A session ends when its field confirms or
-//! cancels, when another field starts editing, or when a frame no longer shows its field; a
-//! session that ended away from its field tells the field on its next frame.
+//! cancels, when another field starts editing, or when a frame no longer shows its field. An
+//! edit that ended away from its field tells the field during the next frame, then is
+//! forgotten; so is a request to edit a field that no frame showed since.
 
 use core::time::Duration;
 
 use super::edit::TextEdit;
+use super::{EditEnd, OutsidePress};
 use crate::id::WidgetId;
 
 /// The edit of one field.
@@ -21,6 +24,8 @@ pub(crate) struct Session {
     pub(crate) edit: TextEdit,
     /// The text when the edit started, restored on cancel.
     pub(crate) original: String,
+    /// What a press outside the field does, as the field last said.
+    pub(crate) outside: OutsidePress,
     /// How far the text scrolls left to keep the caret in view.
     pub(crate) scroll: f32,
     /// The primary button, pressed on the field, selects as the pointer moves.
@@ -34,11 +39,45 @@ pub(crate) struct Session {
     pub(crate) seen: bool,
 }
 
-/// How an edit ended away from its field.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+impl Session {
+    /// The edit of `text` by the field `id`, starting at `now`.
+    pub(crate) fn new(id: WidgetId, text: &str, now: Duration, outside: OutsidePress) -> Self {
+        Self {
+            id,
+            edit: TextEdit::new(text),
+            original: text.to_owned(),
+            outside,
+            scroll: 0.0,
+            dragging: false,
+            select_after_threshold: false,
+            since: now,
+            seen: true,
+        }
+    }
+}
+
+/// An edit that ended away from its field.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Ended {
     /// The field.
     pub(crate) id: WidgetId,
+    /// How it ended.
+    pub(crate) end: EditEnd,
+    /// The text to put back, when the edit was cancelled.
+    pub(crate) restore: Option<String>,
+    /// The frame it ended in.
+    frame: u64,
+}
+
+/// Why a session ends away from its field.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Away {
+    /// A press on another field: the field's [`OutsidePress`] applies.
+    Pressed,
+    /// Another field starts editing without a press (Tab, a request): the text stays.
+    Replaced,
+    /// The field was not shown: the text stays.
+    Hidden,
 }
 
 /// The text fields' state between frames.
@@ -46,16 +85,21 @@ pub(crate) struct Ended {
 pub(crate) struct TextState {
     /// The field editing text.
     pub(crate) session: Option<Session>,
-    /// A field whose edit ended (kept) while it was not drawing: its next frame says so.
-    pub(crate) ended: Option<Ended>,
-    /// Fields in the order the last frame showed them.
+    /// Edits that ended away from their field, until the field's next frame.
+    ended: Vec<Ended>,
+    /// Enabled fields in the order the last frame showed them.
     pub(crate) order: Vec<WidgetId>,
-    /// Fields in the order this frame shows them.
+    /// Enabled fields in the order this frame shows them.
     pub(crate) shown: Vec<WidgetId>,
-    /// The field to edit when it is next shown (Tab, [`Ui::edit_text_field`]).
+    /// The field to edit when it is next shown (Tab, [`Ui::edit_text_field`]), and the frame
+    /// that asked.
     ///
     /// [`Ui::edit_text_field`]: crate::Ui::edit_text_field
-    pub(crate) focus: Option<WidgetId>,
+    focus: Option<(WidgetId, u64)>,
+    /// Frames since the state was created.
+    frame: u64,
+    /// A field took this frame's typed text.
+    pub(crate) typed_taken: bool,
     /// Text copied during the last frame, for the application's clipboard.
     pub(crate) copied: Option<String>,
     /// The last frame asked for the clipboard's text.
@@ -67,28 +111,71 @@ pub(crate) struct TextState {
 impl TextState {
     /// A frame starts: what the last one asked of the application was answered.
     pub(crate) fn begin_frame(&mut self) {
+        self.frame += 1;
         self.shown.clear();
         self.copied = None;
         self.paste_requested = false;
+        self.typed_taken = false;
         if let Some(session) = &mut self.session {
             session.seen = false;
         }
     }
 
-    /// A frame ends: a session whose field it did not show ends, keeping the text.
+    /// A frame ends: a session whose field it did not show ends, keeping the text; notices
+    /// and requests older than the frame are forgotten.
     pub(crate) fn end_frame(&mut self) {
         if self.session.as_ref().is_some_and(|session| !session.seen) {
-            self.end_away();
+            self.end_away(Away::Hidden);
         }
         // Pasted text nobody took is stale.
         self.pasted = None;
+        let frame = self.frame;
+        self.ended.retain(|ended| ended.frame >= frame);
+        if self.focus.is_some_and(|(_, asked)| asked < frame) {
+            self.focus = None;
+        }
         core::mem::swap(&mut self.order, &mut self.shown);
     }
 
-    /// Ends the session away from its field, keeping its text (written as it changed).
-    pub(crate) fn end_away(&mut self) {
-        if let Some(session) = self.session.take() {
-            self.ended = Some(Ended { id: session.id });
+    /// Ends the session away from its field: the text, written as it changed, stays, unless
+    /// a press on another field cancels it.
+    pub(crate) fn end_away(&mut self, why: Away) {
+        let Some(session) = self.session.take() else {
+            return;
+        };
+        let cancel = why == Away::Pressed && session.outside == OutsidePress::Cancel;
+        self.ended.push(Ended {
+            id: session.id,
+            end: if cancel {
+                EditEnd::Cancelled
+            } else {
+                EditEnd::Confirmed
+            },
+            restore: cancel.then_some(session.original),
+            frame: self.frame,
+        });
+    }
+
+    /// Takes the notice of the edit of `id` that ended away from it, if there is one.
+    pub(crate) fn take_ended(&mut self, id: WidgetId) -> Option<Ended> {
+        let index = self.ended.iter().position(|ended| ended.id == id)?;
+        Some(self.ended.swap_remove(index))
+    }
+
+    /// Asks the field `id` to edit when it is next shown.
+    pub(crate) fn set_focus(&mut self, id: WidgetId) {
+        self.focus = Some((id, self.frame));
+    }
+
+    /// `true` when the field `id` is asked to edit.
+    pub(crate) fn is_focused(&self, id: WidgetId) -> bool {
+        self.focus.is_some_and(|(focused, _)| focused == id)
+    }
+
+    /// Forgets the request to edit, if it is for `id`.
+    pub(crate) fn clear_focus(&mut self, id: WidgetId) {
+        if self.is_focused(id) {
+            self.focus = None;
         }
     }
 
@@ -113,6 +200,13 @@ mod tests {
     const B: WidgetId = WidgetId::new("b");
     const C: WidgetId = WidgetId::new("c");
 
+    fn editing(id: WidgetId, outside: OutsidePress) -> TextState {
+        let mut state = TextState::default();
+        state.begin_frame();
+        state.session = Some(Session::new(id, "Cube", Duration::ZERO, outside));
+        state
+    }
+
     #[test]
     fn tab_order_wraps_around_the_fields_of_the_last_frame() {
         let mut state = TextState {
@@ -128,23 +222,50 @@ mod tests {
     }
 
     #[test]
-    fn a_session_whose_field_is_not_shown_ends() {
-        let mut state = TextState {
-            session: Some(Session {
-                id: A,
-                edit: TextEdit::new("Cube"),
-                original: "Cube".to_owned(),
-                scroll: 0.0,
-                dragging: false,
-                select_after_threshold: false,
-                since: Duration::ZERO,
-                seen: false,
-            }),
-            ..TextState::default()
-        };
-        state.begin_frame();
+    fn a_session_whose_field_is_not_shown_ends_and_its_notice_lasts_one_frame() {
+        let mut state = editing(A, OutsidePress::Confirm);
+        if let Some(session) = &mut state.session {
+            session.seen = false;
+        }
         state.end_frame();
         assert_eq!(state.session, None);
-        assert_eq!(state.ended, Some(Ended { id: A }));
+        // The next frame can tell the field.
+        state.begin_frame();
+        assert!(state.ended.iter().any(|ended| ended.id == A));
+        state.end_frame();
+        // After it, the notice is gone.
+        assert_eq!(state.take_ended(A), None);
+    }
+
+    #[test]
+    fn notices_of_several_fields_are_kept_apart() {
+        let mut state = editing(A, OutsidePress::Cancel);
+        state.end_away(Away::Pressed);
+        state.session = Some(Session::new(
+            B,
+            "Sphere",
+            Duration::ZERO,
+            OutsidePress::Cancel,
+        ));
+        state.end_away(Away::Replaced);
+        let a = state.take_ended(A).expect("A ended");
+        assert_eq!(
+            (a.end, a.restore.as_deref()),
+            (EditEnd::Cancelled, Some("Cube"))
+        );
+        let b = state.take_ended(B).expect("B ended");
+        assert_eq!((b.end, b.restore), (EditEnd::Confirmed, None));
+    }
+
+    #[test]
+    fn requests_to_edit_expire_after_the_next_frame() {
+        let mut state = TextState::default();
+        state.begin_frame();
+        state.set_focus(A);
+        state.end_frame();
+        state.begin_frame();
+        assert!(state.is_focused(A));
+        state.end_frame();
+        assert!(!state.is_focused(A));
     }
 }

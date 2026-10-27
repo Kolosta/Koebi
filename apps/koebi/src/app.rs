@@ -548,7 +548,7 @@ impl KoebiApp {
         self.typing = area;
         // The clipboard: what fields copied, and the text a field asked to paste, which it
         // inserts on the next frame (the key that asked already asks for that frame).
-        if let Some(text) = self.interface.state.copied()
+        if let Some(text) = self.interface.state.copied_text()
             && let Err(error) = context.set_clipboard_text(text)
         {
             koebi_core::warn!("cannot copy to the clipboard: {error}");
@@ -556,7 +556,7 @@ impl KoebiApp {
         if self.interface.state.paste_requested()
             && let Some(text) = context.clipboard_text()
         {
-            self.interface.state.paste(text);
+            self.interface.state.set_pasted_text(text);
         }
     }
 

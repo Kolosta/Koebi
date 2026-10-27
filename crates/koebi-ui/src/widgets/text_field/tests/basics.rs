@@ -1,73 +1,11 @@
-//! Text field tests: starting and ending edits, the pointer, the keys, the clipboard, Tab,
-//! constraints, scrolling and the caret.
+//! Starting and ending edits, the pointer, the keys, the clipboard, Tab, constraints,
+//! scrolling and the caret.
 
 use core::time::Duration;
 
 use koebi_core::{Rect, Vec2};
-use koebi_render::Scene;
-use koebi_text::Fonts;
 
 use super::*;
-use crate::{Input, Styles, UiState};
-
-const NAME: WidgetId = WidgetId::new("name");
-const OTHER: WidgetId = WidgetId::new("other");
-
-fn field() -> Rect {
-    Rect::from_origin_size(Vec2::new(10.0, 10.0), Vec2::new(160.0, 22.0))
-}
-
-fn other() -> Rect {
-    Rect::from_origin_size(Vec2::new(10.0, 40.0), Vec2::new(160.0, 22.0))
-}
-
-/// Text fields, their UI state and input, one frame at a time.
-struct Harness {
-    state: UiState,
-    input: Input,
-    styles: Styles,
-}
-
-impl Harness {
-    fn new() -> Self {
-        let mut state = UiState::new();
-        state.set_fonts(Fonts::with_embedded());
-        Self {
-            state,
-            input: Input::new(),
-            styles: crate::test_styles(),
-        }
-    }
-
-    /// One frame running `show`.
-    fn frame<R>(&mut self, show: impl FnOnce(&mut Ui<'_>) -> R) -> (R, Scene) {
-        let mut scene = Scene::new();
-        let result = {
-            let mut ui = Ui::new(&mut scene, &self.styles, &self.input, &mut self.state);
-            show(&mut ui)
-        };
-        self.input.end_frame();
-        (result, scene)
-    }
-
-    /// One frame showing the field `NAME` editing `text` in [`field`].
-    fn show(&mut self, text: &mut String) -> TextFieldResponse {
-        self.frame(|ui| TextField::new(NAME, text).show(ui, field()))
-            .0
-    }
-
-    fn click(&mut self, at: Vec2) {
-        self.input.primary_button(true, at);
-        self.input.primary_button(false, at);
-    }
-
-    /// Lays the field out, then clicks it: the edit starts with the text selected.
-    fn start(&mut self, text: &mut String) -> TextFieldResponse {
-        self.show(text);
-        self.click(field().center());
-        self.show(text)
-    }
-}
 
 #[test]
 fn a_press_starts_editing_with_the_text_selected() {
@@ -181,18 +119,21 @@ fn the_clipboard_goes_through_the_application() {
     harness.start(&mut text);
     harness.input.trigger(&TEXT_COPY);
     harness.show(&mut text);
-    assert_eq!(harness.state.copied(), Some("Cube"));
+    assert_eq!(harness.state.copied_text(), Some("Cube"));
     harness.input.trigger(&TEXT_CUT);
     harness.show(&mut text);
-    assert_eq!((harness.state.copied(), text.as_str()), (Some("Cube"), ""));
+    assert_eq!(
+        (harness.state.copied_text(), text.as_str()),
+        (Some("Cube"), "")
+    );
     // The next frame no longer asks.
     harness.show(&mut text);
-    assert_eq!(harness.state.copied(), None);
+    assert_eq!(harness.state.copied_text(), None);
     harness.input.trigger(&TEXT_PASTE);
     harness.show(&mut text);
     assert!(harness.state.paste_requested());
     // The application answers between frames: pasted text is one line.
-    harness.state.paste(String::from("Cube\n.001"));
+    harness.state.set_pasted_text(String::from("Cube\n.001"));
     let pasted = harness.show(&mut text);
     assert!(pasted.changed && !harness.state.paste_requested());
     assert_eq!(text, "Cube .001");
@@ -298,7 +239,7 @@ fn filters_and_limits_keep_the_text_valid() {
     assert_eq!(text, "123");
     harness.input.trigger(&TEXT_PASTE);
     show(&mut harness, &mut text);
-    harness.state.paste(String::from("456"));
+    harness.state.set_pasted_text(String::from("456"));
     show(&mut harness, &mut text);
     assert_eq!(text, "123");
 }
@@ -504,6 +445,6 @@ fn repeated_keys_between_two_frames_all_apply() {
     harness.show(&mut text);
     harness.input.trigger(&TEXT_CUT);
     harness.show(&mut text);
-    assert_eq!(harness.state.copied(), Some("grid"));
+    assert_eq!(harness.state.copied_text(), Some("grid"));
     assert_eq!(text, "snap to ");
 }

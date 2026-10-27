@@ -72,7 +72,8 @@ koebi_design::tokens! {
         semantic::TEXT_COLOR_PRIMARY_DEFAULT;
     /// Text field: caret width.
     TEXT_FIELD_CARET_WIDTH = "text-field.caret.width": Dimension = px(1.0), range(0.0, 8.0);
-    /// Text field: time the caret stays shown, then hidden, while blinking; 0 keeps it shown.
+    /// Text field: time the caret stays shown, then hidden, while blinking; below 50 ms (0 by
+    /// default) the caret stays shown.
     TEXT_FIELD_CARET_BLINK_INTERVAL = "text-field.caret.blink-interval": Duration = ms(0),
         range(0.0, 2000.0);
 }

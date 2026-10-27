@@ -4,6 +4,8 @@
 //! Positions are byte offsets on character boundaries. The caret moves over characters (code
 //! points): a character made of several (an accent typed apart) takes several moves.
 
+use std::collections::VecDeque;
+
 /// What a move does to the selection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Select {
@@ -50,7 +52,7 @@ pub(crate) struct TextEdit {
     text: String,
     caret: usize,
     anchor: usize,
-    undo: Vec<Snapshot>,
+    undo: VecDeque<Snapshot>,
     redo: Vec<Snapshot>,
     last: Last,
 }
@@ -62,7 +64,7 @@ impl TextEdit {
             text: text.to_owned(),
             caret: text.len(),
             anchor: text.len(),
-            undo: Vec::new(),
+            undo: VecDeque::new(),
             redo: Vec::new(),
             last: Last::Nothing,
         }
@@ -171,7 +173,9 @@ impl TextEdit {
     /// text is one line. Returns `true` when the text changed.
     pub(crate) fn insert(&mut self, text: &str) -> bool {
         let range = self.selection();
-        if text.is_empty() && range.is_empty() {
+        // Line breaks and tabs become spaces; other control characters vanish.
+        let kept = |c: char| matches!(c, '\n' | '\r' | '\t') || !c.is_control();
+        if range.is_empty() && !text.chars().any(kept) {
             return false;
         }
         // Consecutive typing makes one undo step; a word boundary starts a new one.
@@ -182,20 +186,19 @@ impl TextEdit {
             self.save();
         }
         let start = range.start;
-        self.text.replace_range(range, "");
-        let mut caret = start;
-        for c in text.chars() {
-            let c = if c == '\n' || c == '\r' || c == '\t' {
-                ' '
-            } else {
-                c
-            };
-            if c.is_control() {
-                continue;
-            }
-            self.text.insert(caret, c);
-            caret += c.len_utf8();
-        }
+        let caret = if text.chars().all(|c| !c.is_control()) {
+            // The usual case, typing or pasting plain text: one replacement.
+            self.text.replace_range(range, text);
+            start + text.len()
+        } else {
+            let line: String = text
+                .chars()
+                .filter(|c| kept(*c))
+                .map(|c| if c.is_control() { ' ' } else { c })
+                .collect();
+            self.text.replace_range(range, &line);
+            start + line.len()
+        };
         self.caret = caret;
         self.anchor = caret;
         self.last = Last::Typing(caret);
@@ -225,7 +228,7 @@ impl TextEdit {
 
     /// Goes back one step. Returns `true` when there was one.
     pub(crate) fn undo(&mut self) -> bool {
-        let Some(previous) = self.undo.pop() else {
+        let Some(previous) = self.undo.pop_back() else {
             return false;
         };
         let current = self.snapshot();
@@ -240,7 +243,7 @@ impl TextEdit {
             return false;
         };
         let current = self.snapshot();
-        self.undo.push(current);
+        self.undo.push_back(current);
         self.restore(next);
         true
     }
@@ -263,10 +266,10 @@ impl TextEdit {
     /// Saves the current state as a step to undo before an edit.
     fn save(&mut self) {
         if self.undo.len() == UNDO_LIMIT {
-            self.undo.remove(0);
+            self.undo.pop_front();
         }
         let current = self.snapshot();
-        self.undo.push(current);
+        self.undo.push_back(current);
         self.redo.clear();
         self.last = Last::Nothing;
     }
@@ -421,6 +424,35 @@ mod tests {
         edit.delete(false, Step::Character);
         assert!(!edit.redo());
         assert_eq!(edit.text(), "sna");
+    }
+
+    #[test]
+    fn only_control_characters_change_nothing_and_old_steps_are_dropped() {
+        let mut edit = TextEdit::new("Cube");
+        assert!(!edit.insert("\u{7}\u{1b}"));
+        assert!(!edit.undo());
+        for _ in 0..UNDO_LIMIT + 10 {
+            edit.select_all();
+            edit.insert("x");
+        }
+        let mut steps = 0;
+        while edit.undo() {
+            steps += 1;
+        }
+        assert_eq!(steps, UNDO_LIMIT);
+    }
+
+    #[test]
+    fn words_skip_punctuation_and_multi_byte_text_as_wholes() {
+        let mut edit = TextEdit::new("\u{e9}t\u{e9}, d\u{e9}j\u{e0}");
+        edit.step(false, Step::Word, Select::Collapse);
+        assert_eq!(&edit.text()[edit.caret()..], "d\u{e9}j\u{e0}");
+        edit.step(false, Step::Word, Select::Collapse);
+        assert_eq!(&edit.text()[edit.caret()..], ", d\u{e9}j\u{e0}");
+        edit.step(false, Step::Word, Select::Collapse);
+        assert_eq!(edit.caret(), 0);
+        edit.step(true, Step::Word, Select::Extend);
+        assert_eq!(edit.selected(), "\u{e9}t\u{e9}");
     }
 
     #[test]

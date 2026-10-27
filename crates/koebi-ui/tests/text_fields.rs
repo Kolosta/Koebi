@@ -1,5 +1,5 @@
-//! Text fields on screen: idle, with a placeholder and an icon, editing with a selection or a
-//! caret, scrolled, and disabled, matching their golden image.
+//! Text fields on screen: idle, with a placeholder and an icon, centered, editing with a
+//! selection, cut with an ellipsis, and disabled, matching their golden image.
 
 mod common;
 

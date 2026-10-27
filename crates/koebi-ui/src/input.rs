@@ -43,17 +43,21 @@ struct ButtonState {
 /// trigger that many.
 pub(crate) const MAX_ACTIONS: usize = 16;
 
-/// Actions triggered during a frame, in order.
+/// Actions triggered during a frame, in order, each with how much text had been typed when it
+/// came: keys and typed text interleave in the order they happened.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 struct Actions {
     items: [Option<&'static ActionDef>; MAX_ACTIONS],
+    typed_at: [u16; MAX_ACTIONS],
     len: usize,
 }
 
 impl Actions {
-    fn push(&mut self, action: &'static ActionDef) {
+    fn push(&mut self, action: &'static ActionDef, typed_at: usize) {
         if let Some(slot) = self.items.get_mut(self.len) {
             *slot = Some(action);
+            // Typed text holds at most `Typed::CAPACITY` bytes.
+            self.typed_at[self.len] = u16::try_from(typed_at).unwrap_or(u16::MAX);
             self.len += 1;
         } else {
             koebi_core::debug!("action {} dropped: too many in one frame", action.id);
@@ -62,6 +66,13 @@ impl Actions {
 
     fn iter(&self) -> impl Iterator<Item = &'static ActionDef> + '_ {
         self.items[..self.len].iter().flatten().copied()
+    }
+
+    fn iter_typed(&self) -> impl Iterator<Item = (&'static ActionDef, usize)> + '_ {
+        self.items[..self.len]
+            .iter()
+            .zip(self.typed_at)
+            .filter_map(|(action, at)| Some(((*action)?, usize::from(at))))
     }
 }
 
@@ -192,7 +203,7 @@ impl Input {
 
     /// The keymap triggered `action`.
     pub fn trigger(&mut self, action: &'static ActionDef) {
-        self.actions.push(action);
+        self.actions.push(action, self.typed.len);
     }
 
     /// Sets the time of the frame about to be drawn, measured from a fixed moment (the
@@ -318,6 +329,12 @@ impl Input {
     /// The actions triggered since the last frame, in order.
     pub fn actions(&self) -> impl Iterator<Item = &'static ActionDef> + '_ {
         self.actions.iter()
+    }
+
+    /// The actions triggered since the last frame, in order, each with the length of
+    /// [`Input::text`] when it came: what was typed before it is `text()[..at]`.
+    pub fn actions_in_text(&self) -> impl Iterator<Item = (&'static ActionDef, usize)> + '_ {
+        self.actions.iter_typed()
     }
 }
 

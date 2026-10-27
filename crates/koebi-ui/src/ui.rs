@@ -46,6 +46,10 @@ pub struct UiState {
     /// last complete frame and from the frame being built, innermost last.
     grabs: Vec<Context>,
     grabbing: Vec<Context>,
+    /// The grabs take the whole keyboard ([`Ui::grab_keyboard`]), in the last complete frame
+    /// and in the frame being built.
+    grabs_keyboard: bool,
+    grabbing_keyboard: bool,
     /// The fonts labels are laid out with, and a line reused for each label.
     pub(crate) fonts: Fonts,
     pub(crate) line: TextLine,
@@ -97,19 +101,20 @@ impl UiState {
 
     /// Text a field copied during the last frame (copy or cut): the application puts it on
     /// the clipboard.
-    pub fn copied(&self) -> Option<&str> {
+    pub fn copied_text(&self) -> Option<&str> {
         self.text.copied.as_deref()
     }
 
     /// `true` when a field asked for the clipboard's text during the last frame: the
-    /// application reads it and gives it with [`UiState::paste`] before the next frame.
+    /// application reads it and gives it with [`UiState::set_pasted_text`] before the next
+    /// frame.
     pub fn paste_requested(&self) -> bool {
         self.text.paste_requested
     }
 
     /// The clipboard's text, answering [`UiState::paste_requested`]: the field editing text
     /// inserts it during the next frame.
-    pub fn paste(&mut self, text: String) {
+    pub fn set_pasted_text(&mut self, text: String) {
         self.text.pasted = Some(text);
     }
 
@@ -144,8 +149,9 @@ impl UiState {
     /// contexts grabbing the keyboard ([`Ui::grab`]), then those under the point.
     pub fn chain_at(&self, point: Option<Vec2>, chain: &mut Vec<Context>) {
         match point {
-            Some(point) => self.previous.contexts_at(point, chain),
-            None => chain.clear(),
+            // A grab of the whole keyboard leaves nothing to the contexts under the point.
+            Some(point) if !self.grabs_keyboard => self.previous.contexts_at(point, chain),
+            _ => chain.clear(),
         }
         for (index, context) in self.grabs.iter().rev().enumerate() {
             chain.insert(index, *context);
@@ -276,6 +282,7 @@ impl<'a> Ui<'a> {
         state.press_target = topmost(input.pressed_at());
         state.secondary_target = topmost(input.button_pressed_at(PointerButton::Secondary));
         state.grabbing.clear();
+        state.grabbing_keyboard = false;
         state.redraw_at = None;
         state.pointer_lock = None;
         state.text_area = None;
@@ -332,6 +339,14 @@ impl<'a> Ui<'a> {
     /// lasts; later grabs come first in the chain.
     pub fn grab(&mut self, context: Context) {
         self.state.grabbing.push(context);
+    }
+
+    /// Takes the whole keyboard for `context` in the next frame: like [`Ui::grab`], and the
+    /// contexts under the pointer receive no key at all, not even the ones `context` does not
+    /// bind (a field editing text, where every key types). Call it every frame it lasts.
+    pub fn grab_keyboard(&mut self, context: Context) {
+        self.state.grabbing.push(context);
+        self.state.grabbing_keyboard = true;
     }
 
     /// The scene, for custom drawing between components.
@@ -605,6 +620,7 @@ impl Drop for Ui<'_> {
         // The regions and grabs of this frame decide where the next one's input goes.
         core::mem::swap(&mut state.previous, &mut state.current);
         core::mem::swap(&mut state.grabs, &mut state.grabbing);
+        state.grabs_keyboard = core::mem::take(&mut state.grabbing_keyboard);
         state.text.end_frame();
     }
 }

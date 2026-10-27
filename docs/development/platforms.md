@@ -120,4 +120,5 @@ cargo xtask ios --release --device  # device build, ad-hoc signed
   `Input::text`.
 - **Clipboard**: `AppContext::clipboard_text` and `set_clipboard_text` (plain text). The
   interface asks through its state: after each frame the application copies
-  `UiState::copied` and answers `UiState::paste_requested` with `UiState::paste`.
+  `UiState::copied_text` and answers `UiState::paste_requested` with
+  `UiState::set_pasted_text`.
