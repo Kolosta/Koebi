@@ -1,4 +1,4 @@
-//! Dropdowns.
+//! Dropdowns: a control showing the current choice that opens a menu of choices.
 
 use super::*;
 use crate::semantic;
@@ -51,4 +51,25 @@ koebi_design::tokens! {
     /// Dropdown: border width.
     DROPDOWN_BORDER_WIDTH_DEFAULT = "dropdown.border.width.default": Dimension ->
         semantic::BORDER_WIDTH_THIN;
+
+    /// Dropdown: background color, disabled.
+    DROPDOWN_BACKGROUND_COLOR_DISABLED = "dropdown.background.color.disabled": Color ->
+        semantic::BACKGROUND_APP_CONTROL;
+    /// Dropdown: border color, open.
+    DROPDOWN_BORDER_COLOR_OPEN = "dropdown.border.color.open": Color ->
+        semantic::NEUTRAL_COLOR_600;
+    /// Dropdown: border color, disabled.
+    DROPDOWN_BORDER_COLOR_DISABLED = "dropdown.border.color.disabled": Color ->
+        semantic::BORDER_COLOR_DISABLED_DEFAULT;
+    /// Dropdown: label color, disabled.
+    DROPDOWN_LABEL_COLOR_DISABLED = "dropdown.label.color.disabled": Color ->
+        semantic::TEXT_COLOR_DISABLED_DEFAULT;
+    /// Dropdown: icon color, disabled.
+    DROPDOWN_ICON_COLOR_DISABLED = "dropdown.icon.color.disabled": Color ->
+        semantic::TEXT_COLOR_DISABLED_DEFAULT;
+    /// Dropdown: space between the parts of its content (icon, label, chevron).
+    DROPDOWN_GAP_DEFAULT = "dropdown.gap.default": Dimension = px(4.0), range(0.0, 24.0);
+    /// Dropdown: smallest width of a dropdown fitting its content.
+    DROPDOWN_MIN_WIDTH_DEFAULT = "dropdown.min-width.default": Dimension ->
+        semantic::SIZE_CONTROL_HEIGHT;
 }

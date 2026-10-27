@@ -25,7 +25,7 @@ use koebi_render::{Corners, RectPrimitive};
 use super::Button;
 use crate::style::Prop;
 use crate::ui::Ui;
-use crate::widgets::parts::ControlState;
+use crate::widgets::parts::{ContentColors, ControlState};
 
 /// The most columns, and the most rows, a group lays out.
 const MAX_TRACKS: usize = 16;
@@ -295,7 +295,7 @@ impl<'t> ButtonGroup<'t> {
             );
             let button = &mut cell.button;
             let raw = ui.interact(button.id, bounds);
-            let reacted = button.react(ui, raw);
+            let reacted = button.react(ui, raw, bounds);
             if reacted.clicked {
                 response.clicked = Some(index);
             }
@@ -314,19 +314,26 @@ impl<'t> ButtonGroup<'t> {
             let (left, right) = (place.column == 0, place.column + place.columns == count_x);
             let (top, bottom) = (place.row == 0, place.row + place.rows == count_y);
             let corner = |rounded: bool| if rounded { radius } else { 0.0 };
-            let radii = Corners {
-                top_left: corner(left && top),
-                top_right: corner(right && top),
-                bottom_right: corner(right && bottom),
-                bottom_left: corner(left && bottom),
-            };
+            let radii = button.junction(
+                bounds,
+                Corners {
+                    top_left: corner(left && top),
+                    top_right: corner(right && top),
+                    bottom_right: corner(right && bottom),
+                    bottom_left: corner(left && bottom),
+                },
+            );
             let colors = button.colors(ui);
             ui.scene().push_rect(
                 &RectPrimitive::new(bounds, colors.background.get(state)).with_corner_radii(radii),
             );
             // The content keeps clear of the borders on the cell's own sides.
             let sides = (width, if right { width } else { 0.0 });
-            button.draw_content(ui, bounds, sides, colors.content.get(state));
+            let ink = ContentColors {
+                label: colors.content.get(state),
+                icon: colors.icon.get(state),
+            };
+            button.draw_content(ui, bounds, sides, ink);
             // The outline reaches over the shared lines past the right and bottom edges.
             let frame = Rect::from_min_max(
                 bounds.min,

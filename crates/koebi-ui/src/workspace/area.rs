@@ -12,7 +12,7 @@ use crate::bar::BarLayout;
 use crate::id::WidgetId;
 use crate::text::Align;
 use crate::ui::Ui;
-use crate::widgets::{MenuItem, MenuState};
+use crate::widgets::{Dropdown, MenuItem, MenuState};
 
 const TAB: WidgetId = WidgetId::new("workspace-tab");
 const TOP_BAR: WidgetId = WidgetId::new("workspace-top-bar");
@@ -246,21 +246,28 @@ impl Ui<'_> {
         let count = kinds.len().min(MAX_KINDS);
         let current = host.kind(editor).min(count - 1);
         let mut items = [MenuItem::Separator; MAX_KINDS];
-        let mut widest = 0.0_f32;
+        let (mut widest, mut widest_label) = (0.0_f32, "");
         for (index, (item, label)) in items.iter_mut().zip(kinds).enumerate() {
             *item = MenuItem::action(label).selected(index == current);
-            widest = widest.max(self.text_width(label, &font));
+            let width = self.text_width(label, &font);
+            if width > widest {
+                (widest, widest_label) = (width, label);
+            }
         }
-        let dropdown = styles.dropdown;
-        let rect = layout.left(widest + 3.0 * dropdown.padding + dropdown.chevron_size);
+        let id = EDITOR_TYPE.with(u64::from(editor.get()));
+        // As wide as the widest kind: the control keeps its size whatever the choice.
+        let width = Dropdown::measure(self, widest_label).x;
+        let rect = layout.left(width);
         // One menu opens at a time: the others get a closed one.
         let mut menu = if view.type_menu_editor == Some(editor) {
-            view.type_menu
+            core::mem::take(&mut view.type_menu)
         } else {
             MenuState::new()
         };
-        let id = EDITOR_TYPE.with(u64::from(editor.get()));
-        let chosen = self.dropdown(id, rect, &mut menu, kinds[current], &items[..count], window);
+        let chosen = Dropdown::new(id, &mut menu, &items[..count])
+            .label(kinds[current])
+            .show(self, rect, window)
+            .map(|choice| choice.index());
         if menu.is_open() {
             view.type_menu = menu;
             view.type_menu_editor = Some(editor);

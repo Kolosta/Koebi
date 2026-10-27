@@ -9,6 +9,9 @@
 //!   controls share their roles and colors ([`Tone`]: a [`Variant`] and an optional [`Hue`]).
 //!   Simpler components are methods of [`Ui`] ([`Ui::slider`], [`Ui::panel`]...). ADR 0017
 //!   records the design of the library.
+//! - **Floating content**: menus and their submenus ([`Ui::menu`]), dropdowns ([`Dropdown`]),
+//!   popups ([`Ui::popup`]) and tooltips ([`Ui::tooltip`]) draw above everything, placed beside
+//!   their control by a [`Placement`] that flips when the window has no room.
 //! - **Styles**: each component draws with a typed style ([`ButtonStyle`], [`SliderStyle`]...)
 //!   whose fields come from its `component.*` tokens. [`Styles::resolve`] reads every style
 //!   from the active theme or from any other theme ([`koebi_design::Resolve`]), and
@@ -87,14 +90,16 @@ pub use text::{Align, FontStyle, TextStyles};
 pub use ui::{Response, Ui, UiState, WidgetState};
 pub use widgets::{
     Activation, Button, ButtonGroup, ButtonStyle, Checkbox, CheckboxStyle, Content, ControlState,
-    DragValueStyle, DropPlace, DropdownStyle, GroupCell, GroupResponse, Hue, HueColors, ItemMark,
-    LIST, LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT, LIST_EXTEND_PREVIOUS,
-    LIST_FOLD, LIST_NEXT, LIST_PREVIOUS, LIST_SELECT_ALL, LIST_UNFOLD, ListContextMenu,
-    ListDelegate, ListItem, ListOptions, ListResponse, ListSelection, ListState, ListStyle, MENU,
-    MENU_ACTIONS, MENU_CHOOSE, MENU_CLOSE, MENU_NEXT, MENU_PREVIOUS, MenuAction, MenuItem,
-    MenuState, MenuStyle, PanelLevel, PanelStyle, SCROLL, ScrollAxes, ScrollContent, ScrollState,
-    ScrollStyle, SeparatorStyle, Shades, SliderStyle, States, SwatchStyle, ThemeCardStyle,
-    ThemePreview, Tone, ToneColors, Track, Variant,
+    DragValueStyle, DropPlace, Dropdown, DropdownStyle, GroupCell, GroupResponse, Hue, HueColors,
+    ItemMark, LIST, LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT,
+    LIST_EXTEND_PREVIOUS, LIST_FOLD, LIST_NEXT, LIST_PREVIOUS, LIST_SELECT_ALL, LIST_UNFOLD,
+    ListContextMenu, ListDelegate, ListItem, ListOptions, ListResponse, ListSelection, ListState,
+    ListStyle, MENU, MENU_ACTIONS, MENU_CHOOSE, MENU_CLOSE, MENU_CLOSE_SUBMENU, MENU_NEXT,
+    MENU_OPEN_SUBMENU, MENU_PREVIOUS, MenuAction, MenuChoice, MenuItem, MenuMark, MenuState,
+    MenuStyle, PanelAlign, PanelLevel, PanelStyle, Placed, Placement, SCROLL, ScrollAxes,
+    ScrollContent, ScrollState, ScrollStyle, SeparatorStyle, Shades, Side, SliderStyle, States,
+    Submenu, SwatchStyle, ThemeCardStyle, ThemePreview, Tone, ToneColors, TooltipStyle, Track,
+    Variant,
 };
 pub use workspace::{
     EditorHost, OPERATION_CANCEL, OPERATION_CONFIRM, WORKSPACE, WORKSPACE_ACTIONS,

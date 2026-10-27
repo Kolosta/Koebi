@@ -134,8 +134,10 @@ pub struct ToneColors {
     pub background: States<Color>,
     /// Border.
     pub border: States<Color>,
-    /// Content: label and icons.
+    /// Label (and status text).
     pub content: States<Color>,
+    /// Icons.
+    pub icon: States<Color>,
 }
 
 /// The colors of a family, as tokens give them.
@@ -215,6 +217,7 @@ pub(crate) fn hued(
         background,
         border,
         content,
+        icon: content,
     }
 }
 
@@ -227,6 +230,7 @@ mod tests {
             background: States::all(Color::from_hex(0x30_30_30)),
             border: States::all(Color::from_hex(0x50_50_50)),
             content: States::all(Color::WHITE),
+            icon: States::all(Color::WHITE),
         }
     }
 

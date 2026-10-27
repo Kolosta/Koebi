@@ -442,6 +442,36 @@ disabled), their metrics, the colored variants, the color families and the group
 
 </details>
 
+Input settings for submenus and menus, and component tokens for menu items, tooltips and
+dropdowns (#109, #110) (22):
+
+<details><summary>show</summary>
+
+- `semantic.input.submenu.delay` → `primitive.duration.normal`
+- `semantic.input.submenu.grace` → `primitive.duration.slow`
+- `semantic.input.menu.close-distance` → `primitive.size.400`
+- `component.menu.item.height.default` → `semantic.size.control-height`
+- `component.menu.item.label.color.default` → `semantic.text.color.primary.default`
+- `component.menu.item.label.color.hover` → `semantic.text.color.primary.default`
+- `component.menu.item.label.color.selected` → `semantic.static.text.color.white`
+- `component.menu.item.label.color.disabled` → `semantic.text.color.disabled.default`
+- `component.menu.item.shortcut.color.default` → `semantic.text.color.secondary.default`
+- `component.menu.item.icon.color.default` → `semantic.icon.color.primary.default`
+- `component.menu.item.mark.color.default` → `semantic.text.color.primary.default`
+- `component.menu.item.icon-gap.default` = 6 px
+- `component.menu.item.radio.size.default` = 6 px
+- `component.menu.wheel-step.default` = 48 px
+- `component.tooltip.offset.default` = 16 px
+- `component.dropdown.background.color.disabled` → `semantic.background.app.control`
+- `component.dropdown.border.color.open` → `semantic.neutral.color.600`
+- `component.dropdown.border.color.disabled` → `semantic.border.color.disabled.default`
+- `component.dropdown.label.color.disabled` → `semantic.text.color.disabled.default`
+- `component.dropdown.icon.color.disabled` → `semantic.text.color.disabled.default`
+- `component.dropdown.gap.default` = 4 px
+- `component.dropdown.min-width.default` → `semantic.size.control-height`
+
+</details>
+
 ## Changed after the port
 
 - `component.button.background.color.default`, `.hover` and `.pressed` aliased

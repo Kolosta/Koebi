@@ -12,6 +12,7 @@ use crate::id::WidgetId;
 use crate::input::{Input, PointerButton};
 use crate::routing::{Layer, Region, Regions};
 use crate::style::Styles;
+use crate::widgets::TooltipState;
 
 /// What must outlive a frame: the widget that holds the pointer, where it took it, and the
 /// regions of the last frame, which decide what is under the pointer.
@@ -54,6 +55,10 @@ pub struct UiState {
     /// back, and text input in an area.
     pointer_lock: Option<Vec2>,
     text_area: Option<Rect>,
+    /// Actions components used this frame ([`Ui::consume`]).
+    consumed: Vec<&'static ActionDef>,
+    /// The widget under the pointer for tooltips, and the last tooltip shown.
+    pub(crate) tooltip: TooltipState,
 }
 
 impl UiState {
@@ -240,12 +245,16 @@ impl<'a> Ui<'a> {
                 .and_then(|(_, region)| region.widget)
         };
         state.hovered = topmost(input.pointer());
+        state
+            .tooltip
+            .update(state.hovered, input.any_pressed(), input.time());
         state.press_target = topmost(input.pressed_at());
         state.secondary_target = topmost(input.button_pressed_at(PointerButton::Secondary));
         state.grabbing.clear();
         state.redraw_at = None;
         state.pointer_lock = None;
         state.text_area = None;
+        state.consumed.clear();
         Self {
             scene,
             styles,
@@ -269,7 +278,15 @@ impl<'a> Ui<'a> {
 
     /// `true` when the keymap triggered `action` since the last frame.
     pub fn triggered(&self, action: &ActionDef) -> bool {
-        self.input.triggered(action)
+        self.input.triggered(action) && !self.state.consumed.iter().any(|used| used.id == action.id)
+    }
+
+    /// Marks `action` used this frame: components that ask after this one see it as not
+    /// triggered (the menu open in a popup closes on Escape, not the popup).
+    pub fn consume(&mut self, action: &'static ActionDef) {
+        if !self.state.consumed.iter().any(|used| used.id == action.id) {
+            self.state.consumed.push(action);
+        }
     }
 
     /// Asks for the frame to be drawn again at `time` ([`Input::time`] scale), even without
@@ -306,10 +323,14 @@ impl<'a> Ui<'a> {
     /// force: a menu opened from an area is not limited to it.
     pub fn on_layer<R>(&mut self, layer: Layer, add: impl FnOnce(&mut Self) -> R) -> R {
         let previous = core::mem::replace(&mut self.layer, layer);
+        // Floating content starts outside the clips and the zones of what opened it: the
+        // area's shortcuts, wheel and cursor stay with the area.
         let clip = self.clip.take();
+        let zone = self.zone.take();
         self.scene.push_layer(layer.0);
         let result = add(self);
         self.scene.pop_layer();
+        self.zone = zone;
         self.clip = clip;
         self.layer = previous;
         result

@@ -37,11 +37,16 @@ From top to bottom (the two middle panels stack on narrow windows):
      pressed, and one that resets the number on a double click;
    - checkboxes with descriptions: a checked one, a mixed one (a click checks it) and a
      disabled one.
-5. **Color vision**: normal vision, the simulations of protanopia, deuteranopia, tritanopia
-   and achromatopsia, then the corrections of the three dichromacies. Each button previews its
-   mode on four chart colors; click one to apply it to every color token of the interface.
-6. **Grid**: as many checkboxes, toggles, buttons and swatches as the window holds, about
-   nine hundred in the default 1280 x 800 window. They are all interactive, and none of them
+5. **Menus**: a dropdown with its tooltip, a vertical dropdown opening beside it, a menu
+   button fused between two step buttons (with tooltips), the last action chosen, and an area
+   whose right click opens a context menu with nested submenus, a check item and radio items.
+6. **Color vision**: a dropdown (normal vision, then the simulations and the corrections in
+   two submenus, the current mode marked), then a button per mode: normal vision, the
+   simulations of protanopia, deuteranopia, tritanopia and achromatopsia, and the corrections
+   of the three dichromacies. Each button previews its mode on four chart colors; click one to
+   apply it to every color token of the interface.
+7. **Grid**: as many checkboxes, toggles, buttons and swatches as the window holds, several
+   hundred in the default 1280 x 800 window. They are all interactive, and none of them
    reads a token while drawing: styles are resolved once per change of the design system.
 
 Every edit shows in the same frame: when a frame changes the design system, the application
