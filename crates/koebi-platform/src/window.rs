@@ -75,6 +75,11 @@ impl Window {
         self.id
     }
 
+    /// The SDL window, for the platform services of [`crate::AppContext`].
+    pub(crate) fn raw(&self) -> *mut SDL_Window {
+        self.raw.as_ptr()
+    }
+
     /// Drawable size in physical pixels (the swapchain size).
     pub fn size_in_pixels(&self) -> Extent {
         let (mut width, mut height) = (0, 0);

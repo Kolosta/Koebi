@@ -51,6 +51,10 @@ pub struct UiState {
     pub(crate) line: TextLine,
     /// When the last frame wants to be drawn again, if it does.
     redraw_at: Option<Duration>,
+    /// What the frame being built asks of the platform: a locked pointer and where it comes
+    /// back, and text input in an area.
+    pointer_lock: Option<Vec2>,
+    text_area: Option<Rect>,
     /// Actions components used this frame ([`Ui::consume`]).
     consumed: Vec<&'static ActionDef>,
     /// The widget under the pointer for tooltips, and the last tooltip shown.
@@ -73,6 +77,20 @@ impl UiState {
     /// glyphs from. Without fonts, labels draw nothing.
     pub fn set_fonts(&mut self, fonts: Fonts) {
         self.fonts = fonts;
+    }
+
+    /// Where the pointer comes back when its lock is released, while the last frame asked for
+    /// a locked pointer ([`Ui::lock_pointer`]): the application locks it then, and releases it
+    /// (moving it to the last position given) once frames stop asking.
+    pub fn pointer_lock(&self) -> Option<Vec2> {
+        self.pointer_lock
+    }
+
+    /// Where text is edited, while the last frame asked for text input ([`Ui::text_input`]):
+    /// the application starts text input then (showing the on-screen keyboard of touch
+    /// devices), and stops it once frames stop asking.
+    pub fn text_input_area(&self) -> Option<Rect> {
+        self.text_area
     }
 
     /// The widget that holds the pointer: pressed, and not released yet.
@@ -234,6 +252,8 @@ impl<'a> Ui<'a> {
         state.secondary_target = topmost(input.button_pressed_at(PointerButton::Secondary));
         state.grabbing.clear();
         state.redraw_at = None;
+        state.pointer_lock = None;
+        state.text_area = None;
         state.consumed.clear();
         Self {
             scene,
@@ -401,6 +421,20 @@ impl<'a> Ui<'a> {
         self.input
             .pointer()
             .is_some_and(|point| self.state.previous.is_within(point, id))
+    }
+
+    /// Asks for a locked pointer during this frame: the cursor disappears and stays put, and the
+    /// input reports relative motion ([`Input::motion`]). Ask every frame while the lock is
+    /// needed (a drag); when frames stop asking, the pointer comes back at the last
+    /// `release_at` (logical pixels).
+    pub fn lock_pointer(&mut self, release_at: Vec2) {
+        self.state.pointer_lock = Some(release_at);
+    }
+
+    /// Asks for text input during this frame, the text edited in `area`: typed text arrives in
+    /// [`Input::text`]. Ask every frame while a field edits text.
+    pub fn text_input(&mut self, area: Rect) {
+        self.state.text_area = Some(area);
     }
 
     /// Takes the pointer over `rect` without reacting to it: the background of a floating
@@ -834,5 +868,25 @@ mod tests {
         let merged = body.merge(step);
         assert!(merged.held && merged.hovered && merged.changed);
         assert_eq!(merged.drag_delta, Vec2::new(3.0, 0.0));
+    }
+
+    #[test]
+    fn frames_ask_for_pointer_locks_and_text_input_while_they_need_them() {
+        let styles = crate::test_styles();
+        let (mut scene, mut state, input) = (Scene::new(), UiState::new(), Input::new());
+        let area = Rect::from_origin_size(Vec2::new(4.0, 4.0), Vec2::new(80.0, 20.0));
+        {
+            let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+            ui.lock_pointer(Vec2::new(10.0, 12.0));
+            ui.text_input(area);
+        }
+        assert_eq!(state.pointer_lock(), Some(Vec2::new(10.0, 12.0)));
+        assert_eq!(state.text_input_area(), Some(area));
+        // A frame that does not ask releases them.
+        drop(Ui::new(&mut scene, &styles, &input, &mut state));
+        assert_eq!(
+            (state.pointer_lock(), state.text_input_area()),
+            (None, None)
+        );
     }
 }

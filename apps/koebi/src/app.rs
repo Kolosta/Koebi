@@ -224,6 +224,8 @@ struct Interface {
     /// The origin of the interface's time ([`Input::set_time`]).
     started: Instant,
     scene: Scene,
+    /// While the pointer is locked, motion only moves what holds it: positions stay.
+    pointer_locked: bool,
 }
 
 impl Interface {
@@ -276,6 +278,7 @@ impl Interface {
             chain: Vec::new(),
             started: Instant::now(),
             scene: Scene::new(),
+            pointer_locked: false,
         })
     }
 
@@ -344,11 +347,19 @@ impl Interface {
         match *event {
             Event::MouseMotion {
                 position,
+                delta,
                 modifiers,
                 ..
             } => {
-                self.input.pointer_moved(position);
+                if !self.pointer_locked {
+                    self.input.pointer_moved(position);
+                }
+                self.input.pointer_moved_by(delta);
                 self.input.set_modifiers(modifiers);
+            }
+            Event::TextInput { text, .. } => {
+                self.input.typed(text.as_str());
+                return true;
             }
             Event::MouseButton {
                 button,
@@ -490,12 +501,53 @@ pub(crate) struct KoebiApp {
     rate: IterationRate,
     /// Cursors the application drew.
     cursors: AppCursors,
+    /// Where the pointer comes back while it is locked.
+    locked_at: Option<Vec2>,
+    /// Where text is edited while text input is on.
+    typing: Option<Rect>,
     // Field order is drop order: GPU objects (surface included) before the window.
     gpu: Gpu,
     window: Window,
 }
 
 impl KoebiApp {
+    /// Applies what the last frame asked of the platform: a locked pointer (released where the
+    /// interface says) and text input.
+    fn apply_requests(&mut self, context: &mut AppContext) {
+        let state = &self.interface.state;
+        match (self.locked_at, state.pointer_lock()) {
+            (None, Some(_)) => {
+                if let Err(error) = context.lock_pointer(&self.window, true) {
+                    koebi_core::warn!("cannot lock the pointer: {error}");
+                }
+            }
+            (Some(at), None) => {
+                if let Err(error) = context.lock_pointer(&self.window, false) {
+                    koebi_core::warn!("cannot release the pointer: {error}");
+                }
+                context.warp_pointer(&self.window, at);
+                self.interface.input.pointer_moved(at);
+            }
+            _ => {}
+        }
+        self.locked_at = self.interface.state.pointer_lock();
+        self.interface.pointer_locked = self.locked_at.is_some();
+        let area = self.interface.state.text_input_area();
+        match (self.typing, area) {
+            (None, Some(_)) => {
+                if let Err(error) = context.start_text_input(&self.window, area) {
+                    koebi_core::warn!("cannot start text input: {error}");
+                }
+            }
+            (Some(old), Some(new)) if old != new => {
+                context.set_text_input_area(&self.window, area);
+            }
+            (Some(_), None) => context.stop_text_input(&self.window),
+            _ => {}
+        }
+        self.typing = area;
+    }
+
     fn render_frame(&mut self) -> AppControl {
         let scale_factor = self.window.scale_factor();
         let logical_size = self.window.size_in_pixels().to_logical(scale_factor);
@@ -651,6 +703,8 @@ impl App for KoebiApp {
             needs_redraw: true,
             rate,
             cursors,
+            locked_at: None,
+            typing: None,
             gpu,
             window,
         })
@@ -670,6 +724,7 @@ impl App for KoebiApp {
                 return control;
             }
             context.set_cursor(self.cursors.cursor(self.interface.state.cursor()));
+            self.apply_requests(context);
         }
         self.interface.save_if_due();
         self.update_rate(context);

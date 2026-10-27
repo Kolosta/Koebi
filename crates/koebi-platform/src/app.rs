@@ -7,20 +7,28 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicI32, Ordering};
 
+use koebi_core::{Rect, Vec2};
+use sdl3_sys::clipboard::{SDL_GetClipboardText, SDL_SetClipboardText};
 use sdl3_sys::events::SDL_Event;
 use sdl3_sys::filesystem::SDL_GetPrefPath;
-use sdl3_sys::hints::{SDL_HINT_MAIN_CALLBACK_RATE, SDL_SetHint};
+use sdl3_sys::hints::{
+    SDL_HINT_MAIN_CALLBACK_RATE, SDL_HINT_MOUSE_RELATIVE_SYSTEM_SCALE, SDL_SetHint,
+};
 use sdl3_sys::init::{
     SDL_APP_CONTINUE, SDL_APP_FAILURE, SDL_APP_SUCCESS, SDL_AppResult, SDL_INIT_VIDEO, SDL_Init,
     SDL_SetAppMetadata,
 };
-use sdl3_sys::keyboard::SDL_GetModState;
+use sdl3_sys::keyboard::{
+    SDL_GetModState, SDL_SetTextInputArea, SDL_StartTextInput, SDL_StopTextInput,
+};
 use sdl3_sys::main::{SDL_EnterAppMainCallbacks, SDL_RunApp};
+use sdl3_sys::mouse::{SDL_SetWindowRelativeMouseMode, SDL_WarpMouseInWindow};
+use sdl3_sys::rect::SDL_Rect;
 use sdl3_sys::stdinc::SDL_free;
 
 use crate::cursor::{Cursor, CursorId, CursorImage, Cursors};
 use crate::error::{PlatformError, sdl_error};
-use crate::event::{Event, modifiers_from_sdl, to_logical, translate};
+use crate::event::{Event, modifiers_from_sdl, text_chunks, text_input, to_logical, translate};
 use crate::vulkan::VulkanSupport;
 use crate::window::{Window, WindowDesc, logical_per_window_coordinate};
 
@@ -202,6 +210,117 @@ impl AppContext {
         self.cursors.create(image)
     }
 
+    /// Locks the pointer in `window`, or releases it. While locked, the cursor disappears and
+    /// stays put, nothing under it is pointed at, and [`Event::MouseMotion`] keeps reporting
+    /// relative motion (`delta`) at the speed of the system's pointer, its position
+    /// unchanged. Release it, then [`Self::warp_pointer`] to where the cursor comes back.
+    ///
+    /// # Errors
+    ///
+    /// Returns the SDL error when the platform cannot lock the pointer.
+    pub fn lock_pointer(&mut self, window: &Window, locked: bool) -> Result<(), PlatformError> {
+        // SAFETY: `window` is a live window, on the main thread.
+        if unsafe { SDL_SetWindowRelativeMouseMode(window.raw(), locked) } {
+            Ok(())
+        } else {
+            Err(PlatformError::from_sdl("SDL_SetWindowRelativeMouseMode"))
+        }
+    }
+
+    /// Moves the pointer to `position`, in logical pixels, in `window`.
+    pub fn warp_pointer(&mut self, window: &Window, position: Vec2) {
+        let scale = logical_per_window_coordinate(window.id());
+        let at = position / scale;
+        // SAFETY: `window` is a live window, on the main thread.
+        unsafe { SDL_WarpMouseInWindow(window.raw(), at.x, at.y) };
+    }
+
+    /// Starts text input in `window`: typed text arrives as [`Event::TextInput`], and touch
+    /// devices show their on-screen keyboard. `area`, in logical pixels, is where the text is
+    /// edited: input methods place their windows beside it.
+    ///
+    /// # Errors
+    ///
+    /// Returns the SDL error when text input cannot start.
+    pub fn start_text_input(
+        &mut self,
+        window: &Window,
+        area: Option<Rect>,
+    ) -> Result<(), PlatformError> {
+        self.set_text_input_area(window, area);
+        // SAFETY: `window` is a live window, on the main thread.
+        if unsafe { SDL_StartTextInput(window.raw()) } {
+            Ok(())
+        } else {
+            Err(PlatformError::from_sdl("SDL_StartTextInput"))
+        }
+    }
+
+    /// Moves the area where text is edited (see [`Self::start_text_input`]).
+    pub fn set_text_input_area(&mut self, window: &Window, area: Option<Rect>) {
+        let scale = logical_per_window_coordinate(window.id());
+        let rect = area.map(|area| {
+            let round = |value: f32| {
+                #[allow(
+                    clippy::cast_possible_truncation,
+                    reason = "window coordinates, far inside the i32 range"
+                )]
+                let value = (value / scale).round() as i32;
+                value
+            };
+            SDL_Rect {
+                x: round(area.min.x),
+                y: round(area.min.y),
+                w: round(area.width()),
+                h: round(area.height()),
+            }
+        });
+        let pointer = rect.as_ref().map_or(core::ptr::null(), core::ptr::from_ref);
+        // SAFETY: `window` is a live window; `pointer` is null or points to a local rect.
+        if !unsafe { SDL_SetTextInputArea(window.raw(), pointer, 0) } {
+            koebi_core::debug!("cannot set the text input area: {}", sdl_error());
+        }
+    }
+
+    /// Stops text input in `window`, hiding the on-screen keyboard.
+    pub fn stop_text_input(&mut self, window: &Window) {
+        // SAFETY: `window` is a live window, on the main thread.
+        if !unsafe { SDL_StopTextInput(window.raw()) } {
+            koebi_core::debug!("cannot stop text input: {}", sdl_error());
+        }
+    }
+
+    /// The text on the clipboard, if any.
+    pub fn clipboard_text(&self) -> Option<String> {
+        // SAFETY: on the main thread; SDL returns a string the caller frees, possibly empty.
+        let raw = unsafe { SDL_GetClipboardText() };
+        if raw.is_null() {
+            return None;
+        }
+        // SAFETY: non-null, NUL-terminated UTF-8, freed right after the copy.
+        let text = unsafe { CStr::from_ptr(raw) }
+            .to_string_lossy()
+            .into_owned();
+        // SAFETY: allocated by SDL for the caller, not used afterwards.
+        unsafe { SDL_free(raw.cast()) };
+        (!text.is_empty()).then_some(text)
+    }
+
+    /// Puts `text` on the clipboard.
+    ///
+    /// # Errors
+    ///
+    /// Returns the SDL error when the clipboard refuses the text.
+    pub fn set_clipboard_text(&mut self, text: &str) -> Result<(), PlatformError> {
+        let text = CString::new(text.replace('\0', "")).unwrap_or_default();
+        // SAFETY: a valid NUL-terminated string, on the main thread.
+        if unsafe { SDL_SetClipboardText(text.as_ptr()) } {
+            Ok(())
+        } else {
+            Err(PlatformError::from_sdl("SDL_SetClipboardText"))
+        }
+    }
+
     /// Changes how often [`App::iterate`] runs.
     pub fn set_iteration_rate(&mut self, rate: IterationRate) {
         let value = rate.hint_value();
@@ -337,6 +456,11 @@ unsafe extern "C" fn app_init<A: App>(
         if !metadata_set {
             koebi_core::debug!("SDL_SetAppMetadata failed: {}", sdl_error());
         }
+        // A locked pointer moves at the speed of the system's pointer.
+        // SAFETY: both arguments are valid NUL-terminated strings.
+        if !unsafe { SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_SYSTEM_SCALE, c"1".as_ptr()) } {
+            koebi_core::debug!("cannot scale relative motion: {}", sdl_error());
+        }
         // SAFETY: called once, on the main thread, before any other SDL video call.
         if !unsafe { SDL_Init(SDL_INIT_VIDEO) } {
             koebi_core::error!("cannot initialize SDL video: {}", sdl_error());
@@ -386,6 +510,29 @@ unsafe extern "C" fn app_event<A: App>(
     let Some(state) = (unsafe { appstate.cast::<AppState<A>>().as_mut() }) else {
         return SDL_APP_FAILURE;
     };
+    // Typed text, in chunks: one event each.
+    // SAFETY: SDL passes a valid event for the duration of the callback.
+    if let Some((window, text)) = unsafe { event.as_ref() }.and_then(text_input) {
+        let text = text.to_string_lossy();
+        return guarded(|| {
+            let Some(app) = state.app.as_mut() else {
+                return SDL_APP_FAILURE;
+            };
+            for chunk in text_chunks(&text) {
+                let control = app.event(
+                    &mut state.context,
+                    &Event::TextInput {
+                        window,
+                        text: chunk,
+                    },
+                );
+                if control != AppControl::Continue {
+                    return to_sdl_result(control);
+                }
+            }
+            SDL_APP_CONTINUE
+        });
+    }
     // SAFETY: called on the main thread inside an SDL callback.
     let modifiers = modifiers_from_sdl(unsafe { SDL_GetModState() });
     // SAFETY: SDL passes a valid event for the duration of the callback.
