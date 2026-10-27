@@ -27,3 +27,4 @@ one and link both.
 | [0015](0015-workspace-layout.md) | Workspace layout: areas tiling an integer grid, edited by lines, joins that fill gaps | Accepted, join item superseded by 0016 |
 | [0016](0016-partial-joins.md) | Joins of partly aligned areas | Accepted |
 | [0017](0017-component-library.md) | Component library: theme values declared once, overridable per call, configurable behaviours | Accepted |
+| [0018](0018-easing-curves.md) | Easing curves of several segments as a token kind | Accepted |

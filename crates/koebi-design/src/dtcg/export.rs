@@ -196,7 +196,8 @@ const fn layer_name(origin: Origin) -> &'static str {
     }
 }
 
-/// The Design Tokens type of a kind; integers are numbers there.
+/// The Design Tokens type of a kind; integers are numbers there, and curves Koebi's own
+/// `curve`.
 pub(crate) const fn dtcg_type(kind: KindId) -> &'static str {
     match kind {
         KindId::Color => "color",
@@ -206,6 +207,7 @@ pub(crate) const fn dtcg_type(kind: KindId) -> &'static str {
         KindId::CubicBezier => "cubicBezier",
         KindId::FontWeight => "fontWeight",
         KindId::FontFamily => "fontFamily",
+        KindId::Curve => "curve",
     }
 }
 
@@ -323,6 +325,32 @@ fn value_json(value: &Value) -> Json {
         )),
         Value::FontWeight(weight) => number(f64::from(weight.get())),
         Value::FontFamily(name) => string(name),
+        // Keys `{ "x", "y", "easing": [x1, y1, x2, y2] }`, the last one without easing.
+        Value::Curve(curve) => {
+            let keys = curve.keys();
+            Json::new(JsonValue::Array(
+                keys.iter()
+                    .enumerate()
+                    .map(|(index, key)| {
+                        let mut members =
+                            vec![member("x", number32(key.x)), member("y", number32(key.y))];
+                        if index + 1 < keys.len() {
+                            let easing = key.easing;
+                            members.push(member(
+                                "easing",
+                                Json::new(JsonValue::Array(
+                                    [easing.x1, easing.y1, easing.x2, easing.y2]
+                                        .into_iter()
+                                        .map(number32)
+                                        .collect(),
+                                )),
+                            ));
+                        }
+                        object(members)
+                    })
+                    .collect(),
+            ))
+        }
     }
 }
 

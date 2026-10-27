@@ -38,6 +38,12 @@ koebi_design::tokens! {
     /// Scrollbar: overlay proximity.
     SCROLLBAR_OVERLAY_PROXIMITY_DEFAULT = "scrollbar.overlay.proximity.default": Dimension =
         px(48.0), range(0.0, 200.0);
+    /// Scrollbar: time the grab takes to grow from rest to its full width, or back.
+    SCROLLBAR_OVERLAY_GROW_DURATION = "scrollbar.overlay.grow.duration": Duration ->
+        semantic::ANIMATION_DURATION_GROW;
+    /// Scrollbar: curve of the grab growing and shrinking.
+    SCROLLBAR_OVERLAY_GROW_CURVE = "scrollbar.overlay.grow.curve": Curve ->
+        semantic::ANIMATION_CURVE_GROW;
     /// Scrollbar: overlay padding.
     SCROLLBAR_OVERLAY_PADDING_DEFAULT = "scrollbar.overlay.padding.default": Dimension =
         px(4.0), range(0.0, 20.0);

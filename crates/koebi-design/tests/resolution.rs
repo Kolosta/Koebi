@@ -19,7 +19,7 @@ fn design() -> DesignSystem {
 #[test]
 fn schema_passes_the_run_time_validation() {
     assert_eq!(SCHEMA.validate(), Ok(()));
-    assert_eq!(SCHEMA.len(), 20 + 16 + 5 + 8);
+    assert_eq!(SCHEMA.len(), 21 + 16 + 5 + 8);
 }
 
 #[test]

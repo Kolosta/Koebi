@@ -105,6 +105,145 @@ impl fmt::Display for CubicBezier {
     }
 }
 
+/// What a valid [`Curve`] is, for error messages.
+pub(crate) const CURVE_RULE: &str = "a curve goes from (0, 0) to (1, 1) through 2 to 8 keys in \
+    time order, with finite values and valid easings";
+
+/// A key of a [`Curve`]: a point the curve passes through, and the easing of the segment that
+/// leaves it towards the next key.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CurveKey {
+    /// Progress of time, from 0 (the start) to 1 (the end).
+    pub x: f32,
+    /// Progress of the value at that time, 0 at the start and 1 at the end; it may leave `0..1`
+    /// to overshoot or bounce.
+    pub y: f32,
+    /// How the segment from this key to the next one eases; the last key's is not used.
+    pub easing: CubicBezier,
+}
+
+impl CurveKey {
+    /// A key at `(x, y)` whose segment towards the next key eases by `easing`.
+    pub const fn new(x: f32, y: f32, easing: CubicBezier) -> Self {
+        Self { x, y, easing }
+    }
+}
+
+/// An easing curve of one to seven segments: through keys from `(0, 0)` to `(1, 1)`, each
+/// segment eased by a cubic Bézier. One segment is a cubic Bézier; more make bounces,
+/// overshoots that settle, and holds.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Curve {
+    keys: [CurveKey; Curve::MAX_KEYS],
+    len: u8,
+}
+
+impl Curve {
+    /// The most keys a curve holds.
+    pub const MAX_KEYS: usize = 8;
+
+    /// Constant speed.
+    pub const LINEAR: Self = Self::from_bezier(CubicBezier::LINEAR);
+
+    /// The curve of one segment eased by `easing`.
+    pub const fn from_bezier(easing: CubicBezier) -> Self {
+        let mut keys = [CurveKey::new(1.0, 1.0, CubicBezier::LINEAR); Self::MAX_KEYS];
+        keys[0] = CurveKey::new(0.0, 0.0, easing);
+        Self { keys, len: 2 }
+    }
+
+    /// The curve through `keys`, the first [`Self::MAX_KEYS`] of them; check it with
+    /// [`Self::is_valid`].
+    pub const fn new(keys: &[CurveKey]) -> Self {
+        let mut stored = [CurveKey::new(1.0, 1.0, CubicBezier::LINEAR); Self::MAX_KEYS];
+        let mut count = 0;
+        while count < keys.len() && count < Self::MAX_KEYS {
+            stored[count] = keys[count];
+            count += 1;
+        }
+        #[allow(
+            clippy::cast_possible_truncation,
+            reason = "at most MAX_KEYS, which fits a byte"
+        )]
+        let len = count as u8;
+        Self { keys: stored, len }
+    }
+
+    /// The keys, from `(0, 0)` to `(1, 1)` for a valid curve.
+    pub fn keys(&self) -> &[CurveKey] {
+        &self.keys[..usize::from(self.len)]
+    }
+
+    /// `true` when the curve starts at `(0, 0)`, ends at `(1, 1)`, its keys follow each other
+    /// in time, their values are finite and their easings valid.
+    pub const fn is_valid(&self) -> bool {
+        let len = self.len as usize;
+        if len < 2 || len > Self::MAX_KEYS {
+            return false;
+        }
+        let (first, last) = (self.keys[0], self.keys[len - 1]);
+        #[allow(
+            clippy::float_cmp,
+            reason = "the ends are exact by definition: a curve starts at 0 and ends at 1"
+        )]
+        if first.x != 0.0 || first.y != 0.0 || last.x != 1.0 || last.y != 1.0 {
+            return false;
+        }
+        let mut index = 0;
+        while index < len {
+            let key = self.keys[index];
+            if !key.y.is_finite() || !key.easing.is_valid() {
+                return false;
+            }
+            if index > 0 && key.x <= self.keys[index - 1].x {
+                return false;
+            }
+            index += 1;
+        }
+        true
+    }
+
+    /// Eases a linear progress `t` in `0.0..=1.0` (clamped): returns the curve's y at x = `t`.
+    #[must_use]
+    pub fn ease(&self, t: f32) -> f32 {
+        let t = if t.is_nan() { 0.0 } else { t.clamp(0.0, 1.0) };
+        let keys = self.keys();
+        for pair in keys.windows(2) {
+            let (from, to) = (pair[0], pair[1]);
+            if t <= to.x {
+                let span = to.x - from.x;
+                let local = if span > 0.0 { (t - from.x) / span } else { 1.0 };
+                return from.easing.ease(local).mul_add(to.y - from.y, from.y);
+            }
+        }
+        keys.last().map_or(t, |key| key.y)
+    }
+}
+
+impl From<CubicBezier> for Curve {
+    fn from(easing: CubicBezier) -> Self {
+        Self::from_bezier(easing)
+    }
+}
+
+impl fmt::Display for Curve {
+    /// Formats as `curve(0 0 cubic-bezier(...), 0.6 1.1 cubic-bezier(...), 1 1)`.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("curve(")?;
+        let keys = self.keys();
+        for (index, key) in keys.iter().enumerate() {
+            if index > 0 {
+                f.write_str(", ")?;
+            }
+            write!(f, "{} {}", key.x, key.y)?;
+            if index + 1 < keys.len() {
+                write!(f, " {}", key.easing)?;
+            }
+        }
+        f.write_str(")")
+    }
+}
+
 /// A font weight from 1 (thinnest) to 1000 (heaviest): 400 is regular, 700 bold.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FontWeight(u16);
@@ -199,6 +338,8 @@ pub enum Literal {
     FontWeight(FontWeight),
     /// A font family name.
     FontFamily(&'static str),
+    /// An easing curve of several segments.
+    Curve(Curve),
 }
 
 impl Literal {
@@ -213,6 +354,7 @@ impl Literal {
             Self::CubicBezier(_) => KindId::CubicBezier,
             Self::FontWeight(_) => KindId::FontWeight,
             Self::FontFamily(_) => KindId::FontFamily,
+            Self::Curve(_) => KindId::Curve,
         }
     }
 
@@ -227,7 +369,7 @@ impl Literal {
             Self::Integer(v) => Some(v as f64),
             Self::Duration(d) => Some(d.as_secs_f64() * 1000.0),
             Self::FontWeight(w) => Some(w.get() as f64),
-            Self::Color(_) | Self::CubicBezier(_) | Self::FontFamily(_) => None,
+            Self::Color(_) | Self::CubicBezier(_) | Self::FontFamily(_) | Self::Curve(_) => None,
         }
     }
 }
@@ -251,6 +393,8 @@ pub enum Value {
     FontWeight(FontWeight),
     /// A font family name.
     FontFamily(Arc<str>),
+    /// An easing curve of several segments.
+    Curve(Curve),
 }
 
 impl Value {
@@ -265,6 +409,7 @@ impl Value {
             Self::CubicBezier(_) => KindId::CubicBezier,
             Self::FontWeight(_) => KindId::FontWeight,
             Self::FontFamily(_) => KindId::FontFamily,
+            Self::Curve(_) => KindId::Curve,
         }
     }
 
@@ -275,7 +420,7 @@ impl Value {
             Self::Integer(v) => Some(f64::from(v)),
             Self::Duration(d) => Some(d.as_secs_f64() * 1000.0),
             Self::FontWeight(w) => Some(f64::from(w.get())),
-            Self::Color(_) | Self::CubicBezier(_) | Self::FontFamily(_) => None,
+            Self::Color(_) | Self::CubicBezier(_) | Self::FontFamily(_) | Self::Curve(_) => None,
         }
     }
 
@@ -296,12 +441,14 @@ impl From<Literal> for Value {
             Literal::CubicBezier(b) => Self::CubicBezier(b),
             Literal::FontWeight(w) => Self::FontWeight(w),
             Literal::FontFamily(name) => Self::FontFamily(Arc::from(name)),
+            Literal::Curve(curve) => Self::Curve(curve),
         }
     }
 }
 
 impl fmt::Display for Value {
-    /// Formats as `#3366ff`, `4px`, `1.5`, `120ms`, `cubic-bezier(...)`, `600` or `Inter`.
+    /// Formats as `#3366ff`, `4px`, `1.5`, `120ms`, `cubic-bezier(...)`, `600`, `Inter` or
+    /// `curve(...)`.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Color(c) => c.fmt(f),
@@ -312,6 +459,7 @@ impl fmt::Display for Value {
             Self::CubicBezier(b) => b.fmt(f),
             Self::FontWeight(w) => w.fmt(f),
             Self::FontFamily(name) => f.write_str(name),
+            Self::Curve(curve) => curve.fmt(f),
         }
     }
 }
@@ -552,6 +700,63 @@ mod tests {
         assert!((0..100).any(|i| spring.ease(i as f32 / 100.0) > 1.0));
         assert!(spring.is_valid());
         assert!(!CubicBezier::new(1.5, 0.0, 0.5, 1.0).is_valid());
+    }
+
+    #[test]
+    fn a_curve_of_one_segment_eases_like_its_bezier() {
+        let ease_out = CubicBezier::new(0.0, 0.0, 0.58, 1.0);
+        let curve = Curve::from(ease_out);
+        assert!(curve.is_valid());
+        for i in 0..=20 {
+            let t = i as f32 / 20.0;
+            assert!((curve.ease(t) - ease_out.ease(t)).abs() < 1e-6, "t = {t}");
+        }
+        assert_eq!(Curve::LINEAR.ease(0.25), CubicBezier::LINEAR.ease(0.25));
+    }
+
+    #[test]
+    fn curves_pass_through_their_keys_and_ease_each_segment() {
+        let settle = Curve::new(&[
+            CurveKey::new(0.0, 0.0, CubicBezier::new(0.0, 0.0, 0.58, 1.0)),
+            CurveKey::new(0.6, 1.2, CubicBezier::LINEAR),
+            CurveKey::new(1.0, 1.0, CubicBezier::LINEAR),
+        ]);
+        assert!(settle.is_valid());
+        assert_eq!(settle.ease(0.0), 0.0);
+        assert!((settle.ease(0.6) - 1.2).abs() < 1e-5);
+        assert_eq!(settle.ease(1.0), 1.0);
+        // The second segment is linear: halfway between its keys, halfway between their values.
+        assert!((settle.ease(0.8) - 1.1).abs() < 1e-5);
+        // The first eases out: past halfway in value at halfway in time.
+        assert!(settle.ease(0.3) > 0.6);
+        // Out of range and NaN progress are clamped.
+        assert_eq!(
+            (settle.ease(-1.0), settle.ease(2.0), settle.ease(f32::NAN)),
+            (0.0, 1.0, 0.0)
+        );
+    }
+
+    #[test]
+    fn invalid_curves_are_detected() {
+        let key = |x, y| CurveKey::new(x, y, CubicBezier::LINEAR);
+        assert!(!Curve::new(&[key(0.0, 0.0)]).is_valid());
+        assert!(!Curve::new(&[key(0.0, 0.0), key(1.0, 0.9)]).is_valid());
+        assert!(!Curve::new(&[key(0.1, 0.0), key(1.0, 1.0)]).is_valid());
+        assert!(
+            !Curve::new(&[key(0.0, 0.0), key(0.5, 0.5), key(0.5, 0.7), key(1.0, 1.0)]).is_valid()
+        );
+        assert!(!Curve::new(&[key(0.0, 0.0), key(0.5, f32::INFINITY), key(1.0, 1.0)]).is_valid());
+        let bad_easing = CurveKey::new(0.0, 0.0, CubicBezier::new(2.0, 0.0, 0.5, 1.0));
+        assert!(!Curve::new(&[bad_easing, key(1.0, 1.0)]).is_valid());
+        // Keys past the eighth are dropped.
+        let many: Vec<CurveKey> = (0..10)
+            .map(|i| key(i as f32 / 9.0, i as f32 / 9.0))
+            .collect();
+        assert_eq!(Curve::new(&many).keys().len(), Curve::MAX_KEYS);
+        assert_eq!(
+            Value::Curve(Curve::new(&[key(0.0, 0.0), key(0.5, 0.8), key(1.0, 1.0)])).to_string(),
+            "curve(0 0 cubic-bezier(0, 0, 1, 1), 0.5 0.8 cubic-bezier(0, 0, 1, 1), 1 1)"
+        );
     }
 
     #[test]

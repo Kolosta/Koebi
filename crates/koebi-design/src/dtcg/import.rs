@@ -17,7 +17,7 @@ use crate::system::DesignSystem;
 use crate::theme::{NewTheme, ThemeId};
 use crate::tier::TierId;
 use crate::token::TokenId;
-use crate::value::{CubicBezier, Definition, FontWeight, Value};
+use crate::value::{CubicBezier, Curve, CurveKey, Definition, FontWeight, Value};
 
 /// One problem found while importing, located in the source file.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -138,6 +138,7 @@ fn token_type(name: &str) -> Option<TokenType> {
         "cubicBezier" => KindId::CubicBezier,
         "fontWeight" => KindId::FontWeight,
         "fontFamily" => KindId::FontFamily,
+        "curve" => KindId::Curve,
         "typography" => return Some(TokenType::Typography),
         _ => return None,
     }))
@@ -491,6 +492,7 @@ fn parse_value(kind: KindId, value: &Json) -> core::result::Result<Value, String
                 .map(Value::FontWeight)
                 .ok_or_else(|| "font weights lie in 1..=1000".to_owned())
         }
+        KindId::Curve => parse_curve(value),
         KindId::FontFamily => {
             let name = match &value.value {
                 JsonValue::String(name) => Some(name.as_str()),
@@ -504,6 +506,46 @@ fn parse_value(kind: KindId, value: &Json) -> core::result::Result<Value, String
                     "a font family is a non-empty string or a list of strings".to_owned()
                 })
         }
+    }
+}
+
+/// A curve: an array of keys `{ "x", "y", "easing": [x1, y1, x2, y2] }`, the easing of the
+/// last key left out.
+fn parse_curve(value: &Json) -> core::result::Result<Value, String> {
+    const SHAPE: &str = "a curve is an array of 2 to 8 keys { x, y, easing: [x1, y1, x2, y2] }";
+    let items = value
+        .as_array()
+        .filter(|items| (2..=Curve::MAX_KEYS).contains(&items.len()))
+        .ok_or_else(|| SHAPE.to_owned())?;
+    let mut keys = [CurveKey::new(0.0, 0.0, CubicBezier::LINEAR); Curve::MAX_KEYS];
+    for (key, item) in keys.iter_mut().zip(items) {
+        let coordinate = |name: &str| {
+            item.get(name)
+                .ok_or_else(|| SHAPE.to_owned())
+                .and_then(number)
+                .map(narrow)
+        };
+        let easing = match item.get("easing") {
+            Some(easing) => {
+                let points = easing
+                    .as_array()
+                    .filter(|points| points.len() == 4)
+                    .ok_or_else(|| SHAPE.to_owned())?;
+                let mut values = [0.0_f32; 4];
+                for (value, point) in values.iter_mut().zip(points) {
+                    *value = narrow(number(point)?);
+                }
+                CubicBezier::new(values[0], values[1], values[2], values[3])
+            }
+            None => CubicBezier::LINEAR,
+        };
+        *key = CurveKey::new(coordinate("x")?, coordinate("y")?, easing);
+    }
+    let curve = Curve::new(&keys[..items.len()]);
+    if curve.is_valid() {
+        Ok(Value::Curve(curve))
+    } else {
+        Err(crate::value::CURVE_RULE.to_owned())
     }
 }
 

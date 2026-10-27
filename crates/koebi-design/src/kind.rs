@@ -20,6 +20,7 @@
 //! | [`CubicBezier`] | [`value::CubicBezier`] | easing curve |
 //! | [`FontWeight`] | [`value::FontWeight`] | 1 to 1000 |
 //! | [`FontFamily`] | `Arc<str>` | font family name |
+//! | [`Curve`] | [`value::Curve`] | easing curve of several segments |
 //!
 //! ```compile_fail
 //! use koebi_design::{Token, kind, tier, value::Def};
@@ -78,11 +79,13 @@ pub enum KindId {
     FontWeight,
     /// See [`FontFamily`].
     FontFamily,
+    /// See [`Curve`].
+    Curve,
 }
 
 impl KindId {
     /// Every kind, in declaration order.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::Color,
         Self::Dimension,
         Self::Number,
@@ -91,10 +94,11 @@ impl KindId {
         Self::CubicBezier,
         Self::FontWeight,
         Self::FontFamily,
+        Self::Curve,
     ];
 
     /// The name of the kind, in the camel case of the Design Tokens format (`color`,
-    /// `dimension`, `cubicBezier`, ...). `integer` is Koebi's own.
+    /// `dimension`, `cubicBezier`, ...). `integer` and `curve` are Koebi's own.
     pub const fn name(self) -> &'static str {
         match self {
             Self::Color => "color",
@@ -105,6 +109,7 @@ impl KindId {
             Self::CubicBezier => "cubicBezier",
             Self::FontWeight => "fontWeight",
             Self::FontFamily => "fontFamily",
+            Self::Curve => "curve",
         }
     }
 
@@ -167,6 +172,10 @@ pub enum FontWeight {}
 #[derive(Debug)]
 pub enum FontFamily {}
 
+/// Kind of easing curves of several segments.
+#[derive(Debug)]
+pub enum Curve {}
+
 macro_rules! impl_kind {
     ($marker:ident, $value:ty, $fallback:expr) => {
         impl sealed::Sealed for $marker {}
@@ -205,6 +214,7 @@ impl_kind!(Duration, core::time::Duration, core::time::Duration::ZERO);
 impl_kind!(CubicBezier, value::CubicBezier, value::CubicBezier::LINEAR);
 impl_kind!(FontWeight, value::FontWeight, value::FontWeight::REGULAR);
 impl_kind!(FontFamily, Arc<str>, Arc::from(""));
+impl_kind!(Curve, value::Curve, value::Curve::LINEAR);
 
 // Literal constructors used by `koebi_design::tokens!` for primitive tokens. Each takes the
 // value type of its kind, so a value of the wrong kind does not compile.
@@ -262,6 +272,13 @@ impl FontFamily {
     #[doc(hidden)]
     pub const fn literal(value: &'static str) -> Def {
         Def::Literal(Literal::FontFamily(value))
+    }
+}
+
+impl Curve {
+    #[doc(hidden)]
+    pub const fn literal(value: value::Curve) -> Def {
+        Def::Literal(Literal::Curve(value))
     }
 }
 

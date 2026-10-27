@@ -38,6 +38,40 @@ koebi_design::tokens! {
     /// Easing with a subtle bounce past the target.
     EASING_OVERSHOOT = "easing.overshoot": CubicBezier = bezier(0.34, 1.56, 0.64, 1.0);
 
+    /// Curve of constant speed.
+    CURVE_LINEAR = "curve.linear": Curve = curve(&[
+        key(0.0, 0.0, bezier(0.0, 0.0, 1.0, 1.0)),
+        key(1.0, 1.0, bezier(0.0, 0.0, 1.0, 1.0)),
+    ]);
+    /// Curve starting slowly, ending fast: what leaves.
+    CURVE_EASE_IN = "curve.ease-in": Curve = curve(&[
+        key(0.0, 0.0, bezier(0.4, 0.0, 1.0, 1.0)),
+        key(1.0, 1.0, bezier(0.0, 0.0, 1.0, 1.0)),
+    ]);
+    /// Curve starting fast, ending slowly: what arrives or answers the pointer.
+    CURVE_EASE_OUT = "curve.ease-out": Curve = curve(&[
+        key(0.0, 0.0, bezier(0.0, 0.0, 0.2, 1.0)),
+        key(1.0, 1.0, bezier(0.0, 0.0, 1.0, 1.0)),
+    ]);
+    /// Curve slow at both ends: what moves from one place to another.
+    CURVE_EASE_IN_OUT = "curve.ease-in-out": Curve = curve(&[
+        key(0.0, 0.0, bezier(0.42, 0.0, 0.58, 1.0)),
+        key(1.0, 1.0, bezier(0.0, 0.0, 1.0, 1.0)),
+    ]);
+    /// Curve going a little past the end, then settling back: two segments.
+    CURVE_SETTLE = "curve.settle": Curve = curve(&[
+        key(0.0, 0.0, bezier(0.2, 0.0, 0.4, 1.0)),
+        key(0.7, 1.04, bezier(0.4, 0.0, 0.6, 1.0)),
+        key(1.0, 1.0, bezier(0.0, 0.0, 1.0, 1.0)),
+    ]);
+    /// Curve bouncing once on the end: three segments.
+    CURVE_BOUNCE = "curve.bounce": Curve = curve(&[
+        key(0.0, 0.0, bezier(0.5, 0.0, 1.0, 1.0)),
+        key(0.55, 1.0, bezier(0.0, 0.0, 0.5, 1.0)),
+        key(0.78, 0.92, bezier(0.5, 0.0, 1.0, 1.0)),
+        key(1.0, 1.0, bezier(0.0, 0.0, 1.0, 1.0)),
+    ]);
+
     /// Stacking layer `ground`: higher layers draw on top.
     LAYER_GROUND = "layer.ground": Integer = 0, range(0.0, 10_000.0);
     /// Stacking layer `low`: higher layers draw on top.

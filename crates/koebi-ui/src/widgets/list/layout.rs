@@ -93,11 +93,6 @@ pub(super) fn decimal(mut count: usize, digits: &mut [u8; 20]) -> &str {
     core::str::from_utf8(&digits[start..]).expect("decimal digits are ASCII")
 }
 
-/// How far an animation `t` (0 to 1) has come: fast, then slowing down.
-fn ease_out(t: f32) -> f32 {
-    1.0 - (1.0 - t).powi(3)
-}
-
 impl Group {
     /// Ends the subtree at `y` (its natural bottom); returns where the rows after it start.
     fn close(&mut self, y: f32) -> f32 {
@@ -113,10 +108,10 @@ impl ListState {
         self.folds.retain_mut(|fold| {
             let start = *fold.start.get_or_insert(now);
             let closing = folded.contains(&fold.id);
-            let (to, duration) = if closing {
-                (0.0, style.collapse)
+            let (to, duration, curve) = if closing {
+                (0.0, style.collapse, &style.collapse_curve)
             } else {
-                (1.0, style.expand)
+                (1.0, style.expand, &style.expand_curve)
             };
             let length = duration.as_secs_f32() * (to - fold.from).abs();
             let t = if length > 0.0 {
@@ -128,7 +123,7 @@ impl ListState {
                 fold.current = to;
                 return false;
             }
-            fold.current = fold.from + (to - fold.from) * ease_out(t);
+            fold.current = curve.ease(t).mul_add(to - fold.from, fold.from);
             true
         });
         !self.folds.is_empty()

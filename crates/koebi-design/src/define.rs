@@ -28,7 +28,7 @@ use core::time::Duration;
 
 use koebi_core::{Color, Oklch};
 
-use crate::value::{ColorLiteral, CubicBezier, FontWeight};
+use crate::value::{ColorLiteral, CubicBezier, Curve, CurveKey, FontWeight};
 
 /// A length in logical pixels, as written in token tables.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -259,6 +259,27 @@ pub const fn bezier(x1: f32, y1: f32, x2: f32, y2: f32) -> CubicBezier {
     assert!(
         curve.is_valid(),
         "cubic Bézier x coordinates must lie in 0..=1"
+    );
+    curve
+}
+
+/// A key of a [`curve`]: the curve passes through `(x, y)`, then eases towards the next key
+/// by `easing` (see [`bezier`]; the last key's easing is not used).
+pub const fn key(x: f32, y: f32, easing: CubicBezier) -> CurveKey {
+    CurveKey::new(x, y, easing)
+}
+
+/// An easing curve through `keys`, from `key(0.0, 0.0, ...)` to `key(1.0, 1.0, ...)`.
+///
+/// # Panics
+///
+/// At compile time in token tables, when the keys do not make a valid curve (see
+/// [`Curve::is_valid`]).
+pub const fn curve(keys: &[CurveKey]) -> Curve {
+    let curve = Curve::new(keys);
+    assert!(
+        keys.len() <= Curve::MAX_KEYS && curve.is_valid(),
+        "a curve goes from (0, 0) to (1, 1) through 2 to 8 keys in time order"
     );
     curve
 }
