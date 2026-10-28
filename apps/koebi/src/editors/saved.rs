@@ -31,6 +31,7 @@ impl EditorKind {
             Self::Outliner => "outliner",
             Self::Info => "info",
             Self::Timeline => "timeline",
+            Self::Properties => "properties",
         }
     }
 

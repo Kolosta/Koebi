@@ -323,7 +323,7 @@ fn the_workspace_and_shortcuts_survive_a_restart() {
     );
     assert_eq!(second.code, Some(exit_code::SUCCESS), "{}", second.stderr);
     assert!(
-        second.stderr.contains("workspace restored from") && second.stderr.contains("(4 areas)"),
+        second.stderr.contains("workspace restored from") && second.stderr.contains("(5 areas)"),
         "{}",
         second.stderr
     );

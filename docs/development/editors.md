@@ -7,13 +7,13 @@ areas, their top bars and tab bars; the application draws the editors' content t
 ## Kinds and their state
 
 The type dropdown at the start of a top bar switches an editor's kind: Gallery, Viewport,
-Outliner, Info or Timeline. An editor keeps a state for every kind it has shown (the
+Outliner, Properties, Info or Timeline. An editor keeps a state for every kind it has shown (the
 viewport's pan, zoom and rulers, the outliner's folds, selection and scroll position, the
 timeline's scrolling and zoom...), so switching away and back finds it as it was. A split copies the state of every kind into the new editor; a join
 forgets the states of the editors it removes.
 
 What editors show is shared: every outliner shows the same document, every Info editor the
-same messages, every timeline the same current frame. Only the view (folds, selection,
+same messages, every timeline the same current frame, every Properties editor the same object. Only the view (folds, selection,
 scrolling, zoom) belongs to each editor.
 
 ## Templates
@@ -25,6 +25,7 @@ Templates exercise the editor framework until Koebi has real documents.
 | Viewport | A canvas with a page, a grid that keeps its spacing on screen, rulers on any side (toggles in the top bar); the middle button pans, the wheel zooms around the pointer | Viewport: frame all (Home), zoom in and out (keypad + and -), actual size (keypad 1), toggle rulers (Ctrl+R) |
 | Outliner | A template document (groups holding colored layers) in the list and tree view: folding, selection, reordering by drag and drop, rows going into groups only | Outliner: delete (X, Delete), group (Ctrl+G), unfold all (keypad +), fold all (keypad -) |
 | Info | The application's log messages from `info` up, marked by level | Info: delete selected (X, Delete), clear (Shift+Delete) |
+| Properties | The components in real use, editing the template's object: property groups in collapsible panels (Object, Transform with a nested Delta transform, Visibility, Shading), text fields, vectors of number fields in millimetres and degrees, checkboxes, an opacity on a bar, a dropdown, an integer field and a button group (reset the transform, apply the delta); the panels scroll when they do not fit | None of its own: the components' keys (text, number fields, menus) |
 | Timeline | Tracks of keyframes along the scene's frames (dimmed outside its range), scrolling both ways; a press or a drag on the frame ruler sets the current frame | Timeline: next and previous frame (Right, Left, repeating), first and last frame (Shift+Left, Shift+Right), zoom in and out (keypad + and -), frame all (Home) |
 
 Each template's shortcuts apply where the pointer is over one of its editors: its content is a
@@ -43,8 +44,8 @@ saved when the application goes to the background or quits, only when they chang
 write goes to a temporary file, flushed, then renamed over the file, whose previous version
 stays as `.bak`; a damaged or missing file falls back to its backup.
 
-Both files are text keyed by stable names: kinds (`gallery`, `viewport`, `outliner`, `info`,
-`timeline`) and action identifiers (`viewport.view-all = F`). Lines a version of Koebi does
+Both files are text keyed by stable names: kinds (`gallery`, `viewport`, `outliner`,
+`properties`, `info`, `timeline`) and action identifiers (`viewport.view-all = F`). Lines a version of Koebi does
 not know are skipped with a warning, so files survive code changes; a layout that does not
 tile the window is refused and the default workspace opens. Editors' views (scrolling, folds,
 zoom) are not saved yet.
