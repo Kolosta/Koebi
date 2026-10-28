@@ -37,9 +37,17 @@ Every token has a kind, part of its Rust type:
 | `CubicBezier` | `value::CubicBezier` | `bezier(0.4, 0.0, 1.0, 1.0)` |
 | `FontWeight` | `value::FontWeight` (1 to 1000) | `weight(600)` |
 | `FontFamily` | `Arc<str>` | `family("Noto Sans")` |
+| `Curve` | `value::Curve` (2 to 8 keys from (0, 0) to (1, 1)) | `curve(&[key(0.0, 0.0, bezier(...)), key(0.7, 1.04, bezier(...)), key(1.0, 1.0, bezier(...))])` |
 
 Kinds describe the value domain, not the role: a radius, a spacing and a border width are all
 dimensions.
+
+Animations read a duration and a curve. A `Curve` passes through its keys, each segment eased
+by its own cubic Bézier, so that it can bounce or overshoot and settle; `Curve::ease(t)`
+evaluates it ([ADR 0018](../adr/0018-easing-curves.md)). Primitive curves (`curve.*`) feed
+semantic ones by intent (`animation.curve.expand`, `collapse`, `grow`, `move`...), which feed
+the components' (`list-row.expand.curve`, `scrollbar.overlay.grow.curve`). Curves export as
+Koebi's own `curve` type in Design Tokens files.
 
 Colors accept several notations, so that a value can be copied from its source as is:
 hexadecimal (`hex("#F00")`, `hex("#5D89FF80")`), 8-bit or 10-bit channels (`rgb`, `rgba`,

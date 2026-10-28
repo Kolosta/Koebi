@@ -17,6 +17,8 @@ koebi_design::tokens! {
         primitive::DURATION_NORMAL;
     /// Duration of page-level transitions.
     ANIMATION_DURATION_PAGE = "animation.duration.page": Duration -> primitive::DURATION_SLOW;
+    /// Duration of controls growing and shrinking under the pointer (scrollbars).
+    ANIMATION_DURATION_GROW = "animation.duration.grow": Duration -> primitive::DURATION_NORMAL;
     /// Period of pulsing and loading rhythms.
     ANIMATION_DURATION_PULSE = "animation.duration.pulse": Duration -> primitive::DURATION_SLOWER;
 
@@ -29,6 +31,19 @@ koebi_design::tokens! {
         primitive::EASING_SPRING;
     /// Easing of movements across the screen.
     ANIMATION_EASING_MOVE = "animation.easing.move": CubicBezier -> primitive::EASING_EASE_IN_OUT;
+
+    /// Curve of entrance transitions.
+    ANIMATION_CURVE_ENTER = "animation.curve.enter": Curve -> primitive::CURVE_EASE_OUT;
+    /// Curve of exit transitions.
+    ANIMATION_CURVE_EXIT = "animation.curve.exit": Curve -> primitive::CURVE_EASE_IN;
+    /// Curve of expand animations: folds and panels opening.
+    ANIMATION_CURVE_EXPAND = "animation.curve.expand": Curve -> primitive::CURVE_EASE_OUT;
+    /// Curve of collapse animations: folds and panels closing.
+    ANIMATION_CURVE_COLLAPSE = "animation.curve.collapse": Curve -> primitive::CURVE_EASE_OUT;
+    /// Curve of controls growing and shrinking under the pointer.
+    ANIMATION_CURVE_GROW = "animation.curve.grow": Curve -> primitive::CURVE_EASE_OUT;
+    /// Curve of movements across the screen.
+    ANIMATION_CURVE_MOVE = "animation.curve.move": Curve -> primitive::CURVE_EASE_IN_OUT;
 
     /// Angle of bottom-to-top gradients.
     GRADIENT_UPWARD_ANGLE = "gradient.upward.angle": Number -> primitive::GRADIENT_ANGLE_0;

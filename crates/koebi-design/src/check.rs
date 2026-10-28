@@ -154,6 +154,11 @@ pub(crate) const fn literal_problem(info: &TokenInfo, literal: &Literal) -> Opti
                 return Some("cubic Bézier x coordinates must lie in 0..=1");
             }
         }
+        Literal::Curve(curve) => {
+            if !curve.is_valid() {
+                return Some(crate::value::CURVE_RULE);
+            }
+        }
         Literal::FontFamily(name) => {
             if name.is_empty() {
                 return Some("empty font family name");

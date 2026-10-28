@@ -40,6 +40,11 @@ koebi_design::tokens! {
     /// List row: duration of a fold closing.
     LIST_ROW_COLLAPSE_DURATION = "list-row.collapse.duration": Duration ->
         semantic::ANIMATION_DURATION_COLLAPSE;
+    /// List row: curve of a fold opening; values past 0 and 1 hold at the ends.
+    LIST_ROW_EXPAND_CURVE = "list-row.expand.curve": Curve -> semantic::ANIMATION_CURVE_EXPAND;
+    /// List row: curve of a fold closing; values past 0 and 1 hold at the ends.
+    LIST_ROW_COLLAPSE_CURVE = "list-row.collapse.curve": Curve ->
+        semantic::ANIMATION_CURVE_COLLAPSE;
     /// List row: side of a color mark.
     LIST_ROW_SWATCH_SIZE_DEFAULT = "list-row.swatch.size.default": Dimension =
         px(12.0), range(4.0, 32.0);

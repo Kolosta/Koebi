@@ -248,8 +248,10 @@ fn opening_folds_slide_their_rows_in() {
         start + style().expand / 2
     ));
     assert_eq!(ids(&state), [1, 2, 3, 4, 5, 6, 7]);
-    // Half the time, most of the way: the children show down to that line, cut there.
-    let openness = 1.0 - 0.5_f32.powi(3);
+    // Half the time, as far as the expand curve says: the children show down to that line,
+    // cut there.
+    let openness = style().expand_curve.ease(0.5);
+    assert!(openness > 0.5, "the default curve eases out");
     let line = 60.0 + 2.0 * ROW * openness;
     let sun = row_of(&state, 4);
     assert_eq!(sun.top, 60.0);
@@ -276,7 +278,7 @@ fn closing_folds_keep_their_rows_until_they_are_gone() {
     assert_eq!(visible, [1, 2, 3, 6, 7]);
     assert_eq!(row_of(&state, 3).hidden, 2);
     lay_out(&mut state, &items, true, start + style().collapse / 2);
-    let line = 60.0 + 2.0 * ROW * 0.5_f32.powi(3);
+    let line = 60.0 + 2.0 * ROW * (1.0 - style().collapse_curve.ease(0.5));
     let fill = row_of(&state, 5);
     assert!(fill.leaving);
     assert!((fill.clip - line).abs() < 0.01);
@@ -725,4 +727,28 @@ fn retain_forgets_rows_that_went_away() {
     assert!(!state.is_folded(3));
     assert_eq!(state.active(), None);
     assert_eq!(state.selected().collect::<Vec<_>>(), [5]);
+}
+
+#[test]
+fn folds_open_along_the_curve_of_their_token() {
+    let mut design =
+        koebi_design::DesignSystem::new(&koebi_tokens::KOEBI).expect("Koebi's schema is valid");
+    design
+        .set_value(
+            koebi_design::Scope::Global,
+            component::LIST_ROW_EXPAND_CURVE,
+            Curve::LINEAR,
+        )
+        .expect("a valid curve");
+    let style = ListStyle::resolve(&design);
+    let mut state = ListState::new();
+    let items = items();
+    state.set_folded(3, true);
+    state.lay_out(&items, true, ROW, Duration::ZERO, &style);
+    state.fold_animated(3, false);
+    let start = Duration::from_secs(1);
+    state.lay_out(&items, true, ROW, start, &style);
+    state.lay_out(&items, true, ROW, start + style.expand / 4, &style);
+    // Linear: a quarter of the time, a quarter of the way.
+    assert!((row_of(&state, 3).openness - 0.25).abs() < 1e-3);
 }

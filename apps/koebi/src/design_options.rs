@@ -9,7 +9,7 @@ use std::sync::Arc;
 use koebi_core::Color;
 use koebi_design::dtcg::{export_schema, export_theme, import_theme};
 use koebi_design::kind::KindId;
-use koebi_design::value::{CubicBezier, Definition, FontWeight, Value};
+use koebi_design::value::{CubicBezier, Curve, CurveKey, Definition, FontWeight, Value};
 use koebi_design::{ColorVision, Deficiency, DesignSystem, Error, Scope};
 
 use crate::options::Options;
@@ -135,7 +135,8 @@ pub(crate) fn export(design: &DesignSystem, options: &Options) -> Result<(), Str
 
 /// Parses `text` as a definition of `token`: `{path}` aliases another token, anything else is
 /// a value of the token's kind (`#rrggbb` colors, numbers with an optional `px` or `ms` unit,
-/// `x1,y1,x2,y2` curves, font weights from 1 to 1000, font family names).
+/// `x1,y1,x2,y2` cubic Béziers, curves as keys `x,y[,x1,y1,x2,y2]` separated by `;`, font
+/// weights from 1 to 1000, font family names).
 pub(crate) fn parse_definition(
     design: &DesignSystem,
     token: koebi_design::TokenId,
@@ -192,8 +193,33 @@ pub(crate) fn parse_definition(
                 .ok_or_else(|| format!("expected a font weight from 1 to 1000, found {text:?}"))?,
         ),
         KindId::FontFamily => Value::FontFamily(Arc::from(text)),
+        KindId::Curve => Value::Curve(Arc::new(parse_curve(text)?)),
     };
     Ok(Definition::Value(value))
+}
+
+/// A curve as the command line writes it: keys separated by `;`, each `x,y` followed by the
+/// easing of the segment it starts, `x1,y1,x2,y2` (linear when left out).
+fn parse_curve(text: &str) -> Result<Curve, String> {
+    let shape = || format!("expected keys x,y,x1,y1,x2,y2 separated by ';', found {text:?}");
+    let mut keys = Vec::new();
+    for key in text.split(';') {
+        let numbers: Vec<f32> = key
+            .split(',')
+            .map(|part| part.trim().parse::<f32>())
+            .collect::<Result<_, _>>()
+            .map_err(|_| shape())?;
+        let key = match numbers[..] {
+            [x, y] => CurveKey::new(x, y, CubicBezier::LINEAR),
+            [x, y, x1, y1, x2, y2] => CurveKey::new(x, y, CubicBezier::new(x1, y1, x2, y2)),
+            _ => return Err(shape()),
+        };
+        keys.push(key);
+    }
+    if keys.len() > Curve::MAX_KEYS {
+        return Err(format!("a curve has at most {} keys", Curve::MAX_KEYS));
+    }
+    Ok(Curve::new(&keys))
 }
 
 /// The name of a color vision setting, as the command line spells it.
@@ -282,6 +308,16 @@ mod tests {
         assert!(parse("semantic.radius.control", "wide").is_err());
         assert!(parse("semantic.radius.control", "{semantic.nowhere}").is_err());
         assert!(parse("semantic.font.weight.body.m", "1200").is_err());
+        let settle = parse(
+            "semantic.animation.curve.expand",
+            "0,0,0,0,0.58,1; 0.7,1.05,0.4,0,0.6,1; 1,1",
+        );
+        let Ok(Definition::Value(Value::Curve(curve))) = settle else {
+            panic!("a curve: {settle:?}");
+        };
+        assert_eq!(curve.keys().len(), 3);
+        assert_eq!(curve.keys()[1].y, 1.05);
+        assert!(parse("semantic.animation.curve.expand", "0,0;1").is_err());
     }
 
     #[test]

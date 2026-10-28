@@ -33,6 +33,7 @@ use core::time::Duration;
 use koebi_core::input::{Key, ModifierKey, Modifiers, MouseButton};
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
+use koebi_design::value::Curve;
 use koebi_input::{ActionDef, ActionGroup, ButtonTrigger, Context, ModifierRule, Shortcut};
 use koebi_tokens::{component, semantic};
 
@@ -361,6 +362,10 @@ pub struct ListStyle {
     pub expand: Duration,
     /// How long a fold takes to close.
     pub collapse: Duration,
+    /// Curve of a fold opening.
+    pub expand_curve: Curve,
+    /// Curve of a fold closing.
+    pub collapse_curve: Curve,
     /// Side of a color mark.
     pub swatch_size: f32,
     /// Corner radius of a color mark.
@@ -415,6 +420,8 @@ impl ListStyle {
             fold_color: tokens.get(component::LIST_ROW_FOLD_COLOR_DEFAULT),
             expand: tokens.get(component::LIST_ROW_EXPAND_DURATION),
             collapse: tokens.get(component::LIST_ROW_COLLAPSE_DURATION),
+            expand_curve: tokens.get(component::LIST_ROW_EXPAND_CURVE),
+            collapse_curve: tokens.get(component::LIST_ROW_COLLAPSE_CURVE),
             swatch_size: tokens.get(component::LIST_ROW_SWATCH_SIZE_DEFAULT),
             swatch_radius: tokens.get(component::LIST_ROW_SWATCH_CORNER_RADIUS_DEFAULT),
             count: tokens.get(component::LIST_ROW_COUNT_COLOR_DEFAULT),

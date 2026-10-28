@@ -341,6 +341,9 @@ impl Graph {
             Value::CubicBezier(curve) if !curve.is_valid() => {
                 return Err(invalid("cubic Bézier x coordinates must lie in 0..=1"));
             }
+            Value::Curve(curve) if !curve.is_valid() => {
+                return Err(invalid(crate::value::CURVE_RULE));
+            }
             Value::FontFamily(ref name) if name.trim().is_empty() || name.len() > 256 => {
                 return Err(invalid("font family names have 1 to 256 bytes"));
             }
