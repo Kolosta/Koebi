@@ -12,7 +12,8 @@ use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    Checkbox, CollapsiblePanel, Icon, Input, PanelLevel, PanelState, Styles, Ui, UiState, WidgetId,
+    Checkbox, CollapsiblePanel, CollapsiblePanelState, Icon, Input, PanelLevel, Styles, Ui,
+    UiState, WidgetId,
 };
 
 /// Anti-aliased edges may differ by a few units between drivers.
@@ -39,10 +40,10 @@ fn panel_sheet(design: &DesignSystem) -> Scene {
     state.set_fonts(Fonts::with_embedded());
     let input = Input::new();
     let mut panels = [
-        PanelState::new(true),
-        PanelState::new(true),
-        PanelState::new(true),
-        PanelState::new(false),
+        CollapsiblePanelState::new(true),
+        CollapsiblePanelState::new(true),
+        CollapsiblePanelState::new(true),
+        CollapsiblePanelState::new(false),
     ];
     let area = Rect::from_origin_size(Vec2::new(8.0, 8.0), Vec2::new(264.0, 304.0));
     // A panel measures its content in the frame it first draws it, and asks for the next

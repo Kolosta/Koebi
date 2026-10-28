@@ -186,7 +186,7 @@ expressions), `.label(text)`, `.bar(mapping)`, `.vertical()`, `.step_buttons(fal
 ## Collapsible panels
 
 Boxes holding trees of sections that fold, as in Blender's properties.
-`CollapsiblePanel::new(id, &mut state, title)` keeps its fold in a `PanelState` the caller
+`CollapsiblePanel::new(id, &mut state, title)` keeps its fold in a `CollapsiblePanelState` the caller
 owns (open or closed, the openness animating between, and the height of the content measured
 on the last frame).
 
@@ -196,16 +196,18 @@ on the last frame).
   draw them after the panel so that they take the pointer). Under the pointer, the header
   lightens by `panel.header.hover.lightness`.
 - **Content**: `show(ui, area, add)` calls `add(ui, rect)` with the full width of the panel
-  from the top of its content; `add` draws and returns the height it used (a property group's
-  `height()`, a nested panel's `height`). Rows inset themselves by `panel.padding`; nested
-  panels fill the width. The content draws while the panel is open even a little, clipped to
-  the share shown; a panel never measured shows its content from the frame after it first
-  drew it (it asks for that frame at once), so nested levels settle one frame each.
+  inside the frame, from the top of its content down to the bottom of `area` (the room
+  there is); `add` draws and returns the height it used (a nested panel's `height`). Rows
+  inset themselves by `panel.padding`; nested panels fill the width. The content draws while
+  the panel is open or opening, clipped to the share shown, and the frame is drawn over it. A
+  panel never measured shows its content from the frame after it first drew it (it asks for
+  that frame at once); nested levels follow one frame apart, while they settle and while they
+  fold.
 - **Levels**: `.level(PanelLevel::Second)` and `Third` for panels inside a panel's content.
   A first-level panel is framed and rounded, its header in `panel.header.background.color`;
   a nested panel's header takes its parent's content color and its content the next level's
   (`panel.body.background.color.level-*`).
-- **Folding**: a press on the header opens or closes it; the content slides along
+- **Folding**: a press on the header opens or closes it; the content is revealed along
   `panel.expand.duration` and `panel.expand.curve` (or `panel.collapse.*`), and the panel asks
   for frames while it moves. The response's `height` is what to advance by, then
   `panel.gap.size` before the next panel.

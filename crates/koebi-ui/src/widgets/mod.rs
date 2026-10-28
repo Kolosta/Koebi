@@ -26,7 +26,7 @@ mod tooltip;
 pub use button::{Activation, Button, ButtonGroup, ButtonStyle, GroupCell, GroupResponse, Track};
 pub use checkbox::{Checkbox, CheckboxStyle};
 pub use collapsible::{
-    CollapsiblePanel, CollapsiblePanelResponse, CollapsiblePanelStyle, PanelState,
+    CollapsiblePanel, CollapsiblePanelResponse, CollapsiblePanelState, CollapsiblePanelStyle,
 };
 pub use dropdown::{Dropdown, DropdownStyle};
 pub use list::{
