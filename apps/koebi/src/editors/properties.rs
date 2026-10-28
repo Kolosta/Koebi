@@ -4,12 +4,12 @@
 //! a dropdown, an integer field and a button group. Every Properties editor edits the same
 //! object; each keeps its own panels' folds, scroll position and menus.
 
-use koebi_core::expr::{DEGREE, MILLIMETER};
+use koebi_core::expr::{DEGREE, MILLIMETER, Unit};
 use koebi_core::{Rect, Vec2};
 use koebi_ui::{
-    BarMapping, Button, ButtonGroup, Checkbox, CollapsiblePanel, Dropdown, GroupCell, MenuItem,
-    MenuState, NumberField, PanelLevel, PanelState, PropertyGroup, ScrollAxes, ScrollState,
-    TextField, Ui, WidgetId,
+    BarMapping, Button, ButtonGroup, Checkbox, CollapsiblePanel, CollapsiblePanelState, Dropdown,
+    GroupCell, MenuItem, MenuState, NumberField, PanelLevel, PropertyGroup, ScrollAxes,
+    ScrollState, TextField, Ui, WidgetId,
 };
 
 /// The shading modes of the object, for its dropdown.
@@ -73,11 +73,11 @@ impl Object {
 /// of its content on the last frame, its menu.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct View {
-    object: PanelState,
-    transform: PanelState,
-    delta: PanelState,
-    visibility: PanelState,
-    shading: PanelState,
+    object: CollapsiblePanelState,
+    transform: CollapsiblePanelState,
+    delta: CollapsiblePanelState,
+    visibility: CollapsiblePanelState,
+    shading: CollapsiblePanelState,
     scroll: ScrollState,
     height: f32,
     shading_menu: MenuState,
@@ -86,11 +86,11 @@ pub(crate) struct View {
 impl Default for View {
     fn default() -> Self {
         Self {
-            object: PanelState::new(true),
-            transform: PanelState::new(true),
-            delta: PanelState::new(false),
-            visibility: PanelState::new(true),
-            shading: PanelState::new(true),
+            object: CollapsiblePanelState::new(true),
+            transform: CollapsiblePanelState::new(true),
+            delta: CollapsiblePanelState::new(false),
+            visibility: CollapsiblePanelState::new(true),
+            shading: CollapsiblePanelState::new(true),
             scroll: ScrollState::new(),
             height: 0.0,
             shading_menu: MenuState::new(),
@@ -99,7 +99,7 @@ impl Default for View {
 }
 
 /// The rows of a property group inset by the panels' padding in `rect`.
-fn group(ui: &Ui<'_>, rect: Rect) -> PropertyGroup {
+fn group<'a>(ui: &Ui<'a>, rect: Rect) -> PropertyGroup<'a> {
     let padding = ui.styles().panel.padding;
     let inset = Rect::from_min_max(
         Vec2::new(rect.min.x + padding, rect.min.y),
@@ -108,23 +108,25 @@ fn group(ui: &Ui<'_>, rect: Rect) -> PropertyGroup {
     PropertyGroup::new(ui, inset)
 }
 
-/// Shows the three components of a vector as number fields in `unit`, one per row.
+/// Shows the three components of a vector as number fields in `unit` (plain numbers without
+/// one) with `decimals` decimals, one per row.
 fn vector(
     ui: &mut Ui<'_>,
-    group: &mut PropertyGroup,
+    group: &mut PropertyGroup<'_>,
     id: WidgetId,
     label: &str,
     values: &mut [f64; 3],
-    unit: Option<&'static koebi_core::expr::Unit>,
+    unit: Option<&'static Unit>,
+    decimals: usize,
 ) {
     let rows = group.vector(ui, label, ["X", "Y", "Z"]);
     for ((value, rect), key) in values.iter_mut().zip(rows).zip(0_u64..) {
-        let field = NumberField::new(id.with(key), value);
-        let field = match unit {
+        let field = NumberField::new(id.with(key), value).decimals(decimals);
+        match unit {
             Some(unit) => field.unit(unit),
-            None => field.decimals(3),
-        };
-        field.show(ui, rect);
+            None => field,
+        }
+        .show(ui, rect);
     }
 }
 
@@ -167,7 +169,7 @@ pub(crate) fn show(
                     let mut rows = group(ui, rect);
                     let name = rows.row(ui, "Name");
                     TextField::new(id.with(10), &mut object.name).show(ui, name);
-                    let description = rows.row(ui, "Description");
+                    let description = rows.row(ui, "Notes");
                     TextField::new(id.with(11), &mut object.description)
                         .placeholder("What the object is for")
                         .show(ui, description);
@@ -186,6 +188,7 @@ pub(crate) fn show(
                         "Location",
                         &mut object.location,
                         Some(&MILLIMETER),
+                        2,
                     );
                     vector(
                         ui,
@@ -194,9 +197,18 @@ pub(crate) fn show(
                         "Rotation",
                         &mut object.rotation,
                         Some(&DEGREE),
+                        1,
                     );
-                    vector(ui, &mut rows, id.with(22), "Scale", &mut object.scale, None);
-                    let buttons = rows.wide();
+                    vector(
+                        ui,
+                        &mut rows,
+                        id.with(22),
+                        "Scale",
+                        &mut object.scale,
+                        None,
+                        3,
+                    );
+                    let buttons = rows.wide_row();
                     let mut cells = [
                         GroupCell::new(Button::new(id.with(23)).label("Reset")),
                         GroupCell::new(Button::new(id.with(24)).label("Apply delta")),
@@ -225,6 +237,7 @@ pub(crate) fn show(
                                     "Location",
                                     &mut object.delta,
                                     Some(&MILLIMETER),
+                                    2,
                                 );
                                 rows.height()
                             });
@@ -244,9 +257,9 @@ pub(crate) fn show(
                     for ((checked, label), key) in boxes.into_iter().zip(30_u64..) {
                         Checkbox::new(id.with(key), checked)
                             .label(label)
-                            .show(ui, rows.unlabeled());
+                            .show(ui, rows.unlabeled_row());
                     }
-                    rows.group();
+                    rows.start_group();
                     let opacity = rows.row(ui, "Opacity");
                     NumberField::new(id.with(33), &mut object.opacity)
                         .range(0.0, 1.0)
@@ -291,7 +304,110 @@ pub(crate) fn show(
 
 #[cfg(test)]
 mod tests {
+    use core::time::Duration;
+
+    use koebi_design::DesignSystem;
+    use koebi_render::Scene;
+    use koebi_text::Fonts;
+    use koebi_ui::{Input, Styles, UiState};
+
     use super::*;
+
+    const ID: WidgetId = WidgetId::new("properties");
+
+    fn area() -> Rect {
+        Rect::from_origin_size(Vec2::ZERO, Vec2::new(320.0, 2000.0))
+    }
+
+    /// A Properties editor, its UI state and input, one frame at a time.
+    struct Harness {
+        state: UiState,
+        input: Input,
+        styles: Styles,
+        object: Object,
+        view: View,
+    }
+
+    impl Harness {
+        fn new() -> Self {
+            let design = DesignSystem::new(&koebi_tokens::KOEBI).expect("Koebi's schema is valid");
+            let mut state = UiState::new();
+            state.set_fonts(Fonts::with_embedded());
+            Self {
+                state,
+                input: Input::new(),
+                styles: Styles::resolve(&design),
+                object: Object::template(),
+                view: View::default(),
+            }
+        }
+
+        fn frame(&mut self) -> Scene {
+            let mut scene = Scene::new();
+            {
+                let mut ui = Ui::new(&mut scene, &self.styles, &self.input, &mut self.state);
+                show(
+                    &mut ui,
+                    ID,
+                    area(),
+                    area(),
+                    &mut self.object,
+                    &mut self.view,
+                );
+            }
+            self.input.end_frame();
+            scene
+        }
+    }
+
+    #[test]
+    fn the_editor_measures_its_panels_and_folds_them() {
+        let mut harness = Harness::new();
+        for _ in 0..4 {
+            harness.frame();
+        }
+        let open = harness.view.height;
+        let header = harness.styles.collapsible_panel.header_height;
+        // Four panels, three open with their content.
+        assert!(open > 4.0 * header + 200.0, "{open}");
+        let scene = harness.frame();
+        assert!(scene.glyph_count() > 100);
+        // Folding the transform panel takes its content away.
+        harness.view.transform.set_open(false);
+        harness.frame();
+        harness.input.set_time(Duration::from_secs(2));
+        harness.frame();
+        harness.frame();
+        assert!(
+            harness.view.height < open - 100.0,
+            "{}",
+            harness.view.height
+        );
+    }
+
+    #[test]
+    fn the_name_is_edited_in_its_text_field() {
+        let mut harness = Harness::new();
+        for _ in 0..4 {
+            harness.frame();
+        }
+        let styles = &harness.styles;
+        // The first row of the first panel, near the end of its input column.
+        let margin = styles.panel.padding;
+        let y = margin
+            + styles.collapsible_panel.header_height
+            + styles.collapsible_panel.content_padding
+            + styles.property_group.row_height * 0.5;
+        let x = area().width() - styles.scroll.margin - 3.0 * margin;
+        harness.input.pointer_moved(Vec2::new(x, y));
+        harness.frame();
+        harness.input.primary_button(true, Vec2::new(x, y));
+        harness.input.primary_button(false, Vec2::new(x, y));
+        harness.frame();
+        harness.input.typed("Sphere");
+        harness.frame();
+        assert_eq!(harness.object.name, "Sphere");
+    }
 
     #[test]
     fn transforms_reset_and_deltas_apply() {
