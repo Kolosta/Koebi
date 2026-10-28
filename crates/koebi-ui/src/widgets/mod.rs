@@ -15,6 +15,7 @@ mod number_field;
 mod panel;
 mod parts;
 mod scroll;
+mod scrollbar;
 mod separator;
 mod slider;
 mod swatch;
@@ -46,6 +47,7 @@ pub use parts::{
     Tone, ToneColors, Variant,
 };
 pub use scroll::{SCROLL, ScrollAxes, ScrollContent, ScrollState, ScrollStyle};
+pub use scrollbar::{ScrollAxis, Scrollbar, ScrollbarResponse, ScrollbarState};
 pub use separator::SeparatorStyle;
 pub use slider::SliderStyle;
 pub use swatch::SwatchStyle;
