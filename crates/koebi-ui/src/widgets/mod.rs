@@ -16,6 +16,7 @@ mod panel;
 mod parts;
 mod property_group;
 mod scroll;
+mod scrollbar;
 mod separator;
 mod slider;
 mod swatch;
@@ -48,6 +49,7 @@ pub use parts::{
 };
 pub use property_group::{PropertyGroup, PropertyGroupStyle};
 pub use scroll::{SCROLL, ScrollAxes, ScrollContent, ScrollState, ScrollStyle};
+pub use scrollbar::{ScrollAxis, Scrollbar, ScrollbarResponse, ScrollbarState};
 pub use separator::SeparatorStyle;
 pub use slider::SliderStyle;
 pub use swatch::SwatchStyle;

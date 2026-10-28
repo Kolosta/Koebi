@@ -27,6 +27,7 @@ tokens and how to write a new one.
 | Tooltip | `Ui::tooltip(id, text, bounds)` after the widget | `component.tooltip.*` |
 | Label | `Ui::label(text, rect, &font, color, align)`, `Ui::text_width(text, &font)` | `semantic.font.*`, `semantic.text.*` |
 | Scroll area | `Ui::scroll_area(id, rect, &mut state, content_size, axes, add)` | `component.scrollbar.*` |
+| Scrollbar | `Scrollbar::new(id, &mut state, axis, &mut offset, visible, content)`, then `.show(ui, area)` | `component.scrollbar.*` |
 | List and tree | `Ui::list(id, rect, &mut state, &items, &options, &mut delegate)` returns a `ListResponse` | `component.list-row.*`, `component.outliner.*`, `component.table.row.*`, `component.drop-target.*` |
 
 Line icons (`Icon::Check`, `Icon::Plus`, chevrons...) use `component.icon.*`. Labels use the
@@ -217,6 +218,15 @@ overflows, thin at rest, growing and brightening as the pointer comes within
 `scrollbar.overlay.proximity` (eased, the area asking for frames until it settles); dragging
 the grab scrolls, a press on the track brings the grab under the pointer. Which axes scroll is
 the content's choice (`ScrollAxes`): lists vertically, timelines both ways.
+
+The scrollbar is a component of its own, for what scrolls its own way (a canvas, a timeline):
+`Scrollbar::new(id, &mut state, ScrollAxis::Vertical, &mut offset, visible, content)` shows
+in the margin at the end of the area passed to `show` (right for vertical, bottom for
+horizontal) and changes `offset`, from 0 to `content - visible`. Its `ScrollbarState` keeps
+the grab's growth (`growth()`, eased along `scrollbar.overlay.grow.duration` and `.curve`)
+and its drag (`is_dragging()`). `.near(false)` keeps it at rest while the pointer is not over
+what it scrolls; `ScrollbarResponse` says whether it showed and changed the offset. Scroll
+areas use one per axis.
 
 ## Lists and trees
 
