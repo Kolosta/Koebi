@@ -14,8 +14,8 @@ use koebi_render::Scene;
 use koebi_testkit::gpu_or_skip;
 use koebi_tokens::{KOEBI, component, semantic};
 use koebi_ui::{
-    Button, Checkbox, Input, ListItem, ListOptions, ListState, MenuItem, MenuState, PanelLevel,
-    Styles, ThemePreview, Tone, Ui, UiState, WidgetId,
+    BarMapping, Button, Checkbox, Input, ListItem, ListOptions, ListState, MenuItem, MenuState,
+    NumberField, PanelLevel, Styles, ThemePreview, Tone, Ui, UiState, WidgetId,
 };
 
 const SIZE: Extent = Extent::new(200, 100);
@@ -206,13 +206,10 @@ fn value_components_show_their_value() {
             &mut full,
             0.0..=1.0,
         );
-        ui.drag_value(
-            WidgetId::new("drag"),
-            rect(0.0, 50.0, 200.0, 24.0),
-            &mut half,
-            0.0..=1.0,
-            0.0,
-        );
+        NumberField::new(WidgetId::new("drag"), &mut half)
+            .range(0.0, 1.0)
+            .bar(BarMapping::Linear)
+            .show(ui, rect(0.0, 50.0, 200.0, 24.0));
     });
     let image = render(&gpu, SIZE, &scene);
     // The grab of a full slider touches the right end, inside the padding.
@@ -220,11 +217,42 @@ fn value_components_show_their_value() {
     assert_pixel(&image, 192, 20, grab.to_rgba8());
     let track = design.get(component::SLIDER_TRACK_COLOR_DEFAULT);
     assert_pixel(&image, 100, 20, track.to_rgba8());
-    // Half of the drag value is filled.
-    let fill = design.get(component::DRAG_VALUE_FILL_COLOR_DEFAULT);
-    let empty = design.get(component::DRAG_VALUE_BACKGROUND_COLOR_DEFAULT);
+    // Half of the number field's bar is filled.
+    let fill = design.get(component::NUMBER_FIELD_FILL_COLOR_DEFAULT);
+    let empty = design.get(component::NUMBER_FIELD_BACKGROUND_COLOR_DEFAULT);
     assert_pixel(&image, 60, 62, fill.to_rgba8());
     assert_pixel(&image, 140, 62, empty.to_rgba8());
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn vertical_bars_fill_from_the_bottom_and_disabled_bars_dim() {
+    let Some(gpu) = gpu_or_skip("vertical_bars_fill_from_the_bottom_and_disabled_bars_dim") else {
+        return;
+    };
+    let design = design();
+    let scene = draw(&design, |ui| {
+        let (mut quarter, mut half) = (0.25, 0.5);
+        NumberField::new(WidgetId::new("tall"), &mut quarter)
+            .range(0.0, 1.0)
+            .bar(BarMapping::Linear)
+            .vertical()
+            .show(ui, rect(10.0, 4.0, 24.0, 92.0));
+        NumberField::new(WidgetId::new("locked"), &mut half)
+            .range(0.0, 1.0)
+            .bar(BarMapping::Linear)
+            .enabled(false)
+            .show(ui, rect(60.0, 10.0, 120.0, 24.0));
+    });
+    let image = render(&gpu, SIZE, &scene);
+    let fill = design.get(component::NUMBER_FIELD_FILL_COLOR_DEFAULT);
+    let empty = design.get(component::NUMBER_FIELD_BACKGROUND_COLOR_DEFAULT);
+    // A quarter: the bottom quarter is filled, the top is not.
+    assert_pixel(&image, 22, 88, fill.to_rgba8());
+    assert_pixel(&image, 22, 20, empty.to_rgba8());
+    // A disabled field fills its bar in the disabled color.
+    let disabled = design.get(component::NUMBER_FIELD_FILL_COLOR_DISABLED);
+    assert_pixel(&image, 70, 22, disabled.to_rgba8());
     gpu.assert_no_validation_errors();
 }
 

@@ -13,7 +13,7 @@ From top to bottom (the two middle panels stack on narrow windows):
    overrides and the color vision setting included. The active theme's card has an accent
    border. Click a card to activate its theme.
 2. **Components**, on the left: a button, icon buttons (plus, minus, cross), two toggle
-   buttons, two checkboxes, a slider, a drag value, a separator, the twelve chart colors as
+   buttons, two checkboxes, a slider, a bounded number field, a separator, the twelve chart colors as
    swatches (click one to select it) and the three panel levels.
 3. **Token editor**, on the right:
    - First row: the **scope** of the edits, *every theme* (four squares) or *the active theme*
@@ -21,7 +21,7 @@ From top to bottom (the two middle panels stack on narrow windows):
    - Three sliders edit the **accent color in OKLCH**: hue, chroma and lightness, beside a
      strip of the values each one reaches. They write `semantic.accent.color.700`, and
      `semantic.accent.color.600` a little lighter for hovered and pressed states.
-   - Three drag values edit dimensions, beside a preview: the control corner radius
+   - Three number fields edit dimensions in pixels, on bars, beside a preview: the control corner radius
      (`semantic.radius.control`), the thin border width (`semantic.border.width.thin`) and
      the checkbox size (`component.checkbox.box-size.default`). Drag them, or click the
      arrows at their ends to step.
@@ -42,7 +42,9 @@ From top to bottom (the two middle panels stack on narrow windows):
    whose right click opens a context menu with nested submenus, a check item and radio items.
 6. **Fields**: text fields with a name, a search field (placeholder and magnifier, the caret
    at the end), a centered one, one taking four digits at most, one too narrow for its text
-   (the caret goes where the press is), a disabled one, and what the last edit did.
+   (the caret goes where the press is), a disabled one; number fields: a width in
+   millimetres, an opacity on a linear bar, a frequency on a logarithmic bar, an integer, a
+   disabled one; and what the last edit did.
 7. **Color vision**: a dropdown (normal vision, then the simulations and the corrections in
    two submenus, the current mode marked), then a button per mode: normal vision, the
    simulations of protanopia, deuteranopia, tritanopia and achromatopsia, and the corrections
