@@ -3,10 +3,12 @@
 //! Each editor keeps a state for every kind it has shown: switching its type and back finds
 //! it as it was. The gallery shows the component sheet; the other kinds are templates:
 //! [`viewport`] (a canvas that pans and zooms, rulers), [`outliner`] and [`info`] (on the list
-//! and tree view) and [`timeline`] (scrolling both ways).
+//! and tree view), [`timeline`] (scrolling both ways) and [`properties`] (the components in
+//! real use, editing the document's object).
 
 pub(crate) mod info;
 pub(crate) mod outliner;
+pub(crate) mod properties;
 pub(crate) mod saved;
 pub(crate) mod timeline;
 pub(crate) mod viewport;
@@ -45,20 +47,30 @@ pub(crate) enum EditorKind {
     Info,
     /// Time.
     Timeline,
+    /// The properties of the document's object.
+    Properties,
 }
 
 impl EditorKind {
     /// Every kind, in the order of the editor type dropdown.
-    pub(crate) const ALL: [Self; 5] = [
+    pub(crate) const ALL: [Self; 6] = [
         Self::Gallery,
         Self::Viewport,
         Self::Outliner,
+        Self::Properties,
         Self::Info,
         Self::Timeline,
     ];
 
     /// The titles of [`EditorKind::ALL`], for the dropdown.
-    const TITLES: [&'static str; 5] = ["Gallery", "Viewport", "Outliner", "Info", "Timeline"];
+    const TITLES: [&'static str; 6] = [
+        "Gallery",
+        "Viewport",
+        "Outliner",
+        "Properties",
+        "Info",
+        "Timeline",
+    ];
 
     /// The title shown in the editor's tab and type dropdown.
     pub(crate) fn title(self) -> &'static str {
@@ -68,6 +80,7 @@ impl EditorKind {
             Self::Outliner => "Outliner",
             Self::Info => "Info",
             Self::Timeline => "Timeline",
+            Self::Properties => "Properties",
         }
     }
 }
@@ -81,6 +94,7 @@ struct Entry {
     outliner: ListState,
     info: ListState,
     timeline: timeline::View,
+    properties: properties::View,
 }
 
 impl Entry {
@@ -92,6 +106,7 @@ impl Entry {
             outliner: ListState::new(),
             info: ListState::new(),
             timeline: timeline::View::default(),
+            properties: properties::View::default(),
         }
     }
 }
@@ -138,8 +153,8 @@ impl Editors {
     }
 }
 
-/// The workspace Koebi opens with: the gallery, the outliner and info on the right, the
-/// timeline below.
+/// The workspace Koebi opens with: the gallery, the outliner, the properties and info on the
+/// right, the timeline below.
 pub(crate) fn default_workspace() -> (Workspace, Editors) {
     let mut workspace = Workspace::new();
     let mut editors = Editors::default();
@@ -172,9 +187,14 @@ pub(crate) fn default_workspace() -> (Workspace, Editors) {
         }
     }
     if let Some(right) = right
-        && let Ok(split) = workspace.split(right, Orientation::Horizontal, fraction(11, 20), 1)
+        && let Ok(split) = workspace.split(right, Orientation::Horizontal, fraction(15, 20), 1)
     {
         editors.set(split.editor, EditorKind::Info);
+    }
+    if let Some(right) = right
+        && let Ok(split) = workspace.split(right, Orientation::Horizontal, fraction(7, 20), 1)
+    {
+        editors.set(split.editor, EditorKind::Properties);
     }
     (workspace, editors)
 }
@@ -189,6 +209,8 @@ pub(crate) struct Content {
     pub(crate) messages: Messages,
     /// The frames the timelines show, and the current one.
     pub(crate) playhead: Playhead,
+    /// The object the Properties editors edit.
+    pub(crate) object: properties::Object,
     /// The rows of the list being drawn.
     items: Vec<ListItem<'static>>,
 }
@@ -200,6 +222,7 @@ impl Content {
             tree: Tree::template(),
             messages: Messages::new(),
             playhead: Playhead::new(),
+            object: properties::Object::template(),
             items: Vec::new(),
         }
     }
@@ -261,6 +284,14 @@ impl EditorHost for Host<'_> {
                 &mut content.items,
             ),
             EditorKind::Viewport => viewport::show(ui, rect, self.design, &mut entry.viewport),
+            EditorKind::Properties => properties::show(
+                ui,
+                id,
+                rect,
+                self.window,
+                &mut content.object,
+                &mut entry.properties,
+            ),
             EditorKind::Timeline => timeline::show(
                 ui,
                 id,
@@ -297,7 +328,7 @@ mod tests {
     fn the_default_workspace_holds_every_kind_of_editor() {
         let (workspace, editors) = default_workspace();
         workspace.check().unwrap();
-        assert_eq!(workspace.layout().len(), 4);
+        assert_eq!(workspace.layout().len(), 5);
         let mut kinds: Vec<_> = workspace
             .editors()
             .map(|editor| editors.kind(editor))
@@ -309,6 +340,7 @@ mod tests {
                 EditorKind::Gallery,
                 EditorKind::Info,
                 EditorKind::Outliner,
+                EditorKind::Properties,
                 EditorKind::Timeline
             ]
         );
@@ -340,7 +372,7 @@ mod tests {
         host.copied(a, b);
         assert_eq!(host.title(b), "Outliner");
         assert_eq!(host.kind(b), 2);
-        host.set_kind(b, 4);
+        host.set_kind(b, 5);
         assert_eq!(host.title(b), "Timeline");
         host.removed(&[a]);
         assert_eq!(editors.kind(b), EditorKind::Timeline);
