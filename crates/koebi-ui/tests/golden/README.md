@@ -65,6 +65,16 @@ narrow for its value, which it leaves out), and a disabled field.
 | `number_fields_drag_dark.png` | 232x236 | the drag in progress, the button still down: drag background and border |
 | `number_fields_error_dark.png` | 232x236 | the first field typed with `2 * (3`, kept open after Enter with the error border |
 
+## The property group
+
+`property_group_sheet()` draws a first-level panel holding a property group: Name (a text
+field), Location X, Y, Z in millimetres as a vector, a checkbox in the input column, and a
+disabled row.
+
+| File | Size | Shows |
+|---|---|---|
+| `property_groups_dark.png` | 320x232 | labels on 35 % of the width, sub-groups, a vector, a disabled row |
+
 ## The collapsible panels
 
 `panel_sheet()` draws a first-level panel Transform (with an icon) holding a checkbox and a

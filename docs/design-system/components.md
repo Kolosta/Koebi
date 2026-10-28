@@ -15,6 +15,7 @@ tokens and how to write a new one.
 | Checkbox | `Checkbox::new(id, &mut checked)` + options, then `.show(ui, rect)` | `component.checkbox.*` |
 | Slider | `Ui::slider(id, rect, &mut value, range)` | `component.slider.*` |
 | Number field | `NumberField::new(id, &mut value)` + options, then `.show(ui, rect)` returns a `NumberFieldResponse` | `component.number-field.*` |
+| Property group | `PropertyGroup::new(ui, area)`, then `.row(ui, label)`, `.vector(ui, label, ["X", "Y", "Z"])`, `.unlabeled_row()`, `.wide_row()` return the inputs' rectangles | `component.property-group.*` |
 | Text field | `TextField::new(id, &mut text)` + options, then `.show(ui, rect)` returns a `TextFieldResponse` | `component.text-field.*` |
 | Panel | `Ui::panel(rect, level)` returns the content area | `component.panel.*` |
 | Collapsible panel | `CollapsiblePanel::new(id, &mut state, title)` + options, then `.show(ui, area, add)` returns a `CollapsiblePanelResponse` | `component.panel.*` |
@@ -27,6 +28,7 @@ tokens and how to write a new one.
 | Tooltip | `Ui::tooltip(id, text, bounds)` after the widget | `component.tooltip.*` |
 | Label | `Ui::label(text, rect, &font, color, align)`, `Ui::text_width(text, &font)` | `semantic.font.*`, `semantic.text.*` |
 | Scroll area | `Ui::scroll_area(id, rect, &mut state, content_size, axes, add)` | `component.scrollbar.*` |
+| Scrollbar | `Scrollbar::new(id, &mut state, axis, &mut offset, visible, content)`, then `.show(ui, area)` | `component.scrollbar.*` |
 | List and tree | `Ui::list(id, rect, &mut state, &items, &options, &mut delegate)` returns a `ListResponse` | `component.list-row.*`, `component.outliner.*`, `component.table.row.*`, `component.drop-target.*` |
 
 Line icons (`Icon::Check`, `Icon::Plus`, chevrons...) use `component.icon.*`. Labels use the
@@ -135,6 +137,28 @@ expressions), `.label(text)`, `.bar(mapping)`, `.vertical()`, `.step_buttons(fal
   `Cancelled`, also `confirmed()` and `cancelled()`) for a drag or an edit that ended this
   frame.
 
+## Property groups
+
+Labeled inputs in two columns, as in Blender's properties. `PropertyGroup::new(ui, area)`
+lays rows out from the top of `area`; each call draws a label and returns the rectangle the
+caller shows its input in:
+
+- `row(ui, label)`: the label right-aligned at the end of the first column
+  (`property-group.label.width-ratio` of the width, 35 % by default, minus
+  `property-group.column.gap`), the input filling the rest; `row_with_height` for taller
+  inputs (a list).
+- `vector(ui, "Location", ["X", "Y", "Z"])`: a sub-group of its own whose label goes with its
+  first component only ("Location X", then "Y", "Z"), drawn without allocating. A label too
+  long for its column is cut part by part, so that the axis letter stays.
+- `unlabeled_row()`: the input column alone (a checkbox, whose label follows its box);
+  `wide_row()`: both columns (a button, a message).
+- `start_group()` starts a sub-group: rows of a sub-group are `property-group.row.gap` apart,
+  sub-groups `property-group.gap.size`. `set_enabled(false)` dims the labels that follow, like
+  the disabled inputs beside them.
+- `height()` is the height used so far; `measure(rows, groups)` what to reserve with the
+  group's own metrics (a vector is a sub-group, and so is what follows it). `label_ratio`,
+  `row_height` and `gaps` take tokens or values.
+
 ## Text fields
 
 - **Editing** starts with a press on the field, which selects the whole text by default
@@ -224,6 +248,15 @@ overflows, thin at rest, growing and brightening as the pointer comes within
 `scrollbar.overlay.proximity` (eased, the area asking for frames until it settles); dragging
 the grab scrolls, a press on the track brings the grab under the pointer. Which axes scroll is
 the content's choice (`ScrollAxes`): lists vertically, timelines both ways.
+
+The scrollbar is a component of its own, for what scrolls its own way (a canvas, a timeline):
+`Scrollbar::new(id, &mut state, ScrollAxis::Vertical, &mut offset, visible, content)` shows
+in the margin at the end of the area passed to `show` (right for vertical, bottom for
+horizontal) and changes `offset`, from 0 to `content - visible`. Its `ScrollbarState` keeps
+the grab's growth (`growth()`, eased along `scrollbar.overlay.grow.duration` and `.curve`)
+and its drag (`is_dragging()`). `.near(false)` keeps it at rest while the pointer is not over
+what it scrolls; `ScrollbarResponse` says whether it showed and changed the offset. Scroll
+areas use one per axis.
 
 ## Lists and trees
 

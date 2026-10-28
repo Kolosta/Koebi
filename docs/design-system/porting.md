@@ -319,6 +319,13 @@ New component tokens for the workspace (#72), scroll areas (#71) and lists (#73)
 
 </details>
 
+New component tokens for property groups (#116) (6): `component.property-group.row.gap.default`
+= 2 px, `component.property-group.row.height.default` → `semantic.size.control-height`,
+`component.property-group.label.width-ratio` = 0.35,
+`component.property-group.column.gap.default` = 8 px,
+`component.property-group.label.color.default` → `semantic.text.color.secondary.default`,
+`component.property-group.label.color.disabled` → `semantic.text.color.disabled.default`.
+
 New component tokens for collapsible panels (#117) (11):
 `component.panel.header.height.default` → `semantic.size.control-height`,
 `component.panel.header.padding.default` = 6 px, `component.panel.header.gap.default` = 4 px,
