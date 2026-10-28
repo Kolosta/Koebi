@@ -233,7 +233,7 @@ pub(crate) struct Host<'a> {
     pub(crate) editors: &'a mut Editors,
     pub(crate) content: &'a mut Content,
     pub(crate) design: &'a mut DesignSystem,
-    /// The window, where the gallery's menus may open.
+    /// The window, where the editors' menus may open.
     pub(crate) window: Rect,
 }
 
@@ -289,6 +289,7 @@ impl EditorHost for Host<'_> {
                 id,
                 rect,
                 self.window,
+                self.design,
                 &mut content.object,
                 &mut entry.properties,
             ),
