@@ -15,6 +15,7 @@ tokens and how to write a new one.
 | Checkbox | `Checkbox::new(id, &mut checked)` + options, then `.show(ui, rect)` | `component.checkbox.*` |
 | Slider | `Ui::slider(id, rect, &mut value, range)` | `component.slider.*` |
 | Number field | `NumberField::new(id, &mut value)` + options, then `.show(ui, rect)` returns a `NumberFieldResponse` | `component.number-field.*` |
+| Property group | `PropertyGroup::new(ui, area)`, then `.row(ui, label)`, `.vector(ui, label, ["X", "Y", "Z"])`, `.unlabeled()`, `.wide()` return the inputs' rectangles | `component.property-group.*` |
 | Text field | `TextField::new(id, &mut text)` + options, then `.show(ui, rect)` returns a `TextFieldResponse` | `component.text-field.*` |
 | Panel | `Ui::panel(rect, level)` returns the content area | `component.panel.*` |
 | Separator | `Ui::separator(rect)` | `component.separator.*` |
@@ -133,6 +134,26 @@ expressions), `.label(text)`, `.bar(mapping)`, `.vertical()`, `.step_buttons(fal
 - **Response**: `changed`, `dragging`, `editing`, and `ended` (`EditEnd::Confirmed` or
   `Cancelled`, also `confirmed()` and `cancelled()`) for a drag or an edit that ended this
   frame.
+
+## Property groups
+
+Labeled inputs in two columns, as in Blender's properties. `PropertyGroup::new(ui, area)`
+lays rows out from the top of `area`; each call draws a label and returns the rectangle the
+caller shows its input in:
+
+- `row(ui, label)`: the label right-aligned at the end of the first column
+  (`property-group.label.width-ratio` of the width, 35 % by default, minus
+  `property-group.column.gap`), the input filling the rest; `row_with_height` for taller
+  inputs (a list).
+- `vector(ui, "Location", ["X", "Y", "Z"])`: a sub-group of its own whose label goes with its
+  first component only ("Location X", then "Y", "Z"), drawn without allocating.
+- `unlabeled()`: the input column alone (a checkbox, whose label follows its box);
+  `wide()`: both columns (a button, a message).
+- `group()` starts a sub-group: rows of a sub-group are `property-group.row.gap` apart,
+  sub-groups `property-group.gap.size`. `set_enabled(false)` dims the labels that follow, like
+  the disabled inputs beside them.
+- `height()` is the height used so far; `PropertyGroup::measure(ui, rows, groups)` what to
+  reserve. `label_ratio`, `row_height` and `gaps` take tokens or values.
 
 ## Text fields
 

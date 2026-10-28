@@ -14,6 +14,7 @@ mod menu;
 mod number_field;
 mod panel;
 mod parts;
+mod property_group;
 mod scroll;
 mod separator;
 mod slider;
@@ -45,6 +46,7 @@ pub use parts::{
     Content, ControlState, Hue, HueColors, PanelAlign, Placed, Placement, Shades, Side, States,
     Tone, ToneColors, Variant,
 };
+pub use property_group::{PropertyGroup, PropertyGroupStyle};
 pub use scroll::{SCROLL, ScrollAxes, ScrollContent, ScrollState, ScrollStyle};
 pub use separator::SeparatorStyle;
 pub use slider::SliderStyle;
