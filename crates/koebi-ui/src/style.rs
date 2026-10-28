@@ -20,8 +20,8 @@ use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
     ButtonStyle, CheckboxStyle, DropdownStyle, ListStyle, MenuStyle, NumberFieldStyle, PanelStyle,
-    ScrollStyle, SeparatorStyle, SliderStyle, SwatchStyle, TextFieldStyle, ThemeCardStyle,
-    TooltipStyle,
+    PropertyGroupStyle, ScrollStyle, SeparatorStyle, SliderStyle, SwatchStyle, TextFieldStyle,
+    ThemeCardStyle, TooltipStyle,
 };
 use crate::workspace::WorkspaceStyle;
 
@@ -284,6 +284,8 @@ pub struct Styles {
     pub slider: SliderStyle,
     /// [`NumberField`](crate::NumberField).
     pub number_field: NumberFieldStyle,
+    /// [`PropertyGroup`](crate::PropertyGroup).
+    pub property_group: PropertyGroupStyle,
     /// [`Ui::panel`](crate::Ui::panel).
     pub panel: PanelStyle,
     /// [`Ui::separator`](crate::Ui::separator).
@@ -335,6 +337,7 @@ impl Styles {
             checkbox: CheckboxStyle::resolve(tokens),
             slider: SliderStyle::resolve(tokens),
             number_field: NumberFieldStyle::resolve(tokens),
+            property_group: PropertyGroupStyle::resolve(tokens),
             panel: PanelStyle::resolve(tokens),
             separator: SeparatorStyle::resolve(tokens),
             swatch: SwatchStyle::resolve(tokens),
