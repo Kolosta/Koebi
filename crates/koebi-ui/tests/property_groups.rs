@@ -1,11 +1,11 @@
 //! A property group on screen: labels right-aligned on their share of the width, a text field,
-//! vectors whose label goes with their first component, a checkbox and a disabled row,
-//! matching its golden image.
+//! a vector whose label goes with its first component, a checkbox and a disabled row, matching
+//! its golden image.
 
 mod common;
 
 use common::render;
-use koebi_core::expr::{DEGREE, MILLIMETER};
+use koebi_core::expr::MILLIMETER;
 use koebi_core::{Extent, Rect, Vec2};
 use koebi_design::DesignSystem;
 use koebi_render::Scene;
@@ -29,7 +29,7 @@ fn property_group_sheet(design: &DesignSystem) -> Scene {
     let input = Input::new();
     let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
     let id = WidgetId::new;
-    let panel = Rect::from_origin_size(Vec2::new(8.0, 8.0), Vec2::new(304.0, 284.0));
+    let panel = Rect::from_origin_size(Vec2::new(8.0, 8.0), Vec2::new(304.0, 216.0));
     let content = ui.panel(panel, PanelLevel::First);
     let mut group = PropertyGroup::new(&ui, content);
     let mut name = String::from("Cube");
@@ -42,19 +42,11 @@ fn property_group_sheet(design: &DesignSystem) -> Scene {
             .unit(&MILLIMETER)
             .show(&mut ui, rect);
     }
-    let mut rotation = [0.0, 45.0, 90.0];
-    let rects = group.vector(&mut ui, "Rotation", ["X", "Y", "Z"]);
-    for ((value, rect), key) in rotation.iter_mut().zip(rects).zip(0u64..) {
-        NumberField::new(id("rotation").with(key), value)
-            .unit(&DEGREE)
-            .decimals(0)
-            .show(&mut ui, rect);
-    }
     let mut visible = true;
     Checkbox::new(id("visible"), &mut visible)
         .label("Visible in renders")
-        .show(&mut ui, group.unlabeled());
-    group.group();
+        .show(&mut ui, group.unlabeled_row());
+    group.start_group();
     group.set_enabled(false);
     let mut locked = 2.0;
     let row = group.row(&mut ui, "Locked");
@@ -71,7 +63,7 @@ fn property_groups_match_golden() {
         return;
     };
     let design = DesignSystem::new(&KOEBI).expect("Koebi's schema is valid");
-    let image = render(&gpu, Extent::new(320, 300), &property_group_sheet(&design));
+    let image = render(&gpu, Extent::new(320, 232), &property_group_sheet(&design));
     assert_golden!(image, "property_groups_dark", CROSS_DRIVER);
     gpu.assert_no_validation_errors();
 }

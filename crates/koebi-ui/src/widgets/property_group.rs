@@ -6,11 +6,12 @@
 //! (`property-group.row.gap`); sub-groups are apart (`property-group.gap.size`). A vector's
 //! label goes with its first component only: "Location X", then "Y" and "Z"
 //! ([`PropertyGroup::vector`]). The group draws labels; the caller shows the inputs in the
-//! rectangles it gets.
+//! rectangles it gets. A label too long for its column is cut part by part, so that a vector's
+//! axis letter stays.
 
 use koebi_core::{Color, Rect, Vec2};
-use koebi_design::Resolve;
 use koebi_design::kind;
+use koebi_design::{Resolve, Snapshot};
 use koebi_tokens::component;
 
 use crate::style::Prop;
@@ -54,8 +55,10 @@ impl PropertyGroupStyle {
 
 /// Lays labeled inputs out in two columns, one row at a time, from the top of an area. Keep it
 /// for one frame: make one per area and frame.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct PropertyGroup {
+#[derive(Clone, Copy, Debug)]
+pub struct PropertyGroup<'a> {
+    /// The tokens values given at the call resolve against.
+    tokens: &'a Snapshot,
     area: Rect,
     /// Where the next row starts.
     y: f32,
@@ -71,11 +74,13 @@ pub struct PropertyGroup {
     column_gap: f32,
 }
 
-impl PropertyGroup {
+impl<'a> PropertyGroup<'a> {
     /// A group laying rows out from the top of `area`, measured by the tokens.
-    pub fn new(ui: &Ui<'_>, area: Rect) -> Self {
-        let style = &ui.styles().property_group;
+    pub fn new(ui: &Ui<'a>, area: Rect) -> Self {
+        let styles = ui.styles();
+        let style = &styles.property_group;
         Self {
+            tokens: &styles.tokens,
             area,
             y: area.min.y,
             placed: false,
@@ -89,22 +94,27 @@ impl PropertyGroup {
         }
     }
 
-    /// Resolves `prop` against the tokens of `ui`.
-    fn resolve<K: kind::Kind>(ui: &Ui<'_>, prop: impl Into<Prop<K>>) -> K::Value {
-        prop.into().resolve(&ui.styles().tokens)
+    /// Resolves `prop` against the tokens.
+    fn resolve<K: kind::Kind>(&self, prop: impl Into<Prop<K>>) -> K::Value {
+        prop.into().resolve(self.tokens)
     }
 
     /// Gives the labels `ratio` of the width (0 to 1) in place of the token's share.
     #[must_use]
-    pub fn label_ratio(mut self, ui: &Ui<'_>, ratio: impl Into<Prop<kind::Number>>) -> Self {
-        self.label_ratio = Self::resolve(ui, ratio).clamp(0.0, 1.0);
+    pub fn label_ratio(mut self, ratio: impl Into<Prop<kind::Number>>) -> Self {
+        let ratio = self.resolve(ratio);
+        self.label_ratio = if ratio.is_nan() {
+            0.0
+        } else {
+            ratio.clamp(0.0, 1.0)
+        };
         self
     }
 
     /// Makes rows `height` high.
     #[must_use]
-    pub fn row_height(mut self, ui: &Ui<'_>, height: impl Into<Prop<kind::Dimension>>) -> Self {
-        self.row_height = Self::resolve(ui, height).max(0.0);
+    pub fn row_height(mut self, height: impl Into<Prop<kind::Dimension>>) -> Self {
+        self.row_height = self.resolve(height).max(0.0);
         self
     }
 
@@ -112,12 +122,11 @@ impl PropertyGroup {
     #[must_use]
     pub fn gaps(
         mut self,
-        ui: &Ui<'_>,
         row: impl Into<Prop<kind::Dimension>>,
         group: impl Into<Prop<kind::Dimension>>,
     ) -> Self {
-        self.row_gap = Self::resolve(ui, row).max(0.0);
-        self.group_gap = Self::resolve(ui, group).max(0.0);
+        self.row_gap = self.resolve(row).max(0.0);
+        self.group_gap = self.resolve(group).max(0.0);
         self
     }
 
@@ -128,7 +137,7 @@ impl PropertyGroup {
     }
 
     /// Starts a sub-group: the next row comes after the larger gap.
-    pub fn group(&mut self) {
+    pub fn start_group(&mut self) {
         self.new_group = true;
     }
 
@@ -137,15 +146,14 @@ impl PropertyGroup {
         self.y - self.area.min.y
     }
 
-    /// The height of `rows` rows in `groups` sub-groups, with the tokens' metrics: what to
-    /// reserve for a group.
-    pub fn measure(ui: &Ui<'_>, rows: usize, groups: usize) -> f32 {
-        let style = &ui.styles().property_group;
+    /// The height of `rows` rows of this group's height in `groups` sub-groups: what to
+    /// reserve. A vector is a sub-group of its own, and so is what follows it.
+    pub fn measure(&self, rows: usize, groups: usize) -> f32 {
         let count = |count: usize| f32::from(u16::try_from(count).unwrap_or(u16::MAX));
         let groups = groups.clamp(usize::from(rows > 0), rows.max(1));
-        count(rows) * style.row_height
-            + count(rows - groups.min(rows)) * style.row_gap
-            + count(groups.saturating_sub(1)) * style.group_gap
+        count(rows) * self.row_height
+            + count(rows - groups.min(rows)) * self.row_gap
+            + count(groups.saturating_sub(1)) * self.group_gap
     }
 
     /// The band of the next row, `height` high, across both columns.
@@ -221,13 +229,13 @@ impl PropertyGroup {
     }
 
     /// A row without label: the input column only (a checkbox, whose label follows its box).
-    pub fn unlabeled(&mut self) -> Rect {
+    pub fn unlabeled_row(&mut self) -> Rect {
         let band = self.band(self.row_height);
         self.input(band)
     }
 
     /// A row across both columns (a button, a message).
-    pub fn wide(&mut self) -> Rect {
+    pub fn wide_row(&mut self) -> Rect {
         self.band(self.row_height)
     }
 
@@ -240,7 +248,7 @@ impl PropertyGroup {
         components: [&str; N],
     ) -> [Rect; N] {
         if self.placed {
-            self.group();
+            self.start_group();
         }
         let mut rects = [Rect::ZERO; N];
         for (index, (rect, component)) in rects.iter_mut().zip(components).enumerate() {
@@ -252,7 +260,7 @@ impl PropertyGroup {
             }
             *rect = self.input(band);
         }
-        self.group();
+        self.start_group();
         rects
     }
 }
@@ -314,18 +322,28 @@ mod tests {
         assert_eq!(scene.glyph_count(), 4 + 8 + 1 + 1 + 1 + 1 + 4);
         assert_eq!(height, after.max.y - area().min.y);
         frame(|ui| {
-            assert_eq!(PropertyGroup::measure(ui, 5, 3), height);
-            assert_eq!(PropertyGroup::measure(ui, 0, 0), 0.0);
+            let group = PropertyGroup::new(ui, area());
+            assert_eq!(group.measure(5, 3), height);
+            assert_eq!(group.measure(0, 0), 0.0);
         });
     }
 
     #[test]
-    fn labels_end_before_the_gap_and_follow_the_enabled_state() {
+    fn labels_end_one_gap_before_their_input() {
+        let style = crate::test_styles().property_group;
+        let ((label_end, input_start), _) = frame(|ui| PropertyGroup::new(ui, area()).columns());
+        let labels = (300.0 * style.label_ratio).round();
+        assert_eq!(input_start, 10.0 + labels);
+        assert_eq!(label_end, 10.0 + labels - style.column_gap);
+    }
+
+    #[test]
+    fn wide_unlabeled_and_tall_rows_take_their_columns_and_height() {
         let style = crate::test_styles().property_group;
         let (rects, _) = frame(|ui| {
             let mut group = PropertyGroup::new(ui, area());
-            let wide = group.wide();
-            let bare = group.unlabeled();
+            let wide = group.wide_row();
+            let bare = group.unlabeled_row();
             group.set_enabled(false);
             let tall = group.row_with_height(ui, "List", 100.0);
             (wide, bare, tall)
@@ -335,7 +353,7 @@ mod tests {
         assert_eq!(bare.min.x, 10.0 + (300.0 * style.label_ratio).round());
         assert_eq!(tall.height(), 100.0);
         let ratio = frame(|ui| {
-            let mut group = PropertyGroup::new(ui, area()).label_ratio(ui, 0.5);
+            let mut group = PropertyGroup::new(ui, area()).label_ratio(0.5);
             group.row(ui, "Half")
         })
         .0;
@@ -343,11 +361,13 @@ mod tests {
         // Rows and gaps sized at the call.
         let (rows, _) = frame(|ui| {
             let mut group = PropertyGroup::new(ui, area())
-                .row_height(ui, 30.0)
-                .gaps(ui, 5.0, 20.0);
+                .row_height(30.0)
+                .gaps(5.0, 20.0);
             let first = group.row(ui, "A");
             let second = group.row(ui, "B");
-            group.group();
+            group.start_group();
+            // The group measures with its own metrics.
+            assert_eq!(group.measure(3, 2), 30.0 * 3.0 + 5.0 + 20.0);
             (first, second, group.row(ui, "C"))
         });
         assert_eq!(rows.0.height(), 30.0);

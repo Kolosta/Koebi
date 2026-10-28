@@ -68,12 +68,12 @@ narrow for its value, which it leaves out), and a disabled field.
 ## The property group
 
 `property_group_sheet()` draws a first-level panel holding a property group: Name (a text
-field), Location X, Y, Z in millimetres and Rotation X, Y, Z in degrees as vectors, a checkbox
-in the input column, and a disabled row.
+field), Location X, Y, Z in millimetres as a vector, a checkbox in the input column, and a
+disabled row.
 
 | File | Size | Shows |
 |---|---|---|
-| `property_groups_dark.png` | 320x300 | labels on 35 % of the width, sub-groups, vectors, a disabled row |
+| `property_groups_dark.png` | 320x232 | labels on 35 % of the width, sub-groups, a vector, a disabled row |
 
 ## Comparison and updates
 
