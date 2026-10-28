@@ -1,13 +1,18 @@
 //! The fields of the gallery: text fields with text, with a placeholder and an icon, centered,
-//! accepting digits only, too narrow for their text, and disabled.
+//! accepting digits only, too narrow for their text, and disabled; number fields in a unit,
+//! with linear and logarithmic bars, of integers, and disabled.
 
 use koebi_core::Rect;
-use koebi_ui::{Align, EditEnd, Icon, PanelLevel, SelectOnFocus, TextField, Ui, WidgetId};
+use koebi_core::expr::MILLIMETER;
+use koebi_ui::{
+    Align, BarMapping, EditEnd, Icon, NumberField, PanelLevel, SelectOnFocus, TextField, Ui,
+    WidgetId,
+};
 
 use super::{Metrics, cut_left, cut_top};
 
-/// Rows of the panel: the fields, then what the last edit did.
-pub(super) const ROWS: u16 = 2;
+/// Rows of the panel: the text fields, the number fields, then what the last edit did.
+pub(super) const ROWS: u16 = 3;
 
 /// The texts the panel edits.
 #[derive(Debug)]
@@ -18,6 +23,11 @@ pub(super) struct Fields {
     digits: String,
     long: String,
     disabled: String,
+    width: f64,
+    opacity: f64,
+    frequency: f64,
+    samples: i32,
+    locked: f64,
     /// What the last edit did.
     last: &'static str,
 }
@@ -31,6 +41,11 @@ impl Fields {
             digits: "2026".to_owned(),
             long: "A name far too long for its field, which scrolls while editing".to_owned(),
             disabled: "Disabled".to_owned(),
+            width: 12.5,
+            opacity: 0.8,
+            frequency: 440.0,
+            samples: 64,
+            locked: 1.0,
             last: "Click a field to edit it; Tab moves to the next one",
         }
     }
@@ -71,7 +86,40 @@ impl Fields {
             .enabled(false)
             .show(ui, line)
             .ended;
-        match ended.into_iter().flatten().next() {
+        let mut line = cut_top(&mut content, row, gap);
+        let fifth = ((line.width() - 4.0 * gap) / 5.0).floor();
+        let numbers = [
+            NumberField::new(ID.with(10), &mut self.width)
+                .label("Width")
+                .unit(&MILLIMETER)
+                .show(ui, cut_left(&mut line, fifth, gap))
+                .ended,
+            NumberField::new(ID.with(11), &mut self.opacity)
+                .label("Opacity")
+                .range(0.0, 1.0)
+                .bar(BarMapping::Linear)
+                .show(ui, cut_left(&mut line, fifth, gap))
+                .ended,
+            NumberField::new(ID.with(12), &mut self.frequency)
+                .label("Frequency")
+                .range(20.0, 20_000.0)
+                .decimals(0)
+                .step(10.0)
+                .bar(BarMapping::Logarithmic)
+                .show(ui, cut_left(&mut line, fifth, gap))
+                .ended,
+            NumberField::new(ID.with(13), &mut self.samples)
+                .label("Samples")
+                .range(1, 256)
+                .show(ui, cut_left(&mut line, fifth, gap))
+                .ended,
+            NumberField::new(ID.with(14), &mut self.locked)
+                .label("Locked")
+                .enabled(false)
+                .show(ui, line)
+                .ended,
+        ];
+        match ended.into_iter().chain(numbers).flatten().next() {
             Some(EditEnd::Confirmed) => self.last = "Kept the text",
             Some(EditEnd::Cancelled) => self.last = "Restored the text",
             None => {}

@@ -9,10 +9,10 @@
 mod button;
 mod checkbox;
 mod collapsible;
-mod drag_value;
 mod dropdown;
 mod list;
 mod menu;
+mod number_field;
 mod panel;
 mod parts;
 mod scroll;
@@ -28,7 +28,6 @@ pub use checkbox::{Checkbox, CheckboxStyle};
 pub use collapsible::{
     CollapsiblePanel, CollapsiblePanelResponse, CollapsiblePanelStyle, PanelState,
 };
-pub use drag_value::DragValueStyle;
 pub use dropdown::{Dropdown, DropdownStyle};
 pub use list::{
     DropPlace, ItemMark, LIST, LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT,
@@ -39,6 +38,11 @@ pub use list::{
 pub use menu::{
     MENU, MENU_ACTIONS, MENU_CHOOSE, MENU_CLOSE, MENU_CLOSE_SUBMENU, MENU_NEXT, MENU_OPEN_SUBMENU,
     MENU_PREVIOUS, MenuAction, MenuChoice, MenuItem, MenuMark, MenuState, MenuStyle, Submenu,
+};
+pub(crate) use number_field::NumberState;
+pub use number_field::{
+    BarMapping, NUMBER, NUMBER_ACTIONS, NUMBER_CANCEL, NUMBER_CONFIRM, NumberField,
+    NumberFieldResponse, NumberFieldStyle, Numeric,
 };
 pub use panel::{PanelLevel, PanelStyle};
 pub use parts::{

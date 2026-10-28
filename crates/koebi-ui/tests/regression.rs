@@ -14,8 +14,8 @@ use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    Button, Checkbox, Icon, Input, ListItem, ListOptions, ListState, PanelLevel, Styles,
-    ThemePreview, Ui, UiState, WidgetId,
+    BarMapping, Button, Checkbox, Icon, Input, ListItem, ListOptions, ListState, NumberField,
+    PanelLevel, Styles, ThemePreview, Ui, UiState, WidgetId,
 };
 
 /// Anti-aliased edges may differ by a few units between drivers.
@@ -79,13 +79,10 @@ fn draw_sheet(ui: &mut Ui<'_>, design: &DesignSystem) {
         &mut 0.3,
         0.0..=1.0,
     );
-    ui.drag_value(
-        id("drag"),
-        rect(160.0, 48.0, 148.0, 24.0),
-        &mut 0.6,
-        0.0..=1.0,
-        0.0,
-    );
+    NumberField::new(id("drag"), &mut 0.6)
+        .range(0.0, 1.0)
+        .bar(BarMapping::Linear)
+        .show(ui, rect(160.0, 48.0, 148.0, 24.0));
 
     // Panels, a separator and swatches.
     let content = ui.panel(rect(12.0, 84.0, 136.0, 80.0), PanelLevel::First);

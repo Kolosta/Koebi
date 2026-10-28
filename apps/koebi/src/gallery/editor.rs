@@ -6,6 +6,7 @@
 
 use core::ops::RangeInclusive;
 
+use koebi_core::expr::PIXEL;
 use koebi_core::{Color, Oklch, Rect, Vec2};
 use koebi_design::kind::{Dimension, Kind};
 use koebi_design::tier::Tier;
@@ -13,7 +14,8 @@ use koebi_design::{DesignSystem, Layers, Scope, Token};
 use koebi_render::{LinePrimitive, RectPrimitive};
 use koebi_tokens::{component, semantic};
 use koebi_ui::{
-    Button, Dropdown, Icon, MenuChoice, MenuItem, MenuState, PanelLevel, Tone, Ui, WidgetId,
+    BarMapping, Button, Dropdown, Icon, MenuChoice, MenuItem, MenuState, NumberField, PanelLevel,
+    Tone, Ui, WidgetId,
 };
 
 use super::{Gallery, Metrics, PALETTE, cut_left, cut_top};
@@ -223,10 +225,16 @@ fn dimension_row<T: Tier>(
         clippy::cast_possible_truncation,
         reason = "token ranges are small numbers of pixels, exact in f32"
     )]
-    let bounds = range.min() as f32..=range.max() as f32;
+    let (min, max) = (range.min() as f32, range.max() as f32);
+    let step = step_of(&range);
     let mut edited = value;
-    if ui
-        .drag_value(id.with(1), line, &mut edited, bounds, step_of(&range))
+    if NumberField::new(id.with(1), &mut edited)
+        .range(min, max)
+        .step(f64::from(step))
+        .decimals(usize::from(step < 1.0))
+        .unit(&PIXEL)
+        .bar(BarMapping::Linear)
+        .show(ui, line)
         .changed
     {
         set(design, scope, token, edited);

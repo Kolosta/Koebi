@@ -14,7 +14,7 @@ tokens and how to write a new one.
 | Button group | `ButtonGroup::horizontal()` or `::vertical()` + options, then `.show(ui, rect, &mut cells)` | `component.button.*`, `component.button.group.*` |
 | Checkbox | `Checkbox::new(id, &mut checked)` + options, then `.show(ui, rect)` | `component.checkbox.*` |
 | Slider | `Ui::slider(id, rect, &mut value, range)` | `component.slider.*` |
-| Drag value | `Ui::drag_value(id, rect, &mut value, range, step)` | `component.drag-value.*` |
+| Number field | `NumberField::new(id, &mut value)` + options, then `.show(ui, rect)` returns a `NumberFieldResponse` | `component.number-field.*` |
 | Text field | `TextField::new(id, &mut text)` + options, then `.show(ui, rect)` returns a `TextFieldResponse` | `component.text-field.*` |
 | Panel | `Ui::panel(rect, level)` returns the content area | `component.panel.*` |
 | Collapsible panel | `CollapsiblePanel::new(id, &mut state, title)` + options, then `.show(ui, area, add)` returns a `CollapsiblePanelResponse` | `component.panel.*` |
@@ -95,6 +95,45 @@ if save.show(ui, Rect::from_origin_size(origin, size)).clicked {
   `checked_background`, `border_color`, `checked_border_color`), size, radius and border, the
   mark and the label colors take overrides like buttons; the first line grows to hold a larger
   box or font.
+
+## Number fields
+
+Blender's number button. `NumberField::new(id, &mut value)` edits any `Numeric`: `f32`,
+`f64`, or integers (no decimals, whole steps). Options: `.range(min, max)` (or `.min`,
+`.max`), `.step(step)` (0.1 for floats, 1 for integers), `.decimals(count)` (2 for floats),
+`.unit(&unit)` (from `koebi_core::expr`, shown after the value and used for typed
+expressions), `.label(text)`, `.bar(mapping)`, `.vertical()`, `.step_buttons(false)`,
+`.enabled(false)`, and the metrics and colors per state as tokens or values.
+
+- **Showing**: the value rounded to its decimals, its unit in `number-field.unit.color`,
+  centred, or after its label at the start. A bounded field with `.bar(BarMapping::Linear)`,
+  `Logarithmic` or `Custom { to_fraction, from_fraction }` fills a bar to where its value
+  lies. A vertical field fills from the bottom and leaves out a value too wide for it.
+- **Step buttons** appear on hover at both ends: a step; Shift a finer one
+  (`number-field.drag.fine-factor`); Ctrl to the next round step (a multiple of the step);
+  Alt by the value's last decimal (1.25 steps by 0.01).
+- **Dragging**: a press locks the pointer at once (`Ui::lock_pointer`), and the field takes
+  the keyboard (`NUMBER` context). Past the drag threshold, the travel the locked pointer
+  reports (`Input::motion`) changes the value: a step per `number-field.drag.step-distance`
+  for an unbounded field, the whole range along the bar for a bounded one. Left Shift makes
+  the whole drag finer from its start, right Shift finer from the current value; Ctrl rounds
+  to steps; Alt keeps the start's last decimal. Escape or Delete (`number.cancel`) or a right
+  click cancel at any time and restore the value (a right click that cancels asks for no
+  context menu); Enter (`number.confirm`) or the release keep it. The pointer comes back where
+  the press was, or at the end of the bar of a bounded field, also when the application draws
+  the frame again with settled input. Travel past a bound does not count: coming back moves
+  the value at once. Integers step by whole numbers, at least 1, Shift included; Ctrl with
+  Shift rounds to the finer step.
+- **Typing**: a release before the threshold types the value in a text field, with every
+  decimal that matters and the unit. Keeping the edit evaluates the text as an expression
+  with units in the field's unit (`2*3 + 1cm`, see `koebi_core::expr`). Enter on an invalid
+  one keeps the edit open, its text and caret as they are, framed in
+  `number-field.border.color.error`; Escape, or leaving an invalid edit (a press outside,
+  Tab), leaves the value. A vertical field types in a box across it. Disabling a field drops
+  what was typed; a quick click on another field ends this field's edit first.
+- **Response**: `changed`, `dragging`, `editing`, and `ended` (`EditEnd::Confirmed` or
+  `Cancelled`, also `confirmed()` and `cancelled()`) for a drag or an edit that ended this
+  frame.
 
 ## Text fields
 

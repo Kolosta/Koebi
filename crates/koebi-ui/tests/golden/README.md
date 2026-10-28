@@ -15,7 +15,7 @@ images show what the themes look like.
 | Row | Components |
 |---|---|
 | 1 | a button, a hovered button with a plus icon, a toggle off and on, a checkbox unchecked and checked, three icon buttons (minus, cross, chevron up) |
-| 2 | a slider at 30 %, a drag value at 60 % with its step buttons |
+| 2 | a slider at 30 %, a bounded number field at 60 % with its bar |
 | 3 | a first-level panel holding a second-level panel, a separator and a third-level panel; three swatches: opaque, translucent over the checkerboard, selected |
 | 4 | theme cards of the dark (selected) and light themes |
 
@@ -50,6 +50,20 @@ field.
 | File | Size | Shows |
 |---|---|---|
 | `text_fields_dark.png` | 200x190 | every state of a text field but hover |
+
+## The number fields
+
+`number_field_sheet()` draws number fields, 184x22: plain (`1.50`), a width in millimetres
+with its label, opacity on a linear bar, frequency on a logarithmic bar, an integer, a
+labelled bounded field, a field dragged by three steps (`2.30`), a vertical field on a bar (too
+narrow for its value, which it leaves out), and a disabled field.
+
+| File | Size | Shows |
+|---|---|---|
+| `number_fields_dark.png` | 232x236 | the pointer over the labelled bounded field: its step buttons, its text in place |
+| `number_fields_light.png` | 232x236 | the same in the light theme |
+| `number_fields_drag_dark.png` | 232x236 | the drag in progress, the button still down: drag background and border |
+| `number_fields_error_dark.png` | 232x236 | the first field typed with `2 * (3`, kept open after Enter with the error border |
 
 ## The collapsible panels
 

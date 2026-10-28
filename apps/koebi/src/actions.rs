@@ -25,10 +25,11 @@ pub(crate) static GROUP: ActionGroup = ActionGroup {
 };
 
 /// Every action group of the application, for the keymap.
-pub(crate) static GROUPS: [&ActionGroup; 9] = [
+pub(crate) static GROUPS: [&ActionGroup; 10] = [
     &GROUP,
     &koebi_ui::MENU_ACTIONS,
     &koebi_ui::TEXT_ACTIONS,
+    &koebi_ui::NUMBER_ACTIONS,
     &koebi_ui::WORKSPACE_ACTIONS,
     &koebi_ui::LIST_ACTIONS,
     &crate::editors::viewport::ACTIONS,
