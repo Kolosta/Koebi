@@ -5,7 +5,7 @@ use crate::semantic;
 use koebi_design::define::*;
 
 koebi_design::tokens! {
-    group DROPDOWN: Component, start = DRAG_VALUE::END;
+    group DROPDOWN: Component, start = TEXT_FIELD::END;
 
     /// Dropdown: height.
     DROPDOWN_SIZE_HEIGHT = "dropdown.size.height": Dimension -> semantic::SIZE_CONTROL_HEIGHT;

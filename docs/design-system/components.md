@@ -15,6 +15,7 @@ tokens and how to write a new one.
 | Checkbox | `Checkbox::new(id, &mut checked)` + options, then `.show(ui, rect)` | `component.checkbox.*` |
 | Slider | `Ui::slider(id, rect, &mut value, range)` | `component.slider.*` |
 | Drag value | `Ui::drag_value(id, rect, &mut value, range, step)` | `component.drag-value.*` |
+| Text field | `TextField::new(id, &mut text)` + options, then `.show(ui, rect)` returns a `TextFieldResponse` | `component.text-field.*` |
 | Panel | `Ui::panel(rect, level)` returns the content area | `component.panel.*` |
 | Separator | `Ui::separator(rect)` | `component.separator.*` |
 | Color swatch | `Ui::swatch(id, rect, color, selected)` | `component.color-swatch.*` |
@@ -93,6 +94,54 @@ if save.show(ui, Rect::from_origin_size(origin, size)).clicked {
   `checked_background`, `border_color`, `checked_border_color`), size, radius and border, the
   mark and the label colors take overrides like buttons; the first line grows to hold a larger
   box or font.
+
+## Text fields
+
+- **Editing** starts with a press on the field, which selects the whole text by default
+  (`SelectOnFocus::All`; `End` puts the caret at the end, `Pointer` where the press is), with
+  Tab from the previous field, or when the application asks (`Ui::edit_text_field(id)`: a
+  name to type at once; a request no field answers within a frame is dropped). One field
+  edits at a time. While it does, it takes the whole keyboard (`Ui::grab_keyboard` with the
+  `TEXT` context): no shortcut of the contexts under the pointer fires, not even one the text
+  context does not bind. It also asks the platform for text input over itself
+  (`Ui::text_input`: the on-screen keyboard of touch devices, input method windows).
+- **Pointer**: a press places the caret (Shift extends the selection), a drag selects, a
+  double press selects a word; a drag from the press that selected everything selects from
+  the press instead, past the drag threshold. Presses count where they happened, even when
+  the pointer moved or left before the frame. The text scrolls to keep the caret in view.
+- **Keys** (`TEXT_ACTIONS`, rebindable like every action): moves by character, by word and
+  to the ends, each with Shift to select; deletion by character or word; select all; undo
+  and redo (by word for typing, one step per paste); copy, cut and paste. Defaults follow
+  the platform: Command on Apple platforms, Ctrl elsewhere, Option on Apple platforms and
+  Ctrl elsewhere for words. Keys and typed text between two frames all apply in the order
+  they came (each action remembers how much text was typed before it:
+  `Input::actions_in_text`). Typed text goes to one field a frame, and the field consumes
+  the actions it uses.
+- **Ending**: Enter keeps the text; Escape restores the text the edit started with; Tab and
+  Shift+Tab keep it and edit the next or previous enabled field in the order the last frame
+  showed them, wrapping around; a press outside keeps it (`OutsidePress::Confirm`) or
+  restores it (`OutsidePress::Cancel`), also when the press lands on another field drawn
+  before it. Another field starting to edit without a press, the field disabled or no longer
+  shown keep the text. An edit that ended away from its field tells the field in its next
+  frame, then is forgotten.
+- **The text** changes as the user types: `TextFieldResponse::changed` says when, and
+  `ended` (`EditEnd::Confirmed` or `EditEnd::Cancelled`) how the edit ended. A change the
+  application makes to the text during an edit (an undo of the document) carries on in the
+  edit, which can undo it.
+- **Constraints**: `.filter(fn(char) -> bool)` keeps only some characters, typed or pasted,
+  and `.max_chars(count)` limits the length. Pasted line breaks become spaces.
+- **Clipboard**: the interface never reaches the platform. `Ui::copy_text` leaves the text
+  in `UiState::copied_text` for the application to put on the clipboard after the frame;
+  `Ui::request_paste` sets `UiState::paste_requested`, and the application answers with
+  `UiState::set_pasted_text(text)` before the next frame, where the editing field inserts
+  it. A paste the filter empties changes nothing.
+- **Look**: a box of the field's colors per state (selected is editing, with the
+  `text-field.border.color.editing` focus border), an optional icon (`Icon::Search` for a
+  search field), the text cut with an ellipsis while idle or a placeholder while empty, and
+  while editing the selection (`text-field.selection.color`) and the caret
+  (`text-field.caret.width`, blinking every `text-field.caret.blink-interval` from 50 ms up,
+  which asks for the frames that turn it; shorter intervals keep it shown). Every property takes a token or a value at
+  the call, as for buttons.
 
 ## Scroll areas
 
