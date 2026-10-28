@@ -38,4 +38,34 @@ koebi_design::tokens! {
         semantic::BORDER_WIDTH_THIN;
     /// Panel: space between the border and the content.
     PANEL_PADDING_DEFAULT = "panel.padding.default": Dimension = px(8.0), range(0.0, 32.0);
+    /// Collapsible panel: height of a header.
+    PANEL_HEADER_HEIGHT_DEFAULT = "panel.header.height.default": Dimension ->
+        semantic::SIZE_CONTROL_HEIGHT;
+    /// Collapsible panel: space between a header's sides and its content.
+    PANEL_HEADER_PADDING_DEFAULT = "panel.header.padding.default": Dimension = px(6.0),
+        range(0.0, 32.0);
+    /// Collapsible panel: space between a header's chevron, icon and title.
+    PANEL_HEADER_GAP_DEFAULT = "panel.header.gap.default": Dimension = px(4.0),
+        range(0.0, 24.0);
+    /// Collapsible panel: lightness added to a header under the pointer (OKLCH).
+    PANEL_HEADER_HOVER_LIGHTNESS = "panel.header.hover.lightness": Number = 0.04,
+        range(-0.5, 0.5);
+    /// Collapsible panel: side of a header's chevron.
+    PANEL_CHEVRON_SIZE = "panel.chevron.size": Dimension = px(10.0), range(0.0, 32.0);
+    /// Collapsible panel: chevron color.
+    PANEL_CHEVRON_COLOR_DEFAULT = "panel.chevron.color.default": Color ->
+        semantic::TEXT_COLOR_SECONDARY_DEFAULT;
+    /// Collapsible panel: space above and below its content.
+    PANEL_CONTENT_PADDING_VERTICAL = "panel.content.padding.vertical": Dimension = px(6.0),
+        range(0.0, 32.0);
+    /// Collapsible panel: duration of a panel opening.
+    PANEL_EXPAND_DURATION = "panel.expand.duration": Duration ->
+        semantic::ANIMATION_DURATION_EXPAND;
+    /// Collapsible panel: duration of a panel closing.
+    PANEL_COLLAPSE_DURATION = "panel.collapse.duration": Duration ->
+        semantic::ANIMATION_DURATION_COLLAPSE;
+    /// Collapsible panel: curve of a panel opening; values past 0 and 1 hold at the ends.
+    PANEL_EXPAND_CURVE = "panel.expand.curve": Curve -> semantic::ANIMATION_CURVE_EXPAND;
+    /// Collapsible panel: curve of a panel closing; values past 0 and 1 hold at the ends.
+    PANEL_COLLAPSE_CURVE = "panel.collapse.curve": Curve -> semantic::ANIMATION_CURVE_COLLAPSE;
 }

@@ -51,6 +51,16 @@ field.
 |---|---|---|
 | `text_fields_dark.png` | 200x190 | every state of a text field but hover |
 
+## The collapsible panels
+
+`panel_sheet()` draws a first-level panel Transform (with an icon) holding a checkbox and a
+second-level panel Delta, which holds a checkbox and a third-level panel Advanced; below, a
+closed first-level panel Visibility.
+
+| File | Size | Shows |
+|---|---|---|
+| `collapsible_panels_dark.png` | 280x220 | three levels, each header in its parent's content color; turned and closed chevrons |
+
 ## Comparison and updates
 
 Same tolerance as the renderer's golden images: `Tolerance::new(3, 8)`. Never edit these

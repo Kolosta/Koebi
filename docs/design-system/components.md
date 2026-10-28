@@ -17,6 +17,7 @@ tokens and how to write a new one.
 | Drag value | `Ui::drag_value(id, rect, &mut value, range, step)` | `component.drag-value.*` |
 | Text field | `TextField::new(id, &mut text)` + options, then `.show(ui, rect)` returns a `TextFieldResponse` | `component.text-field.*` |
 | Panel | `Ui::panel(rect, level)` returns the content area | `component.panel.*` |
+| Collapsible panel | `CollapsiblePanel::new(id, &mut state, title)` + options, then `.show(ui, area, add)` returns a `CollapsiblePanelResponse` | `component.panel.*` |
 | Separator | `Ui::separator(rect)` | `component.separator.*` |
 | Color swatch | `Ui::swatch(id, rect, color, selected)` | `component.color-swatch.*` |
 | Theme card | `Ui::theme_card(id, rect, &preview, selected)` | `component.theme-card.*` |
@@ -142,6 +143,33 @@ if save.show(ui, Rect::from_origin_size(origin, size)).clicked {
   (`text-field.caret.width`, blinking every `text-field.caret.blink-interval` from 50 ms up,
   which asks for the frames that turn it; shorter intervals keep it shown). Every property takes a token or a value at
   the call, as for buttons.
+
+## Collapsible panels
+
+Boxes holding trees of sections that fold, as in Blender's properties.
+`CollapsiblePanel::new(id, &mut state, title)` keeps its fold in a `PanelState` the caller
+owns (open or closed, the openness animating between, and the height of the content measured
+on the last frame).
+
+- **Header**: `panel.header.height` high, a chevron (`panel.chevron.*`) pointing right while
+  closed and turning down as the panel opens, an optional `.icon(icon)`, the title, and room
+  for the caller's buttons (`.trailing(width)`, returned as `CollapsiblePanelResponse::trailing`;
+  draw them after the panel so that they take the pointer). Under the pointer, the header
+  lightens by `panel.header.hover.lightness`.
+- **Content**: `show(ui, area, add)` calls `add(ui, rect)` with the full width of the panel
+  from the top of its content; `add` draws and returns the height it used (a property group's
+  `height()`, a nested panel's `height`). Rows inset themselves by `panel.padding`; nested
+  panels fill the width. The content draws while the panel is open even a little, clipped to
+  the share shown; a panel never measured shows its content from the frame after it first
+  drew it (it asks for that frame at once), so nested levels settle one frame each.
+- **Levels**: `.level(PanelLevel::Second)` and `Third` for panels inside a panel's content.
+  A first-level panel is framed and rounded, its header in `panel.header.background.color`;
+  a nested panel's header takes its parent's content color and its content the next level's
+  (`panel.body.background.color.level-*`).
+- **Folding**: a press on the header opens or closes it; the content slides along
+  `panel.expand.duration` and `panel.expand.curve` (or `panel.collapse.*`), and the panel asks
+  for frames while it moves. The response's `height` is what to advance by, then
+  `panel.gap.size` before the next panel.
 
 ## Scroll areas
 
