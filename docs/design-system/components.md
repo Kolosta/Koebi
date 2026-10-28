@@ -117,15 +117,22 @@ expressions), `.label(text)`, `.bar(mapping)`, `.vertical()`, `.step_buttons(fal
   for an unbounded field, the whole range along the bar for a bounded one. Left Shift makes
   the whole drag finer from its start, right Shift finer from the current value; Ctrl rounds
   to steps; Alt keeps the start's last decimal. Escape or Delete (`number.cancel`) or a right
-  click cancel at any time and restore the value; Enter (`number.confirm`) or the release
-  keep it. The pointer comes back where the press was, or at the end of the bar of a bounded
-  field.
+  click cancel at any time and restore the value (a right click that cancels asks for no
+  context menu); Enter (`number.confirm`) or the release keep it. The pointer comes back where
+  the press was, or at the end of the bar of a bounded field, also when the application draws
+  the frame again with settled input. Travel past a bound does not count: coming back moves
+  the value at once. Integers step by whole numbers, at least 1, Shift included; Ctrl with
+  Shift rounds to the finer step.
 - **Typing**: a release before the threshold types the value in a text field, with every
   decimal that matters and the unit. Keeping the edit evaluates the text as an expression
-  with units in the field's unit (`2*3 + 1cm`, see `koebi_core::expr`); an invalid one keeps
-  the edit open, framed in `number-field.border.color.error`; Escape leaves the value.
+  with units in the field's unit (`2*3 + 1cm`, see `koebi_core::expr`). Enter on an invalid
+  one keeps the edit open, its text and caret as they are, framed in
+  `number-field.border.color.error`; Escape, or leaving an invalid edit (a press outside,
+  Tab), leaves the value. A vertical field types in a box across it. Disabling a field drops
+  what was typed; a quick click on another field ends this field's edit first.
 - **Response**: `changed`, `dragging`, `editing`, and `ended` (`EditEnd::Confirmed` or
-  `Cancelled`) for a drag or an edit that ended this frame.
+  `Cancelled`, also `confirmed()` and `cancelled()`) for a drag or an edit that ended this
+  frame.
 
 ## Text fields
 

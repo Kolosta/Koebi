@@ -285,6 +285,15 @@ impl<'a> Ui<'a> {
         state.grabbing_keyboard = false;
         state.redraw_at = None;
         state.pointer_lock = None;
+        // The end of a number field's drag asks every pass drawn with its input to keep the
+        // pointer where it comes back (the application may draw a frame twice).
+        if let Some((at, time)) = state.number.release {
+            if time == input.time() {
+                state.pointer_lock = Some(at);
+            } else {
+                state.number.release = None;
+            }
+        }
         state.text_area = None;
         state.consumed.clear();
         state.text.begin_frame();

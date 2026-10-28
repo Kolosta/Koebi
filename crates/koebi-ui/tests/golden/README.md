@@ -53,15 +53,17 @@ field.
 
 ## The number fields
 
-`number_field_sheet()` draws number fields, 184x22, in the dark theme: plain (`1.50`), a width
-in millimetres with its label, opacity on a linear bar, frequency on a logarithmic bar, an
-integer, a bounded field under the pointer with its step buttons, a field after a drag of three
-steps (`2.30`), a vertical field on a bar (too narrow for its value, which it leaves out), and
-a disabled field.
+`number_field_sheet()` draws number fields, 184x22: plain (`1.50`), a width in millimetres
+with its label, opacity on a linear bar, frequency on a logarithmic bar, an integer, a
+labelled bounded field, a field dragged by three steps (`2.30`), a vertical field on a bar (too
+narrow for its value, which it leaves out), and a disabled field.
 
 | File | Size | Shows |
 |---|---|---|
-| `number_fields_dark.png` | 232x236 | every state of a number field but a drag in progress |
+| `number_fields_dark.png` | 232x236 | the pointer over the labelled bounded field: its step buttons, its text in place |
+| `number_fields_light.png` | 232x236 | the same in the light theme |
+| `number_fields_drag_dark.png` | 232x236 | the drag in progress, the button still down: drag background and border |
+| `number_fields_error_dark.png` | 232x236 | the first field typed with `2 * (3`, kept open after Enter with the error border |
 
 ## Comparison and updates
 

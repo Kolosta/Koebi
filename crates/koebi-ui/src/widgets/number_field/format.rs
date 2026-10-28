@@ -30,7 +30,7 @@ impl ValueText {
     }
 
     /// `value` with `decimals` decimals (none for integers), then the unit's symbol: `1.50 m`,
-    /// `90°`.
+    /// `90°`. Huge values show in scientific notation (`1.50e20`).
     pub(crate) fn shown(value: f64, decimals: usize, unit: Option<&Unit>) -> Self {
         let mut text = Self::new();
         // A rounded zero shows without its sign.
@@ -39,7 +39,11 @@ impl ValueText {
         } else {
             value
         };
-        let _ = write!(text, "{rounded:.decimals$}");
+        let _ = if is_huge(rounded) {
+            write!(text, "{rounded:.decimals$e}")
+        } else {
+            write!(text, "{rounded:.decimals$}")
+        };
         text.push_unit(unit);
         text
     }
@@ -48,6 +52,12 @@ impl ValueText {
     /// unit's symbol: the text an edit starts from.
     pub(crate) fn typed(value: f64, decimals: usize, unit: Option<&Unit>) -> Self {
         let mut text = Self::new();
+        if is_huge(value) {
+            // Every digit that matters, as an expression reads it back (`1e70`).
+            let _ = write!(text, "{value:e}");
+            text.push_unit(unit);
+            return text;
+        }
         let precise = decimals + 4;
         let _ = write!(text, "{value:.precise$}");
         if text.as_str().contains('.') {
@@ -82,6 +92,11 @@ impl ValueText {
             let _ = self.write_str(unit.symbol);
         }
     }
+}
+
+/// `true` for values too large to write digit by digit, and for infinities and NaN.
+fn is_huge(value: f64) -> bool {
+    value.is_nan() || value.abs() >= 1e15
 }
 
 /// `true` when `value` shows as zero with `decimals` decimals.
@@ -139,5 +154,20 @@ mod tests {
         assert_eq!(ValueText::typed(2.0, 2, Some(&MILLIMETER)).as_str(), "2 mm");
         assert_eq!(ValueText::typed(0.123_456, 2, None).as_str(), "0.123456");
         assert_eq!(ValueText::typed(-0.000_000_1, 2, None).as_str(), "0");
+    }
+
+    #[test]
+    fn huge_values_keep_their_magnitude() {
+        // Regression test: the digits of 1e64 overflowed the buffer, and the cut text read
+        // back ten times smaller.
+        assert_eq!(ValueText::typed(1e64, 2, None).as_str(), "1e64");
+        assert_eq!(ValueText::shown(1.5e20, 2, None).as_str(), "1.50e20");
+        let max = ValueText::typed(f64::MAX, 2, None);
+        let context = koebi_core::expr::Context::default();
+        assert_eq!(
+            koebi_core::expr::evaluate(max.as_str(), &context),
+            Ok(f64::MAX)
+        );
+        assert_eq!(ValueText::shown(f64::INFINITY, 2, None).as_str(), "inf");
     }
 }

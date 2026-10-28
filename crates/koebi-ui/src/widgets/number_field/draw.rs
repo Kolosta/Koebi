@@ -25,14 +25,16 @@ impl<N: Numeric> NumberField<'_, N> {
         Self::prop(ui, self.colors[part][state.index()].as_ref(), fallback)
     }
 
-    /// Draws the field in `rect` in `state`: the box, the bar, the text, and the step buttons
-    /// `steps` when they show.
+    /// Draws the field in `rect` in `state`: the box, the bar, the text (clear of the step
+    /// buttons when the field `has_steps`), and the step buttons `steps` when they show.
+    #[allow(clippy::too_many_arguments, reason = "the parts of one field")]
     pub(super) fn draw(
         &self,
         ui: &mut Ui<'_>,
         rect: Rect,
         body: Rect,
         state: ControlState,
+        has_steps: bool,
         steps: Option<[Rect; 2]>,
         step_responses: &[Response; 2],
     ) {
@@ -59,7 +61,7 @@ impl<N: Numeric> NumberField<'_, N> {
             if let Some(areas) = steps {
                 self.draw_steps(ui, areas, step_responses);
             }
-            self.draw_text(ui, rect, body, steps.is_some(), state);
+            self.draw_text(ui, rect, body, has_steps, state);
         });
     }
 

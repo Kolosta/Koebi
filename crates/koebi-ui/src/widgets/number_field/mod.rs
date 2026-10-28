@@ -74,7 +74,7 @@ pub static NUMBER_ACTIONS: ActionGroup = ActionGroup {
 };
 
 /// A number a [`NumberField`] edits: floats, or integers that show no decimals and step by
-/// whole numbers.
+/// whole numbers. Fields compute in `f64`: integers beyond 2⁵³ lose their last digits.
 pub trait Numeric: Copy + PartialEq {
     /// `true` for integers.
     const INTEGER: bool;
@@ -82,7 +82,8 @@ pub trait Numeric: Copy + PartialEq {
     /// The number as a float.
     fn to_f64(self) -> f64;
 
-    /// The number nearest to `value`, within the type's range (0 for NaN).
+    /// The number nearest to `value`: integers saturate at their bounds and give 0 for NaN;
+    /// floats keep NaN and infinities.
     fn from_f64(value: f64) -> Self;
 }
 
@@ -107,10 +108,15 @@ impl Numeric for f32 {
 
     #[allow(
         clippy::cast_possible_truncation,
-        reason = "a field of f32 keeps the precision of f32"
+        reason = "a field of f32 keeps the precision of f32, within its range"
     )]
     fn from_f64(value: f64) -> Self {
-        value as f32
+        let max = f64::from(f32::MAX);
+        if value.is_finite() {
+            value.max(-max).min(max) as f32
+        } else {
+            value as f32
+        }
     }
 }
 
@@ -123,7 +129,7 @@ macro_rules! numeric_integer {
                 #[allow(
                     clippy::cast_precision_loss,
                     clippy::cast_lossless,
-                    reason = "values of fields are far below 2^53"
+                    reason = "fields edit integers below 2^53, which floats hold exactly"
                 )]
                 fn to_f64(self) -> f64 {
                     self as f64
@@ -157,6 +163,18 @@ pub struct NumberFieldResponse {
     pub editing: bool,
     /// How a drag or an edit ended this frame: kept, or cancelled and restored.
     pub ended: Option<EditEnd>,
+}
+
+impl NumberFieldResponse {
+    /// `true` when a drag or an edit ended keeping the value.
+    pub fn confirmed(&self) -> bool {
+        self.ended == Some(EditEnd::Confirmed)
+    }
+
+    /// `true` when a drag or an edit ended restoring the value it started from.
+    pub fn cancelled(&self) -> bool {
+        self.ended == Some(EditEnd::Cancelled)
+    }
 }
 
 /// The parts whose colors the call can set per state.
@@ -244,8 +262,9 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         self
     }
 
-    /// What a step button adds and round steps are multiples of: 1 for integers, 0.1 for
-    /// floats by default.
+    /// What a step button adds and round steps are multiples of, and what an unbounded drag
+    /// adds per `number-field.drag.step-distance`: 1 for integers (whole steps, at least 1),
+    /// 0.1 for floats by default.
     #[must_use]
     pub fn step(mut self, step: f64) -> Self {
         self.step = Some(step);
@@ -382,11 +401,18 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         }
     }
 
-    /// The step: the call's, or 1 for integers and 0.1 for floats.
+    /// The step: the call's, or 1 for integers and 0.1 for floats; whole and at least 1 for
+    /// integers.
     fn step_value(&self) -> f64 {
-        self.step
+        let step = self
+            .step
             .filter(|step| step.is_finite() && *step > 0.0)
-            .unwrap_or(if N::INTEGER { 1.0 } else { 0.1 })
+            .unwrap_or(if N::INTEGER { 1.0 } else { 0.1 });
+        if N::INTEGER {
+            step.round().max(1.0)
+        } else {
+            step
+        }
     }
 
     /// The decimals shown: none for integers, the call's or 2 for floats.
@@ -408,13 +434,24 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         self.bar.filter(|_| self.is_bounded())
     }
 
-    /// How travel along `body` turns into values.
-    fn scale(&self, ui: &Ui<'_>, body: Rect) -> Scale {
+    /// The track of the bar: inside the border, across the whole field. The bar is drawn on
+    /// it, a bounded drag runs the range along it, and the pointer comes back on it.
+    fn track(&self, ui: &Ui<'_>, rect: Rect) -> Rect {
+        let style = &ui.styles().number_field;
+        rect.inset(Self::prop(
+            ui,
+            self.border_width.as_ref(),
+            style.border_width,
+        ))
+    }
+
+    /// How travel along `track` turns into values.
+    fn scale(&self, ui: &Ui<'_>, track: Rect) -> Scale {
         let style = &ui.styles().number_field;
         let length = if self.vertical {
-            body.height()
+            track.height()
         } else {
-            body.width()
+            track.width()
         };
         Scale {
             step: self.step_value(),
@@ -424,6 +461,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
             min: self.min,
             max: self.max,
             bar: self.shown_bar().map(|mapping| (mapping, length)),
+            min_step: if N::INTEGER { 1.0 } else { 0.0 },
         }
     }
 
@@ -465,15 +503,17 @@ impl<'a, N: Numeric> NumberField<'a, N> {
 
     /// Shows the field in `rect`: dragged, stepped or typed when it should be.
     pub fn show(self, ui: &mut Ui<'_>, rect: Rect) -> NumberFieldResponse {
-        if ui
-            .state
-            .number
-            .edit
-            .as_ref()
-            .is_some_and(|edit| edit.id == self.id)
-        {
+        let number = &mut ui.state.number;
+        let typed = number.edit.as_ref().is_some_and(|edit| edit.id == self.id);
+        if typed && self.enabled {
             return self.show_edit(ui, rect);
         }
-        self.show_value(ui, rect)
+        // A field disabled while its value is typed drops what was typed.
+        let dropped = typed && number.edit.take().is_some();
+        let mut out = self.show_value(ui, rect);
+        if dropped {
+            out.ended = Some(EditEnd::Cancelled);
+        }
+        out
     }
 }

@@ -226,6 +226,37 @@ fn value_components_show_their_value() {
 }
 
 #[test]
+fn vertical_bars_fill_from_the_bottom_and_disabled_bars_dim() {
+    let Some(gpu) = gpu_or_skip("vertical_bars_fill_from_the_bottom_and_disabled_bars_dim") else {
+        return;
+    };
+    let design = design();
+    let scene = draw(&design, |ui| {
+        let (mut quarter, mut half) = (0.25, 0.5);
+        NumberField::new(WidgetId::new("tall"), &mut quarter)
+            .range(0.0, 1.0)
+            .bar(BarMapping::Linear)
+            .vertical()
+            .show(ui, rect(10.0, 4.0, 24.0, 92.0));
+        NumberField::new(WidgetId::new("locked"), &mut half)
+            .range(0.0, 1.0)
+            .bar(BarMapping::Linear)
+            .enabled(false)
+            .show(ui, rect(60.0, 10.0, 120.0, 24.0));
+    });
+    let image = render(&gpu, SIZE, &scene);
+    let fill = design.get(component::NUMBER_FIELD_FILL_COLOR_DEFAULT);
+    let empty = design.get(component::NUMBER_FIELD_BACKGROUND_COLOR_DEFAULT);
+    // A quarter: the bottom quarter is filled, the top is not.
+    assert_pixel(&image, 22, 88, fill.to_rgba8());
+    assert_pixel(&image, 22, 20, empty.to_rgba8());
+    // A disabled field fills its bar in the disabled color.
+    let disabled = design.get(component::NUMBER_FIELD_FILL_COLOR_DISABLED);
+    assert_pixel(&image, 70, 22, disabled.to_rgba8());
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
 fn theme_cards_paint_other_themes() {
     let Some(gpu) = gpu_or_skip("theme_cards_paint_other_themes") else {
         return;

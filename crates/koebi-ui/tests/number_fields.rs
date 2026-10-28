@@ -1,6 +1,6 @@
 //! Number fields on screen: plain, with a label and a unit, with linear and logarithmic bars,
-//! of integers, hovered with their step buttons, dragged, vertical, and disabled, matching
-//! their golden image.
+//! of integers, hovered with their step buttons, dragged, vertical, disabled, and typed with
+//! an invalid expression, in the dark and light themes, matching their golden images.
 
 mod common;
 
@@ -12,7 +12,7 @@ use koebi_render::Scene;
 use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
-use koebi_ui::{BarMapping, Input, NumberField, Styles, Ui, UiState, WidgetId};
+use koebi_ui::{BarMapping, Input, NumberField, Styles, TEXT_CONFIRM, Ui, UiState, WidgetId};
 
 /// Anti-aliased edges may differ by a few units between drivers.
 const CROSS_DRIVER: Tolerance = Tolerance::new(3, 8);
@@ -68,6 +68,7 @@ fn frame(state: &mut UiState, styles: &Styles, input: &Input, values: &mut Value
         .range(1, 256)
         .show(&mut ui, row(4));
     NumberField::new(id("hovered"), &mut values.hovered)
+        .label("Hovered")
         .range(0.0, 10.0)
         .bar(BarMapping::Linear)
         .show(&mut ui, row(5));
@@ -87,9 +88,19 @@ fn frame(state: &mut UiState, styles: &Styles, input: &Input, values: &mut Value
     scene
 }
 
-/// The sheet with the pointer over the sixth field (its step buttons show) after dragging
-/// the seventh.
-fn number_field_sheet(design: &DesignSystem) -> Scene {
+/// What the sheet shows besides its idle fields.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Scenario {
+    /// The pointer over the sixth field (its step buttons show), after a drag of the seventh.
+    Hover,
+    /// The seventh field dragged by three steps, the button still down.
+    Drag,
+    /// The first field typed with an invalid expression, kept open after Enter.
+    Error,
+}
+
+/// The sheet in `scenario`.
+fn number_field_sheet(design: &DesignSystem, scenario: Scenario) -> Scene {
     let styles = Styles::resolve(design);
     let mut state = UiState::new();
     state.set_fonts(Fonts::with_embedded());
@@ -105,37 +116,86 @@ fn number_field_sheet(design: &DesignSystem) -> Scene {
         tall: 0.6,
         locked: 1.0,
     };
-    frame(&mut state, &styles, &input, &mut values);
-    // A drag of the seventh field: pressed, moved by three steps, released.
+    let mut next = |input: &mut Input, values: &mut Values| {
+        let scene = frame(&mut state, &styles, input, values);
+        input.end_frame();
+        scene
+    };
+    next(&mut input, &mut values);
+    if scenario == Scenario::Error {
+        let press = row(0).center();
+        input.primary_button(true, press);
+        next(&mut input, &mut values);
+        input.primary_button(false, press);
+        next(&mut input, &mut values);
+        next(&mut input, &mut values);
+        input.typed("2 * (3");
+        next(&mut input, &mut values);
+        input.trigger(&TEXT_CONFIRM);
+        next(&mut input, &mut values);
+        return next(&mut input, &mut values);
+    }
+    // A drag of the seventh field: pressed, moved by three steps.
     let press = row(6).center();
     input.primary_button(true, press);
-    frame(&mut state, &styles, &input, &mut values);
-    input.end_frame();
+    next(&mut input, &mut values);
     input.pointer_moved_by(Vec2::new(3.0 * styles.number_field.step_distance, 0.0));
-    frame(&mut state, &styles, &input, &mut values);
-    input.end_frame();
-    input.primary_button(false, press);
-    frame(&mut state, &styles, &input, &mut values);
-    input.end_frame();
-    // The pointer comes back, then rests over the sixth field.
-    input.pointer_moved(row(5).center());
-    frame(&mut state, &styles, &input, &mut values);
-    input.end_frame();
+    let dragging = next(&mut input, &mut values);
     assert!(
         (values.dragged - 2.3).abs() < 1e-9,
         "dragged to {}",
         values.dragged
     );
-    frame(&mut state, &styles, &input, &mut values)
+    if scenario == Scenario::Drag {
+        return dragging;
+    }
+    input.primary_button(false, press);
+    next(&mut input, &mut values);
+    // The pointer comes back, then rests over the sixth field.
+    input.pointer_moved(row(5).center());
+    next(&mut input, &mut values);
+    next(&mut input, &mut values)
+}
+
+/// Renders the sheet in `scenario` and compares it with the golden image `name`.
+fn check(design: &DesignSystem, scenario: Scenario, name: &str) {
+    let Some(gpu) = gpu_or_skip(name) else {
+        return;
+    };
+    let image = render(
+        &gpu,
+        Extent::new(232, 236),
+        &number_field_sheet(design, scenario),
+    );
+    assert_golden!(image, name, CROSS_DRIVER);
+    gpu.assert_no_validation_errors();
+}
+
+fn design() -> DesignSystem {
+    DesignSystem::new(&KOEBI).expect("Koebi's schema is valid")
 }
 
 #[test]
 fn number_fields_match_golden() {
-    let Some(gpu) = gpu_or_skip("number_fields_match_golden") else {
-        return;
-    };
-    let design = DesignSystem::new(&KOEBI).expect("Koebi's schema is valid");
-    let image = render(&gpu, Extent::new(232, 236), &number_field_sheet(&design));
-    assert_golden!(image, "number_fields_dark", CROSS_DRIVER);
-    gpu.assert_no_validation_errors();
+    check(&design(), Scenario::Hover, "number_fields_dark");
+}
+
+#[test]
+fn number_fields_match_golden_in_the_light_theme() {
+    let mut design = design();
+    let light = design.find_theme("light").expect("built-in theme");
+    design
+        .set_active_theme(light)
+        .expect("a theme of the design");
+    check(&design, Scenario::Hover, "number_fields_light");
+}
+
+#[test]
+fn dragged_number_fields_match_golden() {
+    check(&design(), Scenario::Drag, "number_fields_drag_dark");
+}
+
+#[test]
+fn invalid_expressions_match_golden() {
+    check(&design(), Scenario::Error, "number_fields_error_dark");
 }

@@ -1,6 +1,9 @@
 //! What number fields keep between frames, in [`UiState`](crate::UiState): the one field being
-//! dragged and its [`DragState`], and the one field whose value is typed as text. A drag or an
-//! edit whose field a frame no longer shows ends.
+//! dragged and its [`DragState`], the one field whose value is typed as text, and where the
+//! pointer comes back when a drag ends. A drag or an edit whose field a frame no longer shows
+//! ends.
+
+use core::time::Duration;
 
 use koebi_core::Vec2;
 
@@ -48,6 +51,13 @@ pub(crate) struct NumberState {
     pub(crate) drag: Option<NumberDrag>,
     /// The field whose value is typed.
     pub(crate) edit: Option<NumberEdit>,
+    /// An edit started while another field's edit was still open: it takes over when the
+    /// frame ends, after the other field has seen the press that ends its edit.
+    pub(crate) pending: Option<NumberEdit>,
+    /// Where the pointer comes back after the drag that ended at the given input time: every
+    /// pass drawn with that input asks for it, so that a frame drawn again with settled input
+    /// does not lose it.
+    pub(crate) release: Option<(Vec2, Duration)>,
 }
 
 impl NumberState {
@@ -68,6 +78,9 @@ impl NumberState {
         }
         if self.edit.as_ref().is_some_and(|edit| !edit.seen) {
             self.edit = None;
+        }
+        if let Some(pending) = self.pending.take() {
+            self.edit = Some(pending);
         }
     }
 }

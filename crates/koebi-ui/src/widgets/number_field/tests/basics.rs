@@ -1,66 +1,13 @@
-//! Number field tests: dragging with the pointer locked and every modifier, cancelling,
-//! typing expressions, stepping, bars, vertical fields, and where the pointer comes back.
+//! Dragging with the pointer locked and every modifier, cancelling, typing expressions,
+//! stepping, bars, vertical fields, and where the pointer comes back.
 
 use koebi_core::expr::MILLIMETER;
 use koebi_core::input::Modifiers;
 use koebi_core::{Rect, Vec2};
-use koebi_render::Scene;
-use koebi_text::Fonts;
 
 use super::*;
+use crate::PointerButton;
 use crate::widgets::text_field::{TEXT_CANCEL, TEXT_CONFIRM};
-use crate::{Input, PointerButton, Styles, UiState};
-
-const ID: WidgetId = WidgetId::new("size");
-
-fn field() -> Rect {
-    Rect::from_origin_size(Vec2::new(10.0, 10.0), Vec2::new(160.0, 22.0))
-}
-
-/// Number fields, their UI state and input, one frame at a time.
-struct Harness {
-    state: UiState,
-    input: Input,
-    styles: Styles,
-}
-
-impl Harness {
-    fn new() -> Self {
-        let mut state = UiState::new();
-        state.set_fonts(Fonts::with_embedded());
-        Self {
-            state,
-            input: Input::new(),
-            styles: crate::test_styles(),
-        }
-    }
-
-    /// One frame running `show`.
-    fn frame<R>(&mut self, show: impl FnOnce(&mut Ui<'_>) -> R) -> (R, Scene) {
-        let mut scene = Scene::new();
-        let result = {
-            let mut ui = Ui::new(&mut scene, &self.styles, &self.input, &mut self.state);
-            show(&mut ui)
-        };
-        self.input.end_frame();
-        (result, scene)
-    }
-
-    /// One frame of a plain field of `value` in [`field`].
-    fn show(&mut self, value: &mut f64) -> NumberFieldResponse {
-        self.frame(|ui| NumberField::new(ID, value).show(ui, field()))
-            .0
-    }
-
-    /// The travel of `steps` steps of an unbounded field.
-    fn steps(&self, steps: f32) -> Vec2 {
-        Vec2::new(self.styles.number_field.step_distance * steps, 0.0)
-    }
-}
-
-fn close(a: f64, b: f64) -> bool {
-    (a - b).abs() < 1e-6
-}
 
 #[test]
 fn a_press_locks_the_pointer_and_travel_changes_the_value() {
@@ -260,24 +207,30 @@ fn bounded_bars_run_the_range_along_their_length_and_take_the_pointer_back_there
             })
             .0
     };
-    let side = harness.styles.number_field.step_width;
-    let body = field().width() - 2.0 * side;
+    // The bar's track: the whole field inside its border.
+    let border = harness.styles.number_field.border_width;
+    let track = field().inset(border);
     show(&mut harness, &mut value);
     harness.input.primary_button(true, field().center());
     show(&mut harness, &mut value);
-    harness.input.pointer_moved_by(Vec2::new(body * 0.25, 0.0));
+    harness
+        .input
+        .pointer_moved_by(Vec2::new(track.width() * 0.25, 0.0));
     show(&mut harness, &mut value);
     assert!(close(value, 7.5), "{value}");
+    // The pointer comes back at the bar's drawn edge.
     let x = harness.state.pointer_lock().expect("locked").x;
     assert!(
-        (x - (field().min.x + side + body * 0.75)).abs() < 0.01,
+        (x - (track.min.x + track.width() * 0.75)).abs() < 0.01,
         "{x}"
     );
     // Past the end: clamped, and the pointer stays inside the field.
-    harness.input.pointer_moved_by(Vec2::new(body * 2.0, 0.0));
+    harness
+        .input
+        .pointer_moved_by(Vec2::new(track.width() * 2.0, 0.0));
     show(&mut harness, &mut value);
     assert!(close(value, 10.0));
-    assert!(harness.state.pointer_lock().expect("locked").x < field().max.x - side);
+    assert!(harness.state.pointer_lock().expect("locked").x < track.max.x);
 }
 
 #[test]
