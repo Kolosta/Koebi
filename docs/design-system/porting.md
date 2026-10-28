@@ -326,6 +326,17 @@ New component tokens for property groups (#116) (6): `component.property-group.r
 `component.property-group.label.color.default` → `semantic.text.color.secondary.default`,
 `component.property-group.label.color.disabled` → `semantic.text.color.disabled.default`.
 
+New component tokens for collapsible panels (#117) (11):
+`component.panel.header.height.default` → `semantic.size.control-height`,
+`component.panel.header.padding.default` = 6 px, `component.panel.header.gap.default` = 4 px,
+`component.panel.header.hover.lightness` = 0.04, `component.panel.chevron.size` = 10 px,
+`component.panel.chevron.color.default` → `semantic.text.color.secondary.default`,
+`component.panel.content.padding.vertical` = 6 px, `component.panel.expand.duration` →
+`semantic.animation.duration.expand`, `component.panel.collapse.duration` →
+`semantic.animation.duration.collapse`, `component.panel.expand.curve` →
+`semantic.animation.curve.expand`, `component.panel.collapse.curve` →
+`semantic.animation.curve.collapse`.
+
 New component tokens for the viewport and timeline templates (#76) (18):
 
 <details><summary>show</summary>

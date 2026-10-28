@@ -75,6 +75,16 @@ disabled row.
 |---|---|---|
 | `property_groups_dark.png` | 320x232 | labels on 35 % of the width, sub-groups, a vector, a disabled row |
 
+## The collapsible panels
+
+`panel_sheet()` draws a first-level panel Transform (with an icon) holding a checkbox and a
+second-level panel Delta, which holds a checkbox and a third-level panel Advanced; below, a
+closed first-level panel Visibility.
+
+| File | Size | Shows |
+|---|---|---|
+| `collapsible_panels_dark.png` | 280x220 | three levels, each header in its parent's content color; turned and closed chevrons |
+
 ## Comparison and updates
 
 Same tolerance as the renderer's golden images: `Tolerance::new(3, 8)`. Never edit these

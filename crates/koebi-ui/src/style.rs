@@ -19,9 +19,9 @@ use koebi_tokens::{component, semantic};
 use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
-    ButtonStyle, CheckboxStyle, DropdownStyle, ListStyle, MenuStyle, NumberFieldStyle, PanelStyle,
-    PropertyGroupStyle, ScrollStyle, SeparatorStyle, SliderStyle, SwatchStyle, TextFieldStyle,
-    ThemeCardStyle, TooltipStyle,
+    ButtonStyle, CheckboxStyle, CollapsiblePanelStyle, DropdownStyle, ListStyle, MenuStyle,
+    NumberFieldStyle, PanelStyle, PropertyGroupStyle, ScrollStyle, SeparatorStyle, SliderStyle,
+    SwatchStyle, TextFieldStyle, ThemeCardStyle, TooltipStyle,
 };
 use crate::workspace::WorkspaceStyle;
 
@@ -288,6 +288,8 @@ pub struct Styles {
     pub property_group: PropertyGroupStyle,
     /// [`Ui::panel`](crate::Ui::panel).
     pub panel: PanelStyle,
+    /// [`CollapsiblePanel`](crate::CollapsiblePanel).
+    pub collapsible_panel: CollapsiblePanelStyle,
     /// [`Ui::separator`](crate::Ui::separator).
     pub separator: SeparatorStyle,
     /// [`Ui::swatch`](crate::Ui::swatch).
@@ -339,6 +341,7 @@ impl Styles {
             number_field: NumberFieldStyle::resolve(tokens),
             property_group: PropertyGroupStyle::resolve(tokens),
             panel: PanelStyle::resolve(tokens),
+            collapsible_panel: CollapsiblePanelStyle::resolve(tokens),
             separator: SeparatorStyle::resolve(tokens),
             swatch: SwatchStyle::resolve(tokens),
             theme_card: ThemeCardStyle::resolve(tokens),

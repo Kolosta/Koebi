@@ -8,6 +8,7 @@
 
 mod button;
 mod checkbox;
+mod collapsible;
 mod dropdown;
 mod list;
 mod menu;
@@ -26,6 +27,9 @@ mod tooltip;
 
 pub use button::{Activation, Button, ButtonGroup, ButtonStyle, GroupCell, GroupResponse, Track};
 pub use checkbox::{Checkbox, CheckboxStyle};
+pub use collapsible::{
+    CollapsiblePanel, CollapsiblePanelResponse, CollapsiblePanelState, CollapsiblePanelStyle,
+};
 pub use dropdown::{Dropdown, DropdownStyle};
 pub use list::{
     DropPlace, ItemMark, LIST, LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT,
