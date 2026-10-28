@@ -107,7 +107,16 @@ impl fmt::Display for CubicBezier {
 
 /// What a valid [`Curve`] is, for error messages.
 pub(crate) const CURVE_RULE: &str = "a curve goes from (0, 0) to (1, 1) through 2 to 8 keys in \
-    time order, with finite values and valid easings";
+    time order, with values and easings within -4..=4";
+
+/// How far curves may overshoot: values and easing control points stay within this, so that
+/// every curve eases to finite values.
+const CURVE_LIMIT: f32 = 4.0;
+
+/// `true` when `value` lies within the curves' limit (false for NaN).
+const fn bounded(value: f32) -> bool {
+    value >= -CURVE_LIMIT && value <= CURVE_LIMIT
+}
 
 /// A key of a [`Curve`]: a point the curve passes through, and the easing of the segment that
 /// leaves it towards the next key.
@@ -118,7 +127,8 @@ pub struct CurveKey {
     /// Progress of the value at that time, 0 at the start and 1 at the end; it may leave `0..1`
     /// to overshoot or bounce.
     pub y: f32,
-    /// How the segment from this key to the next one eases; the last key's is not used.
+    /// How the segment from this key to the next one eases; the last key's is not used, and
+    /// [`Curve::new`] makes it linear.
     pub easing: CubicBezier,
 }
 
@@ -153,13 +163,17 @@ impl Curve {
     }
 
     /// The curve through `keys`, the first [`Self::MAX_KEYS`] of them; check it with
-    /// [`Self::is_valid`].
+    /// [`Self::is_valid`]. The last key's easing, never used, becomes linear, so that curves
+    /// that ease the same compare equal.
     pub const fn new(keys: &[CurveKey]) -> Self {
         let mut stored = [CurveKey::new(1.0, 1.0, CubicBezier::LINEAR); Self::MAX_KEYS];
         let mut count = 0;
         while count < keys.len() && count < Self::MAX_KEYS {
             stored[count] = keys[count];
             count += 1;
+        }
+        if count > 0 {
+            stored[count - 1].easing = CubicBezier::LINEAR;
         }
         #[allow(
             clippy::cast_possible_truncation,
@@ -175,7 +189,8 @@ impl Curve {
     }
 
     /// `true` when the curve starts at `(0, 0)`, ends at `(1, 1)`, its keys follow each other
-    /// in time, their values are finite and their easings valid.
+    /// in time, and their values and easings stay within -4..=4 (easings valid): a valid curve
+    /// eases to finite values.
     pub const fn is_valid(&self) -> bool {
         let len = self.len as usize;
         if len < 2 || len > Self::MAX_KEYS {
@@ -192,7 +207,13 @@ impl Curve {
         let mut index = 0;
         while index < len {
             let key = self.keys[index];
-            if !key.y.is_finite() || !key.easing.is_valid() {
+            let easing = key.easing;
+            if !key.x.is_finite()
+                || !bounded(key.y)
+                || !easing.is_valid()
+                || !bounded(easing.y1)
+                || !bounded(easing.y2)
+            {
                 return false;
             }
             if index > 0 && key.x <= self.keys[index - 1].x {
@@ -338,8 +359,8 @@ pub enum Literal {
     FontWeight(FontWeight),
     /// A font family name.
     FontFamily(&'static str),
-    /// An easing curve of several segments.
-    Curve(Curve),
+    /// An easing curve of several segments, held by reference: curves are large.
+    Curve(&'static Curve),
 }
 
 impl Literal {
@@ -393,8 +414,8 @@ pub enum Value {
     FontWeight(FontWeight),
     /// A font family name.
     FontFamily(Arc<str>),
-    /// An easing curve of several segments.
-    Curve(Curve),
+    /// An easing curve of several segments, shared: curves are large.
+    Curve(Arc<Curve>),
 }
 
 impl Value {
@@ -441,7 +462,7 @@ impl From<Literal> for Value {
             Literal::CubicBezier(b) => Self::CubicBezier(b),
             Literal::FontWeight(w) => Self::FontWeight(w),
             Literal::FontFamily(name) => Self::FontFamily(Arc::from(name)),
-            Literal::Curve(curve) => Self::Curve(curve),
+            Literal::Curve(curve) => Self::Curve(Arc::new(*curve)),
         }
     }
 }
@@ -746,6 +767,24 @@ mod tests {
             !Curve::new(&[key(0.0, 0.0), key(0.5, 0.5), key(0.5, 0.7), key(1.0, 1.0)]).is_valid()
         );
         assert!(!Curve::new(&[key(0.0, 0.0), key(0.5, f32::INFINITY), key(1.0, 1.0)]).is_valid());
+        // Regression test: a NaN time passed, and the curve jumped to its end.
+        assert!(!Curve::new(&[key(0.0, 0.0), key(f32::NAN, 0.5), key(1.0, 1.0)]).is_valid());
+        // Regression test: huge values passed, and eased to infinity.
+        assert!(
+            !Curve::new(&[
+                key(0.0, 0.0),
+                key(0.5, -3e38),
+                key(0.75, 3e38),
+                key(1.0, 1.0)
+            ])
+            .is_valid()
+        );
+        let wild = CurveKey::new(0.0, 0.0, CubicBezier::new(0.5, 9.0, 0.5, 1.0));
+        assert!(!Curve::new(&[wild, key(1.0, 1.0)]).is_valid());
+        // The last key's easing is never used: it does not count, and curves compare equal.
+        let ignored = CurveKey::new(1.0, 1.0, CubicBezier::new(2.0, 0.0, 0.0, 1.0));
+        assert!(Curve::new(&[key(0.0, 0.0), ignored]).is_valid());
+        assert_eq!(Curve::new(&[key(0.0, 0.0), ignored]), Curve::LINEAR);
         let bad_easing = CurveKey::new(0.0, 0.0, CubicBezier::new(2.0, 0.0, 0.5, 1.0));
         assert!(!Curve::new(&[bad_easing, key(1.0, 1.0)]).is_valid());
         // Keys past the eighth are dropped.
@@ -754,9 +793,21 @@ mod tests {
             .collect();
         assert_eq!(Curve::new(&many).keys().len(), Curve::MAX_KEYS);
         assert_eq!(
-            Value::Curve(Curve::new(&[key(0.0, 0.0), key(0.5, 0.8), key(1.0, 1.0)])).to_string(),
+            Value::Curve(Arc::new(Curve::new(&[
+                key(0.0, 0.0),
+                key(0.5, 0.8),
+                key(1.0, 1.0)
+            ])))
+            .to_string(),
             "curve(0 0 cubic-bezier(0, 0, 1, 1), 0.5 0.8 cubic-bezier(0, 0, 1, 1), 1 1)"
         );
+    }
+
+    #[test]
+    fn values_stay_small_whatever_their_kind() {
+        // Curves are large: tables and values hold them by pointer.
+        assert!(size_of::<Value>() <= 24, "{}", size_of::<Value>());
+        assert!(size_of::<Literal>() <= 24, "{}", size_of::<Literal>());
     }
 
     #[test]

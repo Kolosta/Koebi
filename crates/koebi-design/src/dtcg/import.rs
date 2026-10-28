@@ -543,7 +543,7 @@ fn parse_curve(value: &Json) -> core::result::Result<Value, String> {
     }
     let curve = Curve::new(&keys[..items.len()]);
     if curve.is_valid() {
-        Ok(Value::Curve(curve))
+        Ok(Value::Curve(Arc::new(curve)))
     } else {
         Err(crate::value::CURVE_RULE.to_owned())
     }
@@ -666,5 +666,32 @@ fn parse_color(value: &Json) -> core::result::Result<Color, String> {
         other => Err(format!(
             "unsupported color space {other} (srgb, srgb-linear, hsl, oklab or oklch)"
         )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::json;
+
+    fn curve(text: &str) -> core::result::Result<Value, String> {
+        parse_value(KindId::Curve, &json::parse(text).expect("valid JSON"))
+    }
+
+    #[test]
+    fn curves_of_the_wrong_shape_are_refused() {
+        let key = |x: f32, y: f32| format!(r#"{{"x": {x}, "y": {y}, "easing": [0, 0, 1, 1]}}"#);
+        assert!(curve(&format!("[{}, {}]", key(0.0, 0.0), key(1.0, 1.0))).is_ok());
+        // One key, nine keys.
+        assert!(curve(&format!("[{}]", key(0.0, 0.0))).is_err());
+        let nine: Vec<String> = (0..9)
+            .map(|i| key(i as f32 / 8.0, i as f32 / 8.0))
+            .collect();
+        assert!(curve(&format!("[{}]", nine.join(", "))).is_err());
+        // An easing of three numbers, a key without x, a curve that misses (1, 1).
+        assert!(curve(r#"[{"x": 0, "y": 0, "easing": [0, 0, 1]}, {"x": 1, "y": 1}]"#).is_err());
+        assert!(curve(r#"[{"y": 0}, {"x": 1, "y": 1}]"#).is_err());
+        let message = curve(r#"[{"x": 0, "y": 0}, {"x": 1, "y": 0.5}]"#).unwrap_err();
+        assert!(message.contains("(1, 1)"), "{message}");
     }
 }

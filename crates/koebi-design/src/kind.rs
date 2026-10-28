@@ -59,28 +59,29 @@ pub trait Kind: sealed::Sealed + 'static {
     fn fallback() -> Self::Value;
 }
 
-/// Run-time identifier of a kind, for untyped code (persistence, import, tooling).
+/// Run-time identifier of a kind, for untyped code (persistence, import, tooling). Saved
+/// state stores the codes: they never change, and new kinds take new codes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum KindId {
     /// See [`Color`].
-    Color,
+    Color = 0,
     /// See [`Dimension`].
-    Dimension,
+    Dimension = 1,
     /// See [`Number`].
-    Number,
+    Number = 2,
     /// See [`Integer`].
-    Integer,
+    Integer = 3,
     /// See [`Duration`].
-    Duration,
+    Duration = 4,
     /// See [`CubicBezier`].
-    CubicBezier,
+    CubicBezier = 5,
     /// See [`FontWeight`].
-    FontWeight,
+    FontWeight = 6,
     /// See [`FontFamily`].
-    FontFamily,
+    FontFamily = 7,
     /// See [`Curve`].
-    Curve,
+    Curve = 8,
 }
 
 impl KindId {
@@ -214,7 +215,29 @@ impl_kind!(Duration, core::time::Duration, core::time::Duration::ZERO);
 impl_kind!(CubicBezier, value::CubicBezier, value::CubicBezier::LINEAR);
 impl_kind!(FontWeight, value::FontWeight, value::FontWeight::REGULAR);
 impl_kind!(FontFamily, Arc<str>, Arc::from(""));
-impl_kind!(Curve, value::Curve, value::Curve::LINEAR);
+
+// Curves are large: values hold them behind a shared pointer, read back by copy.
+impl sealed::Sealed for Curve {}
+
+impl Kind for Curve {
+    type Value = value::Curve;
+    const ID: KindId = KindId::Curve;
+
+    fn into_value(value: Self::Value) -> Value {
+        Value::Curve(Arc::new(value))
+    }
+
+    fn from_value(value: &Value) -> Option<Self::Value> {
+        match value {
+            Value::Curve(curve) => Some(**curve),
+            _ => None,
+        }
+    }
+
+    fn fallback() -> Self::Value {
+        value::Curve::LINEAR
+    }
+}
 
 // Literal constructors used by `koebi_design::tokens!` for primitive tokens. Each takes the
 // value type of its kind, so a value of the wrong kind does not compile.
@@ -277,7 +300,7 @@ impl FontFamily {
 
 impl Curve {
     #[doc(hidden)]
-    pub const fn literal(value: value::Curve) -> Def {
+    pub const fn literal(value: &'static value::Curve) -> Def {
         Def::Literal(Literal::Curve(value))
     }
 }
@@ -285,6 +308,12 @@ impl Curve {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn kind_codes_never_change() {
+        let codes = KindId::ALL.map(|kind| kind as u8);
+        assert_eq!(codes, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    }
 
     #[test]
     fn kind_names_round_trip() {

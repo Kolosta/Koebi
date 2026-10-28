@@ -135,7 +135,8 @@ pub(crate) fn export(design: &DesignSystem, options: &Options) -> Result<(), Str
 
 /// Parses `text` as a definition of `token`: `{path}` aliases another token, anything else is
 /// a value of the token's kind (`#rrggbb` colors, numbers with an optional `px` or `ms` unit,
-/// `x1,y1,x2,y2` curves, font weights from 1 to 1000, font family names).
+/// `x1,y1,x2,y2` cubic Béziers, curves as keys `x,y[,x1,y1,x2,y2]` separated by `;`, font
+/// weights from 1 to 1000, font family names).
 pub(crate) fn parse_definition(
     design: &DesignSystem,
     token: koebi_design::TokenId,
@@ -192,7 +193,7 @@ pub(crate) fn parse_definition(
                 .ok_or_else(|| format!("expected a font weight from 1 to 1000, found {text:?}"))?,
         ),
         KindId::FontFamily => Value::FontFamily(Arc::from(text)),
-        KindId::Curve => Value::Curve(parse_curve(text)?),
+        KindId::Curve => Value::Curve(Arc::new(parse_curve(text)?)),
     };
     Ok(Definition::Value(value))
 }

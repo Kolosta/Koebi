@@ -110,6 +110,10 @@ macro_rules! tokens {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __token_definition {
+    // Curves are large: tables hold them by reference.
+    (=, Curve, $tier:ident, $value:expr) => {
+        $crate::kind::Curve::literal(&$value)
+    };
     (=, $kind:ident, $tier:ident, $value:expr) => {
         $crate::kind::$kind::literal($value)
     };

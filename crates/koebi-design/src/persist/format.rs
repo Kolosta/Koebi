@@ -586,7 +586,7 @@ fn read_value(reader: &mut Reader<'_>) -> Result<Value> {
                     CubicBezier::new(reader.f32()?, reader.f32()?, reader.f32()?, reader.f32()?);
                 *key = CurveKey::new(x, y, easing);
             }
-            Value::Curve(Curve::new(&keys[..count]))
+            Value::Curve(Arc::new(Curve::new(&keys[..count])))
         }
     })
 }
@@ -688,6 +688,32 @@ mod tests {
         writer.str("semantic.missing");
         writer.u8(Layers::NONE.bits());
         writer.into_bytes()
+    }
+
+    #[test]
+    fn saved_curves_of_too_few_or_too_many_keys_are_refused() {
+        for count in [1_usize, 9] {
+            let mut writer = Writer::default();
+            writer.u8(KindId::Curve as u8);
+            writer.len(count);
+            for _ in 0..count * 6 {
+                writer.f32(0.0);
+            }
+            let bytes = writer.into_bytes();
+            assert!(
+                read_value(&mut Reader::new(&bytes)).is_err(),
+                "{count} keys"
+            );
+        }
+        // A curve of a valid size reads back whole, even one the design system refuses.
+        let broken = Value::Curve(Arc::new(Curve::new(&[
+            CurveKey::new(0.0, 0.0, CubicBezier::LINEAR),
+            CurveKey::new(1.0, 0.5, CubicBezier::LINEAR),
+        ])));
+        let mut writer = Writer::default();
+        write_value(&mut writer, &broken);
+        let bytes = writer.into_bytes();
+        assert_eq!(read_value(&mut Reader::new(&bytes)).unwrap(), broken);
     }
 
     #[test]

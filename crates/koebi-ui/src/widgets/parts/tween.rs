@@ -52,12 +52,22 @@ impl Tween {
         duration: Duration,
         curve: &Curve,
     ) -> bool {
+        // Where the running animation is now, before a new target restarts it from there:
+        // a target moving every frame is followed rather than restarted at zero progress.
+        let animating = self.step(now, duration, curve);
         // Changes too small to see do not restart the animation.
         if (target - self.to).abs() > 1e-4 {
             self.from = self.current;
             self.to = target;
             self.start = Some(now);
+            // Nothing to see yet, unless the change is instant.
+            return self.step(now, duration, curve);
         }
+        animating
+    }
+
+    /// Brings the value to where the animation is at `now`. Returns `true` while it runs.
+    fn step(&mut self, now: Duration, duration: Duration, curve: &Curve) -> bool {
         let Some(start) = self.start else {
             return false;
         };
@@ -109,6 +119,26 @@ mod tests {
         assert!((tween.value() - 0.25).abs() < 1e-5);
         assert!(!tween.advance(0.0, MS(200), MS(200), &Curve::LINEAR));
         assert_eq!(tween.value(), 0.0);
+    }
+
+    #[test]
+    fn a_target_moving_every_frame_is_followed() {
+        // Regression test: each new target restarted the animation at zero progress, so a
+        // target that moved every frame (the pointer's distance) froze the value.
+        let mut tween = Tween::new(0.0);
+        let mut last = 0.0;
+        for frame in 1..=10_u64 {
+            let target = 0.5 + 0.01 * frame as f32;
+            tween.advance(target, MS(16 * frame), MS(200), &Curve::LINEAR);
+            if frame > 1 {
+                assert!(
+                    tween.value() > last,
+                    "frame {frame}: {} after {last}",
+                    tween.value()
+                );
+            }
+            last = tween.value();
+        }
     }
 
     #[test]

@@ -123,7 +123,11 @@ impl ListState {
                 fold.current = to;
                 return false;
             }
-            fold.current = curve.ease(t).mul_add(to - fold.from, fold.from);
+            // Overshooting curves hold at the ends: openness stays within 0 and 1.
+            fold.current = curve
+                .ease(t)
+                .mul_add(to - fold.from, fold.from)
+                .clamp(0.0, 1.0);
             true
         });
         !self.folds.is_empty()

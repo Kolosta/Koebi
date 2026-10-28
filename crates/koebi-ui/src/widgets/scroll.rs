@@ -320,7 +320,7 @@ impl Ui<'_> {
             let grow = &mut state.proximity[axis];
             if grow.advance(target, now, style.grow_duration, &style.grow_curve) {
                 // Still growing or shrinking: the next frame continues the animation.
-                self.request_redraw_at(now);
+                self.request_redraw_after(Duration::from_millis(16));
             }
             let proximity = grow.value();
             let width = style.width_rest + (style.width_hover - style.width_rest) * proximity;
