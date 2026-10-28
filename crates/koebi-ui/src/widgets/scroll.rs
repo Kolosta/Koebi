@@ -10,6 +10,7 @@ use core::time::Duration;
 
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
+use koebi_design::value::Curve;
 use koebi_input::Context;
 use koebi_render::RectPrimitive;
 use koebi_tokens::component;
@@ -17,13 +18,10 @@ use koebi_tokens::component;
 use crate::id::WidgetId;
 use crate::style::StateColors;
 use crate::ui::Ui;
+use crate::widgets::parts::Tween;
 
 /// A scroll area: its keys apply where the pointer is over it.
 pub const SCROLL: Context = Context::new("scroll");
-
-/// How fast the grab follows the pointer's proximity: the share of the way covered per
-/// second, as in the previous application.
-const EASING_PER_SECOND: f32 = 12.0;
 
 /// Which ways a scroll area scrolls.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -65,6 +63,10 @@ pub struct ScrollStyle {
     pub grab: StateColors,
     /// How far one notch of the wheel scrolls.
     pub wheel_step: f32,
+    /// Time the grab takes to grow from rest to its full width, or back.
+    pub grow_duration: Duration,
+    /// Curve of the grab growing and shrinking.
+    pub grow_curve: Curve,
 }
 
 impl ScrollStyle {
@@ -83,6 +85,8 @@ impl ScrollStyle {
                 pressed: tokens.get(component::SCROLLBAR_GRAB_COLOR_PRESSED),
             },
             wheel_step: tokens.get(component::SCROLLBAR_WHEEL_STEP_DEFAULT),
+            grow_duration: tokens.get(component::SCROLLBAR_OVERLAY_GROW_DURATION),
+            grow_curve: tokens.get(component::SCROLLBAR_OVERLAY_GROW_CURVE),
         }
     }
 }
@@ -93,9 +97,7 @@ pub struct ScrollState {
     /// How far the content is scrolled, in logical pixels: x then y.
     offset: Vec2,
     /// Each scrollbar's growth towards the pointer, from 0 (rest) to 1, horizontal first.
-    proximity: [f32; 2],
-    /// When the animation last advanced.
-    animated_at: Option<Duration>,
+    proximity: [Tween; 2],
     /// The scrollbar dragged, and where the pointer holds its grab.
     drag: Option<(usize, f32)>,
 }
@@ -105,8 +107,7 @@ impl ScrollState {
     pub const fn new() -> Self {
         Self {
             offset: Vec2::ZERO,
-            proximity: [0.0; 2],
-            animated_at: None,
+            proximity: [Tween::new(0.0); 2],
             drag: None,
         }
     }
@@ -261,10 +262,6 @@ impl Ui<'_> {
         style: &ScrollStyle,
     ) {
         let now = self.input().time();
-        let elapsed = state
-            .animated_at
-            .map_or(0.0, |at| now.saturating_sub(at).as_secs_f32());
-        state.animated_at = Some(now);
         let pointer = self.input().pointer();
         let inside = self.pointer_within(id);
         for axis in [1_usize, 0] {
@@ -290,7 +287,7 @@ impl Ui<'_> {
                 .then(|| track(span_start, span, visible, size, offset, style))
                 .flatten()
             else {
-                state.proximity[axis] = 0.0;
+                state.proximity[axis].set(0.0);
                 if state.drag.is_some_and(|(dragged, _)| dragged == axis) {
                     state.drag = None;
                 }
@@ -320,15 +317,12 @@ impl Ui<'_> {
                     }
                 })
             };
-            let eased = &mut state.proximity[axis];
-            *eased += (target - *eased) * (elapsed * EASING_PER_SECOND).clamp(0.0, 1.0);
-            if (*eased - target).abs() < 0.005 {
-                *eased = target;
-            } else {
-                // Still easing: the next frame continues the animation.
+            let grow = &mut state.proximity[axis];
+            if grow.advance(target, now, style.grow_duration, &style.grow_curve) {
+                // Still growing or shrinking: the next frame continues the animation.
                 self.request_redraw_after(Duration::from_millis(16));
             }
-            let proximity = *eased;
+            let proximity = grow.value();
             let width = style.width_rest + (style.width_hover - style.width_rest) * proximity;
 
             // The whole margin along the track grabs the pointer.
@@ -552,11 +546,14 @@ mod tests {
         harness.input.set_time(Duration::from_millis(16));
         harness.frame();
         // Easing: still growing, and asking for the next frame.
-        assert!(harness.scroll.proximity[1] > 0.0 && harness.scroll.proximity[1] < 1.0);
+        harness.input.set_time(Duration::from_millis(32));
+        harness.frame();
+        let grown = harness.scroll.proximity[1].value();
+        assert!(grown > 0.0 && grown < 1.0, "{grown}");
         assert!(harness.state.redraw_at().is_some());
         harness.input.set_time(Duration::from_secs(2));
         harness.frame();
-        assert_eq!(harness.scroll.proximity[1], 1.0);
+        assert_eq!(harness.scroll.proximity[1].value(), 1.0);
         assert_eq!(harness.state.redraw_at(), None);
     }
 

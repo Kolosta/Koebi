@@ -26,7 +26,7 @@ use crate::persist::codec::{Reader, Writer, crc32};
 use crate::system::{DesignSystem, Scope};
 use crate::theme::{NewTheme, ThemeOrigin};
 use crate::token::TokenId;
-use crate::value::{CubicBezier, Definition, FontWeight, Value};
+use crate::value::{CubicBezier, Curve, CurveKey, Definition, FontWeight, Value};
 use crate::vision::ColorVision;
 use koebi_core::{Color, ColorMatrix, Deficiency};
 
@@ -212,6 +212,15 @@ fn write_value(writer: &mut Writer, value: &Value) {
             .for_each(|v| writer.f32(v)),
         Value::FontWeight(w) => writer.u16(w.get()),
         Value::FontFamily(name) => writer.str(name),
+        Value::Curve(curve) => {
+            writer.len(curve.keys().len());
+            for key in curve.keys() {
+                let easing = key.easing;
+                for v in [key.x, key.y, easing.x1, easing.y1, easing.x2, easing.y2] {
+                    writer.f32(v);
+                }
+            }
+        }
     }
 }
 
@@ -565,6 +574,20 @@ fn read_value(reader: &mut Reader<'_>) -> Result<Value> {
                 .ok_or_else(|| Error::Corrupt("invalid font weight".to_owned()))?,
         ),
         KindId::FontFamily => Value::FontFamily(Arc::from(reader.str()?)),
+        KindId::Curve => {
+            let count = reader.count()?;
+            if !(2..=Curve::MAX_KEYS).contains(&count) {
+                return Err(Error::Corrupt("invalid curve".to_owned()));
+            }
+            let mut keys = [CurveKey::new(0.0, 0.0, CubicBezier::LINEAR); Curve::MAX_KEYS];
+            for key in &mut keys[..count] {
+                let (x, y) = (reader.f32()?, reader.f32()?);
+                let easing =
+                    CubicBezier::new(reader.f32()?, reader.f32()?, reader.f32()?, reader.f32()?);
+                *key = CurveKey::new(x, y, easing);
+            }
+            Value::Curve(Arc::new(Curve::new(&keys[..count])))
+        }
     })
 }
 
@@ -665,6 +688,32 @@ mod tests {
         writer.str("semantic.missing");
         writer.u8(Layers::NONE.bits());
         writer.into_bytes()
+    }
+
+    #[test]
+    fn saved_curves_of_too_few_or_too_many_keys_are_refused() {
+        for count in [1_usize, 9] {
+            let mut writer = Writer::default();
+            writer.u8(KindId::Curve as u8);
+            writer.len(count);
+            for _ in 0..count * 6 {
+                writer.f32(0.0);
+            }
+            let bytes = writer.into_bytes();
+            assert!(
+                read_value(&mut Reader::new(&bytes)).is_err(),
+                "{count} keys"
+            );
+        }
+        // A curve of a valid size reads back whole, even one the design system refuses.
+        let broken = Value::Curve(Arc::new(Curve::new(&[
+            CurveKey::new(0.0, 0.0, CubicBezier::LINEAR),
+            CurveKey::new(1.0, 0.5, CubicBezier::LINEAR),
+        ])));
+        let mut writer = Writer::default();
+        write_value(&mut writer, &broken);
+        let bytes = writer.into_bytes();
+        assert_eq!(read_value(&mut Reader::new(&bytes)).unwrap(), broken);
     }
 
     #[test]

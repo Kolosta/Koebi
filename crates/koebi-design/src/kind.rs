@@ -20,6 +20,7 @@
 //! | [`CubicBezier`] | [`value::CubicBezier`] | easing curve |
 //! | [`FontWeight`] | [`value::FontWeight`] | 1 to 1000 |
 //! | [`FontFamily`] | `Arc<str>` | font family name |
+//! | [`Curve`] | [`value::Curve`] | easing curve of several segments |
 //!
 //! ```compile_fail
 //! use koebi_design::{Token, kind, tier, value::Def};
@@ -58,31 +59,34 @@ pub trait Kind: sealed::Sealed + 'static {
     fn fallback() -> Self::Value;
 }
 
-/// Run-time identifier of a kind, for untyped code (persistence, import, tooling).
+/// Run-time identifier of a kind, for untyped code (persistence, import, tooling). Saved
+/// state stores the codes: they never change, and new kinds take new codes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum KindId {
     /// See [`Color`].
-    Color,
+    Color = 0,
     /// See [`Dimension`].
-    Dimension,
+    Dimension = 1,
     /// See [`Number`].
-    Number,
+    Number = 2,
     /// See [`Integer`].
-    Integer,
+    Integer = 3,
     /// See [`Duration`].
-    Duration,
+    Duration = 4,
     /// See [`CubicBezier`].
-    CubicBezier,
+    CubicBezier = 5,
     /// See [`FontWeight`].
-    FontWeight,
+    FontWeight = 6,
     /// See [`FontFamily`].
-    FontFamily,
+    FontFamily = 7,
+    /// See [`Curve`].
+    Curve = 8,
 }
 
 impl KindId {
     /// Every kind, in declaration order.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::Color,
         Self::Dimension,
         Self::Number,
@@ -91,10 +95,11 @@ impl KindId {
         Self::CubicBezier,
         Self::FontWeight,
         Self::FontFamily,
+        Self::Curve,
     ];
 
     /// The name of the kind, in the camel case of the Design Tokens format (`color`,
-    /// `dimension`, `cubicBezier`, ...). `integer` is Koebi's own.
+    /// `dimension`, `cubicBezier`, ...). `integer` and `curve` are Koebi's own.
     pub const fn name(self) -> &'static str {
         match self {
             Self::Color => "color",
@@ -105,6 +110,7 @@ impl KindId {
             Self::CubicBezier => "cubicBezier",
             Self::FontWeight => "fontWeight",
             Self::FontFamily => "fontFamily",
+            Self::Curve => "curve",
         }
     }
 
@@ -167,6 +173,10 @@ pub enum FontWeight {}
 #[derive(Debug)]
 pub enum FontFamily {}
 
+/// Kind of easing curves of several segments.
+#[derive(Debug)]
+pub enum Curve {}
+
 macro_rules! impl_kind {
     ($marker:ident, $value:ty, $fallback:expr) => {
         impl sealed::Sealed for $marker {}
@@ -205,6 +215,29 @@ impl_kind!(Duration, core::time::Duration, core::time::Duration::ZERO);
 impl_kind!(CubicBezier, value::CubicBezier, value::CubicBezier::LINEAR);
 impl_kind!(FontWeight, value::FontWeight, value::FontWeight::REGULAR);
 impl_kind!(FontFamily, Arc<str>, Arc::from(""));
+
+// Curves are large: values hold them behind a shared pointer, read back by copy.
+impl sealed::Sealed for Curve {}
+
+impl Kind for Curve {
+    type Value = value::Curve;
+    const ID: KindId = KindId::Curve;
+
+    fn into_value(value: Self::Value) -> Value {
+        Value::Curve(Arc::new(value))
+    }
+
+    fn from_value(value: &Value) -> Option<Self::Value> {
+        match value {
+            Value::Curve(curve) => Some(**curve),
+            _ => None,
+        }
+    }
+
+    fn fallback() -> Self::Value {
+        value::Curve::LINEAR
+    }
+}
 
 // Literal constructors used by `koebi_design::tokens!` for primitive tokens. Each takes the
 // value type of its kind, so a value of the wrong kind does not compile.
@@ -265,9 +298,22 @@ impl FontFamily {
     }
 }
 
+impl Curve {
+    #[doc(hidden)]
+    pub const fn literal(value: &'static value::Curve) -> Def {
+        Def::Literal(Literal::Curve(value))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn kind_codes_never_change() {
+        let codes = KindId::ALL.map(|kind| kind as u8);
+        assert_eq!(codes, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    }
 
     #[test]
     fn kind_names_round_trip() {

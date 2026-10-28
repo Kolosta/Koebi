@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use common::{component, hex, primitive, semantic};
 use koebi_design::persist::{Store, encode, restore};
-use koebi_design::value::{Definition, Value};
+use koebi_design::value::{CubicBezier, Curve, CurveKey, Definition, Value};
 use koebi_design::{ColorVision, Deficiency, DesignSystem, Error, Layers, NewTheme, Scope};
 
 static SCHEMA: koebi_design::schema::Schema = common::SCHEMA;
@@ -60,6 +60,18 @@ fn customized() -> DesignSystem {
         .expect("valid customization");
     design
         .set_alias(Scope::Global, semantic::CHAIN_1, primitive::COLOR_GREEN_700)
+        .expect("valid customization");
+    design
+        .set_value(
+            Scope::Global,
+            primitive::CURVE_SETTLE,
+            Curve::new(&[
+                CurveKey::new(0.0, 0.0, CubicBezier::new(0.1, 0.0, 0.3, 1.0)),
+                CurveKey::new(0.5, 0.9, CubicBezier::LINEAR),
+                CurveKey::new(0.8, 1.05, CubicBezier::new(0.5, 0.0, 0.5, 1.0)),
+                CurveKey::new(1.0, 1.0, CubicBezier::LINEAR),
+            ]),
+        )
         .expect("valid customization");
     design
         .set_token_layers(component::LOGO, Layers::ALL - Layers::COLOR_VISION)

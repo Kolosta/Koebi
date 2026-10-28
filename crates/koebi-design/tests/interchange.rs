@@ -5,7 +5,7 @@ mod common;
 
 use common::{component, hex, primitive, semantic};
 use koebi_design::dtcg::{export_schema, export_theme, import_theme};
-use koebi_design::value::{FontWeight, Value};
+use koebi_design::value::{CubicBezier, Curve, CurveKey, FontWeight, Value};
 use koebi_design::{DesignSystem, Error, Layers, Scope, ThemeId};
 
 static SCHEMA: koebi_design::schema::Schema = common::SCHEMA;
@@ -85,6 +85,42 @@ fn exports_gather_the_theme_its_overrides_and_global_overrides() {
     assert_eq!(
         values(&design, imported, Layers::THEME),
         values(&design, light, Layers::DEFINITIONS)
+    );
+}
+
+#[test]
+fn curves_export_as_keys_and_import_back() {
+    let mut design = design();
+    let light = design.find_theme("light").unwrap();
+    let bounce = Curve::new(&[
+        CurveKey::new(0.0, 0.0, CubicBezier::new(0.5, 0.0, 1.0, 1.0)),
+        CurveKey::new(0.6, 1.0, CubicBezier::new(0.0, 0.0, 0.5, 1.0)),
+        CurveKey::new(0.8, 0.9, CubicBezier::new(0.5, 0.0, 1.0, 1.0)),
+        CurveKey::new(1.0, 1.0, CubicBezier::LINEAR),
+    ]);
+    design
+        .set_value(Scope::Theme(light), primitive::CURVE_SETTLE, bounce)
+        .unwrap();
+    let text = export_theme(&design, light).unwrap();
+    assert!(text.contains("\"$type\": \"curve\""), "{text}");
+    assert!(text.contains("\"easing\""), "{text}");
+    let copy = text.replace("\"key\": \"light\"", "\"key\": \"light-copy\"");
+    let imported = import_theme(&mut design, &copy).unwrap();
+    design.set_active_theme(imported).unwrap();
+    assert_eq!(design.get(primitive::CURVE_SETTLE), bounce);
+    // A curve that does not reach (1, 1) is refused, with the reason.
+    let broken = copy
+        .replace("\"key\": \"light-copy\"", "\"key\": \"light-broken\"")
+        .replace(
+            "\"y\": 1
+",
+            "\"y\": 0.5
+",
+        );
+    let message = issues(import_theme(&mut design, &broken));
+    assert!(
+        message.contains("a curve goes from (0, 0) to (1, 1)"),
+        "{message}"
     );
 }
 

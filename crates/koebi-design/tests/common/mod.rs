@@ -42,6 +42,12 @@ pub(crate) mod primitive {
         DURATION_FAST = "duration.fast": Duration = ms(100), range(0.0, 2000.0);
         /// Standard easing.
         EASING_EASE = "easing.ease": CubicBezier = bezier(0.25, 0.1, 0.25, 1.0);
+        /// An overshoot that settles back: two segments.
+        CURVE_SETTLE = "curve.settle": Curve = curve(&[
+            key(0.0, 0.0, bezier(0.2, 0.0, 0.4, 1.0)),
+            key(0.7, 1.08, bezier(0.4, 0.0, 0.6, 1.0)),
+            key(1.0, 1.0, bezier(0.0, 0.0, 1.0, 1.0)),
+        ]);
         /// Sans-serif family.
         FONT_FAMILY_SANS = "font.family.sans": FontFamily = family("Noto Sans");
         /// Body size.
