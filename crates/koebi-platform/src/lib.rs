@@ -29,7 +29,7 @@ mod win32;
 mod window;
 
 pub use app::{App, AppContext, AppControl, AppError, IterationRate, exit_code, run, run_sdl_main};
-pub use chrome::{ChromeInsets, WindowRegions};
+pub use chrome::{ChromeInsets, MaximizeButtonState, WindowRegions};
 pub use cursor::{Cursor, CursorId, CursorImage, SystemCursor};
 pub use error::PlatformError;
 pub use event::{Event, GesturePhase, TextChunk, WindowEvent};

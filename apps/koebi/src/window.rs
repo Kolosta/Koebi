@@ -144,6 +144,7 @@ impl AppWindow {
             state: self.window.state(),
             has_menus: !matches!(self.content, WindowContent::Settings(_)),
             insets: self.window.chrome_insets(),
+            maximize: self.window.maximize_button(),
         };
         let Self {
             is_main,

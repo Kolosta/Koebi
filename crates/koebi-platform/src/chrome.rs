@@ -29,6 +29,19 @@ pub struct WindowRegions<'a> {
     pub blocked: &'a [Rect],
     /// How far from the window's edges a press resizes it, in logical pixels.
     pub resize_border: f32,
+    /// The maximize button, in logical pixels, when nothing lies over it: Windows 11 shows its
+    /// snap layouts over it.
+    pub maximize: Option<Rect>,
+}
+
+/// What the system reports of the pointer on the maximize button, on Windows: there, it comes as
+/// non-client messages, which the application's frames do not see.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct MaximizeButtonState {
+    /// The pointer is over it.
+    pub hovered: bool,
+    /// The primary button went down on it and is still down.
+    pub pressed: bool,
 }
 
 /// What a window shows of the system's own title bar, for the bar drawn around it.
@@ -103,6 +116,7 @@ pub(crate) struct HitRegions {
     drag: Option<Rect>,
     blocked: Vec<Rect>,
     resize_border: f32,
+    maximize: Option<Rect>,
 }
 
 impl HitRegions {
@@ -112,6 +126,13 @@ impl HitRegions {
         self.blocked.clear();
         self.blocked.extend_from_slice(regions.blocked);
         self.resize_border = regions.resize_border;
+        self.maximize = regions.maximize;
+    }
+
+    /// The maximize button.
+    #[cfg_attr(not(windows), allow(dead_code, reason = "only Windows asks"))]
+    pub(crate) const fn maximize(&self) -> Option<Rect> {
+        self.maximize
     }
 
     /// What `point` is in a window of `size`, both in logical pixels.
@@ -162,6 +183,15 @@ impl HitRegions {
 #[derive(Debug, Default)]
 pub(crate) struct HitData {
     pub(crate) regions: HitRegions,
+    /// The procedure of the window before its subclass, on Windows.
+    #[cfg(windows)]
+    pub(crate) previous_procedure: isize,
+    /// The maximize button as Windows reports it.
+    #[cfg(windows)]
+    pub(crate) maximize_button: crate::win32::MaximizeButton,
+    /// The `SDL_Window` the data belongs to, on Windows.
+    #[cfg(windows)]
+    pub(crate) sdl_window: Option<core::ptr::NonNull<SDL_Window>>,
     /// The `NSWindow` of the window, on macOS.
     #[cfg(target_os = "macos")]
     pub(crate) ns_window: Option<core::ptr::NonNull<core::ffi::c_void>>,
@@ -189,6 +219,26 @@ impl Default for LinuxClock {
 impl LinuxClock {
     pub(crate) fn elapsed(&self) -> std::time::Duration {
         self.0.elapsed()
+    }
+}
+
+#[cfg(windows)]
+impl HitData {
+    /// What the point at `(x, y)` of the client area is, and where it lies in logical pixels;
+    /// `None` where the window has no such thing as a button (in fullscreen).
+    ///
+    /// # Safety
+    ///
+    /// On the main thread, while the window lives.
+    pub(crate) unsafe fn hit_at_client(&self, x: i32, y: i32) -> Option<(Hit, Vec2)> {
+        let window = self.sdl_window?;
+        // SAFETY: live according to the caller.
+        let (size, moves, scale) = unsafe { crate::window::hit_test_state(window.as_ptr()) };
+        if !moves.drags {
+            return None;
+        }
+        let point = Vec2::new(x as f32, y as f32) * scale;
+        Some((self.regions.hit(point, size, moves), point))
     }
 }
 
@@ -287,6 +337,7 @@ mod tests {
                 Rect::from_origin_size(Vec2::new(690.0, 0.0), Vec2::new(110.0, 24.0)),
             ],
             resize_border: 5.0,
+            maximize: None,
         });
         regions
     }

@@ -6,7 +6,7 @@
 
 use koebi_core::{Rect, Vec2};
 use koebi_input::Keymap;
-use koebi_platform::{ChromeInsets, Window, WindowRegions, WindowState};
+use koebi_platform::{ChromeInsets, MaximizeButtonState, Window, WindowRegions, WindowState};
 use koebi_ui::{
     AppBar, BarLayout, MenuBarEntry, MenuBarState, MenuChoice, MenuItem, Ui, UiState, WidgetId,
     WindowCommand,
@@ -31,6 +31,8 @@ pub(crate) struct WindowView<'a> {
     pub(crate) has_menus: bool,
     /// What the system's own title bar takes.
     pub(crate) insets: ChromeInsets,
+    /// What the system reports of the pointer on the maximize button.
+    pub(crate) maximize: MaximizeButtonState,
 }
 
 /// What the bar asks of the application, applied after the frame.
@@ -113,6 +115,8 @@ pub(crate) struct AppChrome {
     menus: MenuBarState,
     /// Where the bar lies and what its background is, from the last frame.
     bar: Option<(Rect, WidgetId)>,
+    /// The maximize button, from the last frame.
+    maximize: Option<(WidgetId, Rect)>,
     /// What lies on the bar: reused from frame to frame.
     covered: Vec<Rect>,
     resize_border: f32,
@@ -136,6 +140,7 @@ impl AppChrome {
             .filled(filled)
             .window_buttons(view.insets.draws_buttons)
             .leading_inset(view.insets.leading)
+            .maximize_state(view.maximize.hovered, view.maximize.pressed)
             .show(ui, bar, |ui, layout| {
                 if view.has_menus {
                     self.menus_of(ui, layout, area, view.state, labels)
@@ -144,6 +149,7 @@ impl AppChrome {
                 }
             });
         self.bar = Some((bar, shown.drag));
+        self.maximize = shown.maximize;
         self.resize_border = style.resize_border;
         let command = shown
             .command
@@ -205,11 +211,18 @@ impl AppChrome {
         let Some((bar, drag)) = self.bar else {
             return;
         };
+        // The system gets the maximize button only when nothing lies over it: an open menu takes
+        // every press.
+        let maximize = self.maximize.and_then(|(button, rect)| {
+            state.covering(button, &mut self.covered);
+            self.covered.is_empty().then_some(rect)
+        });
         state.covering(drag, &mut self.covered);
         window.set_regions(&WindowRegions {
             drag: Some(bar),
             blocked: &self.covered,
             resize_border: self.resize_border,
+            maximize,
         });
     }
 }

@@ -55,6 +55,7 @@ unsafe extern "system" {
     fn IsWindowVisible(window: Hwnd) -> i32;
     fn GetWindow(window: Hwnd, command: u32) -> Hwnd;
     fn IsZoomed(window: Hwnd) -> i32;
+    fn GetDpiForWindow(window: Hwnd) -> u32;
     fn IsIconic(window: Hwnd) -> i32;
     fn GetClientRect(window: Hwnd, rect: *mut WinRect) -> i32;
     fn ClientToScreen(window: Hwnd, point: *mut WinPoint) -> i32;
@@ -91,6 +92,7 @@ const WS_SYSMENU: i32 = 0x0008_0000;
 
 const HTCLIENT: isize = 1;
 const HTCAPTION: isize = 2;
+const HTMAXBUTTON: isize = 9;
 const HTLEFT: isize = 10;
 const HTRIGHT: isize = 11;
 const HTTOP: isize = 12;
@@ -99,6 +101,9 @@ const HTTOPRIGHT: isize = 14;
 const HTBOTTOM: isize = 15;
 const HTBOTTOMLEFT: isize = 16;
 const HTBOTTOMRIGHT: isize = 17;
+
+/// The width of a window button, in logical pixels (`title-bar.button.width.default`).
+const BUTTON_WIDTH: i32 = 36;
 
 /// Long enough for a software GPU to start, and for a window manager to answer.
 const WAIT: Duration = Duration::from_secs(60);
@@ -315,6 +320,13 @@ impl App {
     }
 }
 
+/// The width of a window button in pixels.
+fn button_width(app: &App) -> i32 {
+    // SAFETY: a live window.
+    let dpi = unsafe { GetDpiForWindow(app.window) };
+    BUTTON_WIDTH * i32::try_from(dpi).unwrap_or(96) / 96
+}
+
 #[test]
 fn every_part_of_the_window_answers_as_it_should() {
     let Some(app) = launch("parts", &[]) else {
@@ -328,9 +340,11 @@ fn every_part_of_the_window_answers_as_it_should() {
     assert_eq!(app.hit(width / 3, bar), HTCAPTION);
     // Its menus and its window buttons are the application's.
     assert_eq!(app.hit(20, bar), HTCLIENT);
-    assert_eq!(app.hit(width - 20, bar), HTCLIENT);
-    assert_eq!(app.hit(width - 60, bar), HTCLIENT);
-    assert_eq!(app.hit(width - 100, bar), HTCLIENT);
+    let button = button_width(&app);
+    assert_eq!(app.hit(width - button / 2, bar), HTCLIENT);
+    assert_eq!(app.hit(width - button * 5 / 2, bar), HTCLIENT);
+    // The maximize button answers as such, for the snap layouts of Windows 11.
+    assert_eq!(app.hit(width - button * 3 / 2, bar), HTMAXBUTTON);
     // Below it too.
     assert_eq!(app.hit(width / 2, height / 2), HTCLIENT);
     // Edges and corners resize.
@@ -382,6 +396,11 @@ fn maximizing_fills_the_work_area_and_restoring_brings_the_size_back() {
     assert_eq!(app.hit(0, rect.height() / 2), HTCLIENT);
     assert_eq!(app.hit(rect.width() - 1, rect.height() / 2), HTCLIENT);
     assert_eq!(app.hit(rect.width() / 2, rect.height() - 1), HTCLIENT);
+    // Its maximize button still answers, at the top right of the screen too.
+    assert_eq!(
+        app.hit(rect.width() - button_width(&app) * 3 / 2, 0),
+        HTMAXBUTTON
+    );
     app.command(SC_RESTORE);
     app.wait_until("the window to come back", |app| {
         !app.is_maximized() && app.rect().size() == before.size()
@@ -431,6 +450,9 @@ fn a_fullscreen_window_covers_its_display_and_cannot_be_moved() {
     ] {
         assert_eq!(app.hit(x, y), HTCLIENT, "at ({x}, {y})");
     }
+    // Its button leaves fullscreen as an application's button, not as the system's.
+    let button = button_width(&app);
+    assert_eq!(app.hit(rect.width() - button * 3 / 2, 10), HTCLIENT);
 }
 
 #[test]
