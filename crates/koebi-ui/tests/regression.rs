@@ -73,12 +73,10 @@ fn draw_sheet(ui: &mut Ui<'_>, design: &DesignSystem) {
     }
 
     // Value components.
-    ui.slider(
-        id("slider"),
-        rect(12.0, 50.0, 136.0, 20.0),
-        &mut 0.3,
-        0.0..=1.0,
-    );
+    NumberField::new(id("level"), &mut 0.3)
+        .range(0.0, 1.0)
+        .bar(BarMapping::Linear)
+        .show(ui, rect(12.0, 48.0, 136.0, 24.0));
     NumberField::new(id("drag"), &mut 0.6)
         .range(0.0, 1.0)
         .bar(BarMapping::Linear)

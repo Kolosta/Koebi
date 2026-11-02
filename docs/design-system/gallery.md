@@ -13,12 +13,12 @@ From top to bottom (the two middle panels stack on narrow windows):
    overrides and the color vision setting included. The active theme's card has an accent
    border. Click a card to activate its theme.
 2. **Components**, on the left: a button, icon buttons (plus, minus, cross), two toggle
-   buttons, two checkboxes, a slider, a bounded number field, a separator, the twelve chart colors as
+   buttons, two checkboxes, two bounded number fields on bars, a separator, the twelve chart colors as
    swatches (click one to select it) and the three panel levels.
 3. **Token editor**, on the right:
    - First row: the **scope** of the edits, *every theme* (four squares) or *the active theme*
      (one square), and on the right a cross that removes every override of that scope.
-   - Three sliders edit the **accent color in OKLCH**: hue, chroma and lightness, beside a
+   - Three number fields on bars edit the **accent color in OKLCH**: hue, chroma and lightness, beside a
      strip of the values each one reaches. They write `semantic.accent.color.700`, and
      `semantic.accent.color.600` a little lighter for hovered and pressed states.
    - Three number fields edit dimensions in pixels, on bars, beside a preview: the control corner radius

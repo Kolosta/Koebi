@@ -5,7 +5,7 @@ use crate::semantic;
 use koebi_design::define::*;
 
 koebi_design::tokens! {
-    group NUMBER_FIELD: Component, start = SLIDER::END;
+    group NUMBER_FIELD: Component, start = CHECKBOX::END;
 
     /// Number field: height.
     NUMBER_FIELD_SIZE_HEIGHT = "number-field.size.height": Dimension ->
@@ -59,6 +59,9 @@ koebi_design::tokens! {
     NUMBER_FIELD_STEP_BUTTON_BACKGROUND_COLOR_HOVER =
         "number-field.step-button.background.color.hover": Color ->
         semantic::BACKGROUND_APP_CONTROL;
+    /// Number field: opacity of that background, so that a bar shows through.
+    NUMBER_FIELD_STEP_BUTTON_BACKGROUND_OPACITY =
+        "number-field.step-button.background.opacity": Number = 0.6, range(0.0, 1.0);
     /// Number field: border color.
     NUMBER_FIELD_BORDER_COLOR_DEFAULT = "number-field.border.color.default": Color ->
         semantic::BORDER_COLOR_DEFAULT;
@@ -95,4 +98,7 @@ koebi_design::tokens! {
     /// Number field: how much finer a drag or a step is with Shift.
     NUMBER_FIELD_DRAG_FINE_FACTOR = "number-field.drag.fine-factor": Number = 0.1,
         range(0.001, 1.0);
+    /// Number field: how many steps make the unit Ctrl and Alt move by.
+    NUMBER_FIELD_DRAG_COARSE_FACTOR = "number-field.drag.coarse-factor": Number = 10.0,
+        range(1.0, 1000.0);
 }

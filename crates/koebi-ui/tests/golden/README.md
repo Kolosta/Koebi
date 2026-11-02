@@ -15,7 +15,7 @@ images show what the themes look like.
 | Row | Components |
 |---|---|
 | 1 | a button, a hovered button with a plus icon, a toggle off and on, a checkbox unchecked and checked, three icon buttons (minus, cross, chevron up) |
-| 2 | a slider at 30 %, a bounded number field at 60 % with its bar |
+| 2 | two bounded number fields with their bars, at 30 % and 60 % |
 | 3 | a first-level panel holding a second-level panel, a separator and a third-level panel; three swatches: opaque, translucent over the checkerboard, selected |
 | 4 | theme cards of the dark (selected) and light themes |
 

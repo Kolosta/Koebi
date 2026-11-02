@@ -68,7 +68,7 @@ Paths keep the source notation (`.` between segments, `-` inside a segment). In 
 
   </details>
 
-- **`down` was ImGui's word for the pressed state; the semantic tier says `pressed`** (13):
+- **`down` was ImGui's word for the pressed state; the semantic tier says `pressed`** (12):
 
   <details><summary>show</summary>
 
@@ -77,7 +77,6 @@ Paths keep the source notation (`.` between segments, `-` inside a segment). In 
   - `component.combo.background.color.down` → `component.combo.background.color.pressed`
   - `component.header.background.color.down` → `component.header.background.color.pressed`
   - `component.scrollbar.grab.color.down` → `component.scrollbar.grab.color.pressed`
-  - `component.slider.grab.color.down` → `component.slider.grab.color.pressed`
   - `component.checkbox.background.color.down` → `component.checkbox.background.color.pressed`
   - `component.checkbox.background.color.selected-down` → `component.checkbox.background.color.selected-pressed`
   - `component.separator.color.down` → `component.separator.color.pressed`
@@ -244,6 +243,12 @@ The base theme is Dark: the token tables define it. The other themes come from t
 
 ## Added after the port
 
+Number fields: `component.number-field.step-button.background.opacity` and
+`component.number-field.drag.coarse-factor`.
+
+The `component.slider.*` tokens are gone with the component, at the maintainer's request: a number
+field on a bar replaces it.
+
 Trees: `component.list-row.highlight.margin.vertical`,
 `component.list-row.highlight.margin.horizontal`, `component.list-row.highlight.corner-radius`,
 `component.outliner.tree-line.color.dotted`, `component.outliner.tree-line.dash.default` and
@@ -264,7 +269,7 @@ Input settings, as semantic tokens aliasing durations and spacings (8): `semanti
 `semantic.input.hover.delay`, `semantic.input.repeat.delay` and `semantic.input.repeat.interval`.
 
 New component tokens for the first components of `koebi-ui` (#45). They alias semantic tokens,
-or hold a value where no semantic token fits (32):
+or hold a value where no semantic token fits (25):
 
 <details><summary>show</summary>
 
@@ -274,13 +279,6 @@ or hold a value where no semantic token fits (32):
 - `component.icon.size.default` = 16 px
 - `component.icon.stroke-width.default` = 1.5 px
 - `component.checkbox.mark.width.default` = 2 px
-- `component.slider.grab.color.hover` → `semantic.background.accent.hover`
-- `component.slider.grab.width.default` = 10 px
-- `component.slider.grab.padding.default` = 2 px
-- `component.slider.track.color.default` → `semantic.background.app.frame`
-- `component.slider.track.color.hover` → `semantic.background.app.frame-hover`
-- `component.slider.track.border.color.default` → `semantic.border.color.default`
-- `component.slider.track.border.width.default` → `semantic.border.width.thin`
 - `component.number-field.fill.color.default` (`drag-value` in the C++ port) → `semantic.background.accent.default`
 - `component.panel.border.width.default` → `semantic.border.width.thin`
 - `component.panel.padding.default` = 8 px

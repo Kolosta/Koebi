@@ -1,7 +1,6 @@
 //! The arithmetic of number fields, apart from drawing and input so that every rule can be
 //! tested alone: where a value lies on a bounded field's bar ([`BarMapping`]), the value a
-//! drag gives with its modifiers ([`DragState`]), what a step button does ([`stepped`]), and
-//! the last decimal of a value ([`last_decimal`]).
+//! drag gives with its modifiers ([`DragState`]), and what a step button does ([`stepped`]).
 
 use koebi_core::input::{ModifierKey, Modifiers};
 
@@ -58,6 +57,19 @@ impl BarMapping {
     }
 }
 
+/// What the left Shift does to a drag; the right Shift does the other one.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum FineMode {
+    /// As if the whole drag had been finer since its start, and when released, as if it never
+    /// had been: the value follows the share of the drag done so far. The default of a field
+    /// showing a bar.
+    FromStart,
+    /// Finer from the value reached, and from there again when released, without a jump. The
+    /// default of other fields.
+    #[default]
+    FromHere,
+}
+
 /// The modifiers that shape a drag or a step.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[allow(
@@ -65,25 +77,29 @@ impl BarMapping {
     reason = "four modifier keys, each held or not on its own"
 )]
 pub(crate) struct Precision {
-    /// Left Shift: finer, as if the whole drag had been finer from its start.
+    /// Finer, as if the whole drag had been finer from its start.
     pub(crate) fine_from_start: bool,
-    /// Right Shift: finer from the current value on.
+    /// Finer from the current value on.
     pub(crate) fine_from_here: bool,
-    /// Ctrl: round steps.
+    /// Ctrl: round units.
     pub(crate) round: bool,
-    /// Alt: steps of the last decimal the value had when the drag started.
-    pub(crate) keep_decimal: bool,
+    /// Alt: units from where the pace last changed, the last digits kept.
+    pub(crate) keep_digits: bool,
 }
 
 impl Precision {
-    /// The precision the modifiers held ask for.
-    pub(crate) const fn of(modifiers: Modifiers) -> Self {
+    /// The precision the modifiers held ask for, in a field whose left Shift does `mode`.
+    pub(crate) const fn of(modifiers: Modifiers, mode: FineMode) -> Self {
         let shift = modifiers.sides(ModifierKey::Shift);
+        let (from_start, from_here) = match mode {
+            FineMode::FromStart => (shift.left, shift.right),
+            FineMode::FromHere => (shift.right, shift.left),
+        };
         Self {
-            fine_from_start: shift.left,
-            fine_from_here: shift.right,
+            fine_from_start: from_start,
+            fine_from_here: from_here,
             round: modifiers.sides(ModifierKey::Ctrl).any(),
-            keep_decimal: modifiers.sides(ModifierKey::Alt).any(),
+            keep_digits: modifiers.sides(ModifierKey::Alt).any(),
         }
     }
 
@@ -91,20 +107,24 @@ impl Precision {
     pub(crate) const fn is_fine(self) -> bool {
         self.fine_from_start || self.fine_from_here
     }
+
+    /// `true` with Ctrl or Alt: the value moves by units, larger than steps.
+    pub(crate) const fn is_coarse(self) -> bool {
+        self.round || self.keep_digits
+    }
 }
 
 /// What a drag needs to turn travel into values.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Scale {
-    /// The step: what one `step_distance` of travel adds to an unbounded value, and what
-    /// round steps are multiples of.
+    /// The step: what one `step_distance` of travel adds to an unbounded value.
     pub(crate) step: f64,
     /// Pointer travel that adds one step to an unbounded value.
     pub(crate) step_distance: f32,
     /// How much finer Shift makes the drag.
     pub(crate) fine: f64,
-    /// Decimals shown: the last decimal never goes below them.
-    pub(crate) decimals: usize,
+    /// How many steps make a unit, what Ctrl and Alt move by.
+    pub(crate) coarse: f64,
     /// The bounds; a bounded field with a bar maps travel along the bar's `length`.
     pub(crate) min: f64,
     /// See `min`.
@@ -156,368 +176,132 @@ impl Scale {
         (self.step * self.fine).max(self.min_step)
     }
 
-    /// How far one pixel of travel moves the position.
-    fn per_pixel(&self) -> f64 {
+    /// The unit Ctrl and Alt move by: `coarse` steps, finer with Shift, but not below the
+    /// smallest step.
+    fn unit(&self, fine: bool) -> f64 {
+        let unit = self.step * self.coarse;
+        let unit = if fine { unit * self.fine } else { unit };
+        unit.max(self.min_step)
+    }
+
+    /// How far one pixel of travel moves the position: along a bar, its length runs the range;
+    /// elsewhere, a `step_distance` adds a step, or a unit when `coarse`. A unit is then as far
+    /// as a step is, instead of `coarse` times farther.
+    fn per_pixel(&self, coarse: bool) -> f64 {
         match self.bar {
             Some((_, length)) if length > 0.0 => 1.0 / f64::from(length),
             Some(_) => 0.0,
-            None => self.step / f64::from(self.step_distance.max(1.0)),
+            None => {
+                let step = if coarse { self.unit(false) } else { self.step };
+                step / f64::from(self.step_distance.max(1.0))
+            }
         }
     }
 }
 
-/// A drag in progress: where it started, and where travel counts from since the last change
-/// of precision.
+/// A drag in progress: where it started, and how travel adds up since the last change of pace.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct DragState {
     /// The value at the press.
     pub(crate) start: f64,
-    /// The position (see [`Scale::position`]) and travel the current precision counts from.
-    anchor: (f64, f32),
-    /// The precision travel counted with on the last frame.
-    fine_here: bool,
-    /// The left Shift was held on the last frame.
-    fine_start: bool,
-    /// Travel the left Shift skips: what went past a bound, which coming back does not undo.
-    skipped: f32,
-    /// The unsnapped position and the travel of the last frame.
-    last: (f64, f32),
+    /// The position (see [`Scale::position`]) travel counts from.
+    base: f64,
+    /// Pixels of travel counted from `base`, at the plain pace and at the fine one. What goes
+    /// past a bound at a pace is not counted at that pace, so that coming back moves the value
+    /// at once; each counts on its own, so that a Shift from the start comes back to its value.
+    counted: [f64; 2],
+    /// The pace travel counted at on the last frame: finer from here, and by units.
+    pace: (bool, bool),
+    /// The travel of the last frame.
+    travel: f32,
+    /// The value of the last frame.
+    shown: f64,
 }
 
 impl DragState {
     /// A drag of a field holding `start`.
     pub(crate) fn new(start: f64, scale: &Scale) -> Self {
         let start = scale.finite(start);
-        let position = scale.position(start);
         Self {
             start,
-            anchor: (position, 0.0),
-            fine_here: false,
-            fine_start: false,
-            skipped: 0.0,
-            last: (position, 0.0),
+            base: scale.position(start),
+            counted: [0.0; 2],
+            pace: (false, false),
+            travel: 0.0,
+            shown: start,
         }
     }
 
-    /// The value after `travel` pixels from the press, with `precision`: finer with Shift
-    /// (left: as if from the start; right: from here), on round steps with Ctrl (finer ones
-    /// with Shift too), on steps of the start's last decimal with Alt, within the bounds.
-    /// Travel past a bound is not counted: coming back moves the value at once.
+    /// The value after `travel` pixels from the press, with `precision`, within the bounds:
+    /// - finer with Shift, as if from the start or from here ([`FineMode`]);
+    /// - on round units with Ctrl, or on units from where the pace last changed with Alt, which
+    ///   keeps the last digits; finer ones with Shift too. A unit takes as much travel as a step
+    ///   on a field without a bar. Along a bar, travel keeps its meaning: it runs the range.
     pub(crate) fn value(&mut self, travel: f32, precision: Precision, scale: &Scale) -> f64 {
-        // A change of precision: travel counts from where the drag is, without a jump,
-        // unless the left Shift asks to count from the start.
-        if precision.fine_from_here != self.fine_here
-            || precision.fine_from_start != self.fine_start
-        {
-            self.anchor = self.last;
-            if precision.fine_from_start && !self.fine_start {
-                self.skipped = 0.0;
-            }
-            self.fine_here = precision.fine_from_here;
-            self.fine_start = precision.fine_from_start;
+        let delta = f64::from(travel - self.travel);
+        self.travel = travel;
+        let coarse = precision.is_coarse() && scale.bar.is_none();
+        let pace = (precision.fine_from_here, coarse);
+        if pace != self.pace {
+            // Another pace counts from where the drag is. A Shift counting from the start does
+            // not change the pace: it scales everything counted so far.
+            self.base = scale.position(self.shown);
+            self.counted = [0.0; 2];
+            self.pace = pace;
         }
-        let per_pixel = scale.per_pixel();
-        let origin = scale.position(self.start);
-        let position = if precision.fine_from_start {
-            origin + f64::from(travel - self.skipped) * per_pixel * scale.fine
-        } else {
-            let factor = if precision.fine_from_here {
-                scale.fine
-            } else {
-                1.0
-            };
-            let (from, at) = self.anchor;
-            from + f64::from(travel - at) * per_pixel * factor
-        };
+        let plain = scale.per_pixel(coarse);
+        let rates = [plain, plain * scale.fine];
         let (low, high) = scale.limits();
-        let clamped = position.max(low).min(high);
-        if position < low || position > high {
-            // Past a bound: travel counts from the bound, as if the press had moved there.
-            if precision.fine_from_start {
-                let rate = per_pixel * scale.fine;
-                if rate > 0.0 {
-                    #[allow(clippy::cast_possible_truncation, reason = "travel in pixels fits f32")]
-                    let counted = ((clamped - origin) / rate) as f32;
-                    self.skipped = travel - counted;
-                }
-            } else {
-                self.anchor = (clamped, travel);
+        for (counted, rate) in self.counted.iter_mut().zip(rates) {
+            *counted += delta;
+            let position = self.base + *counted * rate;
+            if (position < low || position > high) && rate > 0.0 {
+                *counted = (position.max(low).min(high) - self.base) / rate;
             }
         }
-        self.last = (clamped, travel);
+        let pace = usize::from(precision.is_fine());
+        let clamped = (self.base + self.counted[pace] * rates[pace])
+            .max(low)
+            .min(high);
         let raw = scale.at(clamped);
-        let snapped = if precision.round && scale.step > 0.0 {
-            let unit = if precision.is_fine() {
-                scale.fine_step()
-            } else {
-                scale.step
-            };
+        let unit = scale.unit(precision.is_fine());
+        let snapped = if precision.round && unit > 0.0 {
             (raw / unit).round() * unit
-        } else if precision.keep_decimal {
-            let unit = last_decimal(self.start, scale.decimals).max(scale.min_step);
-            self.start + ((raw - self.start) / unit).round() * unit
+        } else if precision.keep_digits && unit > 0.0 {
+            let from = scale.at(self.base);
+            from + ((raw - from) / unit).round() * unit
         } else {
             raw
         };
-        snapped.max(scale.min).min(scale.max)
+        self.shown = snapped.max(scale.min).min(scale.max);
+        self.shown
     }
 }
 
 /// The value a step button gives: `direction` (+1 or -1) times the step, a finer step with
-/// Shift, to the next round step with Ctrl (a finer one with Shift too), by the value's last
-/// decimal with Alt; within the bounds.
+/// Shift; with Ctrl, to the next round unit; with Alt, by a unit, which keeps the last digits;
+/// units are finer with Shift too. Within the bounds.
 pub(crate) fn stepped(value: f64, direction: f64, precision: Precision, scale: &Scale) -> f64 {
     let value = scale.finite(value);
-    let step = if precision.is_fine() {
-        scale.fine_step()
-    } else {
-        scale.step
-    };
-    let next = if precision.round && step > 0.0 {
-        // The next multiple of the step that way, even from a multiple.
-        let steps = value / step;
+    let unit = scale.unit(precision.is_fine());
+    let next = if precision.round && unit > 0.0 {
+        // The next multiple of the unit that way, even from a multiple.
+        let units = value / unit;
         let target = if direction > 0.0 {
-            (steps + 1e-9).floor() + 1.0
+            (units + 1e-9).floor() + 1.0
         } else {
-            (steps - 1e-9).ceil() - 1.0
+            (units - 1e-9).ceil() - 1.0
         };
-        target * step
-    } else if precision.keep_decimal {
-        direction.mul_add(
-            last_decimal(value, scale.decimals).max(scale.min_step),
-            value,
-        )
+        target * unit
+    } else if precision.keep_digits {
+        direction.mul_add(unit, value)
     } else {
+        let step = if precision.is_fine() {
+            scale.fine_step()
+        } else {
+            scale.step
+        };
         direction.mul_add(step, value)
     };
     next.max(scale.min).min(scale.max)
-}
-
-/// The unit of the last decimal of `value` written with at most `decimals` decimals: 0.01
-/// for 1.25, 1 for 3, 10⁻ᵈᵉᶜⁱᵐᵃˡˢ when it needs more.
-pub(crate) fn last_decimal(value: f64, decimals: usize) -> f64 {
-    let mut unit = 1.0;
-    for _ in 0..decimals {
-        let scaled = value / unit;
-        if (scaled - scaled.round()).abs() < 1e-6 * scaled.abs().max(1.0) {
-            return unit;
-        }
-        unit /= 10.0;
-    }
-    unit
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn unbounded() -> Scale {
-        Scale {
-            step: 0.1,
-            step_distance: 10.0,
-            fine: 0.1,
-            decimals: 3,
-            min: f64::NEG_INFINITY,
-            max: f64::INFINITY,
-            bar: None,
-            min_step: 0.0,
-        }
-    }
-
-    fn close(a: f64, b: f64) -> bool {
-        (a - b).abs() < 1e-9
-    }
-
-    const LEFT_SHIFT: Precision = Precision {
-        fine_from_start: true,
-        fine_from_here: false,
-        round: false,
-        keep_decimal: false,
-    };
-    const RIGHT_SHIFT: Precision = Precision {
-        fine_from_start: false,
-        fine_from_here: true,
-        round: false,
-        keep_decimal: false,
-    };
-    const CTRL: Precision = Precision {
-        fine_from_start: false,
-        fine_from_here: false,
-        round: true,
-        keep_decimal: false,
-    };
-    const ALT: Precision = Precision {
-        fine_from_start: false,
-        fine_from_here: false,
-        round: false,
-        keep_decimal: true,
-    };
-
-    #[test]
-    fn unbounded_drags_add_a_step_per_step_distance() {
-        let scale = unbounded();
-        let mut drag = DragState::new(1.0, &scale);
-        assert!(close(drag.value(30.0, Precision::default(), &scale), 1.3));
-        assert!(close(drag.value(-10.0, Precision::default(), &scale), 0.9));
-    }
-
-    #[test]
-    fn the_right_shift_is_finer_from_here_and_the_left_from_the_start() {
-        let scale = unbounded();
-        let mut drag = DragState::new(1.0, &scale);
-        drag.value(20.0, Precision::default(), &scale);
-        // Right Shift: from 1.2, ten times finer.
-        assert!(close(drag.value(30.0, RIGHT_SHIFT, &scale), 1.21));
-        // Released: full speed again from there.
-        assert!(close(drag.value(40.0, Precision::default(), &scale), 1.31));
-        // Left Shift: as if the whole drag had been fine: 40 px from 1.0.
-        assert!(close(drag.value(40.0, LEFT_SHIFT, &scale), 1.04));
-        assert!(close(drag.value(50.0, LEFT_SHIFT, &scale), 1.05));
-        // Released: from there, without a jump.
-        assert!(close(drag.value(50.0, Precision::default(), &scale), 1.05));
-    }
-
-    #[test]
-    fn ctrl_rounds_to_steps_and_alt_keeps_the_start_decimal() {
-        let scale = Scale {
-            step: 0.5,
-            ..unbounded()
-        };
-        let mut drag = DragState::new(1.23, &scale);
-        assert!(close(drag.value(7.0, CTRL, &scale), 1.5));
-        let scale = unbounded();
-        let mut drag = DragState::new(1.23, &scale);
-        // 13 px: +0.13, in steps of 0.01 from 1.23.
-        assert!(close(drag.value(13.0, ALT, &scale), 1.36));
-        let mut whole = DragState::new(3.0, &scale);
-        // 13 px from 3: +0.13, in steps of 1: 3.
-        assert!(close(whole.value(13.0, ALT, &scale), 3.0));
-    }
-
-    #[test]
-    fn bounded_bars_map_travel_along_their_length_and_clamp() {
-        let scale = Scale {
-            min: 0.0,
-            max: 10.0,
-            bar: Some((BarMapping::Linear, 100.0)),
-            ..unbounded()
-        };
-        let mut drag = DragState::new(5.0, &scale);
-        assert!(close(drag.value(20.0, Precision::default(), &scale), 7.0));
-        assert!(close(drag.value(500.0, Precision::default(), &scale), 10.0));
-        assert!(close(drag.value(-500.0, Precision::default(), &scale), 0.0));
-        let log = Scale {
-            min: 1.0,
-            max: 100.0,
-            bar: Some((BarMapping::Logarithmic, 100.0)),
-            ..unbounded()
-        };
-        let mut drag = DragState::new(1.0, &log);
-        assert!(close(drag.value(50.0, Precision::default(), &log), 10.0));
-    }
-
-    #[test]
-    fn mappings_go_both_ways() {
-        let squared = BarMapping::Custom {
-            to_fraction: |value, min, max| ((value - min) / (max - min)).sqrt(),
-            from_fraction: |fraction, min, max| (fraction * fraction).mul_add(max - min, min),
-        };
-        for mapping in [BarMapping::Linear, BarMapping::Logarithmic, squared] {
-            for value in [1.0, 4.0, 25.0, 100.0] {
-                let fraction = mapping.fraction(value, 1.0, 100.0);
-                assert!((0.0..=1.0).contains(&fraction));
-                assert!(
-                    (mapping.value(fraction, 1.0, 100.0) - value).abs() < 1e-9,
-                    "{mapping:?}"
-                );
-            }
-        }
-        // A logarithmic range that does not lie above zero maps linearly.
-        assert!(close(BarMapping::Logarithmic.fraction(5.0, 0.0, 10.0), 0.5));
-        assert_eq!(BarMapping::Linear.fraction(f64::NAN, 0.0, 1.0), 0.0);
-    }
-
-    #[test]
-    fn steps_follow_the_modifiers() {
-        let scale = Scale {
-            min: 0.0,
-            max: 2.0,
-            ..unbounded()
-        };
-        assert!(close(
-            stepped(1.23, 1.0, Precision::default(), &scale),
-            1.33
-        ));
-        assert!(close(stepped(1.23, -1.0, RIGHT_SHIFT, &scale), 1.22));
-        assert!(close(stepped(1.23, 1.0, CTRL, &scale), 1.3));
-        assert!(close(stepped(1.3, 1.0, CTRL, &scale), 1.4));
-        assert!(close(stepped(1.3, -1.0, CTRL, &scale), 1.2));
-        assert!(close(stepped(1.23, 1.0, ALT, &scale), 1.24));
-        assert!(close(stepped(1.95, 1.0, Precision::default(), &scale), 2.0));
-    }
-
-    #[test]
-    fn travel_past_a_bound_is_not_counted() {
-        // Regression test: past the end, travel back did nothing until it had undone the
-        // travel beyond the end.
-        let scale = Scale {
-            min: 0.0,
-            max: 10.0,
-            bar: Some((BarMapping::Linear, 100.0)),
-            ..unbounded()
-        };
-        let mut drag = DragState::new(5.0, &scale);
-        assert!(close(drag.value(400.0, Precision::default(), &scale), 10.0));
-        assert!(close(drag.value(390.0, Precision::default(), &scale), 9.0));
-        // The same with the left Shift, which counts from the start.
-        let mut fine = DragState::new(5.0, &scale);
-        assert!(close(fine.value(4000.0, LEFT_SHIFT, &scale), 10.0));
-        assert!(close(fine.value(3900.0, LEFT_SHIFT, &scale), 9.0));
-    }
-
-    #[test]
-    fn integers_never_step_below_one_and_shift_rounds_finer() {
-        // Regression test: a finer step rounded back to the same integer.
-        let integers = Scale {
-            step: 1.0,
-            min_step: 1.0,
-            decimals: 0,
-            ..unbounded()
-        };
-        assert!(close(stepped(5.0, 1.0, RIGHT_SHIFT, &integers), 6.0));
-        assert!(close(stepped(5.0, -1.0, ALT, &integers), 4.0));
-        // Ctrl with Shift rounds to the finer step.
-        let shift_ctrl = Precision {
-            round: true,
-            ..RIGHT_SHIFT
-        };
-        assert!(close(stepped(1.23, 1.0, shift_ctrl, &unbounded()), 1.24));
-        let mut drag = DragState::new(1.0, &unbounded());
-        assert!(close(drag.value(23.0, shift_ctrl, &unbounded()), 1.02));
-    }
-
-    #[test]
-    fn values_that_are_not_numbers_drag_and_step_from_zero() {
-        let scale = unbounded();
-        let mut drag = DragState::new(f64::NAN, &scale);
-        assert!(close(drag.value(10.0, Precision::default(), &scale), 0.1));
-        assert!(close(
-            stepped(f64::INFINITY, 1.0, Precision::default(), &scale),
-            0.1
-        ));
-        let nan = BarMapping::Custom {
-            to_fraction: |_, _, _| f64::NAN,
-            from_fraction: |_, _, _| f64::NAN,
-        };
-        assert_eq!(nan.fraction(5.0, 0.0, 10.0), 0.0);
-    }
-
-    #[test]
-    fn last_decimals_stop_at_the_decimals_shown() {
-        assert!(close(last_decimal(1.25, 3), 0.01));
-        assert!(close(last_decimal(3.0, 3), 1.0));
-        assert!(close(last_decimal(0.1, 3), 0.1));
-        assert!(close(last_decimal(1.23456, 3), 0.001));
-        assert!(close(last_decimal(7.0, 0), 1.0));
-    }
 }

@@ -21,7 +21,7 @@ const TEMPORARY: &str = "design.kds.tmp";
 ///   or load: it writes a temporary file, flushes it to the disk, keeps the previous file as a
 ///   backup and renames the new file into place, so a crash never leaves a half-written file.
 /// - [`Self::save_if_due`] saves once the state has stayed unsaved for the store's delay: call
-///   it every frame while a slider drags, and the disk sees one write per pause, not one per
+///   it every frame while a field drags, and the disk sees one write per pause, not one per
 ///   frame. Call [`Self::save`] when the application goes to the background or quits.
 #[derive(Debug)]
 pub struct Store {

@@ -11,8 +11,9 @@ use koebi_ui::{
 
 use super::{Metrics, cut_left, cut_top};
 
-/// Rows of the panel: the text fields, the number fields, then what the last edit did.
-pub(super) const ROWS: u16 = 3;
+/// Rows of the panel: the text fields, the number fields, their step buttons on and off, then
+/// what the last edit did.
+pub(super) const ROWS: u16 = 4;
 
 /// The texts the panel edits.
 #[derive(Debug)]
@@ -28,6 +29,8 @@ pub(super) struct Fields {
     frequency: f64,
     samples: i32,
     locked: f64,
+    bar_with_buttons: f64,
+    plain_without_buttons: f64,
     /// What the last edit did.
     last: &'static str,
 }
@@ -46,6 +49,8 @@ impl Fields {
             frequency: 440.0,
             samples: 64,
             locked: 1.0,
+            bar_with_buttons: 0.5,
+            plain_without_buttons: 3.5,
             last: "Click a field to edit it; Tab moves to the next one",
         }
     }
@@ -119,6 +124,19 @@ impl Fields {
                 .show(ui, line)
                 .ended,
         ];
+        // Step buttons: on a field that has none by default, and off one that has them.
+        let mut line = cut_top(&mut content, row, gap);
+        let half = ((line.width() - gap) * 0.5).floor();
+        NumberField::new(ID.with(15), &mut self.bar_with_buttons)
+            .label("Bar with step buttons")
+            .range(0.0, 1.0)
+            .bar(BarMapping::Linear)
+            .step_buttons(true)
+            .show(ui, cut_left(&mut line, half, gap));
+        NumberField::new(ID.with(16), &mut self.plain_without_buttons)
+            .label("Without step buttons")
+            .step_buttons(false)
+            .show(ui, line);
         match ended.into_iter().chain(numbers).flatten().next() {
             Some(EditEnd::Confirmed) => self.last = "Kept the text",
             Some(EditEnd::Cancelled) => self.last = "Restored the text",

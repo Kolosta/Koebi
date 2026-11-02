@@ -1,7 +1,7 @@
 //! [`Styles`]: what every component draws with, resolved from design tokens, and [`Prop`]: a
 //! property a call gives a component, as a token or a value.
 //!
-//! Each component has a typed style (`ButtonStyle`, `SliderStyle`...) whose fields are read
+//! Each component has a typed style (`ButtonStyle`, `PanelStyle`...) whose fields are read
 //! from its `component.*` tokens by a `resolve` function (ADR 0017). Resolving reads a few
 //! hundred values, so it happens when the design system changes, not per component: drawing
 //! reads plain fields. [`Styles::tokens`] keeps a snapshot of every token, so that a token a
@@ -20,8 +20,8 @@ use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
     ButtonStyle, CheckboxStyle, CollapsiblePanelStyle, DropdownStyle, ListStyle, MenuStyle,
-    NumberFieldStyle, PanelStyle, PropertyGroupStyle, ScrollStyle, SeparatorStyle, SliderStyle,
-    SwatchStyle, TextFieldStyle, ThemeCardStyle, TooltipStyle,
+    NumberFieldStyle, PanelStyle, PropertyGroupStyle, ScrollStyle, SeparatorStyle, SwatchStyle,
+    TextFieldStyle, ThemeCardStyle, TooltipStyle,
 };
 use crate::workspace::WorkspaceStyle;
 
@@ -280,8 +280,6 @@ pub struct Styles {
     pub button: ButtonStyle,
     /// [`Checkbox`](crate::Checkbox).
     pub checkbox: CheckboxStyle,
-    /// [`Ui::slider`](crate::Ui::slider).
-    pub slider: SliderStyle,
     /// [`NumberField`](crate::NumberField).
     pub number_field: NumberFieldStyle,
     /// [`PropertyGroup`](crate::PropertyGroup).
@@ -337,7 +335,6 @@ impl Styles {
             text: TextStyles::resolve(tokens),
             button: ButtonStyle::resolve(tokens),
             checkbox: CheckboxStyle::resolve(tokens),
-            slider: SliderStyle::resolve(tokens),
             number_field: NumberFieldStyle::resolve(tokens),
             property_group: PropertyGroupStyle::resolve(tokens),
             panel: PanelStyle::resolve(tokens),
@@ -411,8 +408,8 @@ mod tests {
             design.get(component::BUTTON_BACKGROUND_COLOR_DEFAULT)
         );
         assert_eq!(
-            styles.slider.grab.pressed,
-            design.get(component::SLIDER_GRAB_COLOR_PRESSED)
+            styles.number_field.fill.get(crate::ControlState::Normal),
+            design.get(component::NUMBER_FIELD_FILL_COLOR_DEFAULT)
         );
         assert_eq!(styles.checkbox.box_size, 16.0);
         assert_eq!(

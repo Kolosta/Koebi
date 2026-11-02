@@ -64,7 +64,6 @@ const SCHEMA: Schema = Schema::new(
         component::ICON::GROUP,
         component::TOGGLE::GROUP,
         component::CHECKBOX::GROUP,
-        component::SLIDER::GROUP,
         component::NUMBER_FIELD::GROUP,
         component::TEXT_FIELD::GROUP,
         component::DROPDOWN::GROUP,

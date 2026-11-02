@@ -49,7 +49,7 @@ impl<N: Numeric> NumberField<'_, N> {
             self.drag(ui, body, track, &scale, &mut out);
             for (response, direction) in step_responses.iter().zip([-1.0, 1.0]) {
                 if response.clicked {
-                    let precision = Precision::of(ui.input().modifiers());
+                    let precision = Precision::of(ui.input().modifiers(), self.fine_mode_shown());
                     let next = stepped(self.value.to_f64(), direction, precision, &scale);
                     self.set(next, &mut out);
                 }
@@ -149,7 +149,7 @@ impl<N: Numeric> NumberField<'_, N> {
             return;
         }
         if drag.dragging {
-            let precision = Precision::of(ui.input().modifiers());
+            let precision = Precision::of(ui.input().modifiers(), self.fine_mode_shown());
             let value = drag.state.value(drag.travel, precision, scale);
             self.set(value, out);
             out.dragging = true;

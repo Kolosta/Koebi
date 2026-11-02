@@ -7,12 +7,12 @@
 //!   ([`ControlState`]). Behaviours are options as well: when a button fires
 //!   ([`Activation`]), whether it repeats while held, whether it toggles a value. Families of
 //!   controls share their roles and colors ([`Tone`]: a [`Variant`] and an optional [`Hue`]).
-//!   Simpler components are methods of [`Ui`] ([`Ui::slider`], [`Ui::panel`]...). ADR 0017
+//!   Simpler components are methods of [`Ui`] ([`Ui::panel`], [`Ui::separator`]...). ADR 0017
 //!   records the design of the library.
 //! - **Floating content**: menus and their submenus ([`Ui::menu`]), dropdowns ([`Dropdown`]),
 //!   popups ([`Ui::popup`]) and tooltips ([`Ui::tooltip`]) draw above everything, placed beside
 //!   their control by a [`Placement`] that flips when the window has no room.
-//! - **Styles**: each component draws with a typed style ([`ButtonStyle`], [`SliderStyle`]...)
+//! - **Styles**: each component draws with a typed style ([`ButtonStyle`], [`PanelStyle`]...)
 //!   whose fields come from its `component.*` tokens. [`Styles::resolve`] reads every style
 //!   from the active theme or from any other theme ([`koebi_design::Resolve`]), and
 //!   [`StyleCache`] resolves again only when the design system changes: frames read plain
@@ -91,24 +91,24 @@ pub use ui::{Response, Ui, UiState, WidgetState};
 pub use widgets::{
     Activation, BarMapping, Button, ButtonGroup, ButtonStyle, Checkbox, CheckboxStyle,
     CollapsiblePanel, CollapsiblePanelResponse, CollapsiblePanelState, CollapsiblePanelStyle,
-    Content, ControlState, DropPlace, Dropdown, DropdownStyle, EditEnd, GroupCell, GroupResponse,
-    Hue, HueColors, ItemMark, LIST, LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT,
-    LIST_EXTEND_PREVIOUS, LIST_FOLD, LIST_NEXT, LIST_PREVIOUS, LIST_SELECT_ALL, LIST_UNFOLD,
-    ListContextMenu, ListDelegate, ListItem, ListOptions, ListResponse, ListSelection, ListState,
-    ListStyle, MENU, MENU_ACTIONS, MENU_CHOOSE, MENU_CLOSE, MENU_CLOSE_SUBMENU, MENU_NEXT,
-    MENU_OPEN_SUBMENU, MENU_PREVIOUS, MenuAction, MenuChoice, MenuItem, MenuMark, MenuState,
-    MenuStyle, NUMBER, NUMBER_ACTIONS, NUMBER_CANCEL, NUMBER_CONFIRM, NumberField,
+    Content, ControlState, DropPlace, Dropdown, DropdownStyle, EditEnd, FineMode, GroupCell,
+    GroupResponse, Hue, HueColors, ItemMark, LIST, LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL,
+    LIST_EXTEND_NEXT, LIST_EXTEND_PREVIOUS, LIST_FOLD, LIST_NEXT, LIST_PREVIOUS, LIST_SELECT_ALL,
+    LIST_UNFOLD, ListContextMenu, ListDelegate, ListItem, ListOptions, ListResponse, ListSelection,
+    ListState, ListStyle, MENU, MENU_ACTIONS, MENU_CHOOSE, MENU_CLOSE, MENU_CLOSE_SUBMENU,
+    MENU_NEXT, MENU_OPEN_SUBMENU, MENU_PREVIOUS, MenuAction, MenuChoice, MenuItem, MenuMark,
+    MenuState, MenuStyle, NUMBER, NUMBER_ACTIONS, NUMBER_CANCEL, NUMBER_CONFIRM, NumberField,
     NumberFieldResponse, NumberFieldStyle, Numeric, OutsidePress, PanelAlign, PanelLevel,
     PanelStyle, Placed, Placement, PropertyGroup, PropertyGroupStyle, SCROLL, ScrollAxes,
     ScrollAxis, ScrollContent, ScrollState, ScrollStyle, Scrollbar, ScrollbarResponse,
-    ScrollbarState, SelectOnFocus, SeparatorStyle, Shades, Side, SliderStyle, States, Submenu,
-    SwatchStyle, TEXT, TEXT_ACTIONS, TEXT_CANCEL, TEXT_CONFIRM, TEXT_COPY, TEXT_CUT,
-    TEXT_DELETE_BACKWARD, TEXT_DELETE_FORWARD, TEXT_DELETE_WORD_BACKWARD, TEXT_DELETE_WORD_FORWARD,
-    TEXT_END, TEXT_LEFT, TEXT_NEXT_FIELD, TEXT_PASTE, TEXT_PREVIOUS_FIELD, TEXT_REDO, TEXT_RIGHT,
-    TEXT_SELECT_ALL, TEXT_SELECT_END, TEXT_SELECT_LEFT, TEXT_SELECT_RIGHT, TEXT_SELECT_START,
-    TEXT_SELECT_WORD_LEFT, TEXT_SELECT_WORD_RIGHT, TEXT_START, TEXT_UNDO, TEXT_WORD_LEFT,
-    TEXT_WORD_RIGHT, TextField, TextFieldResponse, TextFieldStyle, ThemeCardStyle, ThemePreview,
-    Tone, ToneColors, TooltipStyle, Track, TreeGuide, Variant,
+    ScrollbarState, SelectOnFocus, SeparatorStyle, Shades, Side, States, Submenu, SwatchStyle,
+    TEXT, TEXT_ACTIONS, TEXT_CANCEL, TEXT_CONFIRM, TEXT_COPY, TEXT_CUT, TEXT_DELETE_BACKWARD,
+    TEXT_DELETE_FORWARD, TEXT_DELETE_WORD_BACKWARD, TEXT_DELETE_WORD_FORWARD, TEXT_END, TEXT_LEFT,
+    TEXT_NEXT_FIELD, TEXT_PASTE, TEXT_PREVIOUS_FIELD, TEXT_REDO, TEXT_RIGHT, TEXT_SELECT_ALL,
+    TEXT_SELECT_END, TEXT_SELECT_LEFT, TEXT_SELECT_RIGHT, TEXT_SELECT_START, TEXT_SELECT_WORD_LEFT,
+    TEXT_SELECT_WORD_RIGHT, TEXT_START, TEXT_UNDO, TEXT_WORD_LEFT, TEXT_WORD_RIGHT, TextField,
+    TextFieldResponse, TextFieldStyle, ThemeCardStyle, ThemePreview, Tone, ToneColors,
+    TooltipStyle, Track, TreeGuide, Variant,
 };
 pub use workspace::{
     EditorHost, OPERATION_CANCEL, OPERATION_CONFIRM, WORKSPACE, WORKSPACE_ACTIONS,

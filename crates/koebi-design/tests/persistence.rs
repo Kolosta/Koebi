@@ -263,7 +263,7 @@ fn saves_wait_for_a_pause() {
     let start = Instant::now();
     let at = |ms: u64| start + Duration::from_millis(ms);
 
-    // A slider drags for a second: one change per frame.
+    // A number field drags for a second: one change per frame.
     for frame in 0..60_u64 {
         let radius = 2.0 + frame as f32 * 0.1;
         design

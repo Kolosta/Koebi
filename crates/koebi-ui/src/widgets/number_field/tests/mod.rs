@@ -2,6 +2,7 @@
 //! review ([`regressions`]).
 
 mod basics;
+mod math;
 mod regressions;
 
 use koebi_core::{Rect, Vec2};
@@ -81,6 +82,12 @@ impl Harness {
     /// The travel of `steps` steps of an unbounded field.
     fn steps(&self, steps: f32) -> Vec2 {
         Vec2::new(self.styles.number_field.step_distance * steps, 0.0)
+    }
+
+    /// The travel along `share` of the track of a field on a bar.
+    fn track_share(&self, share: f32) -> Vec2 {
+        let border = self.styles.number_field.border_width;
+        Vec2::new((field().width() - 2.0 * border) * share, 0.0)
     }
 }
 

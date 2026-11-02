@@ -50,6 +50,8 @@ pub struct NumberFieldStyle {
     pub step_distance: f32,
     /// How much finer Shift makes a drag or a step.
     pub fine_factor: f32,
+    /// How many steps make a unit, what Ctrl and Alt move by.
+    pub coarse_factor: f32,
 }
 
 impl NumberFieldStyle {
@@ -93,7 +95,11 @@ impl NumberFieldStyle {
             unit: get(c::NUMBER_FIELD_UNIT_COLOR_DEFAULT),
             step: get(c::NUMBER_FIELD_STEP_BUTTON_COLOR_DEFAULT),
             step_hovered: get(c::NUMBER_FIELD_STEP_BUTTON_COLOR_HOVER),
-            step_background: get(c::NUMBER_FIELD_STEP_BUTTON_BACKGROUND_COLOR_HOVER),
+            step_background: {
+                let color: Color = get(c::NUMBER_FIELD_STEP_BUTTON_BACKGROUND_COLOR_HOVER);
+                let opacity = tokens.get(c::NUMBER_FIELD_STEP_BUTTON_BACKGROUND_OPACITY);
+                color.with_alpha(color.a * opacity)
+            },
             height: tokens.get(c::NUMBER_FIELD_SIZE_HEIGHT),
             min_width: tokens.get(c::NUMBER_FIELD_MIN_WIDTH_DEFAULT),
             padding: tokens.get(c::NUMBER_FIELD_PADDING_HORIZONTAL_DEFAULT),
@@ -103,6 +109,7 @@ impl NumberFieldStyle {
             border_width: tokens.get(c::NUMBER_FIELD_BORDER_WIDTH_DEFAULT),
             step_distance: tokens.get(c::NUMBER_FIELD_DRAG_STEP_DISTANCE),
             fine_factor: tokens.get(c::NUMBER_FIELD_DRAG_FINE_FACTOR),
+            coarse_factor: tokens.get(c::NUMBER_FIELD_DRAG_COARSE_FACTOR),
         }
     }
 }

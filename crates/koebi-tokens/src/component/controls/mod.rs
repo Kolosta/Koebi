@@ -1,4 +1,4 @@
-//! Controls: buttons, icons, toggles, checkboxes, sliders, value fields, dropdowns, frames,
+//! Controls: buttons, icons, toggles, checkboxes, value fields, dropdowns, frames,
 //! separators, scrollbars, tabs, headers, color swatches and theme cards.
 //!
 //! One module per component, each holding the component's token group. Each group starts
@@ -19,7 +19,6 @@ mod number_field;
 mod resize_grip;
 mod scrollbar;
 mod separator;
-mod slider;
 mod tab;
 mod text_field;
 mod theme_card;
@@ -40,7 +39,6 @@ pub use number_field::*;
 pub use resize_grip::*;
 pub use scrollbar::*;
 pub use separator::*;
-pub use slider::*;
 pub use tab::*;
 pub use text_field::*;
 pub use theme_card::*;
