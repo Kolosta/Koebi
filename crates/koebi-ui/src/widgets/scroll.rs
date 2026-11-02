@@ -184,7 +184,7 @@ impl Ui<'_> {
         result
     }
 
-    /// The overlay scrollbars of a scroll area, in its margins: vertical, then horizontal.
+    /// The overlay scrollbars of a scroll area, over its content: vertical, then horizontal.
     fn scrollbars(
         &mut self,
         id: WidgetId,

@@ -66,6 +66,8 @@ fn row_of(state: &ListState, id: u64) -> Row {
 struct Rules {
     containers: Vec<u64>,
     toggled: Vec<u64>,
+    /// Where the room for the end items of the last row drawn stops.
+    end: f32,
 }
 
 impl ListDelegate for Rules {
@@ -77,6 +79,7 @@ impl ListDelegate for Rules {
     }
 
     fn row_end(&mut self, ui: &mut Ui<'_>, item: &ListItem<'_>, rect: Rect) -> f32 {
+        self.end = rect.max.x;
         let toggle = Rect::from_min_max(Vec2::new(rect.max.x - ROW, rect.min.y), rect.max);
         if ui
             .interact(WidgetId::new("visible").with(item.id), toggle)
@@ -409,10 +412,25 @@ fn the_fold_arrow_folds_without_selecting() {
 fn items_at_the_end_of_rows_take_their_clicks() {
     let mut harness = Harness::new(ListOptions::TREE);
     let style = harness.styles.list;
-    let end = 200.0 - harness.styles.scroll.margin - style.padding;
+    let end = 200.0 - style.padding.max(harness.styles.scroll.margin);
     harness.click(Vec2::new(end - ROW * 0.5, ROW * 2.5));
     assert_eq!(harness.rules.toggled, [3]);
     assert_eq!(harness.selected(), Vec::<u64>::new());
+}
+
+#[test]
+fn items_at_the_end_of_rows_stay_clear_of_the_scrollbar() {
+    // Regression test: the scrollbar lies over the rows, and took the clicks on their last pixels.
+    let mut harness = Harness::with_height(ListOptions::TREE, 3.0 * ROW);
+    harness.frame();
+    // The strip the scrollbar grabs lies along the right edge.
+    assert!(harness.rules.end <= 200.0 - harness.styles.scroll.margin);
+    let at = Vec2::new(harness.rules.end - 0.5, ROW * 2.5);
+    harness.input.pointer_moved(at);
+    harness.frame();
+    harness.click(at);
+    harness.frame();
+    assert_eq!(harness.rules.toggled, [3]);
 }
 
 #[test]

@@ -347,7 +347,8 @@ impl Ui<'_> {
             }
         }
 
-        let end = rect.max.x - style.padding;
+        // Clear of the scrollbar, which lies over the rows and takes the pointer there.
+        let end = rect.max.x - style.padding.max(styles.scroll.margin);
         let used = delegate.row_end(
             self,
             item,
