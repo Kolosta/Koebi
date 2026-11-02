@@ -3,16 +3,17 @@
 //! - **Showing**: one control high, the value rounded to its decimals with its unit, centred
 //!   (or after its label); a bounded field can fill a bar to where its value lies
 //!   ([`BarMapping`]: linear, logarithmic or the caller's). A vertical variant stands up.
-//! - **Stepping**: on hover, step buttons at both ends; Shift steps finer, Ctrl to the next
-//!   round step, Alt by the value's last decimal ([`math`]).
+//! - **Stepping**: on hover, step buttons at both ends, by default on a field without a bar;
+//!   Shift steps finer, Ctrl goes to the next round unit, Alt moves by a unit and keeps the last
+//!   digits ([`math`]).
 //! - **Dragging** ([`interact`]): a press locks the pointer at once. Released before the drag
 //!   threshold, it types the value; past it, travel changes the value at the speed of the
 //!   system's pointer: a step per `number-field.drag.step-distance`, or the bar's length for
-//!   the whole range of a bounded field. Left Shift makes the whole drag finer from its start,
-//!   right Shift finer from the current value, Ctrl rounds to steps, Alt keeps the start's last
-//!   decimal. Escape, Delete or a right click cancel at any time; Enter or the release keep
-//!   the value. The pointer comes back where the press was, or at the end of a bounded field's
-//!   bar.
+//!   the whole range of a bounded field. The left Shift does the field's [`FineMode`], the right
+//!   Shift the other one; Ctrl goes to round units and Alt moves by units keeping the last
+//!   digits, both finer with Shift. Escape, Delete or a right click cancel at any time; Enter or
+//!   the release keep the value. The pointer comes back where the press was, or at the end of a
+//!   bounded field's bar.
 //! - **Typing**: the value as text in a [`TextField`](crate::TextField), evaluated as an
 //!   expression with units ([`koebi_core::expr`]) in the field's unit; an invalid expression
 //!   keeps the edit open, framed as an error.
@@ -264,9 +265,10 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         self
     }
 
-    /// What a step button adds and round steps are multiples of, and what an unbounded drag
-    /// adds per `number-field.drag.step-distance`: 1 for integers (whole steps, at least 1),
-    /// 0.1 for floats by default.
+    /// What a step button adds, and what a drag without a bar adds per
+    /// `number-field.drag.step-distance`; `number-field.drag.coarse-factor` of them make the unit
+    /// of Ctrl and Alt. By default, 1 for integers (whole steps, at least 1); for floats, about a
+    /// hundredth of the range of a bounded field, on a power of ten, and 0.1 otherwise.
     #[must_use]
     pub fn step(mut self, step: f64) -> Self {
         self.step = Some(step);
@@ -412,13 +414,21 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         }
     }
 
-    /// The step: the call's, or 1 for integers and 0.1 for floats; whole and at least 1 for
-    /// integers.
+    /// The step: the call's, or the default [`NumberField::step`] tells; whole and at least 1
+    /// for integers.
     fn step_value(&self) -> f64 {
+        let default = if N::INTEGER {
+            1.0
+        } else if self.is_bounded() {
+            // A range of 1 steps by 0.01, its unit 0.1: Ctrl and Alt stay of use on it.
+            10_f64.powf((self.max - self.min).log10().floor() - 2.0)
+        } else {
+            0.1
+        };
         let step = self
             .step
             .filter(|step| step.is_finite() && *step > 0.0)
-            .unwrap_or(if N::INTEGER { 1.0 } else { 0.1 });
+            .unwrap_or(default);
         if N::INTEGER {
             step.round().max(1.0)
         } else {

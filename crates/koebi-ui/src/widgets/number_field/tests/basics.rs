@@ -343,6 +343,31 @@ fn fields_show_their_label_value_unit_bar_and_steps_on_hover() {
 }
 
 #[test]
+fn ctrl_stays_of_use_on_a_small_range() {
+    // Regression test: a unit of 1 on a range of 1 left only its two ends.
+    let mut harness = Harness::new();
+    let mut value = 0.37;
+    let show = |harness: &mut Harness, value: &mut f64| {
+        harness
+            .frame(|ui| {
+                NumberField::new(ID, value)
+                    .range(0.0, 1.0)
+                    .bar(BarMapping::Linear)
+                    .show(ui, field())
+            })
+            .0
+    };
+    show(&mut harness, &mut value);
+    harness.input.primary_button(true, field().center());
+    show(&mut harness, &mut value);
+    harness.input.set_modifiers(Modifiers::LEFT_CTRL);
+    let travel = harness.track_share(0.1);
+    harness.input.pointer_moved_by(travel);
+    show(&mut harness, &mut value);
+    assert!(close(value, 0.5), "{value}");
+}
+
+#[test]
 fn fields_without_a_bar_have_step_buttons_unless_told_otherwise() {
     let mut harness = Harness::new();
     let mut value = 2.5;

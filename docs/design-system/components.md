@@ -120,7 +120,7 @@ if save.show(ui, Rect::from_origin_size(origin, size)).clicked {
 
 Blender's number button. `NumberField::new(id, &mut value)` edits any `Numeric`: `f32`,
 `f64`, or integers (no decimals, whole steps). Options: `.range(min, max)` (or `.min`,
-`.max`), `.step(step)` (0.1 for floats, 1 for integers), `.decimals(count)` (2 for floats),
+`.max`), `.step(step)` (1 for integers; for floats, about a hundredth of a bounded range, or 0.1), `.decimals(count)` (2 for floats),
 `.unit(&unit)` (from `koebi_core::expr`, shown after the value and used for typed
 expressions), `.label(text)`, `.bar(mapping)`, `.vertical()`, `.step_buttons(shown)`,
 `.fine_mode(mode)`, `.enabled(false)`, and the metrics and colors per state as tokens or values.
@@ -533,7 +533,7 @@ every layer) and by any `View`: `ThemePreview::of(&design, theme)` resolves anot
 with its overrides and the color vision setting, for a theme card.
 
 `Styles::resolve` resolves every component's style together. `StyleCache` keeps them in step
-with the design system and resolves again only after a change: a slider that edits a token
+with the design system and resolves again only after a change: a field that edits a token
 every frame costs one resolution per frame, and frames without changes read no token.
 `Styles::tokens` keeps a snapshot of every token's value, which resolves the tokens calls give
 (`Prop::Token`) without a lookup in the design system.

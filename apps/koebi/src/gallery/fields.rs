@@ -11,7 +11,8 @@ use koebi_ui::{
 
 use super::{Metrics, cut_left, cut_top};
 
-/// Rows of the panel: the text fields, the number fields, then what the last edit did.
+/// Rows of the panel: the text fields, the number fields, their step buttons on and off, then
+/// what the last edit did.
 pub(super) const ROWS: u16 = 4;
 
 /// The texts the panel edits.

@@ -270,7 +270,7 @@ koebi_design::tokens! {
     /// Focus color on dark media (white in every theme).
     STATIC_FOCUS_COLOR_WHITE = "static.focus.color.white": Color -> primitive::COLOR_GRAY_25;
 
-    /// Color of slider and progress tracks.
+    /// Color of progress tracks.
     TRACK_COLOR_DEFAULT = "track.color.default": Color -> primitive::COLOR_GRAY_300;
 
     /// Color of titles.

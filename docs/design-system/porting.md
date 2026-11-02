@@ -68,7 +68,7 @@ Paths keep the source notation (`.` between segments, `-` inside a segment). In 
 
   </details>
 
-- **`down` was ImGui's word for the pressed state; the semantic tier says `pressed`** (13):
+- **`down` was ImGui's word for the pressed state; the semantic tier says `pressed`** (12):
 
   <details><summary>show</summary>
 
@@ -269,7 +269,7 @@ Input settings, as semantic tokens aliasing durations and spacings (8): `semanti
 `semantic.input.hover.delay`, `semantic.input.repeat.delay` and `semantic.input.repeat.interval`.
 
 New component tokens for the first components of `koebi-ui` (#45). They alias semantic tokens,
-or hold a value where no semantic token fits (32):
+or hold a value where no semantic token fits (25):
 
 <details><summary>show</summary>
 
