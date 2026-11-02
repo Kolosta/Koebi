@@ -137,8 +137,6 @@ fn item_key(level: usize, item: usize) -> u64 {
     ((level as u64 + 1) << 32) | item as u64
 }
 
-/// The rectangle of a context menu of `size` opened at `point`: right and down from it when
-/// there is room, else left or up, kept inside `bounds`.
 /// The panel of `size` at `origin`, moved as little as it takes to stay inside `bounds`.
 fn around_pointer(origin: Vec2, size: Vec2, bounds: Rect) -> Rect {
     let keep = |start: f32, length: f32, low: f32, high: f32| start.min(high - length).max(low);
@@ -151,6 +149,8 @@ fn around_pointer(origin: Vec2, size: Vec2, bounds: Rect) -> Rect {
     ))
 }
 
+/// The rectangle of a context menu of `size` opened at `point`: right and down from it when
+/// there is room, else left or up, kept inside `bounds`.
 fn at_point(point: Vec2, size: Vec2, bounds: Rect) -> Rect {
     let x = if point.x + size.x <= bounds.max.x {
         point.x
@@ -209,7 +209,6 @@ impl Ui<'_> {
         let hovered = self.menu_hovered(id, state, items);
         self.menu_pointer(state, items, hovered);
         let frames = self.menu_layout(state, items, bounds, keys.moved);
-        state.fresh = false;
         let depth = state.depth;
         let mut panels = [Rect::ZERO; MAX_DEPTH];
         for (panel, frame) in panels.iter_mut().zip(&frames).take(depth) {

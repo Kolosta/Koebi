@@ -37,7 +37,7 @@ impl Ui<'_> {
         );
         let total = size + inset * 2.0;
         let placed = match anchor {
-            Anchor::Point(point) | Anchor::Pointer(point) => Placed {
+            Anchor::Point(point) | Anchor::Pointer(point) | Anchor::Origin(point) => Placed {
                 rect: at_point(point, total, bounds),
                 side: Side::Right,
                 align: PanelAlign::Start,

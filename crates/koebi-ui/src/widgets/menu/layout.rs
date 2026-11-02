@@ -77,25 +77,27 @@ impl Ui<'_> {
                     let item = state.item_under_pointer(level_items);
                     let (top, height) = row_span(style, level_items, item);
                     let middle = style.border_width + style.rows_inset() + top + height * 0.5;
-                    if state.fresh {
-                        // Already scrolled to it in a long menu, highlighted, and not taken
-                        // over by the pointer that has not moved.
-                        state.levels[0].scroll =
-                            (middle - size.y * 0.5).clamp(0.0, (content - size.y).max(0.0));
-                        state.levels[0].highlighted = Some(item);
-                        state.pointed = Some((0, item));
-                    }
-                    let origin = pointer
-                        - Vec2::new(
-                            size.x * style.open_pointer_share,
-                            middle - state.levels[0].scroll,
-                        );
+                    // Already scrolled to it in a long menu, highlighted, and not taken over by
+                    // the pointer that has not moved.
+                    let scroll = (middle - size.y * 0.5).clamp(0.0, (content - size.y).max(0.0));
+                    state.levels[0].scroll = scroll;
+                    state.levels[0].highlighted = Some(item);
+                    state.pointed = Some((0, item));
+                    // From now on it stays there, and its items scroll under the pointer.
+                    let origin =
+                        pointer - Vec2::new(size.x * style.open_pointer_share, middle - scroll);
+                    state.anchor = Some(Anchor::Origin(origin));
                     Placed {
                         rect: around_pointer(origin, size, bounds),
                         side: Side::Right,
                         align: PanelAlign::Start,
                     }
                 }
+                (0, Some(Anchor::Origin(origin)), _) => Placed {
+                    rect: around_pointer(origin, size, bounds),
+                    side: Side::Right,
+                    align: PanelAlign::Start,
+                },
                 (0, Some(Anchor::Control(control, placement)), _) => {
                     if placement.side.is_vertical() {
                         size.x = size.x.max(control.width());

@@ -214,22 +214,29 @@ impl Ui<'_> {
             })
             .map(|part| part.area)
             .filter(|area| lone(*area));
-        if let Some(area) = over {
-            let reveal = view.reveal.get_or_insert(Reveal {
+        let another_open =
+            |area: AreaId, reveal: &Reveal| reveal.area != area && reveal.amount > 0.0;
+        if let Some(area) = over
+            && view
+                .reveal
+                .is_some_and(|reveal| another_open(area, &reveal))
+        {
+            // Another area's bar comes first: it slides out, then this one waits its delay.
+            if let Some(reveal) = &mut view.reveal {
+                reveal.hovered = false;
+                reveal.open = false;
+            }
+        } else if let Some(area) = over {
+            let fresh = Reveal {
                 area,
                 hovered: false,
                 since: now,
                 open: false,
                 amount: 0.0,
-            });
+            };
+            let reveal = view.reveal.get_or_insert(fresh);
             if reveal.area != area {
-                *reveal = Reveal {
-                    area,
-                    hovered: false,
-                    since: now,
-                    open: false,
-                    amount: 0.0,
-                };
+                *reveal = fresh;
             }
             if !reveal.hovered {
                 reveal.hovered = true;
@@ -256,10 +263,14 @@ impl Ui<'_> {
         let share = glide_share(view.elapsed, style.drop_glide);
         if let Some(reveal) = &mut view.reveal {
             let target = if reveal.open { 1.0 } else { 0.0 };
+            let before = reveal.amount;
             reveal.amount += (target - reveal.amount) * share;
             if (target - reveal.amount).abs() < 0.01 {
                 reveal.amount = target;
-            } else {
+            }
+            // Until the frame after the last change: the drop target and another area's bar
+            // depend on where it ended.
+            if (reveal.amount - before).abs() > 0.0 {
                 self.request_redraw_after(FRAME);
             }
             if !reveal.open && !reveal.hovered && reveal.amount <= 0.0 {

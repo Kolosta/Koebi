@@ -16,8 +16,11 @@ pub(super) const MAX_DEPTH: usize = 8;
 pub(super) enum Anchor {
     /// A point: its top-left corner there, or wherever it fits around it.
     Point(Vec2),
-    /// The pointer: over its last choice, or its first item, as far as it fits.
+    /// The pointer: over its last choice, or its first item, as far as it fits. Its first frame
+    /// turns it into an `Origin`.
     Pointer(Vec2),
+    /// Its top-left corner there, as far as it fits.
+    Origin(Vec2),
     /// A control, beside which it opens as the placement says.
     Control(Rect, Placement),
 }
@@ -75,8 +78,6 @@ pub struct MenuState {
     pub(super) armed: bool,
     /// The item of the root last chosen, kept while the menu is closed.
     pub(super) last_choice: Option<usize>,
-    /// The menu has not been laid out since it opened.
-    pub(super) fresh: bool,
 }
 
 impl MenuState {
@@ -99,7 +100,6 @@ impl MenuState {
             placed: None,
             armed: false,
             last_choice: None,
-            fresh: false,
         }
     }
 
@@ -130,7 +130,6 @@ impl MenuState {
         self.close();
         self.anchor = Some(anchor);
         self.depth = 1;
-        self.fresh = true;
     }
 
     /// Moves the control an open menu belongs to: the menu follows a layout that changes.

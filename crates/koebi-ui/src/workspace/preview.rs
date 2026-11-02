@@ -251,11 +251,6 @@ pub(super) fn join_preview(
                 .any(|part| touches(fill.piece, part, side));
             if against_part {
                 rect = grown(rect, side, frame.gap);
-            } else if fills
-                .iter()
-                .any(|other| touches(fill.piece, other.piece, side))
-            {
-                rect = grown(rect, side, frame.gap * 0.5);
             }
         }
         emit(RectPrimitive::new(rect, style.join_residual));
