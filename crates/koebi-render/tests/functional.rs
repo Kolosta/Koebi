@@ -8,7 +8,7 @@ mod common;
 
 use common::{assert_pixel, render};
 use koebi_core::{Color, Extent, Rect, Vec2};
-use koebi_render::{Corners, LinePrimitive, RectPrimitive, Scene, Sides};
+use koebi_render::{Corners, Edges, LinePrimitive, RectPrimitive, Scene, Sides};
 use koebi_testkit::gpu_or_skip;
 
 const BACKGROUND: Color = Color::from_rgba8(16, 32, 48, 255);
@@ -56,6 +56,136 @@ fn scale_factor_maps_logical_to_physical_pixels() {
     assert_pixel(&image, 47, 23, FILL.to_rgba8(), 1);
     assert_pixel(&image, 15, 8, BACKGROUND.to_rgba8(), 1);
     assert_pixel(&image, 48, 23, BACKGROUND.to_rgba8(), 1);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn edges_shared_at_a_fractional_scale_stay_sharp() {
+    let Some(gpu) = gpu_or_skip("edges_shared_at_a_fractional_scale_stay_sharp") else {
+        return;
+    };
+    let other = Color::rgb(0.0, 0.0, 1.0);
+    // They meet at 10.3 logical pixels: 12.875 physical pixels at this scale.
+    let scene = scene_with(&[
+        RectPrimitive::new(rect(0.0, 0.0, 10.3, 12.0), FILL),
+        RectPrimitive::new(rect(10.3, 0.0, 15.3, 12.0), other),
+    ]);
+    let image = render(&gpu, Extent::new(32, 15), 1.25, &scene);
+    for x in 0..32 {
+        let expected = if x < 13 { FILL } else { other };
+        assert_pixel(&image, x, 7, expected.to_rgba8(), 0);
+    }
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn thin_rectangles_keep_their_thickness_wherever_they_lie() {
+    let Some(gpu) = gpu_or_skip("thin_rectangles_keep_their_thickness_wherever_they_lie") else {
+        return;
+    };
+    for x in 0..8 {
+        let at = 2.0 + f32::from(u8::try_from(x).unwrap());
+        let scene = scene_with(&[RectPrimitive::new(rect(at, 0.0, 1.0, 12.0), FILL)]);
+        let image = render(&gpu, Extent::new(24, 15), 1.25, &scene);
+        let (mut full, mut partial) = (0, 0);
+        for column in 0..24 {
+            let pixel = image.pixel(column, 7);
+            if pixel == FILL.to_rgba8() {
+                full += 1;
+            } else if pixel != BACKGROUND.to_rgba8() {
+                partial += 1;
+            }
+        }
+        assert_eq!((full, partial), (1, 0), "at {at}");
+    }
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn borders_keep_their_width_wherever_they_lie() {
+    let Some(gpu) = gpu_or_skip("borders_keep_their_width_wherever_they_lie") else {
+        return;
+    };
+    let border = Color::rgb(0.0, 1.0, 0.0);
+    let scene =
+        scene_with(&[RectPrimitive::new(rect(3.3, 2.1, 12.0, 8.0), FILL).with_border(1.0, border)]);
+    let image = render(&gpu, Extent::new(32, 20), 1.25, &scene);
+    // From 3.3 to 15.3 logical pixels: 4.125 to 19.125 physical pixels.
+    assert_pixel(&image, 3, 8, BACKGROUND.to_rgba8(), 0);
+    assert_pixel(&image, 4, 8, border.to_rgba8(), 0);
+    assert_pixel(&image, 5, 8, FILL.to_rgba8(), 0);
+    assert_pixel(&image, 17, 8, FILL.to_rgba8(), 0);
+    assert_pixel(&image, 18, 8, border.to_rgba8(), 0);
+    assert_pixel(&image, 19, 8, BACKGROUND.to_rgba8(), 0);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn rounded_corners_stay_smooth_on_snapped_edges() {
+    let Some(gpu) = gpu_or_skip("rounded_corners_stay_smooth_on_snapped_edges") else {
+        return;
+    };
+    let scene =
+        scene_with(&[RectPrimitive::new(rect(3.3, 2.1, 16.0, 12.0), FILL).with_corner_radius(6.0)]);
+    let image = render(&gpu, Extent::new(32, 24), 1.25, &scene);
+    // Straight edges are sharp: 4.125 to 24.125 across, the middle row.
+    assert_pixel(&image, 3, 10, BACKGROUND.to_rgba8(), 0);
+    assert_pixel(&image, 4, 10, FILL.to_rgba8(), 0);
+    assert_pixel(&image, 23, 10, FILL.to_rgba8(), 0);
+    assert_pixel(&image, 24, 10, BACKGROUND.to_rgba8(), 0);
+    // The curve goes through partly covered pixels.
+    let partial = (3..14)
+        .flat_map(|y| (4..14).map(move |x| (x, y)))
+        .map(|(x, y)| image.pixel(x, y))
+        .filter(|pixel| *pixel != FILL.to_rgba8() && *pixel != BACKGROUND.to_rgba8())
+        .count();
+    assert!(partial >= 5, "{partial}");
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn exact_edges_cover_the_pixels_they_cross_partly() {
+    let Some(gpu) = gpu_or_skip("exact_edges_cover_the_pixels_they_cross_partly") else {
+        return;
+    };
+    // The right edge at 12.875 physical pixels: pixel 12 is covered at 87.5 %.
+    let scene =
+        scene_with(
+            &[RectPrimitive::new(rect(0.0, 0.0, 10.3, 12.0), FILL).with_edges(Edges::Exact)],
+        );
+    let image = render(&gpu, Extent::new(32, 15), 1.25, &scene);
+    assert_pixel(&image, 11, 7, FILL.to_rgba8(), 0);
+    let [fill, back] = [FILL.to_rgba8(), BACKGROUND.to_rgba8()];
+    let mix = |channel: usize| {
+        let (back, fill) = (i32::from(back[channel]), i32::from(fill[channel]));
+        u8::try_from(back + (fill - back) * 7 / 8).unwrap()
+    };
+    assert_pixel(&image, 12, 7, [mix(0), mix(1), mix(2), 255], 2);
+    assert_pixel(&image, 13, 7, BACKGROUND.to_rgba8(), 0);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn inverted_rectangles_fill_the_outside_of_their_corners() {
+    let Some(gpu) = gpu_or_skip("inverted_rectangles_fill_the_outside_of_their_corners") else {
+        return;
+    };
+    let radii = Corners {
+        top_right: 8.0,
+        ..Corners::ZERO
+    };
+    let scene = scene_with(&[RectPrimitive::new(rect(4.0, 4.0, 8.0, 8.0), FILL)
+        .with_corner_radii(radii)
+        .inverted()]);
+    let image = render(&gpu, Extent::new(16, 16), 1.0, &scene);
+    // The outside of the curve, in the corner of the rectangle.
+    assert_pixel(&image, 11, 4, FILL.to_rgba8(), 0);
+    // Inside the curve, nothing.
+    assert_pixel(&image, 4, 11, BACKGROUND.to_rgba8(), 0);
+    assert_pixel(&image, 7, 8, BACKGROUND.to_rgba8(), 0);
+    // Past its bounds, nothing: not even around the corner it fills.
+    assert_pixel(&image, 12, 4, BACKGROUND.to_rgba8(), 0);
+    assert_pixel(&image, 11, 3, BACKGROUND.to_rgba8(), 0);
     gpu.assert_no_validation_errors();
 }
 

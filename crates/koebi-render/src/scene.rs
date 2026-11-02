@@ -88,6 +88,19 @@ impl Sides {
     }
 }
 
+/// How the straight edges of a rectangle meet the pixel grid.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Edges {
+    /// Each edge goes to the nearest pixel edge (the default, for interfaces): straight edges
+    /// are sharp at every scale, rectangles sharing an edge stay joined, and a rectangle or a
+    /// border thinner than two pixels keeps its thickness wherever it lies. Corners stay smooth.
+    #[default]
+    Snapped,
+    /// Edges stay where they are, between pixels if they fall there, the pixels they cross
+    /// partly covered: for content that moves or scales continuously, like a canvas.
+    Exact,
+}
+
 /// A rectangle with a fill, a radius per corner and an inner border with a width per side.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RectPrimitive {
@@ -102,6 +115,11 @@ pub struct RectPrimitive {
     pub border_widths: Sides,
     /// Border color.
     pub border_color: Color,
+    /// How its straight edges meet the pixel grid.
+    pub edges: Edges,
+    /// Filled outside its shape, up to its bounds: the outsides of its rounded corners. It has
+    /// no border then.
+    pub inverted: bool,
 }
 
 impl RectPrimitive {
@@ -113,7 +131,23 @@ impl RectPrimitive {
             corner_radii: Corners::ZERO,
             border_widths: Sides::ZERO,
             border_color: Color::TRANSPARENT,
+            edges: Edges::Snapped,
+            inverted: false,
         }
+    }
+
+    /// The same rectangle with its straight edges meeting the pixel grid as `edges` says.
+    #[must_use]
+    pub const fn with_edges(mut self, edges: Edges) -> Self {
+        self.edges = edges;
+        self
+    }
+
+    /// The same rectangle filled outside its shape: only the outsides of its rounded corners.
+    #[must_use]
+    pub const fn inverted(mut self) -> Self {
+        self.inverted = true;
+        self
     }
 
     /// The same radius at every corner.
@@ -212,15 +246,17 @@ pub(crate) struct RectInstance {
     pub(crate) radii: [f32; 4],
     /// Border widths in logical pixels: top, right, bottom, left.
     pub(crate) borders: [f32; 4],
+    /// 1 for exact edges, 1 for a fill outside its shape; the rest is unused.
+    pub(crate) options: [f32; 4],
 }
 
-// SAFETY: `repr(C)` struct of five `[f32; 4]` arrays: 80 bytes with no padding, and every bit
+// SAFETY: `repr(C)` struct of six `[f32; 4]` arrays: 96 bytes with no padding, and every bit
 // pattern is a valid value.
 unsafe impl Pod for RectInstance {}
-const _: () = assert!(size_of::<RectInstance>() == 80);
+const _: () = assert!(size_of::<RectInstance>() == 96);
 
 impl RectInstance {
-    pub(crate) const STRIDE: u32 = 80;
+    pub(crate) const STRIDE: u32 = 96;
 
     fn from_primitive(primitive: &RectPrimitive) -> Self {
         let r = primitive.rect;
@@ -231,6 +267,12 @@ impl RectInstance {
             border_color: primitive.border_color.premultiplied(),
             radii: positive(primitive.corner_radii.to_array()),
             borders: positive(primitive.border_widths.to_array()),
+            options: [
+                f32::from(u8::from(primitive.edges == Edges::Exact)),
+                f32::from(u8::from(primitive.inverted)),
+                0.0,
+                0.0,
+            ],
         }
     }
 }
@@ -674,7 +716,7 @@ mod tests {
             .batches()
             .map(|batch| batch.window(RectInstance::STRIDE))
             .collect();
-        assert_eq!(windows, [(0, 2), (0, 1), (160, 1)]);
+        assert_eq!(windows, [(0, 2), (0, 1), (192, 1)]);
     }
 
     fn glyph() -> GlyphPrimitive {
