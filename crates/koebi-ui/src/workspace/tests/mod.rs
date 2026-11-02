@@ -589,8 +589,9 @@ fn the_join_preview_darkens_the_leftovers_of_the_kept_area_on_both_sides() {
         .filter(|p| p.fill == style.join_residual && !p.inverted)
         .collect();
     assert_eq!(leftovers.len(), 2);
-    assert!(leftovers.iter().any(|p| p.rect.max.y == stays.min.y));
-    assert!(leftovers.iter().any(|p| p.rect.min.y == stays.max.y));
+    let touch = |a: f32, b: f32| (a - b).abs() < 0.01;
+    assert!(leftovers.iter().any(|p| touch(p.rect.max.y, stays.min.y)));
+    assert!(leftovers.iter().any(|p| touch(p.rect.min.y, stays.max.y)));
     // Every corner of what stays lies against something that goes, the darkest next to it.
     let around_kept: Vec<_> = drawn
         .iter()
