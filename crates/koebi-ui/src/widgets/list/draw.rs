@@ -302,7 +302,8 @@ impl Ui<'_> {
                 styles.icon.stroke_width,
                 row.openness * FRAC_PI_2,
             );
-            if !row.leaving && self.interact(id.with(FOLDS).with(item.id), slot).clicked {
+            // On the press, as panels do: a fold follows the hand.
+            if !row.leaving && self.interact(id.with(FOLDS).with(item.id), slot).pressed {
                 let folded = !state.is_folded(item.id);
                 if self.input().modifiers().shift() {
                     state.fold_subtree(items, row.item, folded);

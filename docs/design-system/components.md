@@ -304,7 +304,7 @@ One component draws every list of the application (outliner, layers, color usage
   `ListOptions::row_height`), alternate `table.row.background.color.default` and `.alt`, and
   show per level a fold arrow slot `list-row.indent` wide, then the mark, the label cut with an
   ellipsis, and the items the `ListDelegate` draws at their end.
-- **Folding**: a click on the arrow folds or unfolds a row, with Shift its whole subtree. The
+- **Folding**: a press on the arrow folds or unfolds a row, with Shift its whole subtree. The
   subtree slides in or out like a drawer (`list-row.expand.duration`,
   `list-row.collapse.duration`), and a folded row shows how many rows it hides
   (`list-row.count.color`). Lines run from parents along their children
