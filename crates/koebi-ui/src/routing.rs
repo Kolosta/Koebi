@@ -10,6 +10,12 @@
 //! Zones are regions too: they carry a shortcut [`Context`] and nest, so that the chain of
 //! contexts under the pointer reads innermost first, and they block what lies under them on
 //! lower layers (a menu blocks the area below it).
+//!
+//! During an action (a widget holds the pointer, a menu is open), none of this concerns what
+//! lies under the pointer: the chain of contexts holds only the action's, a press of another
+//! button reaches nothing, and the wheel no zone ([`UiState::is_action_in_progress`]).
+//!
+//! [`UiState::is_action_in_progress`]: crate::UiState::is_action_in_progress
 
 use koebi_core::input::CursorShape;
 use koebi_core::{Rect, Vec2};

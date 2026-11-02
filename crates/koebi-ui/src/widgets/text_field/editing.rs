@@ -76,7 +76,7 @@ impl TextField<'_> {
         session: &mut Session,
         out: &mut TextFieldResponse,
     ) -> bool {
-        ui.grab_keyboard(TEXT);
+        ui.grab(TEXT);
         ui.text_input(rect);
         session.outside = self.outside_press;
         // The application changed the text during the edit (an undo of the document): the

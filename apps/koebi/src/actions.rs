@@ -194,8 +194,8 @@ mod tests {
             actions(Key::Down, Modifiers::NONE, &[APP]),
             Vec::<&str>::new()
         );
-        // A drag grabs the keyboard: Escape cancels it wherever the pointer is.
-        let dragging = [koebi_ui::LIST_DRAG, APP];
+        // A drag takes the keyboard: Escape cancels it wherever the pointer is.
+        let dragging = [koebi_ui::LIST_DRAG];
         assert_eq!(
             actions(Key::Escape, Modifiers::NONE, &dragging),
             ["list.cancel-drag"]

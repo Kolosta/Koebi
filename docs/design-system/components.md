@@ -190,7 +190,7 @@ caller shows its input in:
   (`SelectOnFocus::All`; `End` puts the caret at the end, `Pointer` where the press is), with
   Tab from the previous field, or when the application asks (`Ui::edit_text_field(id)`: a
   name to type at once; a request no field answers within a frame is dropped). One field
-  edits at a time. While it does, it takes the whole keyboard (`Ui::grab_keyboard` with the
+  edits at a time. While it does, it takes the whole keyboard (`Ui::grab` with the
   `TEXT` context): no shortcut of the contexts under the pointer fires, not even one the text
   context does not bind. It also asks the platform for text input over itself
   (`Ui::text_input`: the on-screen keyboard of touch devices, input method windows).

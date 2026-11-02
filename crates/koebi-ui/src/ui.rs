@@ -44,10 +44,10 @@ pub struct UiState {
     /// last complete frame and from the frame being built, innermost last.
     grabs: Vec<Context>,
     grabbing: Vec<Context>,
-    /// The grabs take the whole keyboard ([`Ui::grab_keyboard`]), in the last complete frame
-    /// and in the frame being built.
-    grabs_keyboard: bool,
-    grabbing_keyboard: bool,
+    /// Something holds the pointer without being a widget ([`Ui::hold_pointer`]), in the last
+    /// complete frame and in the frame being built.
+    holding: bool,
+    holding_next: bool,
     /// The fonts labels are laid out with, and a line reused for each label.
     pub(crate) fonts: Fonts,
     pub(crate) line: TextLine,
@@ -145,16 +145,27 @@ impl UiState {
         self.previous.contexts_at(point, chain);
     }
 
-    /// The chain of contexts an input event at `point` goes through, innermost first: the
-    /// contexts grabbing the keyboard ([`Ui::grab`]), then those under the point.
+    /// `true` while an action is in progress: a widget holds the pointer (a drag), something
+    /// else does ([`Ui::hold_pointer`]), or a part of the interface grabs the input
+    /// ([`Ui::grab`]: an open menu). For as long as it lasts, inputs only concern the action.
+    pub fn is_action_in_progress(&self) -> bool {
+        self.is_pointer_held() || !self.grabs.is_empty()
+    }
+
+    /// `true` while a widget or something else holds the pointer.
+    fn is_pointer_held(&self) -> bool {
+        self.active.is_some() || self.holding
+    }
+
+    /// The chain of contexts an input event at `point` goes through, innermost first: during an
+    /// action only its own ([`Ui::grab`]), the pointer being nowhere for shortcuts; otherwise
+    /// the contexts under the point.
     pub fn chain_at(&self, point: Option<Vec2>, chain: &mut Vec<Context>) {
-        match point {
-            // A grab of the whole keyboard leaves nothing to the contexts under the point.
-            Some(point) if !self.grabs_keyboard => self.previous.contexts_at(point, chain),
-            _ => chain.clear(),
-        }
-        for (index, context) in self.grabs.iter().rev().enumerate() {
-            chain.insert(index, *context);
+        chain.clear();
+        if self.is_action_in_progress() {
+            chain.extend(self.grabs.iter().rev());
+        } else if let Some(point) = point {
+            self.previous.contexts_at(point, chain);
         }
     }
 }
@@ -279,10 +290,15 @@ impl<'a> Ui<'a> {
         state
             .tooltip
             .update(state.hovered, input.any_pressed(), input.time());
-        state.press_target = topmost(input.pressed_at());
-        state.secondary_target = topmost(input.button_pressed_at(PointerButton::Secondary));
+        // While the pointer is held, a press of another button reaches nothing but what holds
+        // it, and it stays that way until its release: it never starts anything later.
+        let held = state.is_pointer_held();
+        let holder = state.active;
+        let reach = |target: Option<WidgetId>| target.filter(|_| !held || target == holder);
+        state.press_target = reach(topmost(input.pressed_at()));
+        state.secondary_target = reach(topmost(input.button_pressed_at(PointerButton::Secondary)));
         state.grabbing.clear();
-        state.grabbing_keyboard = false;
+        state.holding_next = false;
         state.redraw_at = None;
         state.pointer_lock = None;
         // The end of a number field's drag asks every pass drawn with its input to keep the
@@ -344,19 +360,26 @@ impl<'a> Ui<'a> {
         self.request_redraw_at(self.input.time() + delay);
     }
 
-    /// Takes the keyboard for the shortcuts of `context` in the next frame, wherever the
-    /// pointer is: an open menu or an operation in progress. Call it every frame the grab
-    /// lasts; later grabs come first in the chain.
+    /// Takes the input for an action in the next frame: an open menu, an operation in progress,
+    /// a field editing text. Only the shortcuts of `context` apply, wherever the pointer is, and
+    /// nothing under the pointer receives a shortcut. Call it every frame the action lasts;
+    /// later grabs come first in the chain.
     pub fn grab(&mut self, context: Context) {
         self.state.grabbing.push(context);
     }
 
-    /// Takes the whole keyboard for `context` in the next frame: like [`Ui::grab`], and the
-    /// contexts under the pointer receive no key at all, not even the ones `context` does not
-    /// bind (a field editing text, where every key types). Call it every frame it lasts.
-    pub fn grab_keyboard(&mut self, context: Context) {
-        self.state.grabbing.push(context);
-        self.state.grabbing_keyboard = true;
+    /// Holds the pointer in the next frame for an action that is not a widget's (panning a
+    /// canvas with the middle button): nothing is hovered, no press reaches a component, and no
+    /// shortcut applies. Widgets holding the pointer do not need it. Call it every frame it
+    /// lasts.
+    pub fn hold_pointer(&mut self) {
+        self.state.holding_next = true;
+    }
+
+    /// `false` during an action ([`UiState::is_action_in_progress`]): what reads presses or the
+    /// wheel straight from [`Input`] for what lies under the pointer leaves them alone then.
+    pub fn pointer_is_free(&self) -> bool {
+        !self.state.is_action_in_progress()
     }
 
     /// The scene, for custom drawing between components.
@@ -488,11 +511,13 @@ impl<'a> Ui<'a> {
     }
 
     /// `true` when the pointer is over the zone `id` ([`Ui::identified_zone`]) or over what
-    /// it holds, with nothing else on top, in the last frame.
+    /// it holds, with nothing else on top, in the last frame, and nothing holds the pointer.
     pub(crate) fn pointer_within(&self, id: WidgetId) -> bool {
-        self.input
-            .pointer()
-            .is_some_and(|point| self.state.previous.is_within(point, id))
+        !self.state.is_pointer_held()
+            && self
+                .input
+                .pointer()
+                .is_some_and(|point| self.state.previous.is_within(point, id))
     }
 
     /// Asks for a locked pointer during this frame: the cursor disappears and stays put, and the
@@ -566,7 +591,7 @@ impl<'a> Ui<'a> {
                 .is_some();
         let on_top = self.state.hovered == Some(id);
         let active = self.state.active == Some(id);
-        response.hovered = on_top && (active || self.state.active.is_none());
+        response.hovered = on_top && (active || !self.state.is_pointer_held());
         if active {
             self.state.active_seen = true;
             response.held = self.input.is_down();
@@ -641,7 +666,7 @@ impl Drop for Ui<'_> {
         // The regions and grabs of this frame decide where the next one's input goes.
         core::mem::swap(&mut state.previous, &mut state.current);
         core::mem::swap(&mut state.grabs, &mut state.grabbing);
-        state.grabs_keyboard = core::mem::take(&mut state.grabbing_keyboard);
+        state.holding = core::mem::take(&mut state.holding_next);
         state.text.end_frame();
         state.number.end_frame();
     }
@@ -699,6 +724,132 @@ mod tests {
     }
 
     #[test]
+    fn a_press_during_an_action_reaches_nothing_under_the_pointer() {
+        // Regression test: a right click during a drag selected the row under the pointer.
+        let (mut state, mut input) = laid_out();
+        input.primary_button(true, Vec2::new(5.0, 5.0));
+        frame(&mut state, &mut input);
+        input.pointer_moved(Vec2::new(25.0, 5.0));
+        frame(&mut state, &mut input);
+        input.button(PointerButton::Secondary, true, Vec2::new(25.0, 5.0));
+        let (a, b) = frame(&mut state, &mut input);
+        assert!(!b.secondary_pressed && !a.secondary_pressed);
+        // Not with its release, nor once the action is over and the button is still down.
+        input.primary_button(false, Vec2::new(25.0, 5.0));
+        let (_, b) = frame(&mut state, &mut input);
+        assert!(!b.pressed && !b.clicked && !b.secondary_pressed);
+        input.button(PointerButton::Secondary, false, Vec2::new(25.0, 5.0));
+        let (_, b) = frame(&mut state, &mut input);
+        assert!(!b.pressed && !b.clicked && !b.secondary_pressed);
+        // The action is over: the next press counts.
+        input.button(PointerButton::Secondary, true, Vec2::new(25.0, 5.0));
+        let (_, b) = frame(&mut state, &mut input);
+        assert!(b.secondary_pressed);
+    }
+
+    #[test]
+    fn the_widget_holding_the_pointer_still_sees_its_own_secondary_press() {
+        let (mut state, mut input) = laid_out();
+        input.primary_button(true, Vec2::new(5.0, 5.0));
+        frame(&mut state, &mut input);
+        input.button(PointerButton::Secondary, true, Vec2::new(5.0, 5.0));
+        let (a, _) = frame(&mut state, &mut input);
+        assert!(a.secondary_pressed && a.held);
+    }
+
+    #[test]
+    fn during_an_action_the_pointer_is_nowhere_for_the_keymap() {
+        let styles = crate::test_styles();
+        let (mut scene, mut state, mut input) = (Scene::new(), UiState::new(), Input::new());
+        let (app, drag) = (Context::new("app"), Context::new("drag"));
+        let at = Vec2::new(5.0, 5.0);
+        let mut chain = Vec::new();
+        let mut draw = |state: &mut UiState, input: &mut Input, grab: bool| {
+            {
+                let mut ui = Ui::new(&mut scene, &styles, input, state);
+                ui.zone(rect(0.0, 0.0, 100.0, 100.0), app, |ui| {
+                    ui.interact(A, rect_a());
+                    if grab {
+                        ui.grab(drag);
+                    }
+                });
+            }
+            input.end_frame();
+        };
+        draw(&mut state, &mut input, false);
+        state.chain_at(Some(at), &mut chain);
+        assert_eq!(chain, [app]);
+        // A widget holds the pointer: no action applies, whatever lies under the pointer.
+        input.primary_button(true, at);
+        draw(&mut state, &mut input, false);
+        state.chain_at(Some(at), &mut chain);
+        assert_eq!(chain, Vec::<Context>::new());
+        // An action grabs: only its own shortcuts apply.
+        draw(&mut state, &mut input, true);
+        state.chain_at(Some(at), &mut chain);
+        assert_eq!(chain, [drag]);
+        // Over: the zones under the pointer again.
+        input.primary_button(false, at);
+        draw(&mut state, &mut input, false);
+        state.chain_at(Some(at), &mut chain);
+        assert_eq!(chain, [app]);
+    }
+
+    #[test]
+    fn during_an_action_the_wheel_reaches_no_zone() {
+        let styles = crate::test_styles();
+        let (mut scene, mut state, mut input) = (Scene::new(), UiState::new(), Input::new());
+        let zone = WidgetId::new("zone");
+        let mut within = |state: &mut UiState, input: &mut Input| {
+            let result = {
+                let mut ui = Ui::new(&mut scene, &styles, input, state);
+                ui.identified_zone(
+                    rect(0.0, 0.0, 100.0, 100.0),
+                    Context::new("z"),
+                    zone,
+                    |ui| {
+                        ui.interact(A, rect_a());
+                    },
+                );
+                ui.pointer_within(zone)
+            };
+            input.end_frame();
+            result
+        };
+        input.pointer_moved(Vec2::new(5.0, 5.0));
+        within(&mut state, &mut input);
+        assert!(within(&mut state, &mut input));
+        input.primary_button(true, Vec2::new(5.0, 5.0));
+        within(&mut state, &mut input);
+        assert!(!within(&mut state, &mut input));
+    }
+
+    #[test]
+    fn a_held_pointer_keeps_presses_from_what_lies_under_it() {
+        let styles = crate::test_styles();
+        let (mut scene, mut state, mut input) = (Scene::new(), UiState::new(), Input::new());
+        let mut draw = |state: &mut UiState, input: &mut Input, hold: bool| {
+            let (response, free) = {
+                let mut ui = Ui::new(&mut scene, &styles, input, state);
+                let response = ui.interact(A, rect_a());
+                if hold {
+                    ui.hold_pointer();
+                }
+                (response, ui.pointer_is_free())
+            };
+            input.end_frame();
+            (response, free)
+        };
+        input.pointer_moved(Vec2::new(5.0, 5.0));
+        draw(&mut state, &mut input, false);
+        assert!(draw(&mut state, &mut input, true).1);
+        // A pan holds the pointer: nothing under it is hovered or pressed.
+        input.primary_button(true, Vec2::new(5.0, 5.0));
+        let (response, free) = draw(&mut state, &mut input, false);
+        assert!(!free && !response.pressed && !response.hovered);
+    }
+
+    #[test]
     fn grabs_come_first_in_the_chain_for_the_next_frame() {
         let styles = crate::test_styles();
         let (mut scene, mut state, input) = (Scene::new(), UiState::new(), Input::new());
@@ -716,7 +867,7 @@ mod tests {
         }
         let mut chain = Vec::new();
         state.chain_at(Some(Vec2::new(5.0, 5.0)), &mut chain);
-        assert_eq!(chain, [modal, menu, app]);
+        assert_eq!(chain, [modal, menu]);
         state.chain_at(None, &mut chain);
         assert_eq!(chain, [modal, menu]);
         // A frame without grabs releases the keyboard.

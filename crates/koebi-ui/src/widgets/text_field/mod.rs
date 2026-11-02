@@ -3,7 +3,7 @@
 //! - **Editing** starts with a press on the field (selecting the whole text by default, see
 //!   [`SelectOnFocus`]), with Tab from the previous field, or when the application asks
 //!   ([`Ui::edit_text_field`]). One field edits at a time; while it does, it takes the whole
-//!   keyboard ([`TEXT`], [`Ui::grab_keyboard`]): no shortcut of another context fires, and it
+//!   keyboard ([`TEXT`], [`Ui::grab`]): no shortcut of another context fires, and it
 //!   asks the platform for text input in its rectangle (on-screen keyboards, input methods).
 //! - **Pointer** ([`editing`]): a press places the caret (Shift extends the selection), a drag
 //!   selects, a double press selects a word. The text scrolls to keep the caret in view.

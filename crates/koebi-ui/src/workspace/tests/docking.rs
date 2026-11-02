@@ -263,6 +263,31 @@ fn stacked_editors_show_tabs_and_a_click_shows_one() {
 }
 
 #[test]
+fn a_right_click_cancels_docking_and_reaches_nothing_else() {
+    // Regression test: it also selected the row of the outliner under the pointer.
+    let mut harness = Harness::halves();
+    harness.hold_top_bar(RIGHT_TOP_BAR);
+    assert!(harness.view.operation.is_some());
+    // Over the content of the other editor.
+    let pointer = Vec2::new(200.0, 300.0);
+    harness.input.pointer_moved(pointer);
+    harness.frame();
+    // The keymap cancels; here, the action it would trigger.
+    harness
+        .input
+        .button(PointerButton::Secondary, true, pointer);
+    harness.input.trigger(&OPERATION_CANCEL);
+    harness.frame();
+    assert!(harness.view.operation.is_none());
+    assert!(!harness.host.secondary);
+    harness
+        .input
+        .button(PointerButton::Secondary, false, pointer);
+    harness.frame();
+    assert!(!harness.host.secondary);
+}
+
+#[test]
 fn dragging_a_tab_along_the_bar_reorders_it() {
     let mut harness = Harness::halves();
     let right = harness.area_ids()[1];

@@ -25,6 +25,8 @@ struct Host {
     drawn: Vec<(EditorId, Rect)>,
     copied: Vec<(EditorId, EditorId)>,
     removed: Vec<EditorId>,
+    /// A secondary press reached the content of an editor.
+    secondary: bool,
     /// The rounded clip the last content was drawn in.
     rounded: Option<(Rect, Corners)>,
     /// Editor types offered, none by default, and the types set.
@@ -48,6 +50,9 @@ impl EditorHost for Host {
     fn content(&mut self, ui: &mut Ui<'_>, editor: EditorId, rect: Rect) {
         self.drawn.push((editor, rect));
         self.rounded = ui.scene().rounded_clip();
+        // What a row of an outliner would do with a right click.
+        let id = WidgetId::new("content").with(u64::from(editor.get()));
+        self.secondary |= ui.interact(id, rect).secondary_pressed;
     }
 
     fn copied(&mut self, source: EditorId, editor: EditorId) {
