@@ -3,8 +3,8 @@
 
 use koebi_core::input::CursorShape;
 use koebi_core::{Color, Rect};
-use koebi_render::RectPrimitive;
-use koebi_workspace::{AreaId, GridRect, JoinPlan, Layout, Orientation, Side, Workspace};
+use koebi_render::{Corners, RectPrimitive};
+use koebi_workspace::{AreaId, Fill, GridRect, JoinPlan, Layout, Orientation, Side, Workspace};
 
 use super::geometry::Frame;
 use super::{
@@ -94,6 +94,217 @@ pub(super) fn join_cursor(layout: &Layout, plan: &JoinPlan) -> CursorShape {
     }
 }
 
+/// `true` when `b` lies against `side` of `a`, along a stretch of some length.
+fn touches(a: GridRect, b: GridRect, side: Side) -> bool {
+    let along_y = a.y0 < b.y1 && b.y0 < a.y1;
+    let along_x = a.x0 < b.x1 && b.x0 < a.x1;
+    match side {
+        Side::Left => a.x0 == b.x1 && along_y,
+        Side::Right => a.x1 == b.x0 && along_y,
+        Side::Top => a.y0 == b.y1 && along_x,
+        Side::Bottom => a.y1 == b.y0 && along_x,
+    }
+}
+
+/// `rect` reaching `by` further on `side`.
+fn grown(rect: Rect, side: Side, by: f32) -> Rect {
+    let mut grown = rect;
+    match side {
+        Side::Left => grown.min.x -= by,
+        Side::Right => grown.max.x += by,
+        Side::Top => grown.min.y -= by,
+        Side::Bottom => grown.max.y += by,
+    }
+    grown
+}
+
+/// A corner of a rectangle.
+#[derive(Clone, Copy)]
+struct Corner {
+    right: bool,
+    bottom: bool,
+}
+
+impl Corner {
+    const ALL: [Self; 4] = [
+        Self {
+            right: false,
+            bottom: false,
+        },
+        Self {
+            right: true,
+            bottom: false,
+        },
+        Self {
+            right: true,
+            bottom: true,
+        },
+        Self {
+            right: false,
+            bottom: true,
+        },
+    ];
+
+    /// `radius` at this corner, the others square.
+    fn radii(self, radius: f32) -> Corners {
+        let at = |right: bool, bottom: bool| {
+            if self.right == right && self.bottom == bottom {
+                radius
+            } else {
+                0.0
+            }
+        };
+        Corners {
+            top_left: at(false, false),
+            top_right: at(true, false),
+            bottom_right: at(true, true),
+            bottom_left: at(false, true),
+        }
+    }
+
+    /// Where this corner of `rect` lies on the grid.
+    fn of(self, rect: GridRect) -> (u32, u32) {
+        (
+            if self.right { rect.x1 } else { rect.x0 },
+            if self.bottom { rect.y1 } else { rect.y0 },
+        )
+    }
+
+    /// `true` when `other` lies against one of the two sides of `rect` meeting at this corner,
+    /// and reaches this corner along that side.
+    fn is_against(self, rect: GridRect, other: GridRect) -> bool {
+        let (x, y) = self.of(rect);
+        let within = |low: u32, high: u32, at: u32, end: bool| {
+            if end {
+                low < at && at <= high
+            } else {
+                low <= at && at < high
+            }
+        };
+        let beside = touches(
+            rect,
+            other,
+            if self.right { Side::Right } else { Side::Left },
+        ) && within(other.y0, other.y1, y, self.bottom);
+        let over = touches(
+            rect,
+            other,
+            if self.bottom { Side::Bottom } else { Side::Top },
+        ) && within(other.x0, other.x1, x, self.right);
+        beside || over
+    }
+}
+
+/// What a join preview draws, in order. Around the future area, everything that goes is dark:
+/// the parts of the areas drawn square, across the gutters between them and what stays, and
+/// the outsides of the rounded corners of what stays and of the future area.
+pub(super) fn join_preview(
+    layout: &Layout,
+    plan: &JoinPlan,
+    frame: Frame,
+    style: &WorkspaceStyle,
+    emit: &mut impl FnMut(RectPrimitive),
+) {
+    let radius = style.corner_radius;
+    let part_of = |area: AreaId| {
+        layout
+            .rect(area)
+            .and_then(|rect| intersection(rect, plan.result))
+    };
+    let (kept, removed) = (part_of(plan.kept), part_of(plan.removed));
+    let fills: &[Fill] = &plan.fills;
+    // What stays, lighter.
+    if let Some(kept) = kept {
+        emit(RectPrimitive::new(frame.panel(kept), style.join_keep).with_corner_radius(radius));
+    }
+    // What the kept area takes: square towards it, rounded like the future area at its ends.
+    if let Some(part) = removed {
+        let mut rect = frame.panel(part);
+        if let Some(kept) = kept {
+            for side in [Side::Left, Side::Right, Side::Top, Side::Bottom] {
+                if touches(part, kept, side) {
+                    rect = grown(rect, side, frame.gap);
+                }
+            }
+        }
+        let mut radii = Corners::ZERO;
+        for corner in Corner::ALL {
+            if corner.of(part) == corner.of(plan.result) {
+                let one = corner.radii(radius);
+                radii = Corners {
+                    top_left: radii.top_left.max(one.top_left),
+                    top_right: radii.top_right.max(one.top_right),
+                    bottom_right: radii.bottom_right.max(one.bottom_right),
+                    bottom_left: radii.bottom_left.max(one.bottom_left),
+                };
+            }
+        }
+        emit(RectPrimitive::new(rect, style.join_remove).with_corner_radii(radii));
+    }
+    // What neighbours take: square, up to what it lies against.
+    for fill in fills {
+        let mut rect = frame.panel(fill.piece);
+        for side in [Side::Left, Side::Right, Side::Top, Side::Bottom] {
+            let against_part = [kept, removed]
+                .into_iter()
+                .flatten()
+                .any(|part| touches(fill.piece, part, side));
+            if against_part {
+                rect = grown(rect, side, frame.gap);
+            } else if fills
+                .iter()
+                .any(|other| touches(fill.piece, other.piece, side))
+            {
+                rect = grown(rect, side, frame.gap * 0.5);
+            }
+        }
+        emit(RectPrimitive::new(rect, style.join_residual));
+    }
+    // The outside of a corner takes the color of what goes next to it.
+    let dark_at = |part: GridRect, corner: Corner, own: Option<Color>| {
+        let filled = fills
+            .iter()
+            .any(|fill| corner.is_against(part, fill.piece))
+            .then_some(style.join_residual);
+        filled.or(own).or_else(|| {
+            removed
+                .filter(|removed| corner.is_against(part, *removed))
+                .map(|_| style.join_remove)
+        })
+    };
+    if let Some(part) = kept {
+        let panel = frame.panel(part);
+        for corner in Corner::ALL {
+            if let Some(color) = dark_at(part, corner, None) {
+                emit(
+                    RectPrimitive::new(panel, color)
+                        .with_corner_radii(corner.radii(radius))
+                        .inverted(),
+                );
+            }
+        }
+    }
+    let result = frame.panel(plan.result);
+    if let Some(part) = removed {
+        for corner in Corner::ALL {
+            if corner.of(part) == corner.of(plan.result)
+                && let Some(color) = dark_at(part, corner, Some(style.join_remove))
+            {
+                emit(
+                    RectPrimitive::new(result, color)
+                        .with_corner_radii(corner.radii(radius))
+                        .inverted(),
+                );
+            }
+        }
+    }
+    emit(
+        RectPrimitive::new(result, Color::TRANSPARENT)
+            .with_corner_radius(radius)
+            .with_border(style.join_frame_width, style.join_frame),
+    );
+}
+
 impl Ui<'_> {
     /// Two translucent halves a gutter apart, where `preview` would split its area.
     pub(super) fn draw_split(
@@ -110,9 +321,7 @@ impl Ui<'_> {
         }
     }
 
-    /// The preview of a join: the part of the kept area that stays lighter, the part of the
-    /// removed area it takes darker, the parts of both that neighbours take darker still, and
-    /// the joined area outlined.
+    /// The preview of a join ([`join_preview`]).
     pub(super) fn draw_join(
         &mut self,
         layout: &Layout,
@@ -120,31 +329,9 @@ impl Ui<'_> {
         frame: Frame,
         style: &WorkspaceStyle,
     ) {
-        let radius = style.corner_radius;
-        let mut fill = |rect: GridRect, color: Color| {
-            self.scene.push_rect(
-                &RectPrimitive::new(frame.panel(rect), color).with_corner_radius(radius),
-            );
-        };
-        for (area, color) in [
-            (plan.kept, style.join_keep),
-            (plan.removed, style.join_remove),
-        ] {
-            if let Some(part) = layout
-                .rect(area)
-                .and_then(|rect| intersection(rect, plan.result))
-            {
-                fill(part, color);
-            }
-        }
-        for piece in &plan.fills {
-            fill(piece.piece, style.join_residual);
-        }
-        self.scene.push_rect(
-            &RectPrimitive::new(frame.panel(plan.result), Color::TRANSPARENT)
-                .with_corner_radius(radius)
-                .with_border(style.join_frame_width, style.join_frame),
-        );
+        join_preview(layout, plan, frame, style, &mut |primitive| {
+            self.scene.push_rect(&primitive);
+        });
     }
 
     /// The preview of the operation in progress, above everything. For splits and joins of

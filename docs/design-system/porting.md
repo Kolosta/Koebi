@@ -244,6 +244,9 @@ The base theme is Dark: the token tables define it. The other themes come from t
 
 ## Added after the port
 
+Docking: `component.zone-tab.reveal.delay` (350 ms) and `component.zone-tab.reveal.grace`
+(250 ms), which were constants in the source.
+
 Input settings, as semantic tokens aliasing durations and spacings (8): `semantic.input.drag-threshold`,
 `semantic.input.double-click.time`, `semantic.input.tooltip.delay`,
 `semantic.input.tooltip.delay-short`, `semantic.input.tooltip.delay-stationary`,

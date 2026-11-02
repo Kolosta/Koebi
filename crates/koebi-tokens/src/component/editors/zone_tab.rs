@@ -44,9 +44,14 @@ koebi_design::tokens! {
     /// Zone tab: drop preview center inset.
     ZONE_TAB_DROP_PREVIEW_CENTER_INSET = "zone-tab.drop-preview.center-inset": Dimension =
         px(6.0), range(0.0, 32.0);
-    /// Zone tab: drop preview anim duration.
+    /// Zone tab: time constant of the drop preview gliding to its next place and of a lone
+    /// editor's tab bar sliding in or out (a value goes 63 % of the way in this time).
     ZONE_TAB_DROP_PREVIEW_ANIM_DURATION = "zone-tab.drop-preview.anim-duration": Duration =
         ms(60), range(0.0, 1000.0);
+    /// Zone tab: how long a drag stays over the top of a lone editor before its tab bar opens.
+    ZONE_TAB_REVEAL_DELAY = "zone-tab.reveal.delay": Duration = ms(350), range(0.0, 2000.0);
+    /// Zone tab: how long after a drag leaves the top of a lone editor its tab bar closes.
+    ZONE_TAB_REVEAL_GRACE = "zone-tab.reveal.grace": Duration = ms(250), range(0.0, 2000.0);
     /// Zone tab: drag threshold.
     ZONE_TAB_DRAG_THRESHOLD = "zone-tab.drag.threshold": Dimension = px(5.0), range(1.0, 20.0);
     /// Zone tab: show solo.

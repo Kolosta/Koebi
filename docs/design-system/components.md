@@ -372,11 +372,14 @@ area) and learns when a split copies an editor or a join removes some.
 - **Tabs** (`component.zone-tab.*`): an area holding several editors shows a tab bar above its
   top bar; a click shows an editor, a drag along the bar reorders the tabs.
 - **Docking**: dragging a tab or the background of a top bar (past `zone-tab.drag.threshold`)
-  moves the editor: over another area's tab bar or top bar it goes into its tabs (a line shows
-  where, and a single editor's area shows its tab bar meanwhile), in the middle of an area it
-  joins its tabs, near an edge it docks beside the area, which splits in half (the half is
-  previewed). The dragged tab follows the pointer; the area it leaves closes when empty, or
-  the drop is refused if that area cannot close.
+  moves the editor: over a tab bar it goes into its tabs (a line shows where), in the middle of
+  an area (40 % of its size) it joins its tabs, elsewhere it docks beside the area, on the
+  nearest side, which splits in half. The preview glides from one place to the next with the
+  time constant `zone-tab.drop-preview.anim-duration` (exponential smoothing), and jumps to
+  another area. A lone editor has no tab bar: when the drag stays over its top for
+  `zone-tab.reveal.delay`, the bar slides in, and it slides out `zone-tab.reveal.grace` after the
+  drag leaves. The dragged tab follows the pointer; the area it leaves closes when empty, or the
+  drop is refused if that area cannot close.
 - **Gutters** show a resize cursor; dragging one moves every edge of its line, ten times finer
   with Shift and snapped to a 48th of the window with Ctrl, both as soon as they are pressed,
   never below `zone.min-size`. After `input.hover.delay`, a band with rounded ends shows the
@@ -393,8 +396,10 @@ area) and learns when a split copies an editor or a join removes some.
 - **Previews**: a split shows the two halves the area under the pointer would become, a gutter
   apart (`zone-overlay.split-preview`); a join shows the part of the kept area that stays
   lighter, the part of the removed area it takes darker, the parts of both that neighbours take
-  darker still, and the joined area outlined (`zone-overlay.join.*`), with an arrow cursor
-  pointing the way the join goes (from the kept area towards the removed one), or "not allowed"
+  darker still, and the joined area outlined (`zone-overlay.join.*`). Everything around the
+  future area that goes is dark: the gutters next to it and the outsides of the rounded corners,
+  on its side and on the adjacent side of what stays. An arrow cursor points the way the join
+  goes (from the kept area towards the removed one), or "not allowed"
   where nothing can join. A press applies the preview; a press where nothing can happen does
   nothing.
 - **Cancel**: Escape, Delete or a right click (`workspace.cancel`) end any operation and restore

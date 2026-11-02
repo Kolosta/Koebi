@@ -85,6 +85,16 @@ closed first-level panel Visibility.
 |---|---|---|
 | `collapsible_panels_dark.png` | 280x220 | three levels, each header in its parent's content color; turned and closed chevrons |
 
+## The workspace previews
+
+`join_scene()` draws three areas with their content in one color, the top right area joining
+the left one through a corner drag: the top of the left area goes to it, the rest to the bottom
+right area.
+
+| File | Size | Shows |
+|---|---|---|
+| `workspace_join_dark.png` | 320x240 | what stays lighter, what it takes darker, what neighbours take darker still, across the gutters and around the rounded corners, the future area outlined |
+
 ## Comparison and updates
 
 Same tolerance as the renderer's golden images: `Tolerance::new(3, 8)`. Never edit these
