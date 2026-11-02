@@ -34,6 +34,25 @@ fn numbers_read_in_every_form() {
 }
 
 #[test]
+fn a_decimal_comma_reads_like_a_dot() {
+    for (comma, dot) in [
+        ("1,14", "1.14"),
+        ("1,36", "1.36"),
+        ("1,57", "1.57"),
+        ("198,765", "198.765"),
+        ("0,1", "0.1"),
+        ("1,5", "1.5"),
+    ] {
+        assert_eq!(plain(comma), plain(dot), "{comma}");
+    }
+    // Past what a double holds exactly, the value stays close and finite.
+    let long = format!("1,{}", "3".repeat(400));
+    assert!((plain(&long) - 4.0 / 3.0).abs() < 1e-12);
+    let zeros = format!("2,{}", "0".repeat(400));
+    assert_eq!(plain(&zeros), 2.0);
+}
+
+#[test]
 fn operators_follow_precedence_and_associativity() {
     assert_eq!(plain("2+3*4"), 14.0);
     assert_eq!(plain("(2+3)*4"), 20.0);
