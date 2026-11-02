@@ -16,7 +16,8 @@ use koebi_text::Fonts;
 use koebi_tokens::{KOEBI, component, semantic};
 use koebi_ui::{
     BarMapping, Button, Checkbox, Dropdown, Input, ListItem, ListOptions, ListState, MenuItem,
-    MenuState, NumberField, PanelLevel, Styles, ThemePreview, Tone, Ui, UiState, WidgetId,
+    MenuState, NumberField, PanelLevel, Styles, ThemePreview, Tone, TreeGuide, Ui, UiState,
+    WidgetId,
 };
 
 const SIZE: Extent = Extent::new(200, 100);
@@ -279,6 +280,109 @@ fn theme_cards_paint_other_themes() {
     assert_pixel(&image, 145, 10, preview.background.to_rgba8());
     let frame = design.get(component::THEME_CARD_BORDER_COLOR_DEFAULT);
     assert_pixel(&image, 80, 0, frame.to_rgba8());
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn tree_lines_run_along_the_children_in_three_looks() {
+    let Some(gpu) = gpu_or_skip("tree_lines_run_along_the_children_in_three_looks") else {
+        return;
+    };
+    let design = design();
+    let tag = Color::from_rgba8(200, 30, 90, 255);
+    let group = |id: u64, guide: TreeGuide| {
+        [
+            ListItem::new(id, "").with_guide(guide),
+            ListItem::new(id + 1, "").with_depth(1),
+            ListItem::new(id + 2, "").with_depth(1),
+        ]
+    };
+    let items: Vec<ListItem<'_>> = group(0, TreeGuide::Line)
+        .into_iter()
+        .chain(group(3, TreeGuide::Color(tag)))
+        .chain(group(6, TreeGuide::Dotted))
+        .collect();
+    let options = ListOptions {
+        zebra: false,
+        ..ListOptions::TREE
+    };
+    let mut list = ListState::new();
+    let scene = draw(&design, |ui| {
+        ui.list(
+            WidgetId::new("tree"),
+            rect(0.0, 0.0, 200.0, 180.0),
+            &mut list,
+            &items,
+            &options,
+            &mut (),
+        );
+    });
+    let image = render(&gpu, Extent::new(200, 180), &scene);
+    let styles = Styles::resolve(&design);
+    let style = styles.list;
+    let background = styles.background.to_rgba8();
+    // On the middle of the chevron's slot: 4 pixels of padding, then half the 16 pixels of the
+    // slot, the line one pixel wide.
+    let x = 12;
+    // A group's rows are 20 pixels high; the line starts and ends 4 pixels inside its children.
+    assert_pixel(&image, x, 23, background);
+    assert_pixel(&image, x, 24, style.line.to_rgba8());
+    assert_pixel(&image, x, 55, style.line.to_rgba8());
+    assert_pixel(&image, x, 56, background);
+    assert_pixel(&image, x, 83, background);
+    assert_pixel(&image, x, 84, tag.to_rgba8());
+    assert_pixel(&image, x, 115, tag.to_rgba8());
+    assert_pixel(&image, x, 116, background);
+    // Dashes of 2 and gaps of 2, continuing across the rows.
+    let dotted = style.line_dotted.to_rgba8();
+    assert_pixel(&image, x, 143, background);
+    assert_pixel(&image, x, 144, dotted);
+    assert_pixel(&image, x, 145, dotted);
+    assert_pixel(&image, x, 146, background);
+    assert_pixel(&image, x, 147, background);
+    assert_pixel(&image, x, 160, dotted);
+    assert_pixel(&image, x, 162, background);
+    assert_pixel(&image, x, 176, background);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn list_highlights_lie_inside_their_rows() {
+    let Some(gpu) = gpu_or_skip("list_highlights_lie_inside_their_rows") else {
+        return;
+    };
+    let design = design();
+    let items: Vec<ListItem<'_>> = (0..3).map(|id| ListItem::new(id, "")).collect();
+    let mut list = ListState::new();
+    list.set_active(Some(1));
+    let options = ListOptions {
+        zebra: false,
+        ..ListOptions::LIST
+    };
+    let scene = draw(&design, |ui| {
+        ui.list(
+            WidgetId::new("list"),
+            rect(0.0, 0.0, 200.0, 100.0),
+            &mut list,
+            &items,
+            &options,
+            &mut (),
+        );
+    });
+    let image = render(&gpu, SIZE, &scene);
+    let styles = Styles::resolve(&design);
+    let active = styles.list.active.to_rgba8();
+    let background = styles.background.to_rgba8();
+    // The row lies at 20 to 40: its highlight a pixel inside, 2 pixels from the sides, and over
+    // the place of a scrollbar: the list keeps its whole width.
+    assert_pixel(&image, 50, 20, background);
+    assert_pixel(&image, 50, 21, active);
+    assert_pixel(&image, 50, 38, active);
+    assert_pixel(&image, 50, 39, background);
+    assert_pixel(&image, 1, 30, background);
+    assert_pixel(&image, 2, 30, active);
+    assert_pixel(&image, 197, 30, active);
+    assert_pixel(&image, 198, 30, background);
     gpu.assert_no_validation_errors();
 }
 

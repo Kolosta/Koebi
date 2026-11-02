@@ -170,7 +170,7 @@ pub(crate) fn show(
     view: &mut View,
 ) {
     let margin = design.get(component::SIDE_PANEL_MARGIN_DEFAULT);
-    let content = Vec2::new(rect.width() - ui.styles().scroll.margin, view.height);
+    let content = Vec2::new(rect.width(), view.height);
     let mut scroll = view.scroll;
     let height = ui.scroll_area(
         id.with(0),
@@ -459,7 +459,7 @@ mod tests {
             let styles = &self.styles;
             let inset = self.margin() + styles.panel.border_width + styles.panel.padding;
             let left = self.area.min.x + inset;
-            let right = self.area.max.x - styles.scroll.margin - inset;
+            let right = self.area.max.x - inset;
             let content = self.area.min.y
                 + self.margin()
                 + self.panel(Some(self.rows(2, 1)))
@@ -529,7 +529,7 @@ mod tests {
             + styles.collapsible_panel.header_height
             + styles.collapsible_panel.content_padding
             + styles.property_group.row_height * 0.5;
-        let x = short().max.x - styles.scroll.margin - 3.0 * harness.margin();
+        let x = short().max.x - 3.0 * harness.margin();
         harness.click(Vec2::new(x, y));
         harness.input.typed("Sphere");
         harness.frame();

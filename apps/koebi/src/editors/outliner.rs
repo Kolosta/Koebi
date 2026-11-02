@@ -8,7 +8,9 @@
 use koebi_core::input::Key;
 use koebi_core::{Color, Rect};
 use koebi_input::{ActionDef, ActionGroup, Context, Shortcut};
-use koebi_ui::{DropPlace, ListDelegate, ListItem, ListOptions, ListState, Ui, WidgetId};
+use koebi_ui::{
+    DropPlace, ListDelegate, ListItem, ListOptions, ListState, TreeGuide, Ui, WidgetId,
+};
 
 /// The outliner: its keys apply where the pointer is over one.
 pub(crate) const OUTLINER: Context = Context::new("outliner");
@@ -65,6 +67,8 @@ pub(crate) struct Node {
     pub(crate) group: bool,
     /// A layer's color.
     pub(crate) color: Option<Color>,
+    /// How the line along its children looks.
+    pub(crate) guide: TreeGuide,
 }
 
 /// The document's tree: its rows in display order, depth first.
@@ -103,7 +107,16 @@ impl Tree {
             ("Notes", 0, Some(0x27_AE_60)),
         ];
         for (name, depth, color) in layers {
-            tree.push(name, depth, color.map(Color::from_hex));
+            let id = tree.push(name, depth, color.map(Color::from_hex));
+            // The three looks of the lines: the document's plain, a tag and a looser relation.
+            let guide = match name {
+                "Sketch" => TreeGuide::Color(Color::from_hex(0xF2_C9_4C)),
+                "Colors" => TreeGuide::Dotted,
+                _ => TreeGuide::Line,
+            };
+            if let Some(index) = tree.index(id) {
+                tree.nodes[index].guide = guide;
+            }
         }
         tree
     }
@@ -117,6 +130,7 @@ impl Tree {
             depth,
             group: color.is_none(),
             color,
+            guide: TreeGuide::Line,
         });
         id
     }
@@ -134,7 +148,9 @@ impl Tree {
     pub(crate) fn items<'a>(&'a self, items: &mut Vec<ListItem<'a>>) {
         items.clear();
         items.extend(self.nodes.iter().map(|node| {
-            let item = ListItem::new(node.id, &node.name).with_depth(node.depth);
+            let item = ListItem::new(node.id, &node.name)
+                .with_depth(node.depth)
+                .with_guide(node.guide);
             match node.color {
                 Some(color) => item.with_color(color),
                 None => item,
@@ -219,6 +235,7 @@ impl Tree {
                 depth,
                 group: true,
                 color: None,
+                guide: TreeGuide::Line,
             },
         );
         let moved = self.take(ids, depth + 1);

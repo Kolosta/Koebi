@@ -108,7 +108,7 @@ pub use widgets::{
     TEXT_SELECT_ALL, TEXT_SELECT_END, TEXT_SELECT_LEFT, TEXT_SELECT_RIGHT, TEXT_SELECT_START,
     TEXT_SELECT_WORD_LEFT, TEXT_SELECT_WORD_RIGHT, TEXT_START, TEXT_UNDO, TEXT_WORD_LEFT,
     TEXT_WORD_RIGHT, TextField, TextFieldResponse, TextFieldStyle, ThemeCardStyle, ThemePreview,
-    Tone, ToneColors, TooltipStyle, Track, Variant,
+    Tone, ToneColors, TooltipStyle, Track, TreeGuide, Variant,
 };
 pub use workspace::{
     EditorHost, OPERATION_CANCEL, OPERATION_CONFIRM, WORKSPACE, WORKSPACE_ACTIONS,

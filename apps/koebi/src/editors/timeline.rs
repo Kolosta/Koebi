@@ -334,7 +334,7 @@ fn keys(
     } else {
         1.0
     };
-    let visible = (tracks.width() - ui.styles().scroll.margin).max(1.0);
+    let visible = tracks.width().max(1.0);
     let mut new_width = (width * zoom).clamp(1.0, 200.0);
     if ui.triggered(&VIEW_ALL) {
         new_width = (visible / frames(playhead.shown())).clamp(1.0, 200.0);

@@ -54,6 +54,16 @@ koebi_design::tokens! {
     /// List row: color of the number of items a folded row hides.
     LIST_ROW_COUNT_COLOR_DEFAULT = "list-row.count.color.default": Color ->
         semantic::TEXT_COLOR_SECONDARY_DEFAULT;
+    /// List row: space between the row's top and bottom and its highlight (hovered, selected or
+    /// active). The whole row stays under the pointer's reach.
+    LIST_ROW_HIGHLIGHT_MARGIN_VERTICAL = "list-row.highlight.margin.vertical": Dimension =
+        px(1.0), range(0.0, 8.0);
+    /// List row: space between the row's sides and its highlight.
+    LIST_ROW_HIGHLIGHT_MARGIN_HORIZONTAL = "list-row.highlight.margin.horizontal": Dimension =
+        px(2.0), range(0.0, 16.0);
+    /// List row: corner radius of the highlight.
+    LIST_ROW_HIGHLIGHT_CORNER_RADIUS = "list-row.highlight.corner-radius": Dimension ->
+        semantic::RADIUS_XS;
     /// List row: color of the line where dragged rows would be inserted.
     LIST_ROW_DROP_LINE_COLOR_DEFAULT = "list-row.drop-line.color.default": Color ->
         semantic::BACKGROUND_ACCENT_DEFAULT;
