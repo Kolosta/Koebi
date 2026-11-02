@@ -9,6 +9,13 @@ use koebi_platform::WindowState;
 
 use crate::design_options::COLOR_VISION_MODES;
 
+/// A window to open at startup, beside the main one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StartWindow {
+    /// A floating window of editors.
+    Floating,
+}
+
 /// Parsed command line.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Options {
@@ -33,6 +40,8 @@ pub struct Options {
     pub export_schema: Option<PathBuf>,
     /// What the window shows as when it opens.
     pub window_state: WindowState,
+    /// A window to open beside the main one.
+    pub open_window: Option<StartWindow>,
     /// Show (`Some(true)`) or hide the frame-time overlay; `None` shows it in debug builds.
     pub frame_times: Option<bool>,
     /// Print usage and exit.
@@ -98,6 +107,7 @@ Options:
   --export-schema <FILE>   Write every token, with its base definition, to FILE
   --maximized              Open the window maximized
   --fullscreen             Open the window in fullscreen
+  --open-window <WINDOW>   Open another window as well: floating
   --fps, --no-fps          Show or hide the frame-time overlay (shown in debug builds)
   -h, --help               Print this help
   -V, --version            Print the version
@@ -177,6 +187,20 @@ Environment:
                         .overrides
                         .push((path.trim().to_owned(), definition.trim().to_owned()));
                 }
+                "--open-window" => {
+                    let value = args
+                        .next()
+                        .ok_or(ParseError::MissingValue("--open-window"))?;
+                    options.open_window = Some(match value.as_ref() {
+                        "floating" => StartWindow::Floating,
+                        other => {
+                            return Err(ParseError::InvalidValue {
+                                option: "--open-window",
+                                value: other.to_owned(),
+                            });
+                        }
+                    });
+                }
                 "--maximized" => options.window_state = WindowState::Maximized,
                 "--fullscreen" => options.window_state = WindowState::Fullscreen,
                 "--fps" => options.frame_times = Some(true),
@@ -220,6 +244,14 @@ Environment:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn windows_to_open_are_options() {
+        let parsed = Options::parse(["--open-window", "floating"]).unwrap();
+        assert_eq!(parsed.open_window, Some(StartWindow::Floating));
+        assert!(Options::parse(["--open-window"]).is_err());
+        assert!(Options::parse(["--open-window", "nothing"]).is_err());
+    }
 
     #[test]
     fn window_states_are_options() {

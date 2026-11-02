@@ -53,6 +53,7 @@ unsafe extern "system" {
     fn EnumWindows(callback: EnumProc, parameter: isize) -> i32;
     fn GetWindowThreadProcessId(window: Hwnd, process: *mut u32) -> u32;
     fn IsWindowVisible(window: Hwnd) -> i32;
+    fn GetWindow(window: Hwnd, command: u32) -> Hwnd;
     fn IsZoomed(window: Hwnd) -> i32;
     fn IsIconic(window: Hwnd) -> i32;
     fn GetClientRect(window: Hwnd, rect: *mut WinRect) -> i32;
@@ -80,6 +81,7 @@ const SC_MAXIMIZE: usize = 0xF030;
 const SC_RESTORE: usize = 0xF120;
 const SMTO_ABORTIFHUNG: u32 = 2;
 const MONITOR_DEFAULTTONEAREST: u32 = 2;
+const GW_OWNER: u32 = 4;
 const GWL_STYLE: i32 = -16;
 const WS_THICKFRAME: i32 = 0x0004_0000;
 const WS_MAXIMIZEBOX: i32 = 0x0001_0000;
@@ -118,7 +120,7 @@ impl Drop for App {
 
 struct Search {
     process: u32,
-    found: Hwnd,
+    found: Vec<Hwnd>,
 }
 
 unsafe extern "system" fn look_at(window: Hwnd, parameter: isize) -> i32 {
@@ -129,21 +131,21 @@ unsafe extern "system" fn look_at(window: Hwnd, parameter: isize) -> i32 {
     unsafe {
         GetWindowThreadProcessId(window, &raw mut process);
         if process == (*search).process && IsWindowVisible(window) != 0 {
-            (*search).found = window;
-            return 0;
+            (*search).found.push(window);
         }
     }
     1
 }
 
-fn find_window(process: u32) -> Option<Hwnd> {
+/// The visible windows of `process`.
+fn find_windows(process: u32) -> Vec<Hwnd> {
     let mut search = Search {
         process,
-        found: core::ptr::null_mut(),
+        found: Vec::new(),
     };
     // SAFETY: the callback matches `WNDENUMPROC`, and `search` outlives the call.
     unsafe { EnumWindows(look_at, (&raw mut search) as isize) };
-    (!search.found.is_null()).then_some(search.found)
+    search.found
 }
 
 /// Launches Koebi with `args`; `None` when the machine cannot run it (no GPU, outside CI).
@@ -166,7 +168,7 @@ fn launch(name: &str, args: &[&str]) -> Option<App> {
     };
     let started = Instant::now();
     loop {
-        if let Some(window) = find_window(app.child.id()) {
+        if let Some(&window) = find_windows(app.child.id()).last() {
             app.window = window;
             app.wait_until("the bar to answer", |app| {
                 // The first frame gives the system the regions.
@@ -209,12 +211,16 @@ impl App {
     /// What the window shows, on the screen. A maximized window has an invisible frame around
     /// it, past the work area: the application draws inside it.
     fn rect(&self) -> WinRect {
+        Self::rect_of(self.window)
+    }
+
+    fn rect_of(window: Hwnd) -> WinRect {
         let mut rect = WinRect::default();
         let mut origin = WinPoint::default();
         // SAFETY: a live window; the out-pointers reference locals.
         unsafe {
-            GetClientRect(self.window, &raw mut rect);
-            ClientToScreen(self.window, &raw mut origin);
+            GetClientRect(window, &raw mut rect);
+            ClientToScreen(window, &raw mut origin);
         }
         WinRect {
             left: origin.x,
@@ -438,6 +444,85 @@ fn the_system_closing_the_window_quits_cleanly() {
     let started = Instant::now();
     loop {
         if let Some(status) = app.child.try_wait().expect("cannot poll koebi") {
+            assert_eq!(status.code(), Some(exit_code::SUCCESS));
+            return;
+        }
+        assert!(started.elapsed() < WAIT, "koebi did not quit");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+/// The application with a floating window beside its main one: the floating one is smaller.
+fn with_floating(name: &str) -> Option<(App, App)> {
+    let mut main = launch(name, &["--open-window", "floating"])?;
+    main.wait_until("both windows", |app| {
+        find_windows(app.child.id()).len() == 2
+    });
+    let windows = find_windows(main.child.id());
+    let width = |window: Hwnd| App::rect_of(window).width();
+    let (large, small) = if width(windows[0]) > width(windows[1]) {
+        (windows[0], windows[1])
+    } else {
+        (windows[1], windows[0])
+    };
+    main.window = large;
+    let floating = App {
+        child: Command::new(env!("CARGO_BIN_EXE_koebi"))
+            .arg("--version")
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("failed to launch koebi"),
+        window: small,
+        data: std::env::temp_dir().join(format!("koebi-chrome-none-{}", std::process::id())),
+    };
+    Some((main, floating))
+}
+
+#[test]
+fn a_floating_window_is_on_its_own_and_of_the_same_application() {
+    let Some((main, floating)) = with_floating("floating") else {
+        return;
+    };
+    // No owner: the system neither minimizes it with the main window nor keeps it above it. Two
+    // windows of one process share their icon on the taskbar.
+    for window in [main.window, floating.window] {
+        // SAFETY: a live window.
+        assert!(unsafe { GetWindow(window, GW_OWNER) }.is_null());
+    }
+    // It has the same bar, with the same behaviours.
+    floating.wait_until("its bar to answer", |app| {
+        app.hit(app.rect().width() / 2, 10) == HTCAPTION
+    });
+    assert_eq!(floating.hit(0, 100), HTLEFT);
+    // Minimizing the main window leaves it there.
+    main.command(SC_MINIMIZE);
+    main.wait_until("the main window to minimize", App::is_minimized);
+    std::thread::sleep(Duration::from_millis(300));
+    assert!(!floating.is_minimized());
+    main.command(SC_RESTORE);
+    main.wait_until("the main window to come back", |app| !app.is_minimized());
+    // And the other way round.
+    floating.command(SC_MINIMIZE);
+    floating.wait_until("the floating window to minimize", App::is_minimized);
+    assert!(!main.is_minimized());
+}
+
+#[test]
+fn closing_a_floating_window_leaves_the_application_and_closing_the_main_one_quits() {
+    let Some((mut main, floating)) = with_floating("closing") else {
+        return;
+    };
+    // SAFETY: a live window; the message carries no pointer.
+    assert_ne!(unsafe { PostMessageW(floating.window, WM_CLOSE, 0, 0) }, 0);
+    main.wait_until("the floating window to go", |app| {
+        find_windows(app.child.id()).len() == 1
+    });
+    assert!(main.child.try_wait().expect("cannot poll koebi").is_none());
+    // SAFETY: a live window; the message carries no pointer.
+    assert_ne!(unsafe { PostMessageW(main.window, WM_CLOSE, 0, 0) }, 0);
+    let started = Instant::now();
+    loop {
+        if let Some(status) = main.child.try_wait().expect("cannot poll koebi") {
             assert_eq!(status.code(), Some(exit_code::SUCCESS));
             return;
         }

@@ -14,6 +14,9 @@ use koebi_ui::{
 
 use crate::actions;
 
+/// Mobile platforms show one window.
+const MULTIPLE_WINDOWS: bool = !cfg!(any(target_os = "android", target_os = "ios"));
+
 const BAR: WidgetId = WidgetId::new("app-bar");
 const MENUS: WidgetId = WidgetId::new("app-bar-menus");
 
@@ -39,6 +42,8 @@ pub(crate) enum AppCommand {
     Quit,
     /// Opens the system's window menu there.
     SystemMenu(Vec2),
+    /// Opens a floating window.
+    NewWindow,
 }
 
 /// The text of the shortcuts the menus show, read when the keymap changes rather than at every
@@ -138,7 +143,10 @@ impl AppChrome {
         ];
         let edit = [MenuItem::action("Settings").enabled(false)];
         let fullscreen = MenuItem::action("Fullscreen").checked(state == WindowState::Fullscreen);
-        let window = [with_shortcut(fullscreen, &labels.fullscreen)];
+        let window = [
+            MenuItem::action("New Window").enabled(MULTIPLE_WINDOWS),
+            with_shortcut(fullscreen, &labels.fullscreen),
+        ];
         let entries = [
             MenuBarEntry {
                 title: "File",
@@ -176,7 +184,8 @@ impl AppChrome {
 fn command_of(menu: usize, choice: &MenuChoice) -> Option<AppCommand> {
     match (menu, choice.index()) {
         (0, 5) => Some(AppCommand::Quit),
-        (2, 0) => Some(AppCommand::ToggleFullscreen),
+        (2, 0) => Some(AppCommand::NewWindow),
+        (2, 1) => Some(AppCommand::ToggleFullscreen),
         _ => None,
     }
 }

@@ -47,6 +47,29 @@ fn windows_open_maximized_and_in_fullscreen() {
     }
 }
 
+/// Two windows present frames together, on the same device, without a validation error.
+#[test]
+fn a_floating_window_presents_frames_beside_the_main_one() {
+    let data = std::env::temp_dir().join(format!("koebi-e2e-floating-{}", std::process::id()));
+    let data_dir = data.to_string_lossy().into_owned();
+    let run = run_koebi(
+        &[
+            "--open-window",
+            "floating",
+            "--frames",
+            "30",
+            "--data-dir",
+            &data_dir,
+        ],
+        Duration::from_secs(120),
+    );
+    drop(std::fs::remove_dir_all(&data));
+    if run.code == Some(exit_code::UNSUPPORTED) && std::env::var_os("KOEBI_REQUIRE_GPU").is_none() {
+        return;
+    }
+    assert_eq!(run.code, Some(exit_code::SUCCESS), "{}", run.stderr);
+}
+
 fn run_koebi(args: &[&str], timeout: Duration) -> Run {
     let mut child = Command::new(env!("CARGO_BIN_EXE_koebi"))
         .args(args)

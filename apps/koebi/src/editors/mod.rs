@@ -87,7 +87,7 @@ impl EditorKind {
 
 /// An editor: its kind, and the state of each kind it has shown.
 #[derive(Clone, Debug)]
-struct Entry {
+pub(crate) struct Entry {
     id: EditorId,
     kind: EditorKind,
     viewport: viewport::View,
@@ -151,6 +151,23 @@ impl Editors {
     fn remove(&mut self, editors: &[EditorId]) {
         self.entries.retain(|entry| !editors.contains(&entry.id));
     }
+
+    /// What `editor` is, to give it to another window's editors: its kind, and the state of every
+    /// kind it showed.
+    pub(crate) fn entry_of(&mut self, editor: EditorId) -> Entry {
+        self.entry(editor).clone()
+    }
+
+    /// Forgets `editor`, which left for another window.
+    pub(crate) fn remove_editor(&mut self, editor: EditorId) {
+        self.remove(&[editor]);
+    }
+
+    /// `editor` becomes what `entry` was in another window.
+    pub(crate) fn adopt(&mut self, editor: EditorId, mut entry: Entry) {
+        entry.id = editor;
+        *self.entry(editor) = entry;
+    }
 }
 
 /// The workspace Koebi opens with: the gallery, the outliner, the properties and info on the
@@ -195,6 +212,16 @@ pub(crate) fn default_workspace() -> (Workspace, Editors) {
         && let Ok(split) = workspace.split(right, Orientation::Horizontal, fraction(7, 20), 1)
     {
         editors.set(split.editor, EditorKind::Properties);
+    }
+    (workspace, editors)
+}
+
+/// The workspace a new floating window opens with: one viewport.
+pub(crate) fn default_floating() -> (Workspace, Editors) {
+    let workspace = Workspace::new();
+    let mut editors = Editors::default();
+    if let Some(editor) = workspace.editors().next() {
+        editors.set(editor, EditorKind::Viewport);
     }
     (workspace, editors)
 }
@@ -378,6 +405,23 @@ mod tests {
         host.removed(&[a]);
         assert_eq!(editors.kind(b), EditorKind::Timeline);
         assert_eq!(editors.entries.len(), 1);
+    }
+
+    #[test]
+    fn an_editor_keeps_its_kind_and_state_in_another_window() {
+        let mut main = Editors::default();
+        let (a, b) = (EditorId::from_saved(1), EditorId::from_saved(1));
+        main.set(a, EditorKind::Outliner);
+        main.entry(a).outliner.set_folded(7, true);
+        let taken = main.entry_of(a);
+        main.remove_editor(a);
+        assert!(main.entries.is_empty());
+        // The other window numbers its editors on its own: the same number is another editor.
+        let (workspace, mut floating) = default_floating();
+        assert_eq!(workspace.editors().count(), 1);
+        floating.adopt(b, taken);
+        assert_eq!(floating.kind(b), EditorKind::Outliner);
+        assert!(floating.entry(b).outliner.is_folded(7));
     }
 
     #[test]
