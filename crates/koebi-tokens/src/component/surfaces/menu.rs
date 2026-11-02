@@ -19,6 +19,9 @@ koebi_design::tokens! {
     /// Menu: item background color, selected.
     MENU_ITEM_BACKGROUND_COLOR_SELECTED = "menu.item.background.color.selected": Color ->
         semantic::BACKGROUND_ACCENT_DEFAULT;
+    /// Menu: item background color, selected and hovered.
+    MENU_ITEM_BACKGROUND_COLOR_SELECTED_HOVER = "menu.item.background.color.selected-hover":
+        Color -> semantic::BACKGROUND_ACCENT_HOVER;
     /// Menu: column header label color.
     MENU_COLUMN_HEADER_LABEL_COLOR_DEFAULT = "menu.column-header.label.color.default": Color ->
         semantic::TEXT_COLOR_SECONDARY_DEFAULT;
@@ -28,8 +31,16 @@ koebi_design::tokens! {
     MENU_PADDING_VERTICAL_DEFAULT = "menu.padding.vertical.default": Dimension = px(6.0), range(0.0, 32.0);
     /// Menu: column gap.
     MENU_COLUMN_GAP_DEFAULT = "menu.column-gap.default": Dimension = px(16.0), range(0.0, 64.0);
-    /// Menu: item gap.
+    /// Menu: space between the highlights of two items. Items lie against each other, and half
+    /// of this comes out of each one's height: the pointer has no gap to fall into.
     MENU_ITEM_GAP_DEFAULT = "menu.item-gap.default": Dimension = px(2.0), range(0.0, 16.0);
+    /// Menu: space between an item's highlight and the panel's sides. The item itself reaches
+    /// the sides: the pointer selects it there too.
+    MENU_ITEM_MARGIN_HORIZONTAL = "menu.item.margin.horizontal": Dimension = px(2.0),
+        range(0.0, 16.0);
+    /// Menu: where the pointer lies along the item under it, in a menu opened at the pointer:
+    /// from 0 at the item's start to 1 at its end.
+    MENU_OPEN_POINTER_SHARE = "menu.open.pointer-share": Number = 0.83, range(0.0, 1.0);
     /// Menu: border color.
     MENU_BORDER_COLOR_DEFAULT = "menu.border.color.default": Color ->
         semantic::BORDER_COLOR_DEFAULT;
@@ -46,7 +57,7 @@ koebi_design::tokens! {
     MENU_TITLE_LABEL_COLOR_DEFAULT = "menu.title.label.color.default": Color ->
         semantic::TEXT_COLOR_SECONDARY_DEFAULT;
 
-    /// Menu: height of an item.
+    /// Menu: height of an item, one interface unit, its highlight included.
     MENU_ITEM_HEIGHT_DEFAULT = "menu.item.height.default": Dimension ->
         semantic::SIZE_CONTROL_HEIGHT;
     /// Menu: label color of an item.
@@ -57,6 +68,9 @@ koebi_design::tokens! {
         semantic::TEXT_COLOR_PRIMARY_DEFAULT;
     /// Menu: label color of the current choice.
     MENU_ITEM_LABEL_COLOR_SELECTED = "menu.item.label.color.selected": Color ->
+        semantic::STATIC_TEXT_COLOR_WHITE;
+    /// Menu: label color of the current choice, hovered.
+    MENU_ITEM_LABEL_COLOR_SELECTED_HOVER = "menu.item.label.color.selected-hover": Color ->
         semantic::STATIC_TEXT_COLOR_WHITE;
     /// Menu: label color of a disabled item.
     MENU_ITEM_LABEL_COLOR_DISABLED = "menu.item.label.color.disabled": Color ->

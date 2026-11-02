@@ -6,6 +6,25 @@ their defaults from the tokens and every property from the call
 ([ADR 0017](../adr/0017-component-library.md)). This page explains how a component reads its
 tokens and how to write a new one.
 
+## The interface unit
+
+A control is one interface unit high (`ui-unit`, through `semantic.size.control-height`). What
+holds controls is sized from it, with its padding in tokens:
+
+| What | Height | Rule |
+|---|---|---|
+| Button, dropdown, text field, number field, checkbox | one unit | fixed; `height` overrides it for one control |
+| Top bar | one unit + `editor-top-bar.padding` on each side | fixed, and its items are one unit high |
+| Tab bar | one unit + `zone-tab.padding.vertical` on each side | fixed; a tab reaches down to the top bar below it, its label one unit high |
+| Menu item, list row | one unit, highlight included | fixed; the highlight lies inside and the pointer selects the whole row |
+| Collapsible panel header | one unit | fixed |
+| Property group row | one unit | fixed; `row_with_height` asks for a taller one |
+| Menu, list, panel content, property group | what they hold | grow with their content, then scroll or stop at a maximum |
+
+Bars have a fixed height along their axis (a vertical bar, a fixed width); what lists things
+grows. An item's interactive zone is always its whole row, margins included: margins only move
+what shows.
+
 ## The components
 
 | Component | Call | Tokens |
@@ -302,9 +321,17 @@ One component draws every list of the application (outliner, layers, color usage
   current choice (`.selected(true)`); submenus (`MenuItem::submenu(label, &items)`), eight
   levels deep at most; separators and titles.
   Columns line up across a menu: marks, icons, labels, shortcuts, submenu arrows.
-- **Opening**: a `MenuState` per menu, kept by the application, opens it at a point
-  (`open_at`, a context menu, usually on `Response::secondary_pressed`) or beside a control
-  (`open_for(rect, placement)`). `Ui::menu` draws it and its open submenus on the floating
+- **Rows**: an item is one interface unit high, and items lie against each other. Its highlight
+  is smaller: `menu.item-gap` between two highlights and `menu.item.margin.horizontal` from the
+  panel's sides, while `menu.padding.vertical` counts to the highlights of the first and last
+  items. The pointer selects an item over its whole row. The current choice has its own color
+  under the pointer (`menu.item.background.color.selected-hover`).
+- **Opening**: a `MenuState` per menu, kept by the application, opens it around the pointer
+  (`open_at_pointer`, for context menus, usually on `Response::secondary_pressed`), at a point
+  (`open_at`) or beside a control (`open_for(rect, placement)`). Around the pointer, the pointer
+  lies over the item last chosen, or the first one that can be chosen, at
+  `menu.open.pointer-share` of its width; a menu that would leave the window stays inside it, and
+  the pointer then lies elsewhere. The choice is remembered for as long as the `MenuState` lives. `Ui::menu` draws it and its open submenus on the floating
   layer, kept inside the window, and returns the item chosen this frame: `MenuChoice::index`
   in its own list, `MenuChoice::path` from the root (`[2, 0]`: the first item of the submenu
   of the root's third item).

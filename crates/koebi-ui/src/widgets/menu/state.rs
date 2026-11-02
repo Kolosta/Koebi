@@ -16,6 +16,8 @@ pub(super) const MAX_DEPTH: usize = 8;
 pub(super) enum Anchor {
     /// A point: its top-left corner there, or wherever it fits around it.
     Point(Vec2),
+    /// The pointer: over its last choice, or its first item, as far as it fits.
+    Pointer(Vec2),
     /// A control, beside which it opens as the placement says.
     Control(Rect, Placement),
 }
@@ -71,6 +73,10 @@ pub struct MenuState {
     /// Whether the pointer came near the menus since they opened: only then does moving away
     /// close them (a menu opened far from the pointer waits for it).
     pub(super) armed: bool,
+    /// The item of the root last chosen, kept while the menu is closed.
+    pub(super) last_choice: Option<usize>,
+    /// The menu has not been laid out since it opened.
+    pub(super) fresh: bool,
 }
 
 impl MenuState {
@@ -92,12 +98,22 @@ impl MenuState {
             waiting: false,
             placed: None,
             armed: false,
+            last_choice: None,
+            fresh: false,
         }
     }
 
-    /// Opens the menu at `point`: a context menu.
+    /// Opens the menu with its top-left corner at `point`, or wherever it fits around it.
     pub fn open_at(&mut self, point: Vec2) {
         self.open(Anchor::Point(point));
+    }
+
+    /// Opens the menu around `pointer`, so that the pointer lies over the item last chosen, or
+    /// over its first item if none was: a context menu. The pointer lies towards the end of the
+    /// item (`menu.open.pointer-share`). A menu that would leave its bounds stays inside them,
+    /// the pointer then lying elsewhere over it, or beside it.
+    pub fn open_at_pointer(&mut self, pointer: Vec2) {
+        self.open(Anchor::Pointer(pointer));
     }
 
     /// Opens the menu beside `control`, as `placement` says.
@@ -111,9 +127,10 @@ impl MenuState {
     }
 
     fn open(&mut self, anchor: Anchor) {
-        *self = Self::new();
+        self.close();
         self.anchor = Some(anchor);
         self.depth = 1;
+        self.fresh = true;
     }
 
     /// Moves the control an open menu belongs to: the menu follows a layout that changes.
@@ -123,9 +140,26 @@ impl MenuState {
         }
     }
 
-    /// Closes the menu and its submenus.
+    /// Closes the menu and its submenus. It remembers its last choice.
     pub fn close(&mut self) {
+        let last_choice = self.last_choice;
         *self = Self::new();
+        self.last_choice = last_choice;
+    }
+
+    /// Closes the menu after `choice`, and remembers it.
+    pub(super) fn close_with(&mut self, choice: &MenuChoice) {
+        self.last_choice = Some(choice.path()[0]);
+        self.close();
+    }
+
+    /// The item of `items`, the root's, a menu opened at the pointer opens over: the last
+    /// choice if it can still be chosen, else the first item that can.
+    pub(super) fn item_under_pointer(&self, items: &[MenuItem<'_>]) -> usize {
+        self.last_choice
+            .filter(|last| items.get(*last).is_some_and(|item| item.is_active_at(0)))
+            .or_else(|| items.iter().position(|item| item.is_active_at(0)))
+            .unwrap_or(0)
     }
 
     /// `true` while the menu is open.

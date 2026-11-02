@@ -139,6 +139,18 @@ fn item_key(level: usize, item: usize) -> u64 {
 
 /// The rectangle of a context menu of `size` opened at `point`: right and down from it when
 /// there is room, else left or up, kept inside `bounds`.
+/// The panel of `size` at `origin`, moved as little as it takes to stay inside `bounds`.
+fn around_pointer(origin: Vec2, size: Vec2, bounds: Rect) -> Rect {
+    let keep = |start: f32, length: f32, low: f32, high: f32| start.min(high - length).max(low);
+    snap(Rect::from_origin_size(
+        Vec2::new(
+            keep(origin.x, size.x, bounds.min.x, bounds.max.x),
+            keep(origin.y, size.y, bounds.min.y, bounds.max.y),
+        ),
+        size,
+    ))
+}
+
 fn at_point(point: Vec2, size: Vec2, bounds: Rect) -> Rect {
     let x = if point.x + size.x <= bounds.max.x {
         point.x
@@ -187,7 +199,7 @@ impl Ui<'_> {
         self.grab(MENU);
         let keys = self.menu_keys(state, items);
         if let Some(choice) = keys.choice {
-            state.close();
+            state.close_with(&choice);
             return Some(choice);
         }
         if !state.is_open() {
@@ -197,6 +209,7 @@ impl Ui<'_> {
         let hovered = self.menu_hovered(id, state, items);
         self.menu_pointer(state, items, hovered);
         let frames = self.menu_layout(state, items, bounds, keys.moved);
+        state.fresh = false;
         let depth = state.depth;
         let mut panels = [Rect::ZERO; MAX_DEPTH];
         for (panel, frame) in panels.iter_mut().zip(&frames).take(depth) {
@@ -250,12 +263,12 @@ impl Ui<'_> {
                     let scroll = state.levels[level].scroll;
                     let highlighted = state.levels[level].highlighted;
                     ui.clipped(content, |ui| {
-                        let mut y = content.min.y + style.padding_vertical - scroll;
+                        let mut y = content.min.y + style.rows_inset() - scroll;
                         for (index, item) in level_items.iter().enumerate() {
                             let height = layout::row_height(style, item);
                             let row = Rect::from_min_max(
-                                Vec2::new(content.min.x + style.item_gap, y),
-                                Vec2::new(content.max.x - style.item_gap, y + height),
+                                Vec2::new(content.min.x, y),
+                                Vec2::new(content.max.x, y + height),
                             );
                             y += height;
                             if row.max.y <= content.min.y || row.min.y >= content.max.y {
@@ -271,14 +284,15 @@ impl Ui<'_> {
                                     }
                                 }
                             }
-                            let look = if active
-                                && (highlighted == Some(index) || child == Some(index))
-                            {
-                                RowLook::Highlighted
-                            } else if matches!(item, MenuItem::Action(action) if action.selected) {
-                                RowLook::Selected
-                            } else {
-                                RowLook::Normal
+                            let lit =
+                                active && (highlighted == Some(index) || child == Some(index));
+                            let selected =
+                                matches!(item, MenuItem::Action(action) if action.selected);
+                            let look = match (lit, selected) {
+                                (true, true) => RowLook::SelectedHighlighted,
+                                (true, false) => RowLook::Highlighted,
+                                (false, true) => RowLook::Selected,
+                                (false, false) => RowLook::Normal,
                             };
                             let toward_left = child == Some(index) && child_left;
                             layout::draw_row(
@@ -300,7 +314,7 @@ impl Ui<'_> {
             return None;
         }
         if let Some(choice) = chosen {
-            state.close();
+            state.close_with(&choice);
             return Some(choice);
         }
         if let Some((level, item)) = opened {

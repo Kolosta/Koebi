@@ -29,4 +29,8 @@ koebi_design::tokens! {
     /// joins a neighbour when dragged into it.
     ZONE_CORNER_SIZE_DEFAULT = "zone.corner.size.default": Dimension =
         px(12.0), range(4.0, 40.0);
+    /// Height of the squares at the top corners of an area, which leave the top bar's items
+    /// below them.
+    ZONE_CORNER_TOP_HEIGHT_DEFAULT = "zone.corner.top-height.default": Dimension =
+        px(6.0), range(2.0, 40.0);
 }

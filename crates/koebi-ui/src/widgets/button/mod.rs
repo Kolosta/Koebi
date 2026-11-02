@@ -158,6 +158,14 @@ impl<'a> Button<'a> {
         self
     }
 
+    /// Places the trailing icon at the end of the button (`true`), or right after the rest of
+    /// the content (`false`, the default).
+    #[must_use]
+    pub fn trailing_at_end(mut self, at_end: bool) -> Self {
+        self.content.trailing_at_end = at_end;
+        self
+    }
+
     /// Shows a status dot of `color` after the label.
     #[must_use]
     pub fn status_dot(mut self, color: Color) -> Self {

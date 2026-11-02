@@ -12,10 +12,11 @@ use koebi_design::{ColorVision, Deficiency, DesignSystem, Scope};
 use koebi_render::RectPrimitive;
 use koebi_render::Scene;
 use koebi_testkit::gpu_or_skip;
+use koebi_text::Fonts;
 use koebi_tokens::{KOEBI, component, semantic};
 use koebi_ui::{
-    BarMapping, Button, Checkbox, Input, ListItem, ListOptions, ListState, MenuItem, MenuState,
-    NumberField, PanelLevel, Styles, ThemePreview, Tone, Ui, UiState, WidgetId,
+    BarMapping, Button, Checkbox, Dropdown, Input, ListItem, ListOptions, ListState, MenuItem,
+    MenuState, NumberField, PanelLevel, Styles, ThemePreview, Tone, Ui, UiState, WidgetId,
 };
 
 const SIZE: Extent = Extent::new(200, 100);
@@ -332,6 +333,105 @@ fn list_rows_alternate_zebra_colors_and_show_the_selection() {
     let image = render(&gpu, SIZE, &scene(&design, &mut list));
     assert_pixel(&image, 150, 30, red.to_rgba8());
     assert_pixel(&image, 150, 10, even.to_rgba8());
+    gpu.assert_no_validation_errors();
+}
+
+/// A menu of three unnamed items at (10, 10), the second one the current choice, drawn with the
+/// pointer at `pointer`.
+fn menu_scene(design: &DesignSystem, pointer: Vec2) -> Scene {
+    let styles = Styles::resolve(design);
+    let mut menu = MenuState::new();
+    menu.open_at(Vec2::new(10.0, 10.0));
+    let items = [
+        MenuItem::action(""),
+        MenuItem::action("").selected(true),
+        MenuItem::action(""),
+    ];
+    let mut state = UiState::new();
+    state.set_fonts(Fonts::with_embedded());
+    let mut input = Input::new();
+    let bounds = rect(0.0, 0.0, 200.0, 100.0);
+    // The pointer is resolved against the last frame's layout, and takes the highlight when it
+    // moves.
+    let mut last = Scene::new();
+    for frame in 0..3 {
+        if frame == 1 {
+            input.pointer_moved(pointer);
+        }
+        last = Scene::new();
+        last.set_clear_color(styles.background);
+        let mut ui = Ui::new(&mut last, &styles, &input, &mut state);
+        ui.menu(WidgetId::new("menu"), &mut menu, &items, bounds);
+        drop(ui);
+        input.end_frame();
+    }
+    last
+}
+
+#[test]
+fn menu_items_show_their_highlight_inside_their_row() {
+    let Some(gpu) = gpu_or_skip("menu_items_show_their_highlight_inside_their_row") else {
+        return;
+    };
+    let design = design();
+    let background = design
+        .get(component::MENU_BACKGROUND_COLOR_DEFAULT)
+        .to_rgba8();
+    let hover = design
+        .get(component::MENU_ITEM_BACKGROUND_COLOR_HOVER)
+        .to_rgba8();
+    let selected = design
+        .get(component::MENU_ITEM_BACKGROUND_COLOR_SELECTED)
+        .to_rgba8();
+    let selected_hover = design
+        .get(component::MENU_ITEM_BACKGROUND_COLOR_SELECTED_HOVER)
+        .to_rgba8();
+    assert_ne!(selected, selected_hover);
+    // The border is 1 pixel and the padding 6, counted to the first highlight: the rows lie at
+    // 16 to 36, 36 to 56 and 56 to 76, their highlights a pixel inside them, 2 from the sides.
+    let image = render(&gpu, SIZE, &menu_scene(&design, Vec2::new(20.0, 26.0)));
+    assert_pixel(&image, 20, 26, hover);
+    assert_pixel(&image, 20, 46, selected);
+    // Between two highlights, and at the side of one: the panel.
+    assert_pixel(&image, 20, 16, background);
+    assert_pixel(&image, 20, 17, hover);
+    assert_pixel(&image, 20, 34, hover);
+    assert_pixel(&image, 20, 35, background);
+    assert_pixel(&image, 20, 36, background);
+    assert_pixel(&image, 20, 37, selected);
+    assert_pixel(&image, 12, 26, background);
+    assert_pixel(&image, 13, 26, hover);
+    // The current choice under the pointer: a color of its own.
+    let image = render(&gpu, SIZE, &menu_scene(&design, Vec2::new(20.0, 46.0)));
+    assert_pixel(&image, 20, 46, selected_hover);
+    assert_pixel(&image, 20, 26, background);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn a_dropdowns_chevron_sits_at_the_end_of_its_control() {
+    let Some(gpu) = gpu_or_skip("a_dropdowns_chevron_sits_at_the_end_of_its_control") else {
+        return;
+    };
+    let design = design();
+    let items = [MenuItem::action("One")];
+    let bounds = rect(0.0, 0.0, 200.0, 100.0);
+    let control = rect(10.0, 10.0, 180.0, 20.0);
+    let mut menu = MenuState::new();
+    let scene = draw(&design, |ui| {
+        Dropdown::new(WidgetId::new("dropdown"), &mut menu, &items)
+            .label("A")
+            .show(ui, control, bounds);
+    });
+    let image = render(&gpu, SIZE, &scene);
+    let fill = design
+        .get(component::DROPDOWN_BACKGROUND_COLOR_DEFAULT)
+        .to_rgba8();
+    let drawn_in =
+        |from: u32, to: u32| (from..to).any(|x| (12..28).any(|y| image.pixel(x, y) != fill));
+    // Nothing in the middle, the chevron near the end.
+    assert!(!drawn_in(60, 160));
+    assert!(drawn_in(165, 188));
     gpu.assert_no_validation_errors();
 }
 

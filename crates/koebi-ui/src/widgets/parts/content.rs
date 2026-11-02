@@ -23,6 +23,8 @@ pub struct Content<'a> {
     pub trailing: Option<Icon>,
     /// Where the content sits when the control is wider than it.
     pub align: Align,
+    /// The trailing icon sits at the end of the control, whatever the alignment of the rest.
+    pub trailing_at_end: bool,
 }
 
 /// The sizes content is laid out with.
@@ -62,6 +64,7 @@ impl Default for Content<'_> {
             dot: None,
             trailing: None,
             align: Align::Center,
+            trailing_at_end: false,
         }
     }
 }
@@ -76,6 +79,7 @@ impl<'a> Content<'a> {
             dot: None,
             trailing: None,
             align: Align::Center,
+            trailing_at_end: false,
         }
     }
 
@@ -88,6 +92,7 @@ impl<'a> Content<'a> {
             dot: None,
             trailing: None,
             align: Align::Center,
+            trailing_at_end: false,
         }
     }
 
@@ -189,18 +194,29 @@ impl<'a> Content<'a> {
         if overflows {
             ui.scene().push_clip(bounds);
         }
+        // A trailing icon at the end takes its place: the rest is placed in what remains.
+        let pinned = if self.trailing_at_end && self.trailing.is_some() {
+            metrics.trailing_size + if count > 1 { metrics.gap } else { 0.0 }
+        } else {
+            0.0
+        };
+        let (rest, placed) = (rect.width() - pinned, width - pinned);
         let mut x = match self.align {
             Align::Start => rect.min.x,
-            Align::Center => rect.min.x + (rect.width() - width) * 0.5,
-            Align::End => rect.max.x - width,
+            Align::Center => rect.min.x + (rest - placed) * 0.5,
+            Align::End => rect.min.x + rest - placed,
         }
         .round();
         let mut first = true;
-        for part in parts.into_iter().flatten() {
+        let last = usize::from(count.saturating_sub(1));
+        for (index, part) in parts.into_iter().flatten().enumerate() {
             if !first {
                 x += metrics.gap;
             }
             first = false;
+            if pinned > 0.0 && index == last {
+                x = x.max(rect.max.x - metrics.trailing_size);
+            }
             match part {
                 Part::Icon(icon, size) => {
                     let slot = Rect::from_min_max(

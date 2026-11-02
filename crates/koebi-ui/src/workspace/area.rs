@@ -114,7 +114,7 @@ impl Ui<'_> {
                     let title = host.title(tab);
                     let width = self.text_width(title, &font) + 2.0 * style.tab_padding;
                     let rect = Rect::from_min_max(
-                        Vec2::new(x, tabs.min.y + style.tab_gap),
+                        Vec2::new(x, tabs.min.y + style.tab_bar_padding),
                         Vec2::new((x + width).min(tabs.max.x), tabs.max.y),
                     );
                     x += width + style.tab_gap;
@@ -138,9 +138,10 @@ impl Ui<'_> {
                         style.tab_label
                     };
                     let text = rect.inset(style.tab_padding.min(rect.width() * 0.5));
+                    // One interface unit high: the tab reaches down to the top bar below it.
                     let text = Rect::from_min_max(
                         Vec2::new(text.min.x, rect.min.y),
-                        Vec2::new(text.max.x, rect.max.y),
+                        Vec2::new(text.max.x, rect.max.y - style.tab_bar_padding),
                     );
                     self.clipped(tabs, |ui| {
                         ui.label(title, text, &font, ink, Align::Start);
@@ -197,7 +198,7 @@ impl Ui<'_> {
                 bar.min + Vec2::splat(style.top_bar_padding),
                 bar.max - Vec2::splat(style.top_bar_padding),
             );
-            let mut layout = BarLayout::new(items, style.top_bar_padding);
+            let mut layout = BarLayout::new(items, style.top_bar_gap);
             if let Some(kind) = self.editor_type(view, host, editor, &mut layout, window) {
                 change_kind = Some((editor, kind));
             }
