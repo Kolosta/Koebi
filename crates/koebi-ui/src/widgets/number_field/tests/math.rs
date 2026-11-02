@@ -14,6 +14,7 @@ fn unbounded() -> Scale {
         max: f64::INFINITY,
         bar: None,
         min_step: 0.0,
+        decimals: 6,
     }
 }
 
@@ -348,4 +349,110 @@ fn values_that_are_not_numbers_drag_and_step_from_zero() {
         from_fraction: |_, _, _| f64::NAN,
     };
     assert_eq!(nan.fraction(5.0, 0.0, 10.0), 0.0);
+}
+
+/// A field showing two decimals, without a bar.
+fn two_decimals() -> Scale {
+    Scale {
+        decimals: 2,
+        ..unbounded()
+    }
+}
+
+const PLAIN: Precision = Precision {
+    fine_from_start: false,
+    fine_from_here: false,
+    round: false,
+    keep_digits: false,
+};
+
+#[test]
+fn a_drag_sets_the_value_it_shows() {
+    let scale = two_decimals();
+    let mut drag = DragState::new(245.15874, &scale);
+    // 80 px are 8 steps of 0.1.
+    let value = drag.value(80.0, PLAIN, &scale);
+    assert!(close(value, 245.96), "{value}");
+    assert_eq!(value, scale.rounded(value));
+}
+
+#[test]
+fn a_drag_showing_nothing_new_leaves_the_value_as_it_was() {
+    let scale = two_decimals();
+    let mut drag = DragState::new(245.15874, &scale);
+    // Too little to show 245.17: the field still shows 245.16.
+    assert_eq!(drag.value(0.5, PLAIN, &scale), 245.15874);
+    assert_eq!(drag.value(-0.3, PLAIN, &scale), 245.15874);
+    // Past it, it sets what shows; back on what the start showed, nothing visible changed.
+    let value = drag.value(10.0, PLAIN, &scale);
+    assert!(close(value, 245.26), "{value}");
+    assert_eq!(drag.value(0.0, PLAIN, &scale), 245.15874);
+}
+
+#[test]
+fn alt_before_the_first_change_keeps_the_hidden_digits() {
+    let scale = two_decimals();
+    let mut drag = DragState::new(245.15874, &scale);
+    // Pressed after the press, before anything else showed: a unit is 10 steps, one more step
+    // of travel is one more unit.
+    assert_eq!(drag.value(0.5, PLAIN, &scale), 245.15874);
+    let value = drag.value(10.5, ALT, &scale);
+    assert!(close(value, 246.15874), "{value}");
+}
+
+#[test]
+fn alt_after_the_first_change_counts_from_what_shows() {
+    let scale = two_decimals();
+    let mut drag = DragState::new(245.15874, &scale);
+    let shown = drag.value(10.0, PLAIN, &scale);
+    assert!(close(shown, 245.26), "{shown}");
+    let value = drag.value(20.0, ALT, &scale);
+    assert!(close(value, 246.26), "{value}");
+}
+
+#[test]
+fn step_buttons_set_what_shows_except_with_alt() {
+    let scale = two_decimals();
+    let plain = stepped(245.15874, 1.0, PLAIN, &scale);
+    assert!(close(plain, 245.26), "{plain}");
+    let kept = stepped(245.15874, 1.0, ALT, &scale);
+    assert!(close(kept, 246.15874), "{kept}");
+    // A step too small to show moves by the smallest change that does.
+    let fine = Scale {
+        step: 0.001,
+        ..two_decimals()
+    };
+    let value = stepped(1.0, 1.0, PLAIN, &fine);
+    assert!(close(value, 1.01), "{value}");
+}
+
+#[test]
+fn a_notch_of_the_wheel_is_worth_a_step_or_what_shows() {
+    let scale = two_decimals();
+    // A step of 0.1 per 10 pixels.
+    assert!((scale.notch_travel(PLAIN) - 10.0).abs() < 1e-3);
+    // A unit by Alt takes as much travel as a step does.
+    assert!((scale.notch_travel(ALT) - 10.0).abs() < 1e-3);
+    // A step too small to show: as far as the smallest change that shows.
+    let fine = Scale {
+        step: 0.001,
+        ..two_decimals()
+    };
+    assert!((fine.notch_travel(PLAIN) - 100.0).abs() < 1e-3);
+    // Along a bar of 200 pixels for a range of 2: a step of 0.1 is 10 pixels.
+    let bar = Scale {
+        min: 0.0,
+        max: 2.0,
+        bar: Some((BarMapping::Linear, 200.0)),
+        ..two_decimals()
+    };
+    assert!((bar.notch_travel(PLAIN) - 10.0).abs() < 1e-3);
+    // Shift stays visible on the wheel: no finer than the smallest change that shows.
+    assert!((bar.for_wheel().fine - 0.1).abs() < 1e-9);
+    let tiny = Scale {
+        step: 0.01,
+        fine: 0.05,
+        ..two_decimals()
+    };
+    assert!((tiny.for_wheel().fine - 1.0).abs() < 1e-9);
 }

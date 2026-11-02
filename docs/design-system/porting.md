@@ -264,6 +264,8 @@ Menus and bars (the interface unit): `component.menu.item.background.color.selec
 `component.zone.corner.top-height.default`. `component.editor-top-bar.padding.default` goes from
 6 to 2 pixels at the maintainer's request.
 
+Number fields: `component.number-field.drag.bar-fine-factor` (a twentieth, Blender's sliders).
+
 Docking: `component.zone-tab.reveal.delay` (350 ms) and `component.zone-tab.reveal.grace`
 (250 ms), which were constants in the source.
 

@@ -19,6 +19,10 @@ use crate::widgets::{NumberState, TextState, TooltipState};
 ///
 /// Keep one per window and pass it to every [`Ui`].
 #[derive(Clone, Debug, Default)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent facts, each kept for the last frame and for the frame being built"
+)]
 pub struct UiState {
     active: Option<WidgetId>,
     /// Pointer position when the active widget was pressed.
@@ -44,6 +48,10 @@ pub struct UiState {
     /// last complete frame and from the frame being built, innermost last.
     grabs: Vec<Context>,
     grabbing: Vec<Context>,
+    /// A component takes the wheel with the modifiers held ([`Ui::claim_wheel`]), in the last
+    /// complete frame and in the frame being built.
+    wheel_claimed: bool,
+    wheel_claiming: bool,
     /// Something holds the pointer without being a widget ([`Ui::hold_pointer`]), in the last
     /// complete frame and in the frame being built.
     holding: bool,
@@ -299,6 +307,7 @@ impl<'a> Ui<'a> {
         state.secondary_target = reach(topmost(input.button_pressed_at(PointerButton::Secondary)));
         state.grabbing.clear();
         state.holding_next = false;
+        state.wheel_claiming = false;
         state.redraw_at = None;
         state.pointer_lock = None;
         // The end of a number field's drag asks every pass drawn with its input to keep the
@@ -374,6 +383,17 @@ impl<'a> Ui<'a> {
     /// lasts.
     pub fn hold_pointer(&mut self) {
         self.state.holding_next = true;
+    }
+
+    /// Takes the wheel in the next frame from what would scroll around the pointer: a number
+    /// field changing its value with Ctrl. Call it every frame the component would use it.
+    pub(crate) fn claim_wheel(&mut self) {
+        self.state.wheel_claiming = true;
+    }
+
+    /// `true` when a component under the pointer took the wheel in the last frame.
+    pub(crate) fn is_wheel_claimed(&self) -> bool {
+        self.state.wheel_claimed
     }
 
     /// `false` during an action ([`UiState::is_action_in_progress`]): what reads presses or the
@@ -667,6 +687,7 @@ impl Drop for Ui<'_> {
         core::mem::swap(&mut state.previous, &mut state.current);
         core::mem::swap(&mut state.grabs, &mut state.grabbing);
         state.holding = core::mem::take(&mut state.holding_next);
+        state.wheel_claimed = core::mem::take(&mut state.wheel_claiming);
         state.text.end_frame();
         state.number.end_frame();
     }

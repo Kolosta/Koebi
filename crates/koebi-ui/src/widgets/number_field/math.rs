@@ -1,6 +1,8 @@
 //! The arithmetic of number fields, apart from drawing and input so that every rule can be
 //! tested alone: where a value lies on a bounded field's bar ([`BarMapping`]), the value a
-//! drag gives with its modifiers ([`DragState`]), and what a step button does ([`stepped`]).
+//! drag or the wheel gives with its modifiers ([`DragState`]), and what a step button does
+//! ([`stepped`]). These set the value a field shows, never hidden digits below it: only typing
+//! goes finer than what shows.
 
 use koebi_core::input::{ModifierKey, Modifiers};
 
@@ -83,7 +85,7 @@ pub(crate) struct Precision {
     pub(crate) fine_from_here: bool,
     /// Ctrl: round units.
     pub(crate) round: bool,
-    /// Alt: units from where the pace last changed, the last digits kept.
+    /// Alt: units from where the pace last changed, the digits it had kept.
     pub(crate) keep_digits: bool,
 }
 
@@ -134,6 +136,8 @@ pub(crate) struct Scale {
     /// The smallest step a button or a round makes: 1 for integers, which a finer step could
     /// not change.
     pub(crate) min_step: f64,
+    /// The decimals the field shows: what a drag, the wheel or a step button can set.
+    pub(crate) decimals: usize,
 }
 
 impl Scale {
@@ -171,9 +175,55 @@ impl Scale {
         }
     }
 
+    /// The smallest change the field shows.
+    fn least_shown(&self) -> f64 {
+        10_f64.powi(-i32::try_from(self.decimals).unwrap_or(0))
+    }
+
+    /// `value` as the field shows it, rounded to its decimals. Values too large to have decimals
+    /// stay as they are.
+    pub(crate) fn rounded(&self, value: f64) -> f64 {
+        let scaled = value / self.least_shown();
+        if scaled.is_finite() && scaled.abs() < 9e15 {
+            scaled.round() * self.least_shown()
+        } else {
+            value
+        }
+    }
+
     /// The step Shift makes: finer, but not below the smallest step.
     fn fine_step(&self) -> f64 {
         (self.step * self.fine).max(self.min_step)
+    }
+
+    /// This scale for the wheel, where a notch must show: the fine pace no finer than the
+    /// smallest step or the smallest change the field shows.
+    pub(crate) fn for_wheel(self) -> Self {
+        let least = self.min_step.max(self.least_shown());
+        Self {
+            fine: self.fine.max(least / self.step).min(1.0),
+            ..self
+        }
+    }
+
+    /// The travel one notch of the wheel is worth: a step, or a unit with Ctrl or Alt, as long
+    /// as it shows.
+    pub(crate) fn notch_travel(&self, precision: Precision) -> f32 {
+        let per_notch = if precision.is_coarse() {
+            self.unit(false)
+        } else {
+            self.step
+        };
+        let notch = per_notch.max(self.least_shown()).max(self.min_step);
+        #[allow(
+            clippy::cast_possible_truncation,
+            reason = "pixels of travel, far inside the range of f32"
+        )]
+        let travel = match self.bar {
+            Some((_, length)) => f64::from(length) * notch / (self.max - self.min),
+            None => f64::from(self.step_distance.max(1.0)) * notch / per_notch,
+        } as f32;
+        travel
     }
 
     /// The unit Ctrl and Alt move by: `coarse` steps, finer with Shift, but not below the
@@ -206,12 +256,15 @@ pub(crate) struct DragState {
     pub(crate) start: f64,
     /// The position (see [`Scale::position`]) travel counts from.
     base: f64,
+    /// The value travel counts from: what units of Alt add to, its hidden digits kept.
+    from: f64,
     /// Pixels of travel counted from `base`, at the plain pace and at the fine one. What goes
     /// past a bound at a pace is not counted at that pace, so that coming back moves the value
     /// at once; each counts on its own, so that a Shift from the start comes back to its value.
     counted: [f64; 2],
-    /// The pace travel counted at on the last frame: finer from here, and by units.
-    pace: (bool, bool),
+    /// The pace travel counted at on the last frame: finer from here, by units, and keeping
+    /// digits.
+    pace: (bool, bool, bool),
     /// The travel of the last frame.
     travel: f32,
     /// The value of the last frame.
@@ -225,8 +278,9 @@ impl DragState {
         Self {
             start,
             base: scale.position(start),
+            from: start,
             counted: [0.0; 2],
-            pace: (false, false),
+            pace: (false, false, false),
             travel: 0.0,
             shown: start,
         }
@@ -235,17 +289,21 @@ impl DragState {
     /// The value after `travel` pixels from the press, with `precision`, within the bounds:
     /// - finer with Shift, as if from the start or from here ([`FineMode`]);
     /// - on round units with Ctrl, or on units from where the pace last changed with Alt, which
-    ///   keeps the last digits; finer ones with Shift too. A unit takes as much travel as a step
-    ///   on a field without a bar. Along a bar, travel keeps its meaning: it runs the range.
+    ///   keeps the digits it had; finer ones with Shift too. A unit takes as much travel as a step
+    ///   on a field without a bar. Along a bar, travel keeps its meaning: it runs the range;
+    /// - rounded to what the field shows, and as long as it shows what it showed at the start,
+    ///   the value of the start: nothing visible changed. With Alt pressed before the first
+    ///   visible change, the digits hidden at the start stay; pressed later, there are none left.
     pub(crate) fn value(&mut self, travel: f32, precision: Precision, scale: &Scale) -> f64 {
         let delta = f64::from(travel - self.travel);
         self.travel = travel;
         let coarse = precision.is_coarse() && scale.bar.is_none();
-        let pace = (precision.fine_from_here, coarse);
+        let pace = (precision.fine_from_here, coarse, precision.keep_digits);
         if pace != self.pace {
             // Another pace counts from where the drag is. A Shift counting from the start does
             // not change the pace: it scales everything counted so far.
             self.base = scale.position(self.shown);
+            self.from = self.shown;
             self.counted = [0.0; 2];
             self.pace = pace;
         }
@@ -265,26 +323,42 @@ impl DragState {
             .min(high);
         let raw = scale.at(clamped);
         let unit = scale.unit(precision.is_fine());
-        let snapped = if precision.round && unit > 0.0 {
-            (raw / unit).round() * unit
-        } else if precision.keep_digits && unit > 0.0 {
-            let from = scale.at(self.base);
-            from + ((raw - from) / unit).round() * unit
+        let value = if precision.keep_digits && !precision.round && unit > 0.0 {
+            self.from + ((raw - self.from) / unit).round() * unit
         } else {
-            raw
+            let value = if precision.round && unit > 0.0 {
+                (raw / unit).round() * unit
+            } else {
+                raw
+            };
+            let shown = scale.rounded(value);
+            #[allow(
+                clippy::float_cmp,
+                reason = "two values rounded the same way: equal when they show the same"
+            )]
+            let unchanged = shown == scale.rounded(self.start);
+            if unchanged { self.start } else { shown }
         };
-        self.shown = snapped.max(scale.min).min(scale.max);
+        self.shown = value.max(scale.min).min(scale.max);
+        self.shown
+    }
+
+    /// The value of the last call.
+    pub(crate) const fn last(&self) -> f64 {
         self.shown
     }
 }
 
 /// The value a step button gives: `direction` (+1 or -1) times the step, a finer step with
-/// Shift; with Ctrl, to the next round unit; with Alt, by a unit, which keeps the last digits;
-/// units are finer with Shift too. Within the bounds.
+/// Shift; with Ctrl, to the next round unit; with Alt, by a unit, which keeps the hidden digits;
+/// units are finer with Shift too. Within the bounds, and except with Alt, on what the field
+/// shows: a step too small to show moves by the smallest change that does.
 pub(crate) fn stepped(value: f64, direction: f64, precision: Precision, scale: &Scale) -> f64 {
     let value = scale.finite(value);
+    let least = scale.least_shown();
     let unit = scale.unit(precision.is_fine());
     let next = if precision.round && unit > 0.0 {
+        let unit = unit.max(least);
         // The next multiple of the unit that way, even from a multiple.
         let units = value / unit;
         let target = if direction > 0.0 {
@@ -292,7 +366,7 @@ pub(crate) fn stepped(value: f64, direction: f64, precision: Precision, scale: &
         } else {
             (units - 1e-9).ceil() - 1.0
         };
-        target * unit
+        scale.rounded(target * unit)
     } else if precision.keep_digits {
         direction.mul_add(unit, value)
     } else {
@@ -301,7 +375,7 @@ pub(crate) fn stepped(value: f64, direction: f64, precision: Precision, scale: &
         } else {
             scale.step
         };
-        direction.mul_add(step, value)
+        scale.rounded(direction.mul_add(step.max(least), scale.rounded(value)))
     };
     next.max(scale.min).min(scale.max)
 }

@@ -1,7 +1,7 @@
 //! What number fields keep between frames, in [`UiState`](crate::UiState): the one field being
-//! dragged and its [`DragState`], the one field whose value is typed as text, and where the
-//! pointer comes back when a drag ends. A drag or an edit whose field a frame no longer shows
-//! ends.
+//! dragged and its [`DragState`], the one whose value the wheel changes, the one field whose
+//! value is typed as text, and where the pointer comes back when a drag ends. A drag or an edit
+//! whose field a frame no longer shows ends.
 
 use core::time::Duration;
 
@@ -29,6 +29,19 @@ pub(crate) struct NumberDrag {
     pub(crate) seen: bool,
 }
 
+/// The wheel changing one field: Ctrl held over it. Notches add up like the travel of a drag.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct NumberWheel {
+    /// The field.
+    pub(crate) id: WidgetId,
+    /// The values the notches give.
+    pub(crate) state: DragState,
+    /// The notches so far, as travel.
+    pub(crate) travel: f32,
+    /// The field was shown this frame.
+    pub(crate) seen: bool,
+}
+
 /// The value of one field typed as text.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct NumberEdit {
@@ -49,6 +62,8 @@ pub(crate) struct NumberEdit {
 pub(crate) struct NumberState {
     /// The field being dragged.
     pub(crate) drag: Option<NumberDrag>,
+    /// The field the wheel changes.
+    pub(crate) wheel: Option<NumberWheel>,
     /// The field whose value is typed.
     pub(crate) edit: Option<NumberEdit>,
     /// An edit started while another field's edit was still open: it takes over when the
@@ -66,6 +81,9 @@ impl NumberState {
         if let Some(drag) = &mut self.drag {
             drag.seen = false;
         }
+        if let Some(wheel) = &mut self.wheel {
+            wheel.seen = false;
+        }
         if let Some(edit) = &mut self.edit {
             edit.seen = false;
         }
@@ -75,6 +93,9 @@ impl NumberState {
     pub(crate) fn end_frame(&mut self) {
         if self.drag.is_some_and(|drag| !drag.seen) {
             self.drag = None;
+        }
+        if self.wheel.is_some_and(|wheel| !wheel.seen) {
+            self.wheel = None;
         }
         if self.edit.as_ref().is_some_and(|edit| !edit.seen) {
             self.edit = None;

@@ -161,7 +161,7 @@ impl Ui<'_> {
                 },
             )
         };
-        if self.pointer_within(id) {
+        if self.pointer_within(id) && !self.is_wheel_claimed() {
             let wheel = self.input().wheel();
             // Shift turns the wheel sideways, as everywhere.
             let wheel = if self.input().modifiers().shift() && wheel.x == 0.0 {

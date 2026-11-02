@@ -10,10 +10,15 @@
 //!   threshold, it types the value; past it, travel changes the value at the speed of the
 //!   system's pointer: a step per `number-field.drag.step-distance`, or the bar's length for
 //!   the whole range of a bounded field. The left Shift does the field's [`FineMode`], the right
-//!   Shift the other one; Ctrl goes to round units and Alt moves by units keeping the last
+//!   Shift the other one; Ctrl goes to round units and Alt moves by units keeping the hidden
 //!   digits, both finer with Shift. Escape, Delete or a right click cancel at any time; Enter or
 //!   the release keep the value. The pointer comes back where the press was, or at the end of a
 //!   bounded field's bar.
+//! - **What a drag sets**: the value it shows, not the digits below: 245.15874 dragged to 245.20
+//!   is exactly 245.2. A drag that does not reach another shown value leaves the value as it was,
+//!   and Alt pressed before that keeps its hidden digits. Finer values are typed.
+//! - **The wheel**: with Ctrl over the field, a notch does what a drag does for a step, finer
+//!   with Shift, which goes on and off as in a drag.
 //! - **Typing**: the value as text in a [`TextField`](crate::TextField), evaluated as an
 //!   expression with units ([`koebi_core::expr`]) in the field's unit; an invalid expression
 //!   keeps the edit open, framed as an error.
@@ -206,6 +211,7 @@ pub struct NumberField<'a, N: Numeric> {
     enabled: bool,
     step_buttons: Option<bool>,
     fine_mode: Option<FineMode>,
+    fine_factor: Option<Prop<kind::Number>>,
     height: Option<Prop<kind::Dimension>>,
     min_width: Option<Prop<kind::Dimension>>,
     radii: Option<CornerRadii>,
@@ -230,6 +236,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
             enabled: true,
             step_buttons: None,
             fine_mode: None,
+            fine_factor: None,
             height: None,
             min_width: None,
             radii: None,
@@ -332,6 +339,15 @@ impl<'a, N: Numeric> NumberField<'a, N> {
     #[must_use]
     pub fn fine_mode(mut self, mode: FineMode) -> Self {
         self.fine_mode = Some(mode);
+        self
+    }
+
+    /// How much finer Shift makes a drag, the wheel and the step buttons, from 0 to 1. By default,
+    /// `number-field.drag.bar-fine-factor` on a field showing a bar (1/20, as Blender's sliders)
+    /// and `number-field.drag.fine-factor` on others (1/10, as its number buttons).
+    #[must_use]
+    pub fn fine_factor(mut self, factor: impl Into<Prop<kind::Number>>) -> Self {
+        self.fine_factor = Some(factor.into());
         self
     }
 
@@ -488,15 +504,22 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         } else {
             track.width()
         };
+        let fine = if self.shown_bar().is_some() {
+            style.bar_fine_factor
+        } else {
+            style.fine_factor
+        };
+        let fine = Self::prop(ui, self.fine_factor.as_ref(), fine);
         Scale {
             step: self.step_value(),
             step_distance: style.step_distance,
-            fine: f64::from(style.fine_factor),
+            fine: f64::from(fine),
             coarse: f64::from(style.coarse_factor),
             min: self.min,
             max: self.max,
             bar: self.shown_bar().map(|mapping| (mapping, length)),
             min_step: if N::INTEGER { 1.0 } else { 0.0 },
+            decimals: self.decimals_shown(),
         }
     }
 
