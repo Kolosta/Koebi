@@ -84,6 +84,13 @@ apply, innermost first. Text fields, once they exist, take the keyboard while ed
 - Components read them with `Ui::triggered(&ACTION)`. A component that must keep the keyboard
   whatever the pointer is over (an open menu, an operation in progress) calls
   `Ui::grab(CONTEXT)` every frame it lasts.
+- **Actions keep inputs to themselves**: while an action is in progress (a widget holds the
+  pointer, `Ui::hold_pointer`, or a `Ui::grab`), the pointer is nowhere for shortcuts: the chain
+  holds only the action's contexts. A press of another button reaches no component, its release
+  and any drag that follows trigger nothing (a button keeps the chain of its press), and the
+  wheel reaches no zone. A right click cancelling a drag does nothing else. This is automatic;
+  only code reading presses or the wheel straight from `Input` for what lies under the pointer
+  asks `Ui::pointer_is_free`.
 
 ## Input settings
 

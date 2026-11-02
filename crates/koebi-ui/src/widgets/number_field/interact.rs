@@ -169,7 +169,7 @@ impl<N: Numeric> NumberField<'_, N> {
             return;
         }
         // The keys of the drag, as long as it lasts.
-        ui.grab_keyboard(NUMBER);
+        ui.grab(NUMBER);
         ui.lock_pointer(release_at);
         ui.state.number.drag = Some(drag);
     }

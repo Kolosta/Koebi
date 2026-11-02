@@ -271,11 +271,14 @@ pub(crate) fn show(ui: &mut Ui<'_>, rect: Rect, design: &DesignSystem, view: &mu
 fn handle_input(ui: &mut Ui<'_>, rect: Rect, area: Rect, view: &mut View, style: &Style) {
     let input = ui.input();
     let pointer = input.pointer();
-    let over = pointer.is_some_and(|point| area.contains(point));
+    // During another action, this press and this wheel are not the canvas's.
+    let free = ui.pointer_is_free();
+    let over = free && pointer.is_some_and(|point| area.contains(point));
     // The middle button holds the canvas from a press on it until its release.
-    if input
-        .button_pressed_at(PointerButton::Middle)
-        .is_some_and(|point| area.contains(point))
+    if free
+        && input
+            .button_pressed_at(PointerButton::Middle)
+            .is_some_and(|point| area.contains(point))
     {
         view.held = pointer;
     }
@@ -285,6 +288,9 @@ fn handle_input(ui: &mut Ui<'_>, rect: Rect, area: Rect, view: &mut View, style:
     if let (Some(held), Some(point)) = (view.held, pointer) {
         view.center -= (point - held) * (1.0 / view.zoom);
         view.held = Some(point);
+    }
+    if view.held.is_some() {
+        ui.hold_pointer();
     }
     if over && let Some(point) = pointer {
         let notches = input.wheel().y;

@@ -1,5 +1,5 @@
 //! The keyboard actions of a text field being edited, in the [`TEXT`] context. The field
-//! grabs the whole keyboard while it edits ([`Ui::grab_keyboard`](crate::Ui::grab_keyboard)):
+//! grabs the whole keyboard while it edits ([`Ui::grab`](crate::Ui::grab)):
 //! the shortcuts of other contexts wait until the edit ends.
 //!
 //! Defaults follow each platform: the primary modifier (Command on Apple platforms, Ctrl
