@@ -22,6 +22,31 @@ struct Run {
     stderr: String,
 }
 
+/// Windows opening maximized or in fullscreen present frames like others, on every platform.
+#[test]
+fn windows_open_maximized_and_in_fullscreen() {
+    for state in ["--maximized", "--fullscreen"] {
+        let data = std::env::temp_dir().join(format!("koebi-e2e{state}-{}", std::process::id()));
+        let data_dir = data.to_string_lossy().into_owned();
+        let run = run_koebi(
+            &[state, "--frames", "30", "--data-dir", &data_dir],
+            Duration::from_secs(120),
+        );
+        drop(std::fs::remove_dir_all(&data));
+        if run.code == Some(exit_code::UNSUPPORTED)
+            && std::env::var_os("KOEBI_REQUIRE_GPU").is_none()
+        {
+            return;
+        }
+        assert_eq!(
+            run.code,
+            Some(exit_code::SUCCESS),
+            "{state}: {}",
+            run.stderr
+        );
+    }
+}
+
 fn run_koebi(args: &[&str], timeout: Duration) -> Run {
     let mut child = Command::new(env!("CARGO_BIN_EXE_koebi"))
         .args(args)

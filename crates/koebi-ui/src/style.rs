@@ -19,9 +19,9 @@ use koebi_tokens::{component, semantic};
 use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
-    ButtonStyle, CheckboxStyle, CollapsiblePanelStyle, DropdownStyle, ListStyle, MenuStyle,
-    NumberFieldStyle, PanelStyle, PropertyGroupStyle, ScrollStyle, SeparatorStyle, SwatchStyle,
-    TextFieldStyle, ThemeCardStyle, TooltipStyle,
+    AppBarStyle, ButtonStyle, CheckboxStyle, CollapsiblePanelStyle, DropdownStyle, ListStyle,
+    MenuStyle, NumberFieldStyle, PanelStyle, PropertyGroupStyle, ScrollStyle, SeparatorStyle,
+    SwatchStyle, TextFieldStyle, ThemeCardStyle, TooltipStyle,
 };
 use crate::workspace::WorkspaceStyle;
 
@@ -272,6 +272,8 @@ pub struct Styles {
     pub input: InputStyle,
     /// Window background: the clear color of the scene.
     pub background: Color,
+    /// [`AppBar`](crate::AppBar) and [`Ui::menu_bar`](crate::Ui::menu_bar).
+    pub app_bar: AppBarStyle,
     /// Line icons.
     pub icon: IconStyle,
     /// Typography and text colors.
@@ -331,6 +333,7 @@ impl Styles {
             tokens: snapshot,
             input: InputStyle::resolve(tokens),
             background: tokens.get(component::WINDOW_BACKGROUND_COLOR_DEFAULT),
+            app_bar: AppBarStyle::resolve(tokens),
             icon: IconStyle::resolve(tokens),
             text: TextStyles::resolve(tokens),
             button: ButtonStyle::resolve(tokens),

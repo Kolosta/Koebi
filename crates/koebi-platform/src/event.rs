@@ -16,7 +16,8 @@ use sdl3_sys::events::{
     SDL_EVENT_PINCH_UPDATE, SDL_EVENT_QUIT, SDL_EVENT_TERMINATING, SDL_EVENT_TEXT_INPUT,
     SDL_EVENT_WILL_ENTER_BACKGROUND, SDL_EVENT_WILL_ENTER_FOREGROUND,
     SDL_EVENT_WINDOW_CLOSE_REQUESTED, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED,
-    SDL_EVENT_WINDOW_EXPOSED, SDL_EVENT_WINDOW_FOCUS_GAINED, SDL_EVENT_WINDOW_FOCUS_LOST,
+    SDL_EVENT_WINDOW_ENTER_FULLSCREEN, SDL_EVENT_WINDOW_EXPOSED, SDL_EVENT_WINDOW_FOCUS_GAINED,
+    SDL_EVENT_WINDOW_FOCUS_LOST, SDL_EVENT_WINDOW_LEAVE_FULLSCREEN, SDL_EVENT_WINDOW_MAXIMIZED,
     SDL_EVENT_WINDOW_MINIMIZED, SDL_EVENT_WINDOW_MOUSE_ENTER, SDL_EVENT_WINDOW_MOUSE_LEAVE,
     SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED, SDL_EVENT_WINDOW_RESIZED, SDL_EVENT_WINDOW_RESTORED,
     SDL_Event, SDL_EventType,
@@ -221,8 +222,17 @@ pub enum WindowEvent {
     Exposed,
     /// The window was minimized.
     Minimized,
-    /// The window was restored.
+    /// The window was maximized.
+    Maximized,
+    /// The window was restored from minimized or maximized.
     Restored,
+    /// The window entered fullscreen.
+    FullscreenEntered,
+    /// The window left fullscreen.
+    FullscreenLeft,
+    /// A press reached the regions of a window with custom chrome, where the system reports them
+    /// (X11): see [`crate::Window::region_pressed`].
+    RegionPressed,
     /// The display scale changed (moved to another monitor, OS setting).
     DisplayScaleChanged,
     /// The pointer entered the window.
@@ -567,7 +577,13 @@ pub(crate) fn translate(event: &SDL_Event, modifiers: Modifiers) -> Option<Event
         }
         k if k == SDL_EVENT_WINDOW_EXPOSED => WindowEvent::Exposed,
         k if k == SDL_EVENT_WINDOW_MINIMIZED => WindowEvent::Minimized,
+        k if k == SDL_EVENT_WINDOW_MAXIMIZED => WindowEvent::Maximized,
         k if k == SDL_EVENT_WINDOW_RESTORED => WindowEvent::Restored,
+        k if k == SDL_EVENT_WINDOW_ENTER_FULLSCREEN => WindowEvent::FullscreenEntered,
+        k if k == SDL_EVENT_WINDOW_LEAVE_FULLSCREEN => WindowEvent::FullscreenLeft,
+        // Windows reports every pass of the pointer over the regions, and needs none of them.
+        #[cfg(target_os = "linux")]
+        k if k == sdl3_sys::events::SDL_EVENT_WINDOW_HIT_TEST => WindowEvent::RegionPressed,
         k if k == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED => WindowEvent::DisplayScaleChanged,
         k if k == SDL_EVENT_WINDOW_MOUSE_ENTER => WindowEvent::PointerEntered,
         k if k == SDL_EVENT_WINDOW_MOUSE_LEAVE => WindowEvent::PointerLeft,
@@ -762,6 +778,15 @@ mod tests {
         let mut event = blank();
         event.window.windowID = sdl3_sys::video::SDL_WindowID(3);
         for (sdl, expected) in [
+            (SDL_EVENT_WINDOW_MAXIMIZED, WindowEvent::Maximized),
+            (
+                SDL_EVENT_WINDOW_ENTER_FULLSCREEN,
+                WindowEvent::FullscreenEntered,
+            ),
+            (
+                SDL_EVENT_WINDOW_LEAVE_FULLSCREEN,
+                WindowEvent::FullscreenLeft,
+            ),
             (SDL_EVENT_WINDOW_MOUSE_ENTER, WindowEvent::PointerEntered),
             (SDL_EVENT_WINDOW_MOUSE_LEAVE, WindowEvent::PointerLeft),
             (SDL_EVENT_WINDOW_FOCUS_GAINED, WindowEvent::FocusGained),

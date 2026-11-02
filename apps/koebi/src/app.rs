@@ -12,16 +12,17 @@ use koebi_gpu::{
 };
 use koebi_input::{Context, InputSettings, Keymap};
 use koebi_platform::{
-    App, AppContext, AppControl, AppError, Event, IterationRate, VulkanSupport, Window, WindowDesc,
-    WindowEvent, exit_code,
+    App, AppContext, AppControl, AppError, Event, IterationRate, VulkanSupport, Window,
+    WindowChrome, WindowDesc, WindowEvent, WindowState, exit_code,
 };
 use koebi_render::{Renderer2D, Scene};
 use koebi_text::Fonts;
 use koebi_tokens::semantic;
-use koebi_ui::{Input, StyleCache, Ui, UiState, WorkspaceView};
+use koebi_ui::{Input, StyleCache, Ui, UiState, WindowCommand, WorkspaceView};
 use koebi_workspace::Workspace;
 
 use crate::actions;
+use crate::chrome::{AppChrome, AppCommand, ShortcutLabels, WindowView};
 use crate::cursors::AppCursors;
 use crate::design_options;
 use crate::editors::{self, Content, Editors, Host};
@@ -29,6 +30,9 @@ use crate::frame_times::FrameTimes;
 use crate::options::Options;
 use crate::overlay::Overlay;
 use crate::preferences::Preferences;
+
+/// The smallest size of a window, in logical pixels: its bars and an editor still fit.
+const MIN_WINDOW_SIZE: (u32, u32) = (480, 320);
 
 /// Everything Vulkan. Declared before the window in [`KoebiApp`] so that it drops first:
 /// surfaces must be destroyed before their native window.
@@ -216,6 +220,12 @@ struct Interface {
     overlay: Option<Overlay>,
     /// The fonts text is laid out with; the renderer rasterizes glyphs from the same ones.
     fonts: Fonts,
+    /// The application bar.
+    chrome: AppChrome,
+    /// The text of the shortcuts the menus show.
+    labels: ShortcutLabels,
+    /// What the bar asked for in the last frame.
+    command: Option<AppCommand>,
     /// Turns input events into actions, through the contexts under the pointer.
     keymap: Keymap,
     input_settings: InputSettings,
@@ -260,6 +270,7 @@ impl Interface {
         if let Some(preferences) = &mut preferences {
             preferences.load_shortcuts(&mut keymap);
         }
+        let labels = ShortcutLabels::read(&keymap);
         Ok(Self {
             styles: StyleCache::new(&design),
             design,
@@ -273,6 +284,9 @@ impl Interface {
             content: Content::new(),
             overlay: options.shows_frame_times().then(Overlay::new),
             fonts,
+            chrome: AppChrome::default(),
+            labels,
+            command: None,
             keymap,
             input_settings: InputSettings::default(),
             chain: Vec::new(),
@@ -285,7 +299,7 @@ impl Interface {
     /// Builds the scene of a frame covering `area`. When the frame changes the design system
     /// (a field edits a token, a card switches the theme), the scene is built again with the
     /// new styles: every component shows the change in this very frame.
-    fn build(&mut self, area: Rect, times: &FrameTimes) {
+    fn build(&mut self, area: Rect, times: &FrameTimes, view: WindowView<'_>) {
         self.input.set_time(self.started.elapsed());
         if self.input.triggered(&actions::FRAME_TIMES) {
             self.overlay = match self.overlay {
@@ -298,16 +312,22 @@ impl Interface {
             drag_threshold: self.design.get(semantic::INPUT_DRAG_THRESHOLD),
             double_click_time: self.design.get(semantic::INPUT_DOUBLE_CLICK_TIME),
         };
+        if self.input.triggered(&actions::QUIT) {
+            self.command = Some(AppCommand::Quit);
+        }
+        if self.input.triggered(&actions::FULLSCREEN) {
+            self.command = Some(AppCommand::ToggleFullscreen);
+        }
         let revision = self.design.revision();
         let input = self.input;
-        self.draw(area, &input, times);
+        self.draw(area, &input, times, view);
         if self.design.revision() != revision {
-            self.draw(area, &input.settled(), times);
+            self.draw(area, &input.settled(), times, view);
         }
         self.input.end_frame();
     }
 
-    fn draw(&mut self, area: Rect, input: &Input, times: &FrameTimes) {
+    fn draw(&mut self, area: Rect, input: &Input, times: &FrameTimes, window: WindowView<'_>) {
         let Self {
             design,
             styles,
@@ -319,6 +339,9 @@ impl Interface {
             overlay,
             fonts,
             scene,
+            chrome,
+            labels,
+            command,
             ..
         } = self;
         scene.clear();
@@ -333,7 +356,11 @@ impl Interface {
             window: area,
         };
         ui.zone(area, actions::APP, |ui| {
-            ui.workspace(view, workspace, area, &mut host);
+            let (rest, asked) = chrome.show(ui, area, window, labels);
+            if asked.is_some() {
+                *command = asked;
+            }
+            ui.workspace(view, workspace, rest, &mut host);
         });
         drop(ui);
         if let Some(overlay) = overlay {
@@ -511,6 +538,32 @@ pub(crate) struct KoebiApp {
 }
 
 impl KoebiApp {
+    /// Applies what the bar asked for. Returns what the application does next.
+    fn apply_command(&mut self) -> AppControl {
+        let Some(command) = self.interface.command.take() else {
+            return AppControl::Continue;
+        };
+        let window = &self.window;
+        match command {
+            AppCommand::Quit | AppCommand::Window(WindowCommand::Close) => {
+                self.interface.save();
+                return self.finish();
+            }
+            AppCommand::Window(WindowCommand::Minimize) => window.minimize(),
+            AppCommand::Window(WindowCommand::ToggleMaximize) => match window.state() {
+                WindowState::Fullscreen => window.set_fullscreen(false),
+                WindowState::Maximized => window.restore(),
+                WindowState::Normal | WindowState::Minimized => window.maximize(),
+            },
+            AppCommand::ToggleFullscreen => {
+                window.set_fullscreen(window.state() != WindowState::Fullscreen);
+            }
+            AppCommand::SystemMenu(at) => window.show_system_menu(at),
+        }
+        self.needs_redraw = true;
+        AppControl::Continue
+    }
+
     /// Applies what the last frame asked of the platform: a locked pointer (released where the
     /// interface says) and text input.
     fn apply_requests(&mut self, context: &mut AppContext) {
@@ -564,10 +617,19 @@ impl KoebiApp {
         let scale_factor = self.window.scale_factor();
         let logical_size = self.window.size_in_pixels().to_logical(scale_factor);
         let started = Instant::now();
+        self.interface.state.set_scale_factor(scale_factor);
+        let view = WindowView {
+            title: "Koebi",
+            state: self.window.state(),
+            insets: self.window.chrome_insets(),
+        };
         self.interface.build(
             Rect::from_origin_size(Vec2::ZERO, logical_size),
             &self.frame_times,
+            view,
         );
+        let Interface { chrome, state, .. } = &mut self.interface;
+        chrome.update_regions(state, &mut self.window);
         let built = started.elapsed();
         match self.gpu.render(&self.interface.scene, scale_factor) {
             Ok((RenderOutcome::Presented, recording)) => {
@@ -685,13 +747,22 @@ impl App for KoebiApp {
             )
         })?;
         let window = context
-            .create_window(&WindowDesc::default())
+            .create_window(&WindowDesc {
+                chrome: WindowChrome::Custom,
+                min_size: MIN_WINDOW_SIZE,
+                ..WindowDesc::default()
+            })
             .map_err(|error| {
                 AppError::new(
                     exit_code::UNSUPPORTED,
                     format!("cannot create the window: {error}"),
                 )
             })?;
+        match options.window_state {
+            WindowState::Maximized => window.maximize(),
+            WindowState::Fullscreen => window.set_fullscreen(true),
+            WindowState::Minimized | WindowState::Normal => {}
+        }
         let gpu = Gpu::new(&window, &vulkan, options.present_mode, fonts)?;
         let cursors = AppCursors::create(context, window.scale_factor());
         koebi_core::info!(
@@ -737,6 +808,10 @@ impl App for KoebiApp {
             }
             context.set_cursor(self.cursors.cursor(self.interface.state.cursor()));
             self.apply_requests(context);
+            let control = self.apply_command();
+            if control != AppControl::Continue {
+                return control;
+            }
         }
         self.interface.save_if_due();
         self.update_rate(context);
@@ -762,6 +837,11 @@ impl App for KoebiApp {
                     self.gpu.resize(extent);
                     self.needs_redraw = true;
                 }
+                WindowEvent::FullscreenEntered | WindowEvent::FullscreenLeft => {
+                    self.window.refresh_chrome();
+                    self.needs_redraw = true;
+                }
+                WindowEvent::RegionPressed => self.window.region_pressed(),
                 _ => self.needs_redraw = true,
             },
             // The OS may kill a background application without notice: save first. Android

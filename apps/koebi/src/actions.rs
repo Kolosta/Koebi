@@ -18,10 +18,28 @@ pub(crate) static FRAME_TIMES: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::F12)],
 };
 
+/// Quits the application.
+pub(crate) static QUIT: ActionDef = ActionDef {
+    id: "app.quit",
+    label: "Quit",
+    description: "Closes every window and quits.",
+    context: APP,
+    defaults: &[Shortcut::key(Key::Q).primary()],
+};
+
+/// Enters or leaves fullscreen.
+pub(crate) static FULLSCREEN: ActionDef = ActionDef {
+    id: "app.fullscreen",
+    label: "Fullscreen",
+    description: "Shows the window alone on its display, or brings it back.",
+    context: APP,
+    defaults: &[Shortcut::key(Key::F11)],
+};
+
 /// The application's actions.
 pub(crate) static GROUP: ActionGroup = ActionGroup {
     name: "Application",
-    actions: &[&FRAME_TIMES],
+    actions: &[&FRAME_TIMES, &QUIT, &FULLSCREEN],
 };
 
 /// Every action group of the application, for the keymap.

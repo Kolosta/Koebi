@@ -28,3 +28,4 @@ one and link both.
 | [0016](0016-partial-joins.md) | Joins of partly aligned areas | Accepted |
 | [0017](0017-component-library.md) | Component library: theme values declared once, overridable per call, configurable behaviours | Accepted |
 | [0018](0018-easing-curves.md) | Easing curves of several segments as a token kind | Accepted |
+| [0019](0019-window-chrome.md) | Custom window chrome through the system's hit test | Accepted |
