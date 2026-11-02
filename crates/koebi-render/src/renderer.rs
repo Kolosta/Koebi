@@ -10,7 +10,7 @@ use koebi_gpu::{
 use koebi_text::Fonts;
 
 use crate::atlas::{GlyphAtlas, GlyphInstance, GlyphKey, Lookup};
-use crate::scene::{LineInstance, PrimitiveKind, RectInstance, Scene};
+use crate::scene::{Corners, LineInstance, PrimitiveKind, RectInstance, Scene};
 use crate::shaders;
 
 /// Times a frame's glyphs may make room in the atlas (grow, grow, clear) before giving up.
@@ -28,18 +28,23 @@ pub struct Viewport {
     pub scale_factor: f32,
 }
 
-/// Push constants of every 2D pipeline. Must match `ViewportConstants` in the shaders.
+/// Push constants of every 2D pipeline. Must match `ViewportConstants` in the vertex shaders and
+/// `ClipConstants` in `shaders/clip.glsl`.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 struct ViewportConstants {
     viewport_px: [f32; 2],
     scale_factor: f32,
     padding: f32,
+    /// The rounded clip: `low.xy, high.xy` in physical pixels, all zero without one.
+    clip_rect: [f32; 4],
+    /// Its radii in physical pixels: top-left, top-right, bottom-right, bottom-left.
+    clip_radii: [f32; 4],
 }
 
-// SAFETY: `repr(C)` with four `f32`: 16 bytes, no padding, any bit pattern is valid.
+// SAFETY: `repr(C)` with twelve `f32`: 48 bytes, no padding, any bit pattern is valid.
 unsafe impl Pod for ViewportConstants {}
-const _: () = assert!(size_of::<ViewportConstants>() == 16);
+const _: () = assert!(size_of::<ViewportConstants>() == 48);
 
 impl ViewportConstants {
     fn new(viewport: Viewport) -> Self {
@@ -47,7 +52,32 @@ impl ViewportConstants {
             viewport_px: [viewport.extent.width as f32, viewport.extent.height as f32],
             scale_factor: viewport.scale_factor,
             padding: 0.0,
+            clip_rect: [0.0; 4],
+            clip_radii: [0.0; 4],
         }
+    }
+
+    /// The constants of a batch clipped to `rounded`, its rectangle in logical pixels. Its edges
+    /// lie where rectangles' snapped edges lie and its radii are limited the same way, so that
+    /// a panel and the rounded clip of the same shape end on the same pixels.
+    fn with_clip(mut self, rounded: Option<(koebi_core::Rect, Corners)>) -> Self {
+        (self.clip_rect, self.clip_radii) = match rounded {
+            Some((rect, radii)) if radii.max() > 0.0 => {
+                let scale = self.scale_factor;
+                let snap = |value: f32| (value * scale + 0.5).floor();
+                let low = [snap(rect.min.x), snap(rect.min.y)];
+                let high = [snap(rect.max.x), snap(rect.max.y)];
+                let limit = ((high[0] - low[0]).min(high[1] - low[1]) * 0.5).max(0.0);
+                (
+                    [low[0], low[1], high[0], high[1]],
+                    radii
+                        .to_array()
+                        .map(|radius| (radius * scale).clamp(0.0, limit)),
+                )
+            }
+            _ => ([0.0; 4], [0.0; 4]),
+        };
+        self
     }
 }
 
@@ -149,7 +179,7 @@ impl PrimitivePipeline {
                 format: target_format,
                 blend: BlendMode::PremultipliedAlpha,
             }],
-            push_constant_size: 16,
+            push_constant_size: 48,
             bind_group_layouts: desc.bind_group_layouts,
         })?;
         Ok(Self {
@@ -381,7 +411,7 @@ impl Renderer2D {
         for batch in scene.batches() {
             let scissor = batch
                 .clip
-                .map_or(Some(full), |clip| Scissor::of(clip, viewport));
+                .map_or(Some(full), |clip| Scissor::of(clip.rect, viewport));
             // Clipped away entirely.
             let Some(scissor) = scissor else { continue };
             if scissor != current {
@@ -396,7 +426,8 @@ impl Renderer2D {
             // A batch exists only for a type with instances, whose buffer was checked above.
             let Some(buffer) = buffer else { continue };
             pass.set_pipeline(&primitives.pipeline);
-            pass.set_push_constants(&primitives.pipeline, &constants)?;
+            let rounded = batch.clip.and_then(|clip| clip.rounded);
+            pass.set_push_constants(&primitives.pipeline, &constants.with_clip(rounded))?;
             if batch.kind == PrimitiveKind::Glyph {
                 // Prepared glyphs always have an atlas.
                 let Some(atlas) = self.atlas.bind_group() else {
@@ -480,6 +511,28 @@ mod tests {
         );
         assert_eq!(Scissor::of(rect(200.0, 0.0, 300.0, 10.0), viewport), None);
         assert_eq!(Scissor::of(koebi_core::Rect::ZERO, viewport), None);
+    }
+
+    #[test]
+    fn rounded_clips_lie_on_the_pixels_of_a_rectangle_of_the_same_shape() {
+        let viewport = Viewport {
+            extent: Extent::new(100, 80),
+            scale_factor: 1.25,
+        };
+        let constants = ViewportConstants::new(viewport);
+        // Nothing to cut: the shaders skip it.
+        assert_eq!(constants.clip_rect, [0.0; 4]);
+        let rect = koebi_core::Rect::from_min_max(
+            koebi_core::Vec2::new(2.3, 4.0),
+            koebi_core::Vec2::new(20.5, 12.0),
+        );
+        let square = constants.with_clip(Some((rect, Corners::ZERO)));
+        assert_eq!(square.clip_rect, [0.0; 4]);
+        // 2.3 * 1.25 = 2.875 goes to 3, 20.5 * 1.25 = 25.625 to 26; 4 pixels of radius are 5,
+        // the height of 10 pixels limits them to 5.
+        let rounded = constants.with_clip(Some((rect, Corners::all(8.0))));
+        assert_eq!(rounded.clip_rect, [3.0, 5.0, 26.0, 15.0]);
+        assert_eq!(rounded.clip_radii, [5.0; 4]);
     }
 
     #[test]

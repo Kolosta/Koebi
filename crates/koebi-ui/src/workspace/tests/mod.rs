@@ -25,6 +25,8 @@ struct Host {
     drawn: Vec<(EditorId, Rect)>,
     copied: Vec<(EditorId, EditorId)>,
     removed: Vec<EditorId>,
+    /// The rounded clip the last content was drawn in.
+    rounded: Option<(Rect, Corners)>,
     /// Editor types offered, none by default, and the types set.
     kinds: Vec<&'static str>,
     set: Vec<(EditorId, usize)>,
@@ -43,8 +45,9 @@ impl EditorHost for Host {
         self.set.push((editor, kind));
     }
 
-    fn content(&mut self, _ui: &mut Ui<'_>, editor: EditorId, rect: Rect) {
+    fn content(&mut self, ui: &mut Ui<'_>, editor: EditorId, rect: Rect) {
         self.drawn.push((editor, rect));
+        self.rounded = ui.scene().rounded_clip();
     }
 
     fn copied(&mut self, source: EditorId, editor: EditorId) {
@@ -746,4 +749,16 @@ fn the_area_menu_offers_to_join_partly_aligned_areas() {
     .unwrap();
     let (a, d) = (AreaId::from_saved(0), AreaId::from_saved(3));
     assert!(layout.plan_join(a, d).is_ok() && layout.plan_join(d, a).is_ok());
+}
+
+#[test]
+fn an_area_cuts_what_it_holds_at_its_corners() {
+    let mut harness = Harness::halves();
+    let style = harness.styles.workspace;
+    harness.frame();
+    let panel = harness.view.parts.last().unwrap().panel;
+    assert_eq!(
+        harness.host.rounded,
+        Some((panel, Corners::all(style.corner_radius)))
+    );
 }

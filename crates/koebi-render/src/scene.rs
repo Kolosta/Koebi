@@ -317,6 +317,15 @@ pub(crate) enum PrimitiveKind {
     Glyph,
 }
 
+/// What primitives are clipped to.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Clip {
+    /// The rectangle they stay in, in logical pixels: a scissor.
+    pub(crate) rect: Rect,
+    /// The rounded shape cutting them, its rectangle in logical pixels, if any.
+    pub(crate) rounded: Option<(Rect, Corners)>,
+}
+
 /// Consecutive primitives of one type and clip, on one layer: one instanced draw.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Batch {
@@ -325,8 +334,8 @@ pub(crate) struct Batch {
     start: u32,
     /// One past the last instance.
     end: u32,
-    /// The rectangle its primitives are clipped to, in logical pixels.
-    pub(crate) clip: Option<Rect>,
+    /// What its primitives are clipped to.
+    pub(crate) clip: Option<Clip>,
 }
 
 impl Batch {
@@ -351,7 +360,8 @@ impl Batch {
 /// - **Clips**: primitives pushed between [`Scene::push_clip`] and [`Scene::pop_clip`] are
 ///   clipped to the rectangle (intersected with the clips around it): an editor's content stays
 ///   in its area, a scrolled list in its viewport. A layer pushed inside clips starts unclipped:
-///   a menu is not limited to the area that opened it.
+///   a menu is not limited to the area that opened it. [`Scene::push_rounded_clip`] also cuts
+///   them at rounded corners, whatever they are: an area cuts all it holds.
 ///
 /// Reuse one scene across frames with [`Scene::clear`]: storage is kept, so steady-state
 /// frames do not allocate.
@@ -367,7 +377,7 @@ pub struct Scene {
     /// The layer primitives go to.
     layer: u8,
     /// The clips in force, each intersected with the one before it in its layer context.
-    clips: Vec<Rect>,
+    clips: Vec<Clip>,
     /// Where the clips of the current layer context start in `clips`.
     clip_base: usize,
     /// The layer and clip base of each enclosing layer context.
@@ -419,11 +429,33 @@ impl Scene {
     /// Clips the primitives pushed from now on to `rect` (logical pixels), within the current
     /// clip, until the matching [`Scene::pop_clip`].
     pub fn push_clip(&mut self, rect: Rect) {
-        let clip = match self.clip() {
+        let rounded = self.current_clip().and_then(|clip| clip.rounded);
+        let rect = self.clipped_rect(rect);
+        self.clips.push(Clip { rect, rounded });
+    }
+
+    /// Like [`Scene::push_clip`], the primitives also cut at the corners of `rect`, each rounded
+    /// by its radius: what they draw there disappears as the corner of a rectangle of that shape
+    /// would. Only the innermost rounded clip cuts: nest them only inside each other's straight
+    /// edges.
+    pub fn push_rounded_clip(&mut self, rect: Rect, radii: Corners) {
+        let clipped = self.clipped_rect(rect);
+        self.clips.push(Clip {
+            rect: clipped,
+            rounded: Some((rect, radii)),
+        });
+    }
+
+    /// `rect` within the current clip.
+    fn clipped_rect(&self, rect: Rect) -> Rect {
+        match self.clip() {
             Some(outer) => outer.intersection(&rect).unwrap_or(Rect::ZERO),
             None => rect,
-        };
-        self.clips.push(clip);
+        }
+    }
+
+    fn current_clip(&self) -> Option<Clip> {
+        self.clips[self.clip_base..].last().copied()
     }
 
     /// Ends the innermost clip of the current layer context.
@@ -435,7 +467,12 @@ impl Scene {
 
     /// The clip primitives are pushed with, if any.
     pub fn clip(&self) -> Option<Rect> {
-        self.clips[self.clip_base..].last().copied()
+        self.current_clip().map(|clip| clip.rect)
+    }
+
+    /// The rounded shape cutting the primitives pushed now, if any: its rectangle and radii.
+    pub fn rounded_clip(&self) -> Option<(Rect, Corners)> {
+        self.current_clip().and_then(|clip| clip.rounded)
     }
 
     /// `false` when `bounds` lie entirely outside the current clip.
@@ -516,7 +553,7 @@ impl Scene {
     fn extend_batch(&mut self, kind: PrimitiveKind, count: usize) {
         // More than 4 billion primitives cannot be drawn anyway: saturate.
         let end = u32::try_from(count).unwrap_or(u32::MAX);
-        let clip = self.clip();
+        let clip = self.current_clip();
         let index = usize::from(self.layer);
         if self.layers.len() <= index {
             // A new layer number: grows once, then reused frame after frame.
@@ -791,11 +828,49 @@ mod tests {
         scene.push_rect(&rect);
         scene.pop_clip();
         scene.push_rect(&rect);
-        let clips: Vec<_> = scene.batches().map(|batch| batch.clip).collect();
+        let clips: Vec<_> = scene
+            .batches()
+            .map(|batch| batch.clip.map(|clip| clip.rect))
+            .collect();
         assert_eq!(clips, [None, Some(area), Some(inner), Some(area), None]);
         scene.push_clip(area);
         scene.clear();
         assert_eq!(scene.clip(), None);
+    }
+
+    #[test]
+    fn rounded_clips_reach_the_clips_inside_them_and_stop_at_layers() {
+        let mut scene = Scene::new();
+        let panel = Rect::from_origin_size(Vec2::ZERO, Vec2::new(100.0, 100.0));
+        let radii = Corners::all(6.0);
+        assert_eq!(scene.rounded_clip(), None);
+        scene.push_rounded_clip(panel, radii);
+        assert_eq!(scene.clip(), Some(panel));
+        // A plain clip inside goes on cutting at the corners of the panel.
+        let list = Rect::from_min_max(Vec2::new(0.0, 50.0), Vec2::new(100.0, 200.0));
+        scene.push_clip(list);
+        assert_eq!(scene.rounded_clip(), Some((panel, radii)));
+        assert_eq!(
+            scene.clip(),
+            Some(Rect::from_min_max(
+                Vec2::new(0.0, 50.0),
+                Vec2::new(100.0, 100.0)
+            ))
+        );
+        // A primitive remembers it, and a change of clip splits the batch.
+        scene.push_rect(&RectPrimitive::new(rect(), Color::WHITE));
+        let batch = scene.batches().next().copied().unwrap();
+        assert_eq!(
+            batch.clip.and_then(|clip| clip.rounded),
+            Some((panel, radii))
+        );
+        // A menu opened from inside is not cut.
+        scene.push_layer(1);
+        assert_eq!(scene.rounded_clip(), None);
+        scene.pop_layer();
+        scene.pop_clip();
+        scene.pop_clip();
+        assert_eq!(scene.rounded_clip(), None);
     }
 
     #[test]

@@ -1,8 +1,11 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
 // Anti-aliased segment with round caps, from the signed distance to the segment.
 //
 // Same coverage ramp as rectangles: one pixel wide, centered on the edge. Output is
-// premultiplied for ONE / ONE_MINUS_SRC_ALPHA blending.
+// premultiplied for ONE / ONE_MINUS_SRC_ALPHA blending. A rounded clip cuts the result.
+
+#include "clip.glsl"
 
 layout(location = 0) in vec2 v_local;
 layout(location = 1) flat in vec2 v_segment;
@@ -19,5 +22,5 @@ void main() {
         : 0.0;
     float dist = length(v_local - v_segment * t) - v_half_width;
     float coverage = clamp(0.5 - dist, 0.0, 1.0);
-    out_color = v_color * coverage;
+    out_color = v_color * coverage * clip_coverage();
 }

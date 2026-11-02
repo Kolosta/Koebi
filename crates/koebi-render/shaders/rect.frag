@@ -1,11 +1,14 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
 // Anti-aliased rectangle with a radius per corner and an inner border with a width per side,
 // from signed distance fields.
 //
 // Coverage uses a 1-pixel ramp centered on the edge: pixel-aligned edges stay crisp and
 // curved or fractional edges are smooth. The vertex shader puts straight edges on pixel edges
 // unless a rectangle asks for exact ones. Output is premultiplied for ONE / ONE_MINUS_SRC_ALPHA
-// blending.
+// blending. A rounded clip cuts the result.
+
+#include "clip.glsl"
 
 layout(location = 0) in vec2 v_local;
 layout(location = 1) flat in vec2 v_half_size;
@@ -17,24 +20,11 @@ layout(location = 6) flat in float v_inverted;
 
 layout(location = 0) out vec4 out_color;
 
-// The radius of the corner of the quadrant `p` lies in (y points down).
-float corner_radius(vec2 p, vec4 radii) {
-    return p.x > 0.0 ? (p.y > 0.0 ? radii.z : radii.y) : (p.y > 0.0 ? radii.w : radii.x);
-}
-
-// Signed distance from p to a box centered at the origin with a radius per corner (negative
-// inside).
-float sd_rounded_box(vec2 p, vec2 half_size, vec4 radii) {
-    float radius = corner_radius(p, radii);
-    vec2 q = abs(p) - half_size + radius;
-    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
-}
-
 void main() {
     float dist = sd_rounded_box(v_local, v_half_size, v_radii);
     if (v_inverted > 0.5) {
         // Filled outside its shape: the outsides of its rounded corners.
-        out_color = v_fill * clamp(0.5 + dist, 0.0, 1.0);
+        out_color = v_fill * clamp(0.5 + dist, 0.0, 1.0) * clip_coverage();
         return;
     }
     float coverage = clamp(0.5 - dist, 0.0, 1.0);
@@ -55,5 +45,5 @@ void main() {
         float inner = sd_rounded_box(v_local - inner_center, inner_half, inner_radii);
         color = mix(v_fill, v_border_color, clamp(0.5 + inner, 0.0, 1.0));
     }
-    out_color = color * coverage;
+    out_color = color * coverage * clip_coverage();
 }
