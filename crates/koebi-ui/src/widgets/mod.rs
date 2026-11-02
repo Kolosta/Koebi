@@ -6,12 +6,14 @@
 //! the call's overrides, and returns what happened. Styles are plain data resolved from
 //! tokens, so a component never reads the design system while drawing.
 
+mod app_bar;
 mod button;
 mod checkbox;
 mod collapsible;
 mod dropdown;
 mod list;
 mod menu;
+mod menu_bar;
 mod number_field;
 mod panel;
 mod parts;
@@ -24,6 +26,7 @@ mod text_field;
 mod theme_card;
 mod tooltip;
 
+pub use app_bar::{AppBar, AppBarResponse, AppBarStyle, WindowCommand, WindowGlyph};
 pub use button::{Activation, Button, ButtonGroup, ButtonStyle, GroupCell, GroupResponse, Track};
 pub use checkbox::{Checkbox, CheckboxStyle};
 pub use collapsible::{
@@ -40,6 +43,7 @@ pub use menu::{
     MENU, MENU_ACTIONS, MENU_CHOOSE, MENU_CLOSE, MENU_CLOSE_SUBMENU, MENU_NEXT, MENU_OPEN_SUBMENU,
     MENU_PREVIOUS, MenuAction, MenuChoice, MenuItem, MenuMark, MenuState, MenuStyle, Submenu,
 };
+pub use menu_bar::{MenuBarEntry, MenuBarState};
 pub(crate) use number_field::NumberState;
 pub use number_field::{
     BarMapping, FineMode, NUMBER, NUMBER_ACTIONS, NUMBER_CANCEL, NUMBER_CONFIRM, NumberField,

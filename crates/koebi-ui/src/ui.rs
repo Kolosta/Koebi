@@ -56,6 +56,8 @@ pub struct UiState {
     /// complete frame and in the frame being built.
     holding: bool,
     holding_next: bool,
+    /// Physical pixels per logical pixel of the window.
+    scale_factor: Option<f32>,
     /// The fonts labels are laid out with, and a line reused for each label.
     pub(crate) fonts: Fonts,
     pub(crate) line: TextLine,
@@ -91,6 +93,26 @@ impl UiState {
     /// glyphs from. Without fonts, labels draw nothing.
     pub fn set_fonts(&mut self, fonts: Fonts) {
         self.fonts = fonts;
+    }
+
+    /// Sets the physical pixels per logical pixel of the window, for what is drawn on whole
+    /// physical pixels.
+    pub fn set_scale_factor(&mut self, scale: f32) {
+        self.scale_factor = Some(scale);
+    }
+
+    /// The physical pixels per logical pixel of the window: 1 until the application tells.
+    pub fn scale_factor(&self) -> f32 {
+        self.scale_factor
+            .filter(|scale| *scale > 0.0)
+            .unwrap_or(1.0)
+    }
+
+    /// What lies above the widget `widget` and inside its rectangle in the last complete frame,
+    /// replacing the content of `rects`: what takes the pointer before it, like the controls on
+    /// the bar of an application.
+    pub fn covering(&self, widget: WidgetId, rects: &mut Vec<Rect>) {
+        self.previous.covering(widget, rects);
     }
 
     /// Where the pointer comes back when its lock is released, while the last frame asked for

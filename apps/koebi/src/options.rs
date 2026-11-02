@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use koebi_design::ColorVision;
 use koebi_gpu::PresentMode;
+use koebi_platform::WindowState;
 
 use crate::design_options::COLOR_VISION_MODES;
 
@@ -30,6 +31,8 @@ pub struct Options {
     pub export: Option<PathBuf>,
     /// File to write every token to, with its base definition.
     pub export_schema: Option<PathBuf>,
+    /// What the window shows as when it opens.
+    pub window_state: WindowState,
     /// Show (`Some(true)`) or hide the frame-time overlay; `None` shows it in debug builds.
     pub frame_times: Option<bool>,
     /// Print usage and exit.
@@ -93,6 +96,8 @@ Options:
   --import <FILE>          Import a theme from a Design Tokens (JSON) file and activate it
   --export <FILE>          Write the active theme to FILE in the Design Tokens format
   --export-schema <FILE>   Write every token, with its base definition, to FILE
+  --maximized              Open the window maximized
+  --fullscreen             Open the window in fullscreen
   --fps, --no-fps          Show or hide the frame-time overlay (shown in debug builds)
   -h, --help               Print this help
   -V, --version            Print the version
@@ -172,6 +177,8 @@ Environment:
                         .overrides
                         .push((path.trim().to_owned(), definition.trim().to_owned()));
                 }
+                "--maximized" => options.window_state = WindowState::Maximized,
+                "--fullscreen" => options.window_state = WindowState::Fullscreen,
                 "--fps" => options.frame_times = Some(true),
                 "--no-fps" => options.frame_times = Some(false),
                 "--import" => {
@@ -213,6 +220,14 @@ Environment:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn window_states_are_options() {
+        let options = |args: &[&str]| Options::parse(args).unwrap().window_state;
+        assert_eq!(options(&[]), WindowState::Normal);
+        assert_eq!(options(&["--maximized"]), WindowState::Maximized);
+        assert_eq!(options(&["--fullscreen"]), WindowState::Fullscreen);
+    }
 
     #[test]
     fn no_arguments_gives_defaults() {

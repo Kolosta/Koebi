@@ -100,6 +100,28 @@ impl Regions {
         })
     }
 
+    /// What lies above `widget` and inside its rectangle, replacing the content of `rects`: the
+    /// regions registered after it on its layer, and those of higher layers. Zones around it are
+    /// not above it.
+    pub(crate) fn covering(&self, widget: WidgetId, rects: &mut Vec<Rect>) {
+        rects.clear();
+        let Some((index, below)) = self
+            .list
+            .iter()
+            .enumerate()
+            .rfind(|(_, region)| region.widget == Some(widget))
+        else {
+            return;
+        };
+        for (other, region) in self.list.iter().enumerate() {
+            let above =
+                region.layer > below.layer || (region.layer == below.layer && other > index);
+            if above && let Some(part) = region.rect.intersection(&below.rect) {
+                rects.push(part);
+            }
+        }
+    }
+
     /// `true` when the region on top at `point` is `widget`'s, or lies in its zone.
     pub(crate) fn is_within(&self, point: Vec2, widget: WidgetId) -> bool {
         self.topmost(point).is_some_and(|(index, _)| {
@@ -168,6 +190,51 @@ mod tests {
         assert_eq!(widget(30.0, 30.0), Some(WidgetId::new("over")));
         assert_eq!(widget(65.0, 65.0), Some(WidgetId::new("menu")));
         assert_eq!(widget(200.0, 200.0), None);
+    }
+
+    #[test]
+    fn what_covers_a_widget_is_what_comes_after_it_or_on_a_higher_layer() {
+        let mut regions = Regions::default();
+        let bar = rect(0.0, 0.0, 100.0, 20.0);
+        // Before it on its layer, and on another layer below: under it.
+        regions.push(region(
+            rect(0.0, 0.0, 100.0, 100.0),
+            Layer::BASE,
+            Some("under"),
+        ));
+        regions.push(region(bar, Layer::BASE, Some("bar")));
+        // On it, and away from it.
+        regions.push(region(
+            rect(10.0, 2.0, 20.0, 16.0),
+            Layer::BASE,
+            Some("menu"),
+        ));
+        regions.push(region(
+            rect(0.0, 40.0, 100.0, 10.0),
+            Layer::BASE,
+            Some("below"),
+        ));
+        // Registered first, but floating over it.
+        let mut floating = regions.clone();
+        floating.list.insert(
+            0,
+            region(
+                rect(50.0, 10.0, 20.0, 100.0),
+                Layer::FLOATING,
+                Some("panel"),
+            ),
+        );
+        let mut covered = Vec::new();
+        regions.covering(WidgetId::new("bar"), &mut covered);
+        assert_eq!(covered, [rect(10.0, 2.0, 20.0, 16.0)]);
+        floating.covering(WidgetId::new("bar"), &mut covered);
+        assert_eq!(
+            covered,
+            [rect(50.0, 10.0, 20.0, 10.0), rect(10.0, 2.0, 20.0, 16.0)]
+        );
+        // An unknown widget has nothing above it.
+        regions.covering(WidgetId::new("gone"), &mut covered);
+        assert_eq!(covered, []);
     }
 
     #[test]
