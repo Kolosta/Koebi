@@ -261,8 +261,10 @@ on the last frame).
 viewport (`ScrollContent`); a `ScrollState` per area keeps the offset and the scrollbars'
 animation. The wheel and trackpads scroll it when the pointer is over it, nothing else on top
 (Shift turns the wheel sideways); one notch is `scrollbar.wheel-step`. Its scrollbars, rebuilt
-from the previous application's, are overlays in the area's margin (`scrollbar.overlay.*`):
-the margin is always kept, so content never shifts; a grab shows only when the content
+from the previous application's, are overlays at the edges of the area (`scrollbar.overlay.*`):
+they lie over the content and never take room from it, on the zebra rows of a list too, so
+content never shifts. Content that must stay clear of them keeps a margin of its own. A grab
+shows only when the content
 overflows, thin at rest, growing and brightening as the pointer comes within
 `scrollbar.overlay.proximity` (eased, the area asking for frames until it settles); dragging
 the grab scrolls, a press on the track brings the grab under the pointer. Which axes scroll is
@@ -278,6 +280,13 @@ what it scrolls; `ScrollbarResponse` says whether it showed and changed the offs
 areas use one per axis.
 
 ## Lists and trees
+
+A row's hover, selected and active states show in a highlight inside it, with rounded corners
+(`list-row.highlight.*`), while the zebra keeps the whole row and the pointer reaches all of it.
+In a tree, the line along the children of a row (`outliner.tree-line.*`) starts just below the
+top of its first child and ends just above the bottom of its last one, on the middle of the
+row's chevron. Each row chooses its look (`ListItem::with_guide`): `TreeGuide::Line`,
+`TreeGuide::Color(color)` or `TreeGuide::Dotted`.
 
 One component draws every list of the application (outliner, layers, color usage, messages);
 `ListOptions` turns each behaviour on or off (`ListOptions::LIST` for a flat list,

@@ -46,7 +46,7 @@ impl ScrollAxes {
 /// Colors and metrics of [`Ui::scroll_area`], from the `component.scrollbar.*` tokens.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ScrollStyle {
-    /// Width of the margin the grab lives in, on the right and at the bottom.
+    /// Width of the strip along the right and bottom edges the grab lives in, over the content.
     pub margin: f32,
     /// Width of the grab at rest.
     pub width_rest: f32,
@@ -124,29 +124,16 @@ impl ScrollState {
 pub struct ScrollContent {
     /// Where the content's top-left corner lies, scrolled.
     pub origin: Vec2,
-    /// The visible part of the area the content may use: the area without the scrollbars'
-    /// margins.
+    /// The visible part of the area, all of it: the scrollbars lie over the content and take
+    /// no room from it. Content that must stay clear of them keeps its own margin.
     pub viewport: Rect,
-}
-
-/// The part of a scroll area over `rect` its content may use: without the margins the
-/// scrollbars of `axes` live in, kept even when nothing overflows so that the content never
-/// shifts when a scrollbar appears.
-pub(crate) fn viewport(rect: Rect, axes: ScrollAxes, style: &ScrollStyle) -> Rect {
-    Rect::from_min_max(
-        rect.min,
-        Vec2::new(
-            rect.max.x - if axes.has(1) { style.margin } else { 0.0 },
-            rect.max.y - if axes.has(0) { style.margin } else { 0.0 },
-        ),
-    )
 }
 
 impl Ui<'_> {
     /// A scroll area over `rect`, holding content `content` big (logical pixels): `add` draws
     /// the content from the [`ScrollContent`] origin, clipped to `rect`. The wheel (and
-    /// trackpad) scroll it when the pointer is over it; overlay scrollbars in its margin show
-    /// when the content overflows. Returns what `add` returns.
+    /// trackpad) scroll it when the pointer is over it; overlay scrollbars show over the content
+    /// when it overflows, and take no room from it. Returns what `add` returns.
     pub fn scroll_area<R>(
         &mut self,
         id: WidgetId,
@@ -157,7 +144,7 @@ impl Ui<'_> {
         add: impl FnOnce(&mut Self, ScrollContent) -> R,
     ) -> R {
         let style = self.styles().scroll;
-        let viewport = viewport(rect, axes, &style);
+        let viewport = rect;
         let visible = viewport.size().max(Vec2::ZERO);
         let overflow = (content - visible).max(Vec2::ZERO);
         let clamp = |offset: Vec2| {

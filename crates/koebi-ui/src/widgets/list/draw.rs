@@ -11,7 +11,7 @@ use super::layout::{Preview, Row, decimal};
 use super::state::ListState;
 use super::{
     BACKGROUND, FOLDS, ItemMark, ListContextMenu, ListDelegate, ListItem, ListOptions,
-    ListResponse, ListSelection, ListStyle, Metrics, ROWS, primary_held,
+    ListResponse, ListSelection, ListStyle, Metrics, ROWS, TreeGuide, primary_held,
 };
 use crate::icon::Icon;
 use crate::id::WidgetId;
@@ -19,9 +19,20 @@ use crate::input::PointerButton;
 use crate::text::Align;
 use crate::ui::Ui;
 
+/// The deepest level whose line keeps the look its parent asks for; deeper ones are plain.
+const MAX_GUIDES: usize = 32;
+
 /// `color` at `opacity` of its alpha.
 fn fade(color: Color, opacity: f32) -> Color {
     color.with_alpha(color.a * opacity)
+}
+
+/// Where a row lies: its position among the rows, its rectangle, and the top of the content.
+#[derive(Clone, Copy)]
+struct RowPlace {
+    position: usize,
+    rect: Rect,
+    origin: f32,
 }
 
 impl Preview {
@@ -94,9 +105,15 @@ impl Ui<'_> {
             _ => CursorShape::Default,
         };
         let mut held = false;
+        // The look of each ancestor's line, for the row being drawn: the last row seen at a
+        // level is its ancestor at that level.
+        let mut guides = [TreeGuide::Line; MAX_GUIDES];
         for position in 0..state.rows.len() {
             let row = state.rows[position];
             let item = &items[row.item];
+            if let Some(guide) = guides.get_mut(usize::from(item.depth)) {
+                *guide = item.guide;
+            }
             let top = origin.y + row.top;
             let bottom = top + metrics.row_height;
             let cut = bottom.min(origin.y + row.clip);
@@ -138,17 +155,29 @@ impl Ui<'_> {
                 (false, false, false) => None,
             };
             if let Some(color) = highlight {
-                self.scene.push_rect(&RectPrimitive::new(shown, color));
+                let margin = Vec2::new(
+                    style.highlight_margin_horizontal,
+                    style.highlight_margin_vertical,
+                );
+                let inside = Rect::from_min_max(shown.min + margin, shown.max - margin);
+                self.scene.push_rect(
+                    &RectPrimitive::new(inside, color).with_corner_radius(style.highlight_radius),
+                );
             }
+            let place = RowPlace {
+                position,
+                rect,
+                origin: origin.y,
+            };
             if cut < bottom {
                 // A row of an animating fold: cut at the fold's edge.
                 self.clipped(shown, |ui| {
                     ui.list_row_content(
-                        id, state, items, options, delegate, metrics, position, rect,
+                        id, state, items, options, delegate, metrics, place, &guides,
                     );
                 });
             } else {
-                self.list_row_content(id, state, items, options, delegate, metrics, position, rect);
+                self.list_row_content(id, state, items, options, delegate, metrics, place, &guides);
             }
         }
         if let Some(row) = holder
@@ -174,8 +203,36 @@ impl Ui<'_> {
         }
     }
 
-    /// The content of the row at `position` (laid out in `rect`): lines, fold arrow, mark,
-    /// end items, label and count.
+    /// One piece of the line along the children of a row, between `top` and `bottom`, at `x`.
+    /// The dashes of a dotted line lie at multiples of their period from `origin`, so that they
+    /// continue from one row to the next.
+    fn guide_piece(&mut self, guide: TreeGuide, x: f32, top: f32, bottom: f32, origin: f32) {
+        let style = self.styles().list;
+        let piece = |from: f32, to: f32| {
+            Rect::from_min_max(Vec2::new(x, from), Vec2::new(x + style.line_width, to))
+        };
+        let plain = match guide {
+            TreeGuide::Line => style.line,
+            TreeGuide::Color(color) => color,
+            TreeGuide::Dotted => {
+                let period = (style.line_dash + style.line_gap).max(1.0);
+                let mut at = origin + ((top - origin) / period).floor() * period;
+                while at < bottom {
+                    let (from, to) = (at.max(top), (at + style.line_dash).min(bottom));
+                    if to > from {
+                        self.scene
+                            .push_rect(&RectPrimitive::new(piece(from, to), style.line_dotted));
+                    }
+                    at += period;
+                }
+                return;
+            }
+        };
+        self.scene
+            .push_rect(&RectPrimitive::new(piece(top, bottom), plain));
+    }
+
+    /// The content of the row at `place`: lines, fold arrow, mark, end items, label and count.
     #[allow(clippy::too_many_arguments, reason = "the parts of one list")]
     fn list_row_content(
         &mut self,
@@ -185,9 +242,14 @@ impl Ui<'_> {
         options: &ListOptions,
         delegate: &mut impl ListDelegate,
         metrics: Metrics,
-        position: usize,
-        rect: Rect,
+        place: RowPlace,
+        guides: &[TreeGuide; MAX_GUIDES],
     ) {
+        let RowPlace {
+            position,
+            rect,
+            origin,
+        } = place;
         let styles = self.styles();
         let style = styles.list;
         let row: Row = state.rows[position];
@@ -217,13 +279,11 @@ impl Ui<'_> {
                     rect.max.y
                 };
                 if bottom > top {
-                    self.scene.push_rect(&RectPrimitive::new(
-                        Rect::from_min_max(
-                            Vec2::new(x, top),
-                            Vec2::new(x + style.line_width, bottom),
-                        ),
-                        style.line,
-                    ));
+                    let guide = guides
+                        .get(usize::from(level))
+                        .copied()
+                        .unwrap_or(TreeGuide::Line);
+                    self.guide_piece(guide, x, top, bottom, origin);
                 }
             }
         }

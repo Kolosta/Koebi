@@ -41,7 +41,7 @@ use crate::icon::Icon;
 use crate::id::WidgetId;
 use crate::ui::Ui;
 use crate::widgets::repeating;
-use crate::widgets::scroll::{self, ScrollAxes};
+use crate::widgets::scroll::ScrollAxes;
 pub use state::ListState;
 
 /// A list: its keys apply where the pointer is over it.
@@ -163,6 +163,19 @@ pub enum ItemMark {
     Color(Color),
 }
 
+/// How the line along the children of a row looks.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum TreeGuide {
+    /// A plain line, in the color of `outliner.tree-line.color`.
+    #[default]
+    Line,
+    /// A plain line in this color: the color tag of a collection.
+    Color(Color),
+    /// A dotted line, in the color of `outliner.tree-line.color.dotted`: a looser relation, such
+    /// as a parent object.
+    Dotted,
+}
+
 /// A row of a list, as the application gives it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ListItem<'a> {
@@ -174,6 +187,8 @@ pub struct ListItem<'a> {
     pub label: &'a str,
     /// Icon or color before the label.
     pub mark: ItemMark,
+    /// How the line along its children looks, in a tree that shows lines.
+    pub guide: TreeGuide,
 }
 
 impl<'a> ListItem<'a> {
@@ -184,7 +199,15 @@ impl<'a> ListItem<'a> {
             depth: 0,
             label,
             mark: ItemMark::None,
+            guide: TreeGuide::Line,
         }
+    }
+
+    /// The same row, the line along its children looking as `guide` says.
+    #[must_use]
+    pub const fn with_guide(mut self, guide: TreeGuide) -> Self {
+        self.guide = guide;
+        self
     }
 
     /// The same row, at nesting level `depth`.
@@ -378,6 +401,18 @@ pub struct ListStyle {
     pub line_width: f32,
     /// Space those lines leave below the parent and after the last child.
     pub line_inset: f32,
+    /// Color of the dotted lines.
+    pub line_dotted: Color,
+    /// Length of the dashes of the dotted lines.
+    pub line_dash: f32,
+    /// Length of the gaps of the dotted lines.
+    pub line_gap: f32,
+    /// Space between a row's top and bottom and its highlight.
+    pub highlight_margin_vertical: f32,
+    /// Space between a row's sides and its highlight.
+    pub highlight_margin_horizontal: f32,
+    /// Corner radius of the highlight.
+    pub highlight_radius: f32,
     /// The line where dragged rows would be inserted.
     pub drop_line: Color,
     /// Width of that line.
@@ -428,6 +463,13 @@ impl ListStyle {
             line: tokens.get(component::OUTLINER_TREE_LINE_COLOR_DEFAULT),
             line_width: tokens.get(component::OUTLINER_TREE_LINE_WIDTH_DEFAULT),
             line_inset: tokens.get(component::OUTLINER_TREE_LINE_INSET_DEFAULT),
+            line_dotted: tokens.get(component::OUTLINER_TREE_LINE_COLOR_DOTTED),
+            line_dash: tokens.get(component::OUTLINER_TREE_LINE_DASH_DEFAULT),
+            line_gap: tokens.get(component::OUTLINER_TREE_LINE_GAP_DEFAULT),
+            highlight_margin_vertical: tokens.get(component::LIST_ROW_HIGHLIGHT_MARGIN_VERTICAL),
+            highlight_margin_horizontal: tokens
+                .get(component::LIST_ROW_HIGHLIGHT_MARGIN_HORIZONTAL),
+            highlight_radius: tokens.get(component::LIST_ROW_HIGHLIGHT_CORNER_RADIUS),
             drop_line: tokens.get(component::LIST_ROW_DROP_LINE_COLOR_DEFAULT),
             drop_line_width: tokens.get(component::LIST_ROW_DROP_LINE_WIDTH_DEFAULT),
             drop_frame: tokens.get(component::DROP_TARGET_BORDER_COLOR_DEFAULT),
@@ -482,7 +524,7 @@ impl Ui<'_> {
             // A fold is opening or closing: the next frame continues it.
             self.request_redraw_after(Duration::from_millis(16));
         }
-        let viewport = scroll::viewport(rect, ScrollAxes::Vertical, &styles.scroll);
+        let viewport = rect;
         let metrics = Metrics {
             row_height,
             indent: if options.tree { style.indent } else { 0.0 },

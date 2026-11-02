@@ -34,6 +34,15 @@ koebi_design::tokens! {
     /// Outliner: width of those lines.
     OUTLINER_TREE_LINE_WIDTH_DEFAULT = "outliner.tree-line.width.default": Dimension ->
         semantic::BORDER_WIDTH_THIN;
+    /// Outliner: color of the dotted lines.
+    OUTLINER_TREE_LINE_COLOR_DOTTED = "outliner.tree-line.color.dotted": Color ->
+        semantic::TEXT_COLOR_SECONDARY_DEFAULT;
+    /// Outliner: length of the dashes of the dotted lines.
+    OUTLINER_TREE_LINE_DASH_DEFAULT = "outliner.tree-line.dash.default": Dimension =
+        px(2.0), range(1.0, 16.0);
+    /// Outliner: length of the gaps of the dotted lines.
+    OUTLINER_TREE_LINE_GAP_DEFAULT = "outliner.tree-line.gap.default": Dimension =
+        px(2.0), range(1.0, 16.0);
     /// Outliner: row search background visual.
     OUTLINER_ROW_SEARCH_BACKGROUND_VISUAL = "outliner.row.search.background.visual": Color ->
         semantic::ACCENT_COLOR_VISUAL_POSITIVE;

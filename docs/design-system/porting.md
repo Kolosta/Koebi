@@ -244,6 +244,11 @@ The base theme is Dark: the token tables define it. The other themes come from t
 
 ## Added after the port
 
+Trees: `component.list-row.highlight.margin.vertical`,
+`component.list-row.highlight.margin.horizontal`, `component.list-row.highlight.corner-radius`,
+`component.outliner.tree-line.color.dotted`, `component.outliner.tree-line.dash.default` and
+`component.outliner.tree-line.gap.default`.
+
 Menus and bars (the interface unit): `component.menu.item.background.color.selected-hover`,
 `component.menu.item.label.color.selected-hover`, `component.menu.item.margin.horizontal`,
 `component.menu.open.pointer-share`, `component.editor-top-bar.gap.default` and

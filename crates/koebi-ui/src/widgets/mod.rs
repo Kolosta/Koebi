@@ -35,7 +35,7 @@ pub use list::{
     DropPlace, ItemMark, LIST, LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT,
     LIST_EXTEND_PREVIOUS, LIST_FOLD, LIST_NEXT, LIST_PREVIOUS, LIST_SELECT_ALL, LIST_UNFOLD,
     ListContextMenu, ListDelegate, ListItem, ListOptions, ListResponse, ListSelection, ListState,
-    ListStyle,
+    ListStyle, TreeGuide,
 };
 pub use menu::{
     MENU, MENU_ACTIONS, MENU_CHOOSE, MENU_CLOSE, MENU_CLOSE_SUBMENU, MENU_NEXT, MENU_OPEN_SUBMENU,
