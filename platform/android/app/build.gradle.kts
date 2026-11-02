@@ -46,7 +46,7 @@ android {
 
     sourceSets {
         // SDL's Java glue, copied from the locked sdl3-src crate by `cargo xtask android`.
-        getByName("main").java.srcDir("src/generated/java")
+        getByName("main").java.directories.add("src/generated/java")
     }
 
     compileOptions {
