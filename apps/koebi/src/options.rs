@@ -14,6 +14,8 @@ use crate::design_options::COLOR_VISION_MODES;
 pub enum StartWindow {
     /// A floating window of editors.
     Floating,
+    /// The settings.
+    Settings,
 }
 
 /// Parsed command line.
@@ -107,7 +109,7 @@ Options:
   --export-schema <FILE>   Write every token, with its base definition, to FILE
   --maximized              Open the window maximized
   --fullscreen             Open the window in fullscreen
-  --open-window <WINDOW>   Open another window as well: floating
+  --open-window <WINDOW>   Open another window as well: floating or settings
   --fps, --no-fps          Show or hide the frame-time overlay (shown in debug builds)
   -h, --help               Print this help
   -V, --version            Print the version
@@ -193,6 +195,7 @@ Environment:
                         .ok_or(ParseError::MissingValue("--open-window"))?;
                     options.open_window = Some(match value.as_ref() {
                         "floating" => StartWindow::Floating,
+                        "settings" => StartWindow::Settings,
                         other => {
                             return Err(ParseError::InvalidValue {
                                 option: "--open-window",
@@ -249,6 +252,8 @@ mod tests {
     fn windows_to_open_are_options() {
         let parsed = Options::parse(["--open-window", "floating"]).unwrap();
         assert_eq!(parsed.open_window, Some(StartWindow::Floating));
+        let parsed = Options::parse(["--open-window", "settings"]).unwrap();
+        assert_eq!(parsed.open_window, Some(StartWindow::Settings));
         assert!(Options::parse(["--open-window"]).is_err());
         assert!(Options::parse(["--open-window", "nothing"]).is_err());
     }

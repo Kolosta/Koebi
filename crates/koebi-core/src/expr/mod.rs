@@ -23,7 +23,9 @@ mod tests;
 
 use core::fmt;
 
-pub use units::{DEGREE, Dimension, MILLIMETER, PIXEL, RADIAN, SECOND, UNITS, Unit, unit};
+pub use units::{
+    DEGREE, Dimension, MILLIMETER, MILLISECOND, PIXEL, RADIAN, SECOND, UNITS, Unit, unit,
+};
 
 /// How to evaluate an expression: the unit of the field it is typed in, and how many pixels
 /// make an inch (to convert pixels to physical lengths).

@@ -27,11 +27,13 @@ pub enum Icon {
     ChevronDown,
     /// A magnifier: search.
     Search,
+    /// An arrow going back around a circle: bring back the default.
+    Reset,
 }
 
 impl Icon {
     /// Every icon, for galleries and tests.
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::Check,
         Self::Plus,
         Self::Minus,
@@ -41,6 +43,7 @@ impl Icon {
         Self::ChevronUp,
         Self::ChevronDown,
         Self::Search,
+        Self::Reset,
     ];
 
     /// The strokes on the 16 x 16 grid, as `[x0, y0, x1, y1]`. Polylines repeat their
@@ -55,6 +58,26 @@ impl Icon {
             Self::ChevronRight => &[[6.0, 3.5, 10.5, 8.0], [10.5, 8.0, 6.0, 12.5]],
             Self::ChevronUp => &[[3.5, 10.0, 8.0, 5.5], [8.0, 5.5, 12.5, 10.0]],
             Self::ChevronDown => &[[3.5, 6.0, 8.0, 10.5], [8.0, 10.5, 12.5, 6.0]],
+            // An arrow head, and the circle it turns along.
+            Self::Reset => &[
+                [2.0, 2.5, 2.0, 6.5],
+                [2.0, 6.5, 6.0, 6.5],
+                [2.0, 6.5, 4.32, 4.32],
+                [4.32, 4.32, 5.89, 3.25],
+                [5.89, 3.25, 7.75, 2.81],
+                [7.75, 2.81, 9.63, 3.06],
+                [9.63, 3.06, 11.3, 3.98],
+                [11.3, 3.98, 12.53, 5.44],
+                [12.53, 5.44, 13.14, 7.24],
+                [13.14, 7.24, 13.07, 9.15],
+                [13.07, 9.15, 12.32, 10.9],
+                [12.32, 10.9, 10.99, 12.26],
+                [10.99, 12.26, 9.25, 13.05],
+                [9.25, 13.05, 7.35, 13.16],
+                [7.35, 13.16, 5.54, 12.58],
+                [5.54, 12.58, 4.05, 11.38],
+                [4.05, 11.38, 3.1, 9.74],
+            ],
             // A circle of twelve segments and a handle.
             Self::Search => &[
                 [11.0, 6.75, 10.43, 8.88],

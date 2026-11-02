@@ -36,10 +36,19 @@ pub(crate) static FULLSCREEN: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::F11)],
 };
 
+/// Opens the settings.
+pub(crate) static SETTINGS: ActionDef = ActionDef {
+    id: "app.settings",
+    label: "Settings",
+    description: "Opens the settings window, or brings it to the front.",
+    context: APP,
+    defaults: &[Shortcut::key(Key::Comma).primary()],
+};
+
 /// The application's actions.
 pub(crate) static GROUP: ActionGroup = ActionGroup {
     name: "Application",
-    actions: &[&FRAME_TIMES, &QUIT, &FULLSCREEN],
+    actions: &[&FRAME_TIMES, &QUIT, &FULLSCREEN, &SETTINGS],
 };
 
 /// Every action group of the application, for the keymap.

@@ -27,6 +27,8 @@ pub(crate) struct WindowView<'a> {
     pub(crate) title: &'a str,
     /// What it shows as.
     pub(crate) state: WindowState,
+    /// Whether its bar holds the application's menus.
+    pub(crate) has_menus: bool,
     /// What the system's own title bar takes.
     pub(crate) insets: ChromeInsets,
 }
@@ -44,6 +46,8 @@ pub(crate) enum AppCommand {
     SystemMenu(Vec2),
     /// Opens a floating window.
     NewWindow,
+    /// Opens the settings window, or brings it to the front.
+    OpenSettings,
 }
 
 /// The text of the shortcuts the menus show, read when the keymap changes rather than at every
@@ -52,6 +56,7 @@ pub(crate) enum AppCommand {
 pub(crate) struct ShortcutLabels {
     quit: String,
     fullscreen: String,
+    settings: String,
 }
 
 impl ShortcutLabels {
@@ -61,14 +66,36 @@ impl ShortcutLabels {
             keymap
                 .shortcuts(id)
                 .and_then(<[_]>::first)
-                .map(ToString::to_string)
-                .unwrap_or_default()
+                .map_or_else(String::new, |shortcut| readable(&shortcut.to_string()))
         };
         Self {
             quit: first(actions::QUIT.id),
             fullscreen: first(actions::FULLSCREEN.id),
+            settings: first(actions::SETTINGS.id),
         }
     }
+}
+
+/// The text of a shortcut as a menu shows it: punctuation as itself rather than by its name.
+fn readable(shortcut: &str) -> String {
+    const SIGNS: [(&str, &str); 8] = [
+        ("Comma", ","),
+        ("Period", "."),
+        ("Slash", "/"),
+        ("Semicolon", ";"),
+        ("Apostrophe", "'"),
+        ("Minus", "-"),
+        ("Equals", "="),
+        ("Grave", "`"),
+    ];
+    SIGNS
+        .iter()
+        .find_map(|(name, sign)| {
+            shortcut
+                .strip_suffix(name)
+                .map(|rest| format!("{rest}{sign}"))
+        })
+        .unwrap_or_else(|| shortcut.to_owned())
 }
 
 /// `item` showing `shortcut`, when it has one.
@@ -110,7 +137,11 @@ impl AppChrome {
             .window_buttons(view.insets.draws_buttons)
             .leading_inset(view.insets.leading)
             .show(ui, bar, |ui, layout| {
-                self.menus_of(ui, layout, area, view.state, labels)
+                if view.has_menus {
+                    self.menus_of(ui, layout, area, view.state, labels)
+                } else {
+                    None
+                }
             });
         self.bar = Some((bar, shown.drag));
         self.resize_border = style.resize_border;
@@ -141,7 +172,10 @@ impl AppChrome {
             MenuItem::Separator,
             with_shortcut(MenuItem::action("Quit"), &labels.quit),
         ];
-        let edit = [MenuItem::action("Settings").enabled(false)];
+        let edit = [with_shortcut(
+            MenuItem::action("Settings"),
+            &labels.settings,
+        )];
         let fullscreen = MenuItem::action("Fullscreen").checked(state == WindowState::Fullscreen);
         let window = [
             MenuItem::action("New Window").enabled(MULTIPLE_WINDOWS),
@@ -184,6 +218,7 @@ impl AppChrome {
 fn command_of(menu: usize, choice: &MenuChoice) -> Option<AppCommand> {
     match (menu, choice.index()) {
         (0, 5) => Some(AppCommand::Quit),
+        (1, 0) => Some(AppCommand::OpenSettings),
         (2, 0) => Some(AppCommand::NewWindow),
         (2, 1) => Some(AppCommand::ToggleFullscreen),
         _ => None,
@@ -201,10 +236,19 @@ mod tests {
         let mut keymap = Keymap::new(&actions::GROUPS).unwrap();
         let labels = ShortcutLabels::read(&keymap);
         assert_eq!(labels.fullscreen, "F11");
+        assert!(labels.settings.ends_with(','), "{}", labels.settings);
         assert!(labels.quit.ends_with('Q'), "{}", labels.quit);
         // With no shortcut left, the item shows none.
         keymap.set_shortcuts(actions::FULLSCREEN.id, &[]).unwrap();
         assert_eq!(ShortcutLabels::read(&keymap).fullscreen, "");
+    }
+
+    #[test]
+    fn punctuation_shows_as_itself() {
+        assert_eq!(readable("Ctrl+Comma"), "Ctrl+,");
+        assert_eq!(readable("Period"), ".");
+        assert_eq!(readable("Ctrl+Q"), "Ctrl+Q");
+        assert_eq!(readable("F11"), "F11");
     }
 
     #[test]

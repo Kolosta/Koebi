@@ -24,6 +24,7 @@ mod options;
 mod overlay;
 mod preferences;
 mod saved;
+mod settings;
 mod window;
 
 pub use koebi_platform::exit_code;

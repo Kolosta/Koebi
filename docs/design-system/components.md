@@ -116,6 +116,21 @@ if save.show(ui, Rect::from_origin_size(origin, size)).clicked {
   mark and the label colors take overrides like buttons; the first line grows to hold a larger
   box or font.
 
+## Application bar and menu bars
+
+`AppBar::new(id, title)` fills the top of a window: the caller's items from the start, the title in
+the middle when it fits, and the window buttons at the end, flush with the corner and as high as
+the bar. It is `title-bar.padding` more than an interface unit high. The system moves the window
+from the bar's background, and whatever lies over it takes the pointer
+(`UiState::covering`): [ADR 0019](../adr/0019-window-chrome.md) tells the rest. Window buttons act
+on the release (`AppBarResponse::command`). `.window_buttons(false)` and `.leading_inset(width)`
+leave the room to the system's on macOS. Their glyphs (`Ui::window_glyph`) are rectangles on whole
+physical pixels, and the cross two segments ending on the corners of its box
+(`title-bar.glyph.*`).
+
+`Ui::menu_bar` shows titles along a bar. A press opens a menu; while one is open, moving over
+another title opens that one, and the left and right arrows go from menu to menu.
+
 ## Number fields
 
 Blender's number button. `NumberField::new(id, &mut value)` edits any `Numeric`: `f32`,

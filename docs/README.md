@@ -26,6 +26,7 @@ you work on.
 
 - [Overview](architecture/overview.md): layers, crates, frame lifecycle, ownership.
 - [Rectangles and the pixel grid](architecture/pixel-grid.md): why straight edges snap to pixels
+- [Windows](architecture/windows.md): the application bar, several windows and the settings
   and curves stay smooth.
 - [GPU abstraction](architecture/gpu-abstraction.md): the Vulkan RHI, and why it differs from
   Blender's GPU module.

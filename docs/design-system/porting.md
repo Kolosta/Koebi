@@ -266,6 +266,13 @@ Menus and bars (the interface unit): `component.menu.item.background.color.selec
 
 Number fields: `component.number-field.drag.bar-fine-factor` (a twentieth, Blender's sliders).
 
+Application bar: `component.title-bar.button.pressed-lightness`,
+`component.title-bar.padding.default`, `component.title-bar.gap.default`,
+`component.title-bar.button.width.default`, `component.title-bar.glyph.size.default`,
+`.stroke.default` and `.restore-offset`, `component.title-bar.resize-border.default`,
+`component.title-bar.menu.padding.default` and `.corner-radius.default`. Settings:
+`component.side-panel.width.default`.
+
 Docking: `component.zone-tab.reveal.delay` (350 ms) and `component.zone-tab.reveal.grace`
 (250 ms), which were constants in the source.
 

@@ -102,6 +102,14 @@ pub const SECOND: Unit = Unit {
     size: Size::Fixed(1.0),
 };
 
+/// Milliseconds.
+pub const MILLISECOND: Unit = Unit {
+    symbol: "ms",
+    names: &["ms", "millisecond", "milliseconds"],
+    dimension: Dimension::Time,
+    size: Size::Fixed(0.001),
+};
+
 /// Every unit expressions know.
 pub const UNITS: &[Unit] = &[
     PIXEL,
@@ -145,12 +153,7 @@ pub const UNITS: &[Unit] = &[
         size: Size::Fixed(core::f64::consts::TAU),
     },
     SECOND,
-    Unit {
-        symbol: "ms",
-        names: &["ms", "millisecond", "milliseconds"],
-        dimension: Dimension::Time,
-        size: Size::Fixed(0.001),
-    },
+    MILLISECOND,
     Unit {
         symbol: "min",
         names: &["min", "minute", "minutes"],
