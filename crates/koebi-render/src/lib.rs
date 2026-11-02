@@ -16,6 +16,7 @@
 //!   are pushed in, and a layer starts outside the clips in force.
 //! - **Clipping**: [`Scene::push_clip`] clips what follows to a rectangle, applied as a
 //!   scissor per draw; clips nest, and primitives entirely outside are dropped.
+//!   [`Scene::push_rounded_clip`] also cuts them at rounded corners, in every fragment shader.
 //! - **Text**: glyphs of `koebi_text` lines are rasterized on the CPU at their physical size,
 //!   cached in a glyph atlas texture and drawn one texel per pixel
 //!   (`docs/adr/0014-text-basics.md`).

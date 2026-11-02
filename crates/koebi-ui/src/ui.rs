@@ -5,7 +5,7 @@ use core::time::Duration;
 use koebi_core::input::CursorShape;
 use koebi_core::{Rect, Vec2};
 use koebi_input::{ActionDef, Context};
-use koebi_render::Scene;
+use koebi_render::{Corners, Scene};
 use koebi_text::{Fonts, TextLine};
 
 use crate::id::WidgetId;
@@ -396,6 +396,27 @@ impl<'a> Ui<'a> {
         };
         let previous = self.clip.replace(clip);
         self.scene.push_clip(clip);
+        let result = add(self);
+        self.scene.pop_clip();
+        self.clip = previous;
+        result
+    }
+
+    /// Like [`Self::clipped`], its content also cut at the corners of `clip`, each rounded by its
+    /// radius: whatever draws inside disappears with them, without knowing about them. The
+    /// pointer still hits the whole rectangle.
+    pub fn clipped_rounded<R>(
+        &mut self,
+        clip: Rect,
+        radii: Corners,
+        add: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let inner = match self.clip {
+            Some(outer) => outer.intersection(&clip).unwrap_or(Rect::ZERO),
+            None => clip,
+        };
+        let previous = self.clip.replace(inner);
+        self.scene.push_rounded_clip(clip, radii);
         let result = add(self);
         self.scene.pop_clip();
         self.clip = previous;

@@ -368,6 +368,70 @@ fn painter_order_holds_across_primitive_types() {
 }
 
 #[test]
+fn rounded_clips_cut_every_primitive_at_their_corners() {
+    let Some(gpu) = gpu_or_skip("rounded_clips_cut_every_primitive_at_their_corners") else {
+        return;
+    };
+    let mut scene = Scene::new();
+    scene.set_clear_color(BACKGROUND);
+    // A rounded panel at (4, 4), 24 x 24: what it holds overflows it on every side.
+    scene.push_rounded_clip(rect(4.0, 4.0, 24.0, 24.0), Corners::all(8.0));
+    scene.push_clip(rect(0.0, 0.0, 32.0, 16.0));
+    scene.push_rect(&RectPrimitive::new(rect(0.0, 0.0, 32.0, 32.0), FILL));
+    scene.pop_clip();
+    scene.push_line(&LinePrimitive::new(
+        Vec2::new(0.0, 22.0),
+        Vec2::new(32.0, 22.0),
+        12.0,
+        STROKE,
+    ));
+    scene.pop_clip();
+    // Drawn after the clip ends: not cut.
+    scene.push_rect(&RectPrimitive::new(rect(0.0, 0.0, 2.0, 2.0), FILL));
+    let image = render(&gpu, Extent::new(32, 32), 1.0, &scene);
+    // The rectangle stays inside the clips, its top corners rounded.
+    assert_pixel(&image, 4, 4, BACKGROUND.to_rgba8(), 1);
+    assert_pixel(&image, 27, 4, BACKGROUND.to_rgba8(), 1);
+    assert_pixel(&image, 16, 4, FILL.to_rgba8(), 1);
+    assert_pixel(&image, 4, 12, FILL.to_rgba8(), 1);
+    assert_pixel(&image, 3, 12, BACKGROUND.to_rgba8(), 1);
+    // The segment too, at the bottom corners.
+    assert_pixel(&image, 4, 27, BACKGROUND.to_rgba8(), 1);
+    assert_pixel(&image, 27, 27, BACKGROUND.to_rgba8(), 1);
+    assert_pixel(&image, 16, 27, STROKE.to_rgba8(), 1);
+    assert_pixel(&image, 16, 28, BACKGROUND.to_rgba8(), 1);
+    assert_pixel(&image, 0, 0, FILL.to_rgba8(), 1);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn a_rounded_clip_and_a_rectangle_of_the_same_shape_end_on_the_same_pixels() {
+    let Some(gpu) = gpu_or_skip("a_rounded_clip_and_a_rectangle_of_the_same_shape") else {
+        return;
+    };
+    let panel = rect(3.3, 2.6, 22.0, 18.0);
+    let mut alone = Scene::new();
+    alone.set_clear_color(BACKGROUND);
+    alone.push_rect(&RectPrimitive::new(panel, FILL).with_corner_radius(6.0));
+    let mut clipped = Scene::new();
+    clipped.set_clear_color(BACKGROUND);
+    clipped.push_rounded_clip(panel, Corners::all(6.0));
+    clipped.push_rect(&RectPrimitive::new(rect(0.0, 0.0, 40.0, 40.0), FILL));
+    clipped.pop_clip();
+    for scale in [1.0_f32, 1.25, 2.0] {
+        let extent = Extent::new(64, 64);
+        let expected = render(&gpu, extent, scale, &alone);
+        let image = render(&gpu, extent, scale, &clipped);
+        for y in 0..64 {
+            for x in 0..64 {
+                assert_pixel(&image, x, y, expected.pixel(x, y), 1);
+            }
+        }
+    }
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
 fn clips_cut_primitives_exactly_at_their_edges() {
     let Some(gpu) = gpu_or_skip("clips_cut_primitives_exactly_at_their_edges") else {
         return;

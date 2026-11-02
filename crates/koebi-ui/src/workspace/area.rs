@@ -2,7 +2,7 @@
 //! the editor type dropdown and the editor's own items, and the content.
 
 use koebi_core::{Color, Rect, Vec2};
-use koebi_render::RectPrimitive;
+use koebi_render::{Corners, RectPrimitive};
 use koebi_workspace::{AreaId, EditorId, Workspace};
 
 use super::dock::dock_cursor;
@@ -91,121 +91,125 @@ impl Ui<'_> {
                 &RectPrimitive::new(panel, style.background)
                     .with_corner_radius(style.corner_radius),
             );
-            let mut top = panel.min.y;
-            let tabs = show_tabs.then(|| {
+            // The area cuts all it holds at its corners: what it holds does not need to know.
+            let radii = Corners::all(style.corner_radius);
+            let (tabs, bar, content) = self.clipped_rounded(panel, radii, |ui| {
+                let mut top = panel.min.y;
+                let tabs = show_tabs.then(|| {
+                    let bar = Rect::from_min_max(
+                        Vec2::new(panel.min.x, top),
+                        Vec2::new(panel.max.x, (top + tab_bar_height).min(panel.max.y)),
+                    );
+                    top = bar.max.y;
+                    bar
+                });
                 let bar = Rect::from_min_max(
                     Vec2::new(panel.min.x, top),
-                    Vec2::new(panel.max.x, (top + tab_bar_height).min(panel.max.y)),
+                    Vec2::new(panel.max.x, (top + style.top_bar_height).min(panel.max.y)),
                 );
-                top = bar.max.y;
-                bar
-            });
-            let bar = Rect::from_min_max(
-                Vec2::new(panel.min.x, top),
-                Vec2::new(panel.max.x, (top + style.top_bar_height).min(panel.max.y)),
-            );
-            let content = Rect::from_min_max(Vec2::new(panel.min.x, bar.max.y), panel.max);
+                let content = Rect::from_min_max(Vec2::new(panel.min.x, bar.max.y), panel.max);
 
-            if let Some(tabs) = tabs {
-                rounded_top(self, tabs, style.tab_bar_background, style.corner_radius);
-                let mut x = tabs.min.x + style.tab_gap;
-                let font = self.styles().text.label.clone();
-                for (position, &tab) in stack.editors().iter().enumerate() {
-                    let title = host.title(tab);
-                    let width = self.text_width(title, &font) + 2.0 * style.tab_padding;
-                    let rect = Rect::from_min_max(
-                        Vec2::new(x, tabs.min.y + style.tab_bar_padding),
-                        Vec2::new((x + width).min(tabs.max.x), tabs.max.y),
-                    );
-                    x += width + style.tab_gap;
-                    let id = TAB.with(u64::from(tab.get()));
-                    let response = match dock_cursor(view, tab) {
-                        Some(cursor) => self.interact_with_cursor(id, rect, cursor),
-                        None => self.interact(id, rect),
-                    };
-                    let active = position == stack.active_index();
-                    let background = if active {
-                        style.tab_active
-                    } else if response.hovered {
-                        style.tab_hover
-                    } else {
-                        style.tab_background
-                    };
-                    rounded_top(self, rect, background, style.corner_radius);
-                    let ink = if active {
-                        style.tab_label_active
-                    } else {
-                        style.tab_label
-                    };
-                    let text = rect.inset(style.tab_padding.min(rect.width() * 0.5));
-                    // One interface unit high: the tab reaches down to the top bar below it.
-                    let text = Rect::from_min_max(
-                        Vec2::new(text.min.x, rect.min.y),
-                        Vec2::new(text.max.x, rect.max.y - style.tab_bar_padding),
-                    );
-                    self.clipped(tabs, |ui| {
-                        ui.label(title, text, &font, ink, Align::Start);
-                    });
-                    if response.pressed
-                        && view.operation.is_none()
-                        && let Some(point) = self.input().pointer()
-                    {
-                        view.operation = Some(Operation::Dock {
+                if let Some(tabs) = tabs {
+                    ui.scene
+                        .push_rect(&RectPrimitive::new(tabs, style.tab_bar_background));
+                    let mut x = tabs.min.x + style.tab_gap;
+                    let font = ui.styles().text.label.clone();
+                    for (position, &tab) in stack.editors().iter().enumerate() {
+                        let title = host.title(tab);
+                        let width = ui.text_width(title, &font) + 2.0 * style.tab_padding;
+                        let rect = Rect::from_min_max(
+                            Vec2::new(x, tabs.min.y + style.tab_bar_padding),
+                            Vec2::new((x + width).min(tabs.max.x), tabs.max.y),
+                        );
+                        x += width + style.tab_gap;
+                        let id = TAB.with(u64::from(tab.get()));
+                        let response = match dock_cursor(view, tab) {
+                            Some(cursor) => ui.interact_with_cursor(id, rect, cursor),
+                            None => ui.interact(id, rect),
+                        };
+                        let active = position == stack.active_index();
+                        let background = if active {
+                            style.tab_active
+                        } else if response.hovered {
+                            style.tab_hover
+                        } else {
+                            style.tab_background
+                        };
+                        rounded_top(ui, rect, background, style.corner_radius);
+                        let ink = if active {
+                            style.tab_label_active
+                        } else {
+                            style.tab_label
+                        };
+                        let text = rect.inset(style.tab_padding.min(rect.width() * 0.5));
+                        // One interface unit high: the tab reaches down to the top bar below it.
+                        let text = Rect::from_min_max(
+                            Vec2::new(text.min.x, rect.min.y),
+                            Vec2::new(text.max.x, rect.max.y - style.tab_bar_padding),
+                        );
+                        ui.clipped(tabs, |ui| {
+                            ui.label(title, text, &font, ink, Align::Start);
+                        });
+                        if response.pressed
+                            && view.operation.is_none()
+                            && let Some(point) = ui.input().pointer()
+                        {
+                            view.operation = Some(Operation::Dock {
+                                editor: tab,
+                                from: area,
+                                origin: point,
+                                started: false,
+                            });
+                        }
+                        if response.clicked
+                            && matches!(
+                                view.operation,
+                                Some(Operation::Dock { started: false, .. })
+                            )
+                        {
+                            activate = Some((area, position));
+                            view.operation = None;
+                        }
+                        view.tabs.push(TabPart {
+                            area,
                             editor: tab,
-                            from: area,
-                            origin: point,
-                            started: false,
+                            rect,
                         });
                     }
-                    if response.clicked
-                        && matches!(view.operation, Some(Operation::Dock { started: false, .. }))
-                    {
-                        activate = Some((area, position));
-                        view.operation = None;
-                    }
-                    view.tabs.push(TabPart {
-                        area,
-                        editor: tab,
-                        rect,
+                }
+
+                ui.scene.push_rect(&RectPrimitive::new(bar, style.top_bar));
+                // The bar's background drags the editor; its items, drawn after, take presses first.
+                let id = TOP_BAR.with(u64::from(area.get()));
+                let background = match dock_cursor(view, editor) {
+                    Some(cursor) => ui.interact_with_cursor(id, bar, cursor),
+                    None => ui.interact(id, bar),
+                };
+                if background.pressed
+                    && view.operation.is_none()
+                    && let Some(point) = ui.input().pointer()
+                {
+                    view.operation = Some(Operation::Dock {
+                        editor,
+                        from: area,
+                        origin: point,
+                        started: false,
                     });
                 }
-            }
-
-            if tabs.is_some() {
-                self.scene
-                    .push_rect(&RectPrimitive::new(bar, style.top_bar));
-            } else {
-                rounded_top(self, bar, style.top_bar, style.corner_radius);
-            }
-            // The bar's background drags the editor; its items, drawn after, take presses first.
-            let id = TOP_BAR.with(u64::from(area.get()));
-            let background = match dock_cursor(view, editor) {
-                Some(cursor) => self.interact_with_cursor(id, bar, cursor),
-                None => self.interact(id, bar),
-            };
-            if background.pressed
-                && view.operation.is_none()
-                && let Some(point) = self.input().pointer()
-            {
-                view.operation = Some(Operation::Dock {
-                    editor,
-                    from: area,
-                    origin: point,
-                    started: false,
-                });
-            }
-            let items = Rect::from_min_max(
-                bar.min + Vec2::splat(style.top_bar_padding),
-                bar.max - Vec2::splat(style.top_bar_padding),
-            );
-            let mut layout = BarLayout::new(items, style.top_bar_gap);
-            if let Some(kind) = self.editor_type(view, host, editor, &mut layout, window) {
-                change_kind = Some((editor, kind));
-            }
-            host.top_bar(self, editor, layout);
-            if !content.is_empty() {
-                self.clipped(content, |ui| host.content(ui, editor, content));
-            }
+                let items = Rect::from_min_max(
+                    bar.min + Vec2::splat(style.top_bar_padding),
+                    bar.max - Vec2::splat(style.top_bar_padding),
+                );
+                let mut layout = BarLayout::new(items, style.top_bar_gap);
+                if let Some(kind) = ui.editor_type(view, host, editor, &mut layout, window) {
+                    change_kind = Some((editor, kind));
+                }
+                host.top_bar(ui, editor, layout);
+                if !content.is_empty() {
+                    ui.clipped(content, |ui| host.content(ui, editor, content));
+                }
+                (tabs, bar, content)
+            });
             view.parts.push(AreaParts {
                 area,
                 panel,

@@ -24,6 +24,9 @@ with [`Edges::Snapped`](../../crates/koebi-render/src/scene.rs). The vertex shad
 - **Each edge goes to the nearest pixel edge**, not the position and the size separately. Two
   rectangles sharing an edge compute the same pixel for it, so they stay joined at every scale.
   Scissors round the same way, so clipped content meets its container.
+  A rounded clip (`Scene::push_rounded_clip`) lies on the same pixels and ends its corners with
+  the same coverage as a rectangle of that shape, so an area cuts what it holds exactly at its
+  own edge.
 - **Thin things keep their thickness.** A rectangle thinner than two pixels is a line: its
   thickness is rounded (at least one pixel) and its start snapped, so that it looks the same
   wherever it lies. Border widths are rounded the same way.

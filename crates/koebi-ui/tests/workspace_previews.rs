@@ -1,9 +1,9 @@
-//! The previews of the workspace on screen: a join whose leftover goes to a neighbour, with
-//! everything around the future area darkened, matched against its golden image.
+//! The workspace on screen: a join whose leftover goes to a neighbour, with everything around
+//! the future area darkened, matched against its golden image; and what an area cuts.
 
 mod common;
 
-use common::render;
+use common::{assert_pixel, render};
 use koebi_core::{Color, Extent, Rect, Vec2};
 use koebi_design::DesignSystem;
 use koebi_render::{RectPrimitive, Scene};
@@ -84,5 +84,45 @@ fn a_partial_join_matches_golden() {
     let scene = join_scene(&design);
     let image = render(&gpu, Extent::new(320, 240), &scene);
     assert_golden!(image, "workspace_join_dark", CROSS_DRIVER);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn an_area_cuts_its_content_at_its_rounded_corners() {
+    let Some(gpu) = gpu_or_skip("an_area_cuts_its_content_at_its_rounded_corners") else {
+        return;
+    };
+    let design = DesignSystem::new(&KOEBI).expect("Koebi's schema is valid");
+    let styles = Styles::resolve(&design);
+    let mut workspace = Workspace::new();
+    let mut view = WorkspaceView::new();
+    let mut state = UiState::new();
+    state.set_fonts(Fonts::with_embedded());
+    let input = Input::new();
+    let (width, height) = (320_u32, 240_u32);
+    let window = Rect::from_origin_size(Vec2::ZERO, Vec2::new(width as f32, height as f32));
+    let mut scene = Scene::new();
+    scene.set_clear_color(styles.background);
+    for _ in 0..2 {
+        scene.clear();
+        let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+        ui.workspace(&mut view, &mut workspace, window, &mut Host);
+    }
+    let image = render(&gpu, Extent::new(width, height), &scene);
+    // The content fills its rectangle down to the bottom of the panel, which lies a whole gap
+    // from the window's edges. Its last corner pixels are outside the panel's rounded corner.
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a few pixels"
+    )]
+    let gap = styles.workspace.gap as u32;
+    let background = styles.background.to_rgba8();
+    for (x, y) in [(gap, height - gap - 1), (width - gap - 1, height - gap - 1)] {
+        assert_pixel(&image, x, y, background);
+    }
+    // Along the edges, away from the corners, the content reaches the panel's edge.
+    let fill = Color::rgb(0.25, 0.45, 0.65).to_rgba8();
+    assert_pixel(&image, width / 2, height - gap - 1, fill);
     gpu.assert_no_validation_errors();
 }
