@@ -400,15 +400,13 @@ impl<'t, 'u> Parser<'t, 'u> {
                 self.advance()?;
                 let fraction = self.current;
                 let digits = &self.text[fraction.start..fraction.end];
-                if !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+                if !matches!(fraction.kind, Kind::Number(_))
+                    || !digits.bytes().all(|byte| byte.is_ascii_digit())
+                {
                     return Err(fraction.error(ErrorKind::InvalidNumber));
                 }
-                let Kind::Number(fraction_value) = fraction.kind else {
-                    return Err(fraction.error(ErrorKind::InvalidNumber));
-                };
                 self.advance()?;
-                let scale = 10_f64.powi(i32::try_from(digits.len()).unwrap_or(i32::MAX));
-                Ok(Quantity::plain(value + fraction_value / scale))
+                Ok(Quantity::plain(with_fraction(value, digits)))
             }
             Kind::Open => {
                 self.advance()?;
@@ -671,6 +669,25 @@ fn combine(a: Quantity, b: Quantity, sign: i8, at: Token<'_>) -> Result<Quantity
         value: a.value * b.value,
         dimensions,
     })
+}
+
+/// `whole` with the decimal `digits` after its comma. Integers up to 2^53 are exact in a double,
+/// so one division of two of them rounds once, as reading `1.14` does; longer numbers add their
+/// parts.
+fn with_fraction(whole: f64, digits: &str) -> f64 {
+    // Digits past a double's precision change nothing, and would overflow the scale.
+    let kept = &digits.as_bytes()[..digits.len().min(18)];
+    let (fraction, scale) = kept
+        .iter()
+        .fold((0.0_f64, 1.0_f64), |(fraction, scale), digit| {
+            (fraction * 10.0 + f64::from(digit - b'0'), scale * 10.0)
+        });
+    let number = whole * scale + fraction;
+    if number < 9_007_199_254_740_992.0 {
+        number / scale
+    } else {
+        whole + fraction / scale
+    }
 }
 
 /// The length of the number at the start of `text`: digits, a fraction, an exponent.
