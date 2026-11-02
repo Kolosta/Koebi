@@ -282,8 +282,8 @@ jobs:
           path: target/Koebi-ios-simulator.zip
           retention-days: 7
 
-  # Release-mode packages of every platform, built on pushes to develop/main (nightly-style
-  # artifacts that also prove the release pipeline works before a release is cut).
+  # Release-mode packages of every platform, built on pushes to develop/main (artifacts
+  # that also prove the release pipeline works before a release is cut).
   package:
     name: Package
     needs: changes

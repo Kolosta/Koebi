@@ -46,8 +46,7 @@ Rules that keep the graph clean:
 
 - `koebi-render` and `koebi-gpu` never see SDL; the app hands them raw Vulkan handles.
 - `koebi-platform` never sees the renderer: it only produces events and surfaces.
-- `koebi-core` has no dependency at all and no platform code, so it is testable everywhere,
-  including under Miri.
+- `koebi-core` has no dependency at all and no platform code, so it is testable everywhere.
 - `koebi-design` knows neither the GPU nor the platform: it turns token definitions into
   values. `koebi-ui` maps those values to render primitives, and never sees the platform:
   the app turns platform events into `koebi_ui::Input`.

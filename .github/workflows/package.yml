@@ -1,7 +1,7 @@
 name: Package
 
 # Reusable workflow: release builds of every platform, uploaded as artifacts named `koebi-*`.
-# Called by CI (pushes to develop/main), Nightly and Release.
+# Called by CI (pushes to develop/main) and Release.
 on:
   workflow_call:
     inputs:
