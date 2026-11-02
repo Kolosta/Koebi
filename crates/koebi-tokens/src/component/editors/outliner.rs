@@ -31,9 +31,10 @@ koebi_design::tokens! {
     /// Outliner: color of the lines joining a row to its children.
     OUTLINER_TREE_LINE_COLOR_DEFAULT = "outliner.tree-line.color.default": Color ->
         semantic::BORDER_COLOR_TREE_LINE_DEFAULT;
-    /// Outliner: width of those lines.
-    OUTLINER_TREE_LINE_WIDTH_DEFAULT = "outliner.tree-line.width.default": Dimension ->
-        semantic::BORDER_WIDTH_THIN;
+    /// Outliner: width of those lines, a value of their own: they show the structure of a tree,
+    /// and stay in a theme that turns the borders of controls off.
+    OUTLINER_TREE_LINE_WIDTH_DEFAULT = "outliner.tree-line.width.default": Dimension =
+        px(1.0), range(0.0, 8.0);
     /// Outliner: color of the dotted lines.
     OUTLINER_TREE_LINE_COLOR_DOTTED = "outliner.tree-line.color.dotted": Color ->
         semantic::TEXT_COLOR_SECONDARY_DEFAULT;

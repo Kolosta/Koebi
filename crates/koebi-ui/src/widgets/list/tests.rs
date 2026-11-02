@@ -384,6 +384,40 @@ fn a_click_on_the_empty_space_clears_the_selection() {
 }
 
 #[test]
+fn the_fold_arrow_folds_on_the_press() {
+    // Regression test: it waited for the release, which panels do not.
+    let mut harness = Harness::new(ListOptions::TREE);
+    harness.input.primary_button(true, harness.arrow(2, 1));
+    harness.frame();
+    assert!(harness.list.is_folded(3));
+    // The release changes nothing.
+    harness.input.primary_button(false, harness.arrow(2, 1));
+    harness.frame();
+    assert!(harness.list.is_folded(3));
+}
+
+#[test]
+fn folds_are_quicker_than_panels() {
+    let styles = crate::test_styles();
+    assert!(styles.list.expand < styles.collapsible_panel.expand.0);
+    assert!(styles.list.collapse < styles.collapsible_panel.collapse.0);
+}
+
+#[test]
+fn tree_lines_stay_in_a_theme_without_borders() {
+    // Regression test: they took the width of the borders of controls, and vanished with them.
+    let mut design = koebi_design::DesignSystem::new(&koebi_tokens::KOEBI).unwrap();
+    design
+        .set_value(
+            koebi_design::Scope::Global,
+            semantic::BORDER_WIDTH_THIN,
+            0.0,
+        )
+        .unwrap();
+    assert!(Styles::resolve(&design).list.line_width > 0.0);
+}
+
+#[test]
 fn the_fold_arrow_folds_without_selecting() {
     let mut harness = Harness::new(ListOptions::TREE);
     harness.click(harness.arrow(2, 1));

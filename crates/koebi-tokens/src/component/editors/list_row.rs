@@ -36,10 +36,10 @@ koebi_design::tokens! {
         semantic::TEXT_COLOR_SECONDARY_DEFAULT;
     /// List row: duration of a fold opening.
     LIST_ROW_EXPAND_DURATION = "list-row.expand.duration": Duration ->
-        semantic::ANIMATION_DURATION_EXPAND;
+        semantic::ANIMATION_DURATION_ENTER;
     /// List row: duration of a fold closing.
     LIST_ROW_COLLAPSE_DURATION = "list-row.collapse.duration": Duration ->
-        semantic::ANIMATION_DURATION_COLLAPSE;
+        semantic::ANIMATION_DURATION_EXIT;
     /// List row: curve of a fold opening; values past 0 and 1 hold at the ends.
     LIST_ROW_EXPAND_CURVE = "list-row.expand.curve": Curve -> semantic::ANIMATION_CURVE_EXPAND;
     /// List row: curve of a fold closing; values past 0 and 1 hold at the ends.

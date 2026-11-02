@@ -252,7 +252,11 @@ field on a bar replaces it.
 Trees: `component.list-row.highlight.margin.vertical`,
 `component.list-row.highlight.margin.horizontal`, `component.list-row.highlight.corner-radius`,
 `component.outliner.tree-line.color.dotted`, `component.outliner.tree-line.dash.default` and
-`component.outliner.tree-line.gap.default`.
+`component.outliner.tree-line.gap.default`. `component.outliner.tree-line.width.default` holds
+1 pixel instead of aliasing the width of the borders of controls: a theme without borders keeps
+the lines. `component.list-row.expand.duration` and `.collapse.duration` alias the entrance and
+exit durations (100 ms) instead of the expand and collapse ones (200 ms), at the maintainer's
+request.
 
 Menus and bars (the interface unit): `component.menu.item.background.color.selected-hover`,
 `component.menu.item.label.color.selected-hover`, `component.menu.item.margin.horizontal`,
