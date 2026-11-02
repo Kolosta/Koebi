@@ -549,7 +549,7 @@ impl From<Def> for Definition {
 ///   ([`Range::steps`]).
 /// - **Colors**: the range bounds the alpha channel ([`Range::alpha`], [`Range::opaque`]).
 ///
-/// Ranges also tell editors how far sliders go.
+/// Ranges also tell editors how far their fields go.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Range {
     min: f64,

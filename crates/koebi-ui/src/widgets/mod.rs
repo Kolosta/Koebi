@@ -19,7 +19,6 @@ mod property_group;
 mod scroll;
 mod scrollbar;
 mod separator;
-mod slider;
 mod swatch;
 mod text_field;
 mod theme_card;
@@ -43,7 +42,7 @@ pub use menu::{
 };
 pub(crate) use number_field::NumberState;
 pub use number_field::{
-    BarMapping, NUMBER, NUMBER_ACTIONS, NUMBER_CANCEL, NUMBER_CONFIRM, NumberField,
+    BarMapping, FineMode, NUMBER, NUMBER_ACTIONS, NUMBER_CANCEL, NUMBER_CONFIRM, NumberField,
     NumberFieldResponse, NumberFieldStyle, Numeric,
 };
 pub use panel::{PanelLevel, PanelStyle};
@@ -55,7 +54,6 @@ pub use property_group::{PropertyGroup, PropertyGroupStyle};
 pub use scroll::{SCROLL, ScrollAxes, ScrollContent, ScrollState, ScrollStyle};
 pub use scrollbar::{ScrollAxis, Scrollbar, ScrollbarResponse, ScrollbarState};
 pub use separator::SeparatorStyle;
-pub use slider::SliderStyle;
 pub use swatch::SwatchStyle;
 pub(crate) use text_field::TextState;
 pub use text_field::{

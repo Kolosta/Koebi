@@ -226,7 +226,7 @@ impl Input {
     /// The same pointer, buttons held and modifiers, without this frame's presses, releases,
     /// wheel turns and actions.
     ///
-    /// When a frame changes what components look like (a slider edits a token, a card
+    /// When a frame changes what components look like (a field edits a token, a card
     /// switches the theme), draw it again with this input: components show the new state in
     /// the same frame, without handling anything twice.
     #[must_use]

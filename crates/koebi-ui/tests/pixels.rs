@@ -15,9 +15,9 @@ use koebi_testkit::gpu_or_skip;
 use koebi_text::Fonts;
 use koebi_tokens::{KOEBI, component, semantic};
 use koebi_ui::{
-    BarMapping, Button, Checkbox, Dropdown, Input, ListItem, ListOptions, ListState, MenuItem,
-    MenuState, NumberField, PanelLevel, Styles, ThemePreview, Tone, TreeGuide, Ui, UiState,
-    WidgetId,
+    BarMapping, Button, Checkbox, ControlState, Dropdown, Input, ListItem, ListOptions, ListState,
+    MenuItem, MenuState, NumberField, PanelLevel, Styles, ThemePreview, Tone, TreeGuide, Ui,
+    UiState, WidgetId,
 };
 
 const SIZE: Extent = Extent::new(200, 100);
@@ -201,24 +201,13 @@ fn value_components_show_their_value() {
     };
     let design = design();
     let scene = draw(&design, |ui| {
-        let (mut full, mut half) = (1.0, 0.5);
-        ui.slider(
-            WidgetId::new("slider"),
-            rect(0.0, 10.0, 200.0, 20.0),
-            &mut full,
-            0.0..=1.0,
-        );
+        let mut half = 0.5;
         NumberField::new(WidgetId::new("drag"), &mut half)
             .range(0.0, 1.0)
             .bar(BarMapping::Linear)
             .show(ui, rect(0.0, 50.0, 200.0, 24.0));
     });
     let image = render(&gpu, SIZE, &scene);
-    // The grab of a full slider touches the right end, inside the padding.
-    let grab = design.get(component::SLIDER_GRAB_COLOR_DEFAULT);
-    assert_pixel(&image, 192, 20, grab.to_rgba8());
-    let track = design.get(component::SLIDER_TRACK_COLOR_DEFAULT);
-    assert_pixel(&image, 100, 20, track.to_rgba8());
     // Half of the number field's bar is filled.
     let fill = design.get(component::NUMBER_FIELD_FILL_COLOR_DEFAULT);
     let empty = design.get(component::NUMBER_FIELD_BACKGROUND_COLOR_DEFAULT);
@@ -280,6 +269,61 @@ fn theme_cards_paint_other_themes() {
     assert_pixel(&image, 145, 10, preview.background.to_rgba8());
     let frame = design.get(component::THEME_CARD_BORDER_COLOR_DEFAULT);
     assert_pixel(&image, 80, 0, frame.to_rgba8());
+    gpu.assert_no_validation_errors();
+}
+
+/// A field showing a bar at (0, 0), with the pointer over its left end, step buttons shown.
+fn stepped_bar(design: &DesignSystem, buttons: Option<bool>, pointer: Vec2) -> Scene {
+    let styles = Styles::resolve(design);
+    let mut state = UiState::new();
+    state.set_fonts(Fonts::with_embedded());
+    let mut input = Input::new();
+    let mut value = 0.5;
+    let mut last = Scene::new();
+    for frame in 0..3 {
+        if frame == 1 {
+            input.pointer_moved(pointer);
+        }
+        last = Scene::new();
+        last.set_clear_color(styles.background);
+        let mut ui = Ui::new(&mut last, &styles, &input, &mut state);
+        let field = NumberField::new(WidgetId::new("level"), &mut value)
+            .range(0.0, 1.0)
+            .bar(BarMapping::Linear);
+        let field = match buttons {
+            Some(shown) => field.step_buttons(shown),
+            None => field,
+        };
+        field.show(&mut ui, rect(0.0, 0.0, 200.0, 24.0));
+        drop(ui);
+        input.end_frame();
+    }
+    last
+}
+
+#[test]
+fn step_buttons_lie_inside_the_border_and_let_the_bar_show_through() {
+    let Some(gpu) = gpu_or_skip("step_buttons_lie_inside_the_border_and_let_the_bar_show_through")
+    else {
+        return;
+    };
+    let design = design();
+    let styles = Styles::resolve(&design);
+    let style = styles.number_field;
+    let pointer = Vec2::new(8.0, 12.0);
+    // A bar has none by default: the pointer there drags, the bar in its hovered color.
+    let image = render(&gpu, SIZE, &stepped_bar(&design, None, pointer));
+    let hovered = design.get(component::NUMBER_FIELD_FILL_COLOR_HOVER);
+    assert_pixel(&image, 3, 12, hovered.to_rgba8());
+    // Asked for: the bar shows through the button's translucent background.
+    let image = render(&gpu, SIZE, &stepped_bar(&design, Some(true), pointer));
+    let blended = over(style.step_background, hovered);
+    assert!(style.step_background.a < 1.0);
+    assert_pixel(&image, 3, 3, blended.to_rgba8());
+    // The border stays whole around it.
+    let border = style.border.get(ControlState::Hovered);
+    assert_pixel(&image, 8, 0, border.to_rgba8());
+    assert_pixel(&image, 0, 12, border.to_rgba8());
     gpu.assert_no_validation_errors();
 }
 

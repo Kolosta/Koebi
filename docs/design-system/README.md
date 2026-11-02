@@ -296,7 +296,7 @@ An exported token looks like this:
 
 OKLCH (Björn Ottosson, 2020) describes a color by perceived lightness (`l`), chroma (`c`) and
 hue (`h`). Unlike HSL, equal steps of `l` look equal, and changing `h` keeps the perceived
-lightness, so it is the right space to edit a color with sliders, derive hover states or build a
+lightness, so it is the right space to edit a color with number fields on bars, derive hover states or build a
 palette. Koebi implements it in `koebi_core::color` (`Oklch`, with gamut mapping by chroma
 reduction): no dependency is involved. Token values stay in sRGB, the space the renderer
 consumes; OKLCH is how they are edited and generated.

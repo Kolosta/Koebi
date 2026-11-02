@@ -2,7 +2,7 @@
 //!
 //! - **Themes**: one card per theme, painted with that theme's tokens; a click activates it.
 //! - **Components**: every component of `koebi-ui`, interactive.
-//! - **Token editor** ([`editor`]): sliders and fields that edit tokens in every theme or in
+//! - **Token editor** ([`editor`]): number fields that edit tokens in every theme or in
 //!   the active theme; every component that depends on them follows in the same frame.
 //! - **Buttons** ([`buttons`]): every variant and color family, groups, content, behaviours
 //!   and checkboxes.
@@ -326,12 +326,10 @@ impl Gallery {
 
         let mut line = cut_top(&mut content, row, gap);
         let half = ((line.width() - gap) * 0.5).round();
-        ui.slider(
-            ID.with(8),
-            cut_left(&mut line, half, gap),
-            &mut sheet.slider,
-            0.0..=1.0,
-        );
+        NumberField::new(ID.with(8), &mut sheet.slider)
+            .range(0.0, 1.0)
+            .bar(BarMapping::Linear)
+            .show(ui, cut_left(&mut line, half, gap));
         NumberField::new(ID.with(9), &mut sheet.drag)
             .range(0.0, 10.0)
             .step(0.5)

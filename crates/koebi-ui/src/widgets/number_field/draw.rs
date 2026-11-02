@@ -59,7 +59,7 @@ impl<N: Numeric> NumberField<'_, N> {
         ui.clipped(rect, |ui| {
             self.draw_bar(ui, rect, radii, border_width, state);
             if let Some(areas) = steps {
-                self.draw_steps(ui, areas, step_responses);
+                self.draw_steps(ui, areas, step_responses, radii, border_width);
             }
             self.draw_text(ui, rect, body, has_steps, state);
         });
@@ -116,20 +116,59 @@ impl<N: Numeric> NumberField<'_, N> {
             .push_rect(&RectPrimitive::new(fill, color).with_corner_radii(corners));
     }
 
-    /// The step buttons: a chevron each, the hovered one on its own background.
-    fn draw_steps(&self, ui: &mut Ui<'_>, areas: [Rect; 2], responses: &[Response; 2]) {
+    /// The step buttons: a chevron each, the hovered one on a translucent background inside the
+    /// border, rounded like the end of the field it lies at.
+    fn draw_steps(
+        &self,
+        ui: &mut Ui<'_>,
+        areas: [Rect; 2],
+        responses: &[Response; 2],
+        radii: Corners,
+        border_width: f32,
+    ) {
         let style = &ui.styles().number_field;
+        let inset = |radius: f32| (radius - border_width).max(0.0);
+        let ends = if self.vertical {
+            [
+                Corners {
+                    bottom_left: inset(radii.bottom_left),
+                    bottom_right: inset(radii.bottom_right),
+                    ..Corners::ZERO
+                },
+                Corners {
+                    top_left: inset(radii.top_left),
+                    top_right: inset(radii.top_right),
+                    ..Corners::ZERO
+                },
+            ]
+        } else {
+            [
+                Corners {
+                    top_left: inset(radii.top_left),
+                    bottom_left: inset(radii.bottom_left),
+                    ..Corners::ZERO
+                },
+                Corners {
+                    top_right: inset(radii.top_right),
+                    bottom_right: inset(radii.bottom_right),
+                    ..Corners::ZERO
+                },
+            ]
+        };
         let icons = if self.vertical {
             [Icon::ChevronDown, Icon::ChevronUp]
         } else {
             [Icon::ChevronLeft, Icon::ChevronRight]
         };
         let stroke = ui.styles().icon.stroke_width;
-        for ((area, icon), response) in areas.into_iter().zip(icons).zip(responses) {
+        for (((area, icon), response), end) in areas.into_iter().zip(icons).zip(responses).zip(ends)
+        {
             let hovered = response.hovered || response.held;
             if hovered {
-                ui.scene()
-                    .push_rect(&RectPrimitive::new(area, style.step_background));
+                ui.scene().push_rect(
+                    &RectPrimitive::new(area.inset(border_width), style.step_background)
+                        .with_corner_radii(end),
+                );
             }
             let color = if hovered {
                 style.step_hovered

@@ -283,7 +283,7 @@ impl Interface {
     }
 
     /// Builds the scene of a frame covering `area`. When the frame changes the design system
-    /// (a slider edits a token, a card switches the theme), the scene is built again with the
+    /// (a field edits a token, a card switches the theme), the scene is built again with the
     /// new styles: every component shows the change in this very frame.
     fn build(&mut self, area: Rect, times: &FrameTimes) {
         self.input.set_time(self.started.elapsed());
@@ -424,7 +424,7 @@ impl Interface {
                 .is_some_and(|preferences| preferences.is_dirty(&self.workspace, &self.editors))
     }
 
-    /// Saves the design state once changes have settled: one write per pause while a slider
+    /// Saves the design state once changes have settled: one write per pause while a field
     /// drags, not one per frame.
     fn save_if_due(&mut self) {
         if let Some(store) = &mut self.store {

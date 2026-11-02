@@ -49,18 +49,48 @@ fn shift_makes_drags_finer_and_ctrl_rounds_them() {
     harness.input.pointer_moved_by(two);
     harness.show(&mut value);
     assert!(close(value, 1.2), "{value}");
-    // Right Shift: ten times finer from here.
-    harness.input.set_modifiers(Modifiers::RIGHT_SHIFT);
+    // Left Shift, without a bar: ten times finer from here.
+    harness.input.set_modifiers(Modifiers::LEFT_SHIFT);
     let five = harness.steps(5.0);
     harness.input.pointer_moved_by(five);
     harness.show(&mut value);
     assert!(close(value, 1.25), "{value}");
-    // Ctrl: round steps.
+    // Ctrl: round units of ten steps, each as far as a step.
     harness.input.set_modifiers(Modifiers::LEFT_CTRL);
     let little = harness.steps(0.4);
     harness.input.pointer_moved_by(little);
     harness.show(&mut value);
-    assert!(close(value, 1.3), "{value}");
+    assert!(close(value, 2.0), "{value}");
+    // Ctrl and Shift: units of one step.
+    harness
+        .input
+        .set_modifiers(Modifiers::LEFT_CTRL.union(Modifiers::LEFT_SHIFT));
+    let one = harness.steps(1.0);
+    harness.input.pointer_moved_by(one);
+    harness.show(&mut value);
+    assert!(close(value, 2.1), "{value}");
+}
+
+#[test]
+fn alt_moves_by_units_and_keeps_the_last_digits() {
+    let mut harness = Harness::new();
+    let mut value = 1.23;
+    harness.show(&mut value);
+    harness.input.primary_button(true, field().center());
+    harness.show(&mut value);
+    harness.input.set_modifiers(Modifiers::LEFT_ALT);
+    let two = harness.steps(2.2);
+    harness.input.pointer_moved_by(two);
+    harness.show(&mut value);
+    assert!(close(value, 3.23), "{value}");
+    // With Shift: units ten times finer, from the value reached.
+    harness
+        .input
+        .set_modifiers(Modifiers::LEFT_ALT.union(Modifiers::LEFT_SHIFT));
+    let one = harness.steps(1.0);
+    harness.input.pointer_moved_by(one);
+    harness.show(&mut value);
+    assert!(close(value, 3.33), "{value}");
 }
 
 #[test]
@@ -188,9 +218,13 @@ fn step_buttons_step_and_their_modifiers_shape_the_step() {
     click(&mut harness, &mut value, left, Modifiers::LEFT_SHIFT);
     assert!(close(value, 1.32), "{value}");
     click(&mut harness, &mut value, right, Modifiers::LEFT_CTRL);
-    assert!(close(value, 1.4), "{value}");
+    assert!(close(value, 2.0), "the next round unit: {value}");
+    value = 2.25;
     click(&mut harness, &mut value, left, Modifiers::LEFT_ALT);
-    assert!(close(value, 1.3), "the last decimal of 1.4 is 0.1: {value}");
+    assert!(
+        close(value, 1.25),
+        "a unit down, the last digits kept: {value}"
+    );
 }
 
 #[test]
@@ -277,28 +311,114 @@ fn disabled_fields_neither_drag_nor_step() {
 fn fields_show_their_label_value_unit_bar_and_steps_on_hover() {
     let mut harness = Harness::new();
     let mut value = 2.5;
-    let draw = |harness: &mut Harness, value: &mut f64| {
+    let draw = |harness: &mut Harness, value: &mut f64, steps: Option<bool>| {
         harness
             .frame(|ui| {
-                NumberField::new(ID, value)
+                let field_on_bar = NumberField::new(ID, value)
                     .label("Size")
                     .unit(&MILLIMETER)
                     .range(0.0, 10.0)
-                    .bar(BarMapping::Linear)
-                    .show(ui, field());
+                    .bar(BarMapping::Linear);
+                match steps {
+                    Some(shown) => field_on_bar.step_buttons(shown),
+                    None => field_on_bar,
+                }
+                .show(ui, field());
             })
             .1
     };
-    let idle = draw(&mut harness, &mut value);
+    let idle = draw(&mut harness, &mut value, Some(true));
     // The box and the bar; "Size", "2.50" and " mm".
     assert_eq!(idle.rect_count(), 2);
     assert_eq!(idle.glyph_count(), 4 + 4 + 3);
     assert_eq!(idle.line_count(), 0);
     harness.input.pointer_moved(field().center());
-    draw(&mut harness, &mut value);
-    let hovered = draw(&mut harness, &mut value);
-    // The step buttons' chevrons.
+    draw(&mut harness, &mut value, Some(true));
+    let hovered = draw(&mut harness, &mut value, Some(true));
+    // The step buttons' chevrons, asked for.
     assert!(hovered.line_count() >= 4);
+    // A field on a bar has none by default.
+    let hovered = draw(&mut harness, &mut value, None);
+    assert_eq!(hovered.line_count(), 0);
+}
+
+#[test]
+fn fields_without_a_bar_have_step_buttons_unless_told_otherwise() {
+    let mut harness = Harness::new();
+    let mut value = 2.5;
+    let draw = |harness: &mut Harness, value: &mut f64, steps: Option<bool>| {
+        harness
+            .frame(|ui| {
+                let field_alone = NumberField::new(ID, value);
+                match steps {
+                    Some(shown) => field_alone.step_buttons(shown),
+                    None => field_alone,
+                }
+                .show(ui, field());
+            })
+            .1
+    };
+    draw(&mut harness, &mut value, None);
+    harness.input.pointer_moved(field().center());
+    draw(&mut harness, &mut value, None);
+    assert!(draw(&mut harness, &mut value, None).line_count() >= 4);
+    assert_eq!(draw(&mut harness, &mut value, Some(false)).line_count(), 0);
+}
+
+#[test]
+fn a_field_on_a_bar_counts_shift_from_the_start_and_another_from_here() {
+    let mut harness = Harness::new();
+    let mut value = 5.0;
+    let show = |harness: &mut Harness, value: &mut f64, mode: Option<FineMode>| {
+        harness
+            .frame(|ui| {
+                let field_on_bar = NumberField::new(ID, value)
+                    .range(0.0, 10.0)
+                    .bar(BarMapping::Linear);
+                match mode {
+                    Some(mode) => field_on_bar.fine_mode(mode),
+                    None => field_on_bar,
+                }
+                .show(ui, field())
+            })
+            .0
+    };
+    show(&mut harness, &mut value, None);
+    harness.input.primary_button(true, field().center());
+    show(&mut harness, &mut value, None);
+    // A fifth of the track: 2.0 more.
+    let travel = harness.track_share(0.2);
+    harness.input.pointer_moved_by(travel);
+    show(&mut harness, &mut value, None);
+    assert!(close(value, 7.0), "{value}");
+    // Left Shift: as if the whole drag had been ten times finer.
+    harness.input.set_modifiers(Modifiers::LEFT_SHIFT);
+    show(&mut harness, &mut value, None);
+    assert!(close(value, 5.2), "{value}");
+    // Released: back, as if it had never been held.
+    harness.input.set_modifiers(Modifiers::NONE);
+    show(&mut harness, &mut value, None);
+    assert!(close(value, 7.0), "{value}");
+    // The right Shift does the other one: from the value reached, without a jump.
+    harness.input.set_modifiers(Modifiers::RIGHT_SHIFT);
+    show(&mut harness, &mut value, None);
+    assert!(close(value, 7.0), "{value}");
+    harness.input.set_modifiers(Modifiers::NONE);
+    harness.input.primary_button(false, field().center());
+    show(&mut harness, &mut value, None);
+    // Told otherwise, the left Shift counts from here on a bar too.
+    let mut value = 5.0;
+    let mut harness = Harness::new();
+    let mode = Some(FineMode::FromHere);
+    show(&mut harness, &mut value, mode);
+    harness.input.primary_button(true, field().center());
+    show(&mut harness, &mut value, mode);
+    let travel = harness.track_share(0.2);
+    harness.input.pointer_moved_by(travel);
+    show(&mut harness, &mut value, mode);
+    harness.input.set_modifiers(Modifiers::LEFT_SHIFT);
+    show(&mut harness, &mut value, mode);
+    assert!(close(value, 7.0), "{value}");
 }
 
 #[test]

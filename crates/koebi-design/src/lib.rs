@@ -34,7 +34,7 @@
 //! # Performance
 //!
 //! The active theme is materialized: reading a token is an array access. Changes propagate
-//! incrementally to the tokens that depend on the changed one, so a slider can edit a token
+//! incrementally to the tokens that depend on the changed one, so a field can edit a token
 //! every frame. Token tables are compiled Rust; nothing is parsed at run time.
 //!
 //! # Example

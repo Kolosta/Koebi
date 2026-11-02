@@ -56,7 +56,7 @@ fn reset(design: &mut DesignSystem, scope: Scope, token: impl Into<koebi_design:
     }
 }
 
-/// A channel of the accent color, edited by a slider beside a strip of its values.
+/// A channel of the accent color, edited by a number field beside a strip of its values.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Channel {
     Hue,
@@ -66,6 +66,22 @@ enum Channel {
 
 impl Channel {
     const ALL: [Self; 3] = [Self::Hue, Self::Chroma, Self::Lightness];
+
+    /// The step of its field.
+    fn step(self) -> f64 {
+        match self {
+            Self::Hue => 1.0,
+            Self::Chroma | Self::Lightness => 0.01,
+        }
+    }
+
+    /// The decimals its field shows.
+    fn decimals(self) -> usize {
+        match self {
+            Self::Hue => 0,
+            Self::Chroma | Self::Lightness => 3,
+        }
+    }
 
     fn range(self) -> RangeInclusive<f32> {
         match self {
@@ -311,7 +327,7 @@ pub(super) fn tokens(
     dimension_row(ui, design, scope, line, size, Preview::Checkbox, metrics);
 }
 
-/// Three sliders editing the accent in OKLCH: hue, chroma and lightness. They write
+/// Three number fields editing the accent in OKLCH: hue, chroma and lightness. They write
 /// `accent.color.700` and its lighter state color `accent.color.600`.
 fn accent_rows(
     gallery: &mut Gallery,
@@ -347,13 +363,13 @@ fn accent_rows(
             marker,
         );
         channel.paint(ui, cut_left(&mut line, 3.0 * row, gap), accent, frame);
-        changed |= ui
-            .slider(
-                id.with(1),
-                line,
-                channel.value(&mut accent),
-                channel.range(),
-            )
+        let range = channel.range();
+        changed |= NumberField::new(id.with(1), channel.value(&mut accent))
+            .range(*range.start(), *range.end())
+            .step(channel.step())
+            .decimals(channel.decimals())
+            .bar(BarMapping::Linear)
+            .show(ui, line)
             .changed;
     }
     if cleared {

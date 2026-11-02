@@ -28,7 +28,7 @@ mod style;
 #[cfg(test)]
 mod tests;
 
-pub use math::BarMapping;
+pub use math::{BarMapping, FineMode};
 pub use style::NumberFieldStyle;
 
 pub(crate) use state::NumberState;
@@ -203,7 +203,8 @@ pub struct NumberField<'a, N: Numeric> {
     bar: Option<BarMapping>,
     vertical: bool,
     enabled: bool,
-    step_buttons: bool,
+    step_buttons: Option<bool>,
+    fine_mode: Option<FineMode>,
     height: Option<Prop<kind::Dimension>>,
     min_width: Option<Prop<kind::Dimension>>,
     radii: Option<CornerRadii>,
@@ -226,7 +227,8 @@ impl<'a, N: Numeric> NumberField<'a, N> {
             bar: None,
             vertical: false,
             enabled: true,
-            step_buttons: true,
+            step_buttons: None,
+            fine_mode: None,
             height: None,
             min_width: None,
             radii: None,
@@ -315,10 +317,19 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         self
     }
 
-    /// Shows step buttons on hover (the default) or not.
+    /// Shows step buttons on hover or not. By default, a field showing a bar has none, and
+    /// other fields have them.
     #[must_use]
     pub fn step_buttons(mut self, shown: bool) -> Self {
-        self.step_buttons = shown;
+        self.step_buttons = Some(shown);
+        self
+    }
+
+    /// What the left Shift does to a drag ([`FineMode`]); the right Shift does the other one. By
+    /// default, a field showing a bar counts from the start, and other fields from here.
+    #[must_use]
+    pub fn fine_mode(mut self, mode: FineMode) -> Self {
+        self.fine_mode = Some(mode);
         self
     }
 
@@ -434,6 +445,20 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         self.bar.filter(|_| self.is_bounded())
     }
 
+    /// What the left Shift does to a drag.
+    fn fine_mode_shown(&self) -> FineMode {
+        self.fine_mode.unwrap_or(if self.shown_bar().is_some() {
+            FineMode::FromStart
+        } else {
+            FineMode::FromHere
+        })
+    }
+
+    /// Whether the field has step buttons.
+    fn has_step_buttons(&self) -> bool {
+        self.step_buttons.unwrap_or(self.shown_bar().is_none())
+    }
+
     /// The track of the bar: inside the border, across the whole field. The bar is drawn on
     /// it, a bounded drag runs the range along it, and the pointer comes back on it.
     fn track(&self, ui: &Ui<'_>, rect: Rect) -> Rect {
@@ -457,7 +482,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
             step: self.step_value(),
             step_distance: style.step_distance,
             fine: f64::from(style.fine_factor),
-            decimals: self.decimals_shown(),
+            coarse: f64::from(style.coarse_factor),
             min: self.min,
             max: self.max,
             bar: self.shown_bar().map(|mapping| (mapping, length)),
@@ -479,7 +504,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         } else {
             rect.width()
         };
-        if !self.step_buttons || side <= 0.0 || length < 3.0 * side {
+        if !self.has_step_buttons() || side <= 0.0 || length < 3.0 * side {
             return (rect, None);
         }
         if self.vertical {
