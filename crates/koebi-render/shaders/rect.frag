@@ -3,7 +3,8 @@
 // from signed distance fields.
 //
 // Coverage uses a 1-pixel ramp centered on the edge: pixel-aligned edges stay crisp and
-// curved or fractional edges are smooth. Output is premultiplied for ONE / ONE_MINUS_SRC_ALPHA
+// curved or fractional edges are smooth. The vertex shader puts straight edges on pixel edges
+// unless a rectangle asks for exact ones. Output is premultiplied for ONE / ONE_MINUS_SRC_ALPHA
 // blending.
 
 layout(location = 0) in vec2 v_local;
@@ -12,6 +13,7 @@ layout(location = 2) flat in vec4 v_fill;
 layout(location = 3) flat in vec4 v_border_color;
 layout(location = 4) flat in vec4 v_radii;    // top-left, top-right, bottom-right, bottom-left
 layout(location = 5) flat in vec4 v_borders;  // top, right, bottom, left
+layout(location = 6) flat in float v_inverted;
 
 layout(location = 0) out vec4 out_color;
 
@@ -30,6 +32,11 @@ float sd_rounded_box(vec2 p, vec2 half_size, vec4 radii) {
 
 void main() {
     float dist = sd_rounded_box(v_local, v_half_size, v_radii);
+    if (v_inverted > 0.5) {
+        // Filled outside its shape: the outsides of its rounded corners.
+        out_color = v_fill * clamp(0.5 + dist, 0.0, 1.0);
+        return;
+    }
     float coverage = clamp(0.5 - dist, 0.0, 1.0);
 
     vec4 color = v_fill;
