@@ -452,6 +452,24 @@ impl Workspace {
         Ok(Some(source))
     }
 
+    /// Takes `editor` out of the workspace, to another window. Its area closes when left empty;
+    /// when it cannot close (it is the last one), nothing changes.
+    ///
+    /// Returns the closed area, if any.
+    ///
+    /// # Errors
+    ///
+    /// [`WorkspaceError::UnknownEditor`], or the layout's errors when the area cannot close.
+    pub fn remove_editor(&mut self, editor: EditorId) -> Result<Option<AreaId>> {
+        let source = self
+            .area_of(editor)
+            .ok_or(WorkspaceError::UnknownEditor(editor))?;
+        let mut next = self.clone();
+        let closed = next.take_editor(editor, source)?;
+        *self = next;
+        Ok(closed)
+    }
+
     /// Checks the layout and that each area has a non-empty stack, each editor appearing once.
     ///
     /// # Errors

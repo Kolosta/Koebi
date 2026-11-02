@@ -310,12 +310,37 @@ pub struct WorkspaceView {
     /// The editor type menu open, and the editor it belongs to.
     type_menu: MenuState,
     type_menu_editor: Option<EditorId>,
+    /// The window: a docking drag released outside it takes its editor out.
+    window: Option<Rect>,
+    /// The editor taken out, for the application to place.
+    detached: Option<EditorId>,
 }
 
 impl WorkspaceView {
     /// Nothing hovered, no operation.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Tells where the window lies, around the workspace and its bars: a docking drag released
+    /// outside it takes its editor out ([`Self::take_detached`]). Without it, nothing happens
+    /// there.
+    pub fn set_window(&mut self, window: Rect) {
+        self.window = Some(window);
+    }
+
+    /// The editor a docking drag took out of the window, if one did since the last call: the
+    /// application gives it another window. It is still in the workspace.
+    pub fn take_detached(&mut self) -> Option<EditorId> {
+        self.detached.take()
+    }
+
+    /// The area at `point`, in the last frame.
+    pub fn area_at(&self, point: Vec2) -> Option<AreaId> {
+        self.parts
+            .iter()
+            .find(|part| part.panel.contains(point))
+            .map(|part| part.area)
     }
 
     /// `true` while a resize, split or join is in progress.

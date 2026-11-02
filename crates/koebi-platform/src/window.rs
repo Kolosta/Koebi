@@ -13,12 +13,12 @@ use sdl3_sys::video::SDL_ShowWindowSystemMenu;
 use sdl3_sys::video::SDL_WINDOW_BORDERLESS;
 use sdl3_sys::video::{
     SDL_CreateWindow, SDL_DestroyWindow, SDL_GetWindowDisplayScale, SDL_GetWindowFlags,
-    SDL_GetWindowFromID, SDL_GetWindowID, SDL_GetWindowPixelDensity, SDL_GetWindowSize,
-    SDL_GetWindowSizeInPixels, SDL_MaximizeWindow, SDL_MinimizeWindow, SDL_RaiseWindow,
-    SDL_RestoreWindow, SDL_SetWindowFullscreen, SDL_SetWindowHitTest, SDL_SetWindowMinimumSize,
-    SDL_WINDOW_FULLSCREEN, SDL_WINDOW_HIGH_PIXEL_DENSITY, SDL_WINDOW_MAXIMIZED,
-    SDL_WINDOW_MINIMIZED, SDL_WINDOW_RESIZABLE, SDL_WINDOW_VULKAN, SDL_Window, SDL_WindowFlags,
-    SDL_WindowID,
+    SDL_GetWindowFromID, SDL_GetWindowID, SDL_GetWindowPixelDensity, SDL_GetWindowPosition,
+    SDL_GetWindowSize, SDL_GetWindowSizeInPixels, SDL_MaximizeWindow, SDL_MinimizeWindow,
+    SDL_RaiseWindow, SDL_RestoreWindow, SDL_SetWindowFullscreen, SDL_SetWindowHitTest,
+    SDL_SetWindowMinimumSize, SDL_SetWindowPosition, SDL_WINDOW_FULLSCREEN,
+    SDL_WINDOW_HIGH_PIXEL_DENSITY, SDL_WINDOW_MAXIMIZED, SDL_WINDOW_MINIMIZED,
+    SDL_WINDOW_RESIZABLE, SDL_WINDOW_VULKAN, SDL_Window, SDL_WindowFlags, SDL_WindowID,
 };
 use sdl3_sys::vulkan::SDL_Vulkan_CreateSurface;
 
@@ -281,7 +281,6 @@ impl Window {
         #[cfg(target_os = "linux")]
         {
             use sdl3_sys::mouse::SDL_GetGlobalMouseState;
-            use sdl3_sys::video::SDL_GetWindowPosition;
             let raw = self.raw();
             let state = self.state();
             let Some(hit) = &mut self.hit else {
@@ -356,6 +355,52 @@ impl Window {
         // SAFETY: live window, on the main thread.
         if !unsafe { SDL_SetWindowFullscreen(self.raw(), fullscreen) } {
             koebi_core::warn!("cannot change fullscreen: {}", crate::error::sdl_error());
+        }
+    }
+
+    /// Where the window lies among the displays, and its size, in global coordinates.
+    fn global_rect(&self) -> (Vec2, Vec2) {
+        let (mut x, mut y, mut width, mut height) = (0, 0, 0, 0);
+        // SAFETY: live window, on the main thread; the out-pointers reference locals.
+        unsafe {
+            SDL_GetWindowPosition(self.raw(), &raw mut x, &raw mut y);
+            SDL_GetWindowSize(self.raw(), &raw mut width, &raw mut height);
+        }
+        (
+            Vec2::new(x as f32, y as f32),
+            Vec2::new(width as f32, height as f32),
+        )
+    }
+
+    /// `true` when the window shows at `point`, in the global coordinates of
+    /// [`crate::AppContext::global_pointer`].
+    pub fn contains_global(&self, point: Vec2) -> bool {
+        let (origin, size) = self.global_rect();
+        let inside = point - origin;
+        self.state() != WindowState::Minimized
+            && inside.x >= 0.0
+            && inside.y >= 0.0
+            && inside.x < size.x
+            && inside.y < size.y
+    }
+
+    /// `point`, in global coordinates, in the logical pixels of the window.
+    pub fn global_to_logical(&self, point: Vec2) -> Vec2 {
+        (point - self.global_rect().0) * logical_per_window_coordinate(self.id)
+    }
+
+    /// Moves the window so that the middle of its top lies at `point`, in global coordinates: a
+    /// window opened by a drag, under the pointer.
+    pub fn center_top_at(&self, point: Vec2) {
+        let (_, size) = self.global_rect();
+        #[allow(
+            clippy::cast_possible_truncation,
+            reason = "global coordinates, far inside the i32 range"
+        )]
+        let (x, y) = ((point.x - size.x * 0.5) as i32, point.y as i32);
+        // SAFETY: live window, on the main thread.
+        if !unsafe { SDL_SetWindowPosition(self.raw(), x, y) } {
+            koebi_core::debug!("cannot move the window: {}", crate::error::sdl_error());
         }
     }
 

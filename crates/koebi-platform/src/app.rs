@@ -22,7 +22,9 @@ use sdl3_sys::keyboard::{
     SDL_GetModState, SDL_SetTextInputArea, SDL_StartTextInput, SDL_StopTextInput,
 };
 use sdl3_sys::main::{SDL_EnterAppMainCallbacks, SDL_RunApp};
-use sdl3_sys::mouse::{SDL_SetWindowRelativeMouseMode, SDL_WarpMouseInWindow};
+use sdl3_sys::mouse::{
+    SDL_GetGlobalMouseState, SDL_SetWindowRelativeMouseMode, SDL_WarpMouseInWindow,
+};
 use sdl3_sys::rect::SDL_Rect;
 use sdl3_sys::stdinc::SDL_free;
 
@@ -225,6 +227,14 @@ impl AppContext {
         } else {
             Err(PlatformError::from_sdl("SDL_SetWindowRelativeMouseMode"))
         }
+    }
+
+    /// Where the pointer is among the displays, in global coordinates: it may lie in no window.
+    pub fn global_pointer(&self) -> Vec2 {
+        let (mut x, mut y) = (0.0, 0.0);
+        // SAFETY: on the main thread; the out-pointers reference locals.
+        unsafe { SDL_GetGlobalMouseState(&raw mut x, &raw mut y) };
+        Vec2::new(x, y)
     }
 
     /// Moves the pointer to `position`, in logical pixels, in `window`.

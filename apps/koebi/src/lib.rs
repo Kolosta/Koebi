@@ -17,11 +17,14 @@ mod design_options;
 mod editors;
 mod frame_times;
 mod gallery;
+mod gpu;
+mod interface;
 mod messages;
 mod options;
 mod overlay;
 mod preferences;
 mod saved;
+mod window;
 
 pub use koebi_platform::exit_code;
 pub use options::{Options, ParseError};

@@ -288,6 +288,60 @@ fn a_right_click_cancels_docking_and_reaches_nothing_else() {
 }
 
 #[test]
+fn a_drop_outside_the_window_takes_the_editor_out() {
+    let mut harness = Harness::halves();
+    harness.view.set_window(window());
+    // The editor of the bar that is held.
+    let editor = harness.shown()[0];
+    harness.hold_top_bar(RIGHT_TOP_BAR);
+    let outside = Vec2::new(1200.0, 300.0);
+    harness.input.pointer_moved(outside);
+    harness.frame();
+    assert_eq!(harness.view.take_detached(), None);
+    harness.input.primary_button(false, outside);
+    harness.frame();
+    assert_eq!(harness.view.take_detached(), Some(editor));
+    assert_eq!(harness.view.take_detached(), None);
+    // It is up to the application to move it.
+    assert_eq!(harness.shown().len(), 2);
+}
+
+#[test]
+fn a_drop_inside_the_window_takes_no_editor_out() {
+    let mut harness = Harness::halves();
+    harness.view.set_window(window());
+    harness.hold_top_bar(RIGHT_TOP_BAR);
+    let inside = Vec2::new(200.0, 300.0);
+    harness.input.pointer_moved(inside);
+    harness.frame();
+    harness.input.primary_button(false, inside);
+    harness.frame();
+    assert_eq!(harness.view.take_detached(), None);
+}
+
+#[test]
+fn without_a_window_a_drop_outside_does_nothing() {
+    let mut harness = Harness::halves();
+    harness.hold_top_bar(RIGHT_TOP_BAR);
+    let outside = Vec2::new(1200.0, 300.0);
+    harness.input.pointer_moved(outside);
+    harness.frame();
+    harness.input.primary_button(false, outside);
+    harness.frame();
+    assert_eq!(harness.view.take_detached(), None);
+}
+
+#[test]
+fn the_area_under_a_point_is_found_from_the_last_frame() {
+    let mut harness = Harness::halves();
+    harness.frame();
+    let ids = harness.area_ids();
+    assert_eq!(harness.view.area_at(Vec2::new(100.0, 300.0)), Some(ids[0]));
+    assert_eq!(harness.view.area_at(Vec2::new(600.0, 300.0)), Some(ids[1]));
+    assert_eq!(harness.view.area_at(Vec2::new(2000.0, 300.0)), None);
+}
+
+#[test]
 fn dragging_a_tab_along_the_bar_reorders_it() {
     let mut harness = Harness::halves();
     let right = harness.area_ids()[1];

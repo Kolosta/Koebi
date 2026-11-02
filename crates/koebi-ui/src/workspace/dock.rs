@@ -334,6 +334,8 @@ impl Ui<'_> {
         if self.input().released() {
             if let Some(target) = view.dock_target {
                 apply(workspace, editor, from, target, frame, style);
+            } else if view.window.is_some_and(|window| !window.contains(pointer)) {
+                view.detached = Some(editor);
             }
             view.operation = None;
             view.dock_target = None;

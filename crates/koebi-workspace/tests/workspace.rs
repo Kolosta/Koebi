@@ -91,6 +91,29 @@ fn docking_into_tabs_moves_the_editor_and_closes_an_emptied_area() {
 }
 
 #[test]
+fn an_editor_leaves_for_another_window_and_its_empty_area_closes() {
+    let (mut workspace, _, right, [first, second, third]) = halves_with_tabs();
+    let before = workspace.layout().len();
+    // Tabs among others: their area stays.
+    assert_eq!(workspace.remove_editor(second), Ok(None));
+    assert_eq!(workspace.remove_editor(first), Ok(None));
+    assert_eq!(workspace.layout().len(), before);
+    assert_eq!(workspace.area_of(second), None);
+    workspace.check().unwrap();
+    // The last tab of an area: it closes.
+    assert_eq!(workspace.remove_editor(third), Ok(Some(right)));
+    assert_eq!(workspace.layout().len(), before - 1);
+    workspace.check().unwrap();
+    // The last editor of all stays: a window is never empty.
+    let last = workspace.editors().next().unwrap();
+    let copy = workspace.clone();
+    assert!(workspace.remove_editor(last).is_err());
+    assert_eq!(workspace, copy);
+    // An editor of no area.
+    assert!(workspace.remove_editor(EditorId::from_saved(99)).is_err());
+}
+
+#[test]
 fn docking_at_a_side_splits_the_target_in_half() {
     let (mut workspace, left, right, [a, b, _]) = halves_with_tabs();
     // Docking above the left area: the left area's editors keep the bottom half.

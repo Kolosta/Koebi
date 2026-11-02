@@ -416,6 +416,20 @@ fn to_extent(width: i32, height: i32) -> Extent {
 }
 
 impl Event {
+    /// The window the event concerns; `None` for events of the whole application.
+    pub fn window(&self) -> Option<WindowId> {
+        match *self {
+            Self::Window { window, .. }
+            | Self::Key { window, .. }
+            | Self::MouseMotion { window, .. }
+            | Self::MouseButton { window, .. }
+            | Self::MouseWheel { window, .. }
+            | Self::TextInput { window, .. }
+            | Self::Pinch { window, .. } => Some(window),
+            _ => None,
+        }
+    }
+
     /// The window of a pointer event that carries a position.
     pub(crate) fn pointer_window(&self) -> Option<WindowId> {
         match *self {
@@ -625,6 +639,26 @@ mod tests {
     fn blank() -> SDL_Event {
         // SAFETY: `SDL_Event` is a C union of plain data for which all-zero bytes are valid.
         unsafe { core::mem::zeroed() }
+    }
+
+    #[test]
+    fn events_tell_their_window() {
+        let window = WindowId(4);
+        let key = Event::Key {
+            window,
+            key: Key::A,
+            scancode: 4,
+            down: true,
+            repeat: false,
+            modifiers: Modifiers::NONE,
+        };
+        assert_eq!(key.window(), Some(window));
+        let closing = Event::Window {
+            window,
+            event: WindowEvent::CloseRequested,
+        };
+        assert_eq!(closing.window(), Some(window));
+        assert_eq!(Event::Quit.window(), None);
     }
 
     #[test]
