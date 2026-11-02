@@ -13,6 +13,7 @@ the system keeps its behaviours: see [ADR 0019](../adr/0019-window-chrome.md).
 | Move from the bar | system | window manager | compositor | system |
 | Snap to screen edges, drag to the top | system | window manager | compositor | system |
 | Drag from maximized restores under the pointer | system | window manager | compositor | none: no such state |
+| Snap layouts over the maximize button | system, on Windows 11 | none | none | none |
 | Double click on the bar | system | counted by Koebi | **not available** | system setting, read by Koebi |
 | Right click on the bar | system menu | window manager's menu | compositor's menu | none |
 | Resize from edges and corners | system | window manager | compositor | system |

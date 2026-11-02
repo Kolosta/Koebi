@@ -18,6 +18,8 @@ udid = "udid"
 lod = "lod"
 # TrueType "index to location" table.
 loca = "loca"
+# Win32 flags of `TrackMouseEvent` (`TME_LEAVE`).
+tme = "tme"
 
 [default.extend-identifiers]
 PNGs = "PNGs"

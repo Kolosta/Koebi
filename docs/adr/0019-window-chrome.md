@@ -51,4 +51,8 @@ does the rest.
   unverified until someone runs it on a Mac. It calls AppKit through the Objective-C runtime, which
   adds no dependency.
 - The maximize button of Windows 11 shows its snap layouts only when the hit test answers
-  `HTMAXBUTTON`, which SDL cannot answer: it needs the window procedure subclassed.
+  `HTMAXBUTTON`, which SDL cannot answer: `win32.rs` subclasses the window procedure to answer it.
+  The system then reports the pointer over the button as non-client messages, so that the
+  application shows the button's state from what `Window::maximize_button` says, and the release
+  sends the system's own command. Windows 10 goes the same way, without the layouts: it is where
+  this path can be tried on the maintainer's machine; the layouts themselves are unverified.

@@ -24,7 +24,7 @@ use sdl3_sys::vulkan::SDL_Vulkan_CreateSurface;
 
 #[cfg(target_os = "linux")]
 use crate::chrome::Hit;
-use crate::chrome::{self, ChromeInsets, HitData, Moves, WindowRegions};
+use crate::chrome::{self, ChromeInsets, HitData, MaximizeButtonState, Moves, WindowRegions};
 use crate::error::PlatformError;
 
 /// Identifies a window in [`crate::Event`]s.
@@ -182,11 +182,24 @@ impl Window {
         if let Some(hwnd) = self.hwnd() {
             crate::win32::keep_shadow(hwnd);
         }
-        let data = NonNull::from(Box::leak(Box::new(data)));
+        #[cfg(windows)]
+        {
+            data.sdl_window = Some(self.raw);
+        }
+        #[cfg_attr(
+            not(windows),
+            allow(unused_mut, reason = "only Windows has more to set")
+        )]
+        let mut data = NonNull::from(Box::leak(Box::new(data)));
         // SAFETY: live window, on the main thread; `Drop` frees `data` after the window.
         if unsafe { SDL_SetWindowHitTest(self.raw(), Some(chrome::hit_test), data.as_ptr().cast()) }
         {
             self.hit = Some(data);
+            #[cfg(windows)]
+            if let Some(hwnd) = self.hwnd() {
+                // SAFETY: owned by this window, which removes the subclass before freeing it.
+                crate::win32::subclass(hwnd, unsafe { data.as_mut() });
+            }
         } else {
             koebi_core::warn!(
                 "the window cannot have custom chrome: {}",
@@ -237,6 +250,24 @@ impl Window {
             // thread, and none happens while this reference lives.
             unsafe { hit.as_mut() }.regions.set(regions);
         }
+    }
+
+    /// What the system reports of the pointer on the maximize button: the application shows it.
+    #[cfg_attr(
+        not(windows),
+        allow(clippy::unused_self, reason = "only Windows reports it")
+    )]
+    pub fn maximize_button(&self) -> MaximizeButtonState {
+        #[cfg(windows)]
+        if let Some(hit) = self.hit {
+            // SAFETY: as in `set_regions`.
+            let button = unsafe { hit.as_ref() }.maximize_button;
+            return MaximizeButtonState {
+                hovered: button.hovered,
+                pressed: button.pressed,
+            };
+        }
+        MaximizeButtonState::default()
     }
 
     /// What the system's own title bar takes from the application's.
@@ -601,6 +632,10 @@ impl Drop for Window {
         // SAFETY: we own the window and destroy it exactly once. Its hit test goes with it,
         // before the data it reads, which came from `Box::leak` in `take_chrome`.
         unsafe {
+            #[cfg(windows)]
+            if let (Some(hwnd), Some(hit)) = (self.hwnd(), self.hit) {
+                crate::win32::unsubclass(hwnd, hit.as_ref());
+            }
             SDL_DestroyWindow(self.raw.as_ptr());
             if let Some(hit) = self.hit {
                 drop(Box::from_raw(hit.as_ptr()));

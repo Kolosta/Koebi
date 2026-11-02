@@ -126,6 +126,8 @@ pub struct AppBarResponse<R> {
     /// The widget of the bar's background: the region the window moves from, in the frame's
     /// regions, under what lies over it.
     pub drag: WidgetId,
+    /// The widget of the maximize button, and where it lies: the platform may have to know.
+    pub maximize: Option<(WidgetId, Rect)>,
     /// Where the secondary button went down on the bar's background, where the platform leaves
     /// it to the application: open the window's system menu there.
     pub system_menu: Option<Vec2>,
@@ -139,6 +141,7 @@ pub struct AppBar<'a> {
     filled: bool,
     buttons: bool,
     leading: f32,
+    maximize_state: (bool, bool),
 }
 
 /// The widget keys of the bar's parts.
@@ -153,6 +156,7 @@ impl<'a> AppBar<'a> {
             filled: false,
             buttons: true,
             leading: 0.0,
+            maximize_state: (false, false),
         }
     }
 
@@ -168,6 +172,14 @@ impl<'a> AppBar<'a> {
     #[must_use]
     pub const fn window_buttons(mut self, shown: bool) -> Self {
         self.buttons = shown;
+        self
+    }
+
+    /// Shows the maximize button hovered or pressed, as the system reports it where the pointer
+    /// over it does not reach the application (Windows, for its snap layouts).
+    #[must_use]
+    pub const fn maximize_state(mut self, hovered: bool, pressed: bool) -> Self {
+        self.maximize_state = (hovered, pressed);
         self
     }
 
@@ -198,6 +210,7 @@ impl<'a> AppBar<'a> {
         });
         let mut end = rect.max.x;
         let mut command = None;
+        let mut maximize = None;
         if self.buttons {
             let glyphs = [
                 (WindowGlyph::Close, WindowCommand::Close),
@@ -217,7 +230,14 @@ impl<'a> AppBar<'a> {
                     Vec2::new(end, rect.max.y),
                 );
                 end = button.min.x;
-                if Self::window_button(ui, self.id.with(key), button, glyph).clicked {
+                let id = self.id.with(key);
+                let reported = if asked == WindowCommand::ToggleMaximize {
+                    maximize = Some((id, button));
+                    self.maximize_state
+                } else {
+                    (false, false)
+                };
+                if Self::window_button(ui, id, button, glyph, reported).clicked {
                     command = Some(asked);
                 }
             }
@@ -234,6 +254,7 @@ impl<'a> AppBar<'a> {
             items: result,
             command,
             drag,
+            maximize,
             system_menu,
         }
     }
@@ -251,16 +272,23 @@ impl<'a> AppBar<'a> {
     }
 
     /// A window button: it acts when released over itself, as the system's do.
-    fn window_button(ui: &mut Ui<'_>, id: WidgetId, rect: Rect, glyph: WindowGlyph) -> Response {
+    fn window_button(
+        ui: &mut Ui<'_>,
+        id: WidgetId,
+        rect: Rect,
+        glyph: WindowGlyph,
+        (hovered, pressed): (bool, bool),
+    ) -> Response {
         let style = ui.styles().app_bar;
         let response = ui.interact(id, rect);
-        if response.hovered || response.held {
+        let hovered = hovered || response.hovered;
+        if hovered || response.held {
             let hover = if glyph == WindowGlyph::Close {
                 style.close_hover
             } else {
                 style.button_hover
             };
-            let background = if response.held && response.hovered {
+            let background = if pressed || (response.held && response.hovered) {
                 shade(hover, style.pressed_lightness)
             } else {
                 hover
@@ -431,6 +459,24 @@ mod tests {
         harness.frame(app_bar());
         harness.input.primary_button(false, Vec2::new(300.0, 100.0));
         assert_eq!(harness.frame(app_bar()).0.command, None);
+    }
+
+    #[test]
+    fn the_maximize_button_shows_what_the_system_reports() {
+        let mut harness = Harness::new();
+        let (plain, _) = harness.frame(app_bar());
+        let (id, rect) = plain.maximize.expect("a maximize button");
+        assert!(rect.contains(harness.button(1.0)));
+        assert_ne!(id, plain.drag);
+        // The pointer lies elsewhere: only the report can show it hovered, with one more rectangle.
+        let (_, idle) = harness.frame(app_bar());
+        let (_, hovered) = harness.frame(app_bar().maximize_state(true, false));
+        assert_eq!(hovered.rect_count(), idle.rect_count() + 1);
+        // Nothing to report without the button.
+        assert_eq!(
+            harness.frame(app_bar().window_buttons(false)).0.maximize,
+            None
+        );
     }
 
     #[test]
