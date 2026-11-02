@@ -1,13 +1,13 @@
-# Dependency updates, always proposed to develop (gitflow). Any new crate also has to pass the
-# cargo-deny allow-list, so Dependabot can never silently grow the dependency graph.
+# Version updates, once a month, always proposed to develop (gitflow). Security updates do not
+# wait for this schedule. Any new crate also has to pass the cargo-deny allow-list, so Dependabot
+# can never silently grow the dependency graph.
 version: 2
 updates:
   - package-ecosystem: cargo
     directory: /
     target-branch: develop
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
     commit-message:
       prefix: "build(deps)"
     labels: ["dependencies"]
@@ -23,8 +23,7 @@ updates:
       - /.github/actions/setup-linux-deps
     target-branch: develop
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
     commit-message:
       prefix: "ci(deps)"
     labels: ["dependencies", "area: ci"]
@@ -40,3 +39,8 @@ updates:
     commit-message:
       prefix: "build(deps)"
     labels: ["dependencies", "platform: android"]
+    # The Android Gradle Plugin and the Gradle wrapper depend on each other's versions: apart,
+    # neither passes across a major version.
+    groups:
+      android-build:
+        patterns: ["*"]

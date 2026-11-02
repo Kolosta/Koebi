@@ -9,9 +9,8 @@ updated by Dependabot. The Vulkan SDK version comes from `.github/vulkan-sdk-ver
 |---|---|---|
 | `ci.yml` | pushes to `main`/`develop`, pull requests into them | quality gate on every platform |
 | `pr-policy.yml` | pull request events, pushes to `main` | gitflow branch rules, Conventional PR title, release version check |
-| `package.yml` | called by CI, Nightly and Release | release builds of every platform |
+| `package.yml` | called by CI and Release | release builds of every platform |
 | `release.yml` | pushes to `main` | tag, GitHub Release, back-merge pull request |
-| `nightly.yml` | every night, manual | security advisories, Miri, fresh packages |
 | `labeler.yml` | pull requests | area labels from changed paths |
 | `claude.yml` | `@claude` mentions (opt-in) | Claude Code answers or implements on GitHub |
 | `claude-code-review.yml` | pull requests (opt-in) | automated Claude Code review |

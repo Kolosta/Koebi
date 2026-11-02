@@ -135,4 +135,5 @@ Vulkan SDK:
 
 Mesa for Windows CI (lavapipe) is pinned by the `mesa-version` input of
 `.github/actions/setup-vulkan`, and MoltenVK for iOS by `.github/moltenvk-version`. Dependabot
-proposes updates for Cargo, GitHub Actions and Gradle every week.
+proposes updates for Cargo, GitHub Actions and Gradle once a month, and security updates as soon
+as an advisory appears.

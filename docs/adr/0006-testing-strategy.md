@@ -1,6 +1,6 @@
 # 0006. Testing strategy: five levels, software GPUs in CI
 
-- Status: Accepted
+- Status: Accepted, Miri dropped on 2026-11-02 (see below)
 - Date: 2026-10-24
 - Deciders: @Kolosta
 
@@ -38,6 +38,10 @@ GPU environment:
 
 Clean-code checks run beside the tests: rustfmt, clippy pedantic with `-D warnings`, rustdoc
 with `-D warnings`, cargo-deny, typos, SPIR-V freshness, and Miri nightly on `koebi-core`.
+
+Miri and the nightly workflow were dropped on 2026-11-02. Miri finds undefined behaviour in
+`unsafe` code: `koebi-core` has none on Linux, and the crates that do (`koebi-gpu`,
+`koebi-platform`) call foreign code Miri cannot run.
 
 ## Consequences
 

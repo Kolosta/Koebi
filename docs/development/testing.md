@@ -12,7 +12,7 @@ Pick the cheapest level that proves the behaviour.
 | End-to-end | `apps/koebi/tests/e2e.rs` | the real binary opens a window, renders, exits cleanly |
 
 Beside tests, CI checks formatting, clippy, rustdoc, dependencies, spelling and SPIR-V
-freshness, and runs Miri nightly on `koebi-core`.
+freshness.
 
 ## Running tests
 
