@@ -118,6 +118,8 @@ pub struct WorkspaceStyle {
     pub hit: f32,
     /// Side of the corners that split and join.
     pub corner: f32,
+    /// Height of the top corners.
+    pub corner_top: f32,
     /// Smallest width and height of an area.
     pub min_size: f32,
     /// How far a corner moves before its drag counts.
@@ -134,14 +136,18 @@ pub struct WorkspaceStyle {
     pub top_bar_height: f32,
     /// Space between the top bar's sides and its content.
     pub top_bar_padding: f32,
+    /// Space between the top bar's items.
+    pub top_bar_gap: f32,
     /// Color of the editor's title in the top bar.
     pub title: Color,
     /// Height of the tab bar of an area holding several editors.
     pub tab_bar_height: f32,
     /// Background of the tab bar.
     pub tab_bar_background: Color,
-    /// Space between tabs, and above them.
+    /// Space between tabs, and before the first one.
     pub tab_gap: f32,
+    /// Space above the tabs and around their labels, one interface unit high.
+    pub tab_bar_padding: f32,
     /// Space between a tab's sides and its title.
     pub tab_padding: f32,
     /// Background of a tab at rest.
@@ -200,6 +206,7 @@ impl WorkspaceStyle {
             gap: tokens.get(component::ZONE_SEPARATOR_SIZE_DEFAULT),
             hit: tokens.get(component::ZONE_SEPARATOR_HIT_SIZE_DEFAULT),
             corner: tokens.get(component::ZONE_CORNER_SIZE_DEFAULT),
+            corner_top: tokens.get(component::ZONE_CORNER_TOP_HEIGHT_DEFAULT),
             min_size: tokens.get(component::ZONE_MIN_SIZE_DEFAULT),
             drag_threshold: tokens.get(semantic::INPUT_DRAG_THRESHOLD),
             band: tokens.get(component::ZONE_SEPARATOR_COLOR_DEFAULT),
@@ -208,11 +215,13 @@ impl WorkspaceStyle {
             top_bar: tokens.get(component::EDITOR_TOP_BAR_BACKGROUND_COLOR_DEFAULT),
             top_bar_height: tokens.get(semantic::SIZE_CONTROL_HEIGHT) + 2.0 * padding,
             top_bar_padding: padding,
+            top_bar_gap: tokens.get(component::EDITOR_TOP_BAR_GAP_DEFAULT),
             title: tokens.get(component::ZONE_TAB_LABEL_COLOR_ACTIVE),
             tab_bar_height: tokens.get(semantic::SIZE_CONTROL_HEIGHT)
                 + 2.0 * tokens.get(component::ZONE_TAB_PADDING_VERTICAL_DEFAULT),
             tab_bar_background: tokens.get(component::ZONE_TAB_BAR_BACKGROUND_COLOR_DEFAULT),
             tab_gap: tokens.get(component::ZONE_TAB_GAP_DEFAULT),
+            tab_bar_padding: tokens.get(component::ZONE_TAB_PADDING_VERTICAL_DEFAULT),
             tab_padding: tokens.get(component::ZONE_TAB_PADDING_HORIZONTAL_DEFAULT),
             tab_background: tokens.get(component::ZONE_TAB_BACKGROUND_COLOR_DEFAULT),
             tab_hover: tokens.get(component::ZONE_TAB_BACKGROUND_COLOR_HOVER),

@@ -116,7 +116,7 @@ impl Ui<'_> {
             if panel.width() < style.corner * 3.0 || panel.height() < style.corner * 3.0 {
                 continue;
             }
-            let squares = corners(panel, style.corner, style.top_bar_padding);
+            let squares = corners(panel, style.corner, style.corner_top);
             for (corner, square) in (0_u8..).zip(squares) {
                 let dragging = matches!(
                     view.operation,

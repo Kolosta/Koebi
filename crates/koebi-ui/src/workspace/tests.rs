@@ -147,9 +147,9 @@ impl Harness {
             menu.item_height,
             menu.item_height,
         ];
-        let top = GUTTER_AT.y + menu.border_width + menu.padding_vertical;
-        let y = top + rows[..index].iter().sum::<f32>() + rows[index] * 0.5;
-        let item = Vec2::new(GUTTER_AT.x + 20.0, y);
+        // It opens with the pointer over its first item.
+        let y = GUTTER_AT.y - rows[0] * 0.5 + rows[..index].iter().sum::<f32>() + rows[index] * 0.5;
+        let item = Vec2::new(GUTTER_AT.x, y);
         self.input.primary_button(true, item);
         self.input.primary_button(false, item);
         self.frame();
@@ -900,10 +900,7 @@ fn the_editor_type_dropdown_changes_the_kind() {
     // The second item of the menu below the control.
     let menu = harness.styles.menu;
     let top = 4.0 + style.top_bar_height - style.top_bar_padding + menu.border_width;
-    let second = Vec2::new(
-        control.x,
-        top + menu.padding_vertical + menu.item_height * 1.5,
-    );
+    let second = Vec2::new(control.x, top + menu.rows_inset() + menu.item_height * 1.5);
     harness.input.pointer_moved(second);
     harness.frame();
     harness.input.primary_button(true, second);

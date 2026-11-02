@@ -7,7 +7,7 @@ use koebi_core::{Color, Rect, Vec2};
 use koebi_render::{LinePrimitive, RectPrimitive};
 
 use super::state::{Anchor, MAX_DEPTH};
-use super::{MenuItem, MenuMark, MenuState, MenuStyle, at_point};
+use super::{MenuItem, MenuMark, MenuState, MenuStyle, around_pointer, at_point};
 use crate::icon::Icon;
 use crate::text::Align;
 use crate::ui::Ui;
@@ -73,6 +73,29 @@ impl Ui<'_> {
                     side: Side::Right,
                     align: PanelAlign::Start,
                 },
+                (0, Some(Anchor::Pointer(pointer)), _) => {
+                    let item = state.item_under_pointer(level_items);
+                    let (top, height) = row_span(style, level_items, item);
+                    let middle = style.border_width + style.rows_inset() + top + height * 0.5;
+                    if state.fresh {
+                        // Already scrolled to it in a long menu, highlighted, and not taken
+                        // over by the pointer that has not moved.
+                        state.levels[0].scroll =
+                            (middle - size.y * 0.5).clamp(0.0, (content - size.y).max(0.0));
+                        state.levels[0].highlighted = Some(item);
+                        state.pointed = Some((0, item));
+                    }
+                    let origin = pointer
+                        - Vec2::new(
+                            size.x * style.open_pointer_share,
+                            middle - state.levels[0].scroll,
+                        );
+                    Placed {
+                        rect: around_pointer(origin, size, bounds),
+                        side: Side::Right,
+                        align: PanelAlign::Start,
+                    }
+                }
                 (0, Some(Anchor::Control(control, placement)), _) => {
                     if placement.side.is_vertical() {
                         size.x = size.x.max(control.width());
@@ -82,7 +105,7 @@ impl Ui<'_> {
                     placed
                 }
                 (_, _, Some((row, panel, side))) => {
-                    let inset = style.border_width + style.padding_vertical;
+                    let inset = style.border_width + style.rows_inset();
                     let control = Rect::from_min_max(
                         Vec2::new(panel.min.x, row.min.y - inset),
                         Vec2::new(panel.max.x, row.max.y + inset),
@@ -98,12 +121,13 @@ impl Ui<'_> {
                 && let Some(highlighted) = current.highlighted
             {
                 let (top, height) = row_span(style, level_items, highlighted);
-                let top = style.padding_vertical + top;
+                let inset = style.rows_inset();
+                let top = inset + top;
                 // With the padding around it: the first and last items scroll to the ends.
                 current.scroll = current
                     .scroll
-                    .min(top - style.padding_vertical)
-                    .max(top + height + style.padding_vertical - visible);
+                    .min(top - inset)
+                    .max(top + height + inset - visible);
             }
             current.scroll = current.scroll.clamp(0.0, overflow);
             *frame = Frame {
@@ -114,7 +138,7 @@ impl Ui<'_> {
             parent = (level + 1 < depth).then(|| {
                 let child = state.levels[level + 1].parent;
                 let (offset, height) = row_span(style, level_items, child);
-                let top = placed.rect.min.y + style.border_width + style.padding_vertical
+                let top = placed.rect.min.y + style.border_width + style.rows_inset()
                     - state.levels[level].scroll
                     + offset;
                 let row = Rect::from_min_max(
@@ -202,10 +226,10 @@ pub(super) fn measure(ui: &mut Ui<'_>, items: &[MenuItem<'_>]) -> Columns {
     } else {
         0.0
     };
-    let inset = style.border_width + style.item_gap + style.item_padding;
+    let inset = style.border_width + style.item_margin + style.item_padding;
     let width = 2.0 * inset + side(columns.mark) + side(columns.icon) + labels + shortcut + arrow;
     let rows: f32 = items.iter().map(|item| row_height(style, item)).sum();
-    let height = rows + 2.0 * (style.border_width + style.padding_vertical);
+    let height = rows + 2.0 * (style.border_width + style.rows_inset());
     columns.size = Vec2::new(width.ceil(), height.ceil());
     columns
 }
@@ -219,10 +243,13 @@ pub(super) enum RowLook {
     Highlighted,
     /// The current choice of a dropdown.
     Selected,
+    /// The current choice of a dropdown, under the pointer or the keyboard.
+    SelectedHighlighted,
 }
 
 /// Draws `item` in `row`, the rectangle of its row inside the panel, shown enabled when
-/// `active`. `toward_left` points the arrow of a submenu left, where it opens.
+/// `active`: its highlight inside the row, leaving gaps between rows and margins at the panel's
+/// sides. `toward_left` points the arrow of a submenu left, where it opens.
 pub(super) fn draw_row(
     ui: &mut Ui<'_>,
     item: &MenuItem<'_>,
@@ -234,12 +261,10 @@ pub(super) fn draw_row(
 ) {
     let styles = ui.styles();
     let style = &styles.menu;
+    let inset = style.item_margin + style.item_padding;
     let text = Rect::from_min_max(
-        Vec2::new(row.min.x + style.item_padding, row.min.y),
-        Vec2::new(
-            (row.max.x - style.item_padding).max(row.min.x + style.item_padding),
-            row.max.y,
-        ),
+        Vec2::new(row.min.x + inset, row.min.y),
+        Vec2::new((row.max.x - inset).max(row.min.x + inset), row.max.y),
     );
     match item {
         MenuItem::Separator => {
@@ -264,12 +289,19 @@ pub(super) fn draw_row(
             let enabled = active;
             let background = match look {
                 RowLook::Highlighted if enabled => Some(style.item_hover),
-                RowLook::Selected => Some(style.item_selected),
+                RowLook::SelectedHighlighted if enabled => Some(style.item_selected_hover),
+                RowLook::Selected | RowLook::SelectedHighlighted => Some(style.item_selected),
                 _ => None,
             };
             if let Some(background) = background {
+                let half_gap = style.item_gap * 0.5;
+                let highlight = Rect::from_min_max(
+                    Vec2::new(row.min.x + style.item_margin, row.min.y + half_gap),
+                    Vec2::new(row.max.x - style.item_margin, row.max.y - half_gap),
+                );
                 ui.scene().push_rect(
-                    &RectPrimitive::new(row, background).with_corner_radius(style.corner_radius),
+                    &RectPrimitive::new(highlight, background)
+                        .with_corner_radius(style.corner_radius),
                 );
             }
             let (label_color, icon_color, hint_color) = if enabled {
@@ -277,6 +309,7 @@ pub(super) fn draw_row(
                     RowLook::Normal => style.label,
                     RowLook::Highlighted => style.label_hover,
                     RowLook::Selected => style.label_selected,
+                    RowLook::SelectedHighlighted => style.label_selected_hover,
                 };
                 (label, style.icon_color, style.shortcut_color)
             } else {

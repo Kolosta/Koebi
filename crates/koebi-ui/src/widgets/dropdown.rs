@@ -19,6 +19,7 @@ use crate::text::Align;
 use crate::ui::Ui;
 use crate::widgets::button::Button;
 use crate::widgets::menu::{MenuChoice, MenuItem, MenuState};
+use crate::widgets::parts::Content;
 use crate::widgets::parts::{ControlState, Placement, Side, States, Tone, ToneColors};
 
 /// Colors and metrics of dropdowns, from the `component.dropdown.*` tokens.
@@ -130,6 +131,7 @@ impl<'a> Dropdown<'a> {
                 .dropdown_look()
                 .align(Align::Start)
                 .trailing_icon(Icon::ChevronDown)
+                .trailing_at_end(true)
                 .menu(state, Placement::BELOW),
             items,
         }
@@ -163,6 +165,19 @@ impl<'a> Dropdown<'a> {
     #[must_use]
     pub fn align(self, align: Align) -> Self {
         self.with(|button| button.align(align))
+    }
+
+    /// Places the chevron at the end of the control (`true`, the default), or right after the
+    /// rest of the content (`false`).
+    #[must_use]
+    pub fn chevron_at_end(self, at_end: bool) -> Self {
+        self.with(|button| button.trailing_at_end(at_end))
+    }
+
+    /// Replaces the whole content, for a control without a chevron or with parts of its own.
+    #[must_use]
+    pub fn content(self, content: Content<'a>) -> Self {
+        self.with(|button| button.content(content))
     }
 
     /// Where the menu opens; [`Placement::RIGHT`] makes a vertical dropdown.

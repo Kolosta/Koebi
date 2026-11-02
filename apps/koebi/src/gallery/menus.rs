@@ -124,7 +124,7 @@ impl Menus {
         if response.secondary_pressed
             && let Some(point) = ui.input().button_pressed_at(PointerButton::Secondary)
         {
-            self.context.open_at(point);
+            self.context.open_at_pointer(point);
         }
         self.context_menu(ui, window);
     }

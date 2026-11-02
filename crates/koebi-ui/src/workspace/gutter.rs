@@ -65,7 +65,7 @@ impl Ui<'_> {
                 && view.operation.is_none()
                 && let Some(point) = self.input().pointer()
             {
-                view.menu.open_at(point);
+                view.menu.open_at_pointer(point);
                 view.menu_gutter = Some(segment);
             }
             if response.pressed

@@ -244,6 +244,12 @@ The base theme is Dark: the token tables define it. The other themes come from t
 
 ## Added after the port
 
+Menus and bars (the interface unit): `component.menu.item.background.color.selected-hover`,
+`component.menu.item.label.color.selected-hover`, `component.menu.item.margin.horizontal`,
+`component.menu.open.pointer-share`, `component.editor-top-bar.gap.default` and
+`component.zone.corner.top-height.default`. `component.editor-top-bar.padding.default` goes from
+6 to 2 pixels at the maintainer's request.
+
 Docking: `component.zone-tab.reveal.delay` (350 ms) and `component.zone-tab.reveal.grace`
 (250 ms), which were constants in the source.
 
