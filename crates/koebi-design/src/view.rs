@@ -10,6 +10,34 @@ use crate::tier::Tier;
 use crate::token::{TextStyle, Token, TokenId, Typography};
 use crate::value::{Definition, Value};
 
+/// The most tokens a resolution chain follows: far more than token tables nest.
+const MAX_CHAIN: usize = 32;
+
+/// What a token of a resolution chain does for the value ([`View::chain`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChainRole {
+    /// It takes its value from the next token.
+    Passes,
+    /// It holds the value.
+    Source,
+    /// It lies past the token holding the value: what that token would refer to without its
+    /// override. It has no effect now.
+    Unused,
+}
+
+/// One token of a resolution chain.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ChainStep {
+    /// The token.
+    pub token: TokenId,
+    /// What it does for the value.
+    pub role: ChainRole,
+    /// Which layer defines it.
+    pub origin: Origin,
+    /// Its value.
+    pub value: Option<Value>,
+}
+
 /// Token values in one theme with a chosen set of layers.
 ///
 /// Created by [`DesignSystem::view`](crate::DesignSystem::view). The active theme with every
@@ -92,6 +120,40 @@ impl<'a> View<'a> {
         let slot = self.graph.slot(self.theme)?;
         let layers = self.layers & self.graph.masks[token.index()];
         Some(self.graph.winning(token, self.theme, slot, layers, None).0)
+    }
+
+    /// Fills `steps` with how `token` gets its value, from `token` itself: the tokens it refers
+    /// to, down to the one holding the value ([`ChainRole::Source`]). When that one holds an
+    /// override where it had a reference, what it referred to follows, as far as the theme's own
+    /// definitions go ([`ChainRole::Unused`]).
+    pub fn chain(&self, token: impl Into<TokenId>, steps: &mut Vec<ChainStep>) {
+        steps.clear();
+        let mut view = *self;
+        let mut role = ChainRole::Passes;
+        let mut next = Some(token.into());
+        while let Some(token) = next {
+            if steps.len() >= MAX_CHAIN || steps.iter().any(|step| step.token == token) {
+                return;
+            }
+            let Some(definition) = view.definition(token) else {
+                return;
+            };
+            let target = definition.alias_target();
+            let holds = target.is_none() && role == ChainRole::Passes;
+            steps.push(ChainStep {
+                token,
+                role: if holds { ChainRole::Source } else { role },
+                origin: view.origin(token),
+                value: view.value(token),
+            });
+            next = target;
+            if holds {
+                // What it was before the user's overrides, which have no effect now.
+                role = ChainRole::Unused;
+                view.layers = view.layers.intersection(Layers::THEME);
+                next = view.definition(token).and_then(Definition::alias_target);
+            }
+        }
     }
 
     /// Which layer gives `token` its definition in this view.

@@ -118,5 +118,5 @@ pub use resolve::{Resolve, Snapshot};
 pub use system::{DesignSystem, Scope};
 pub use theme::{NewTheme, Theme, ThemeId, ThemeOrigin};
 pub use token::{TextStyle, Token, TokenId, Typography};
-pub use view::View;
+pub use view::{ChainRole, ChainStep, View};
 pub use vision::ColorVision;

@@ -3,8 +3,8 @@
 use core::time::Duration;
 
 use koebi_core::Color;
-use koebi_design::value::FontWeight;
-use koebi_design::{DesignSystem, Layers, Origin, ThemeId};
+use koebi_design::value::{FontWeight, Value};
+use koebi_design::{ChainRole, DesignSystem, Layers, Origin, Scope, ThemeId};
 use koebi_tokens::{KOEBI, component, primitive, semantic, themes};
 
 fn design() -> DesignSystem {
@@ -22,7 +22,7 @@ fn hex(rgb: u32) -> Color {
 #[test]
 fn schema_passes_the_run_time_validation() {
     assert_eq!(KOEBI.validate(), Ok(()));
-    assert_eq!(KOEBI.len(), 1831);
+    assert_eq!(KOEBI.len(), 1832);
     assert_eq!(KOEBI.composites().count(), 21);
     let keys: Vec<_> = design().themes().map(|(_, t)| t.key().to_owned()).collect();
     assert_eq!(keys, ["dark", "light", "muted-green", "high-contrast"]);
@@ -63,7 +63,7 @@ fn built_in_themes_stay_inside_every_range() {
                 }
             };
             let number = match &raw {
-                koebi_design::value::Value::Color(color) => Some(f64::from(color.a)),
+                Value::Color(color) => Some(f64::from(color.a)),
                 other => other.as_number(),
             };
             if let Some(number) = number
@@ -345,4 +345,66 @@ fn every_theme_round_trips_through_the_design_tokens_format() {
         values(&design, imported, Layers::THEME),
         values(&design, ThemeId::BASE, Layers::NONE)
     );
+}
+
+#[test]
+fn a_chain_goes_down_to_the_token_holding_the_value() {
+    let design = design();
+    let view = design.view(design.active_theme(), Layers::ALL).unwrap();
+    let mut steps = Vec::new();
+    view.chain(component::NUMBER_FIELD_FILL_COLOR_DEFAULT, &mut steps);
+    assert!(steps.len() >= 3, "{steps:?}");
+    assert_eq!(
+        steps[0].token,
+        component::NUMBER_FIELD_FILL_COLOR_DEFAULT.id()
+    );
+    let (source, passing) = steps.split_last().unwrap();
+    assert_eq!(source.role, ChainRole::Source);
+    assert!(passing.iter().all(|step| step.role == ChainRole::Passes));
+    // Each step shows the value it gives.
+    assert!(steps.iter().all(|step| step.value == steps[0].value));
+}
+
+#[test]
+fn an_override_gives_the_value_and_what_it_replaced_stays_in_the_chain() {
+    let mut design = design();
+    let token = semantic::INPUT_DRAG_THRESHOLD;
+    design.set_value(Scope::Global, token, 9.0).unwrap();
+    let view = design.view(design.active_theme(), Layers::ALL).unwrap();
+    let mut steps = Vec::new();
+    view.chain(token, &mut steps);
+    assert_eq!(steps[0].role, ChainRole::Source);
+    assert_eq!(steps[0].origin, Origin::GlobalOverride);
+    assert_eq!(steps[0].value, Some(Value::Dimension(9.0)));
+    // The token it refers to by default has no effect, and keeps its own value.
+    assert_eq!(steps[1].role, ChainRole::Unused);
+    assert_eq!(steps[1].origin, Origin::Base);
+    assert_ne!(steps[1].value, steps[0].value);
+    assert_eq!(steps.len(), 2);
+}
+
+#[test]
+fn an_override_along_the_way_stops_the_values_there() {
+    let mut design = design();
+    let component = component::NUMBER_FIELD_DRAG_STEP_DISTANCE;
+    let semantic_token = semantic::INPUT_TOOLTIP_DELAY;
+    // A token holding its own value: nothing past it.
+    let view = design.view(design.active_theme(), Layers::ALL).unwrap();
+    let mut steps = Vec::new();
+    view.chain(component, &mut steps);
+    assert_eq!(steps.len(), 1);
+    assert_eq!(steps[0].role, ChainRole::Source);
+    // An alias overridden in the theme: the theme's override is the source.
+    design
+        .set_value(
+            Scope::ActiveTheme,
+            semantic_token,
+            Duration::from_millis(50),
+        )
+        .unwrap();
+    let view = design.view(design.active_theme(), Layers::ALL).unwrap();
+    view.chain(semantic_token, &mut steps);
+    assert_eq!(steps[0].origin, Origin::ThemeOverride);
+    assert_eq!(steps[0].role, ChainRole::Source);
+    assert_eq!(steps[1].role, ChainRole::Unused);
 }

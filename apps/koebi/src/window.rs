@@ -18,8 +18,13 @@ use crate::editors::{Editors, Host};
 use crate::frame_times::FrameTimes;
 use crate::gpu::WindowGpu;
 use crate::interface::Interface;
+use crate::settings::SettingsView;
 
 /// What a window holds.
+#[allow(
+    clippy::large_enum_variant,
+    reason = "one per window, and most hold editors: no gain in boxing them"
+)]
 pub(crate) enum WindowContent {
     /// Areas of editors.
     Workspace {
@@ -27,6 +32,8 @@ pub(crate) enum WindowContent {
         view: WorkspaceView,
         editors: Editors,
     },
+    /// The settings.
+    Settings(Box<SettingsView>),
 }
 
 impl WindowContent {
@@ -51,6 +58,8 @@ pub(crate) struct AppWindow {
     pub(crate) content: WindowContent,
     /// What the bar asked for in the last frame.
     pub(crate) command: Option<AppCommand>,
+    /// The settings shown over the content, on platforms with one window.
+    pub(crate) settings_in_place: Option<Box<SettingsView>>,
     pub(crate) needs_redraw: bool,
     /// The revision of the design system the last frame showed.
     pub(crate) drawn_revision: u64,
@@ -84,6 +93,7 @@ impl AppWindow {
             chrome: AppChrome::default(),
             content,
             command: None,
+            settings_in_place: None,
             needs_redraw: true,
             drawn_revision: interface.design.revision(),
             pointer_locked: false,
@@ -115,6 +125,9 @@ impl AppWindow {
         if self.input.triggered(&actions::FULLSCREEN) {
             self.command = Some(AppCommand::ToggleFullscreen);
         }
+        if self.input.triggered(&actions::SETTINGS) {
+            self.command = Some(AppCommand::OpenSettings);
+        }
         let revision = interface.design.revision();
         let input = self.input;
         self.draw(interface, area, &input, times);
@@ -127,8 +140,9 @@ impl AppWindow {
 
     fn draw(&mut self, interface: &mut Interface, area: Rect, input: &Input, times: &FrameTimes) {
         let view = WindowView {
-            title: "Koebi",
+            title: self.title(),
             state: self.window.state(),
+            has_menus: !matches!(self.content, WindowContent::Settings(_)),
             insets: self.window.chrome_insets(),
         };
         let Self {
@@ -138,6 +152,7 @@ impl AppWindow {
             chrome,
             content,
             command,
+            settings_in_place,
             ..
         } = self;
         let Interface {
@@ -159,12 +174,18 @@ impl AppWindow {
             if asked.is_some() {
                 *command = asked;
             }
-            match content {
-                WindowContent::Workspace {
-                    workspace,
-                    view,
-                    editors,
-                } => {
+            match (settings_in_place.as_mut(), content) {
+                (Some(settings), _) | (None, WindowContent::Settings(settings)) => {
+                    settings.show(ui, rest, design);
+                }
+                (
+                    None,
+                    WindowContent::Workspace {
+                        workspace,
+                        view,
+                        editors,
+                    },
+                ) => {
                     let mut host = Host {
                         editors,
                         content: shown,
@@ -302,16 +323,21 @@ impl AppWindow {
         }
     }
 
-    /// The workspace of the window and its editors.
-    #[allow(
-        clippy::unnecessary_wraps,
-        reason = "the settings window, coming next, holds none"
-    )]
+    /// The workspace of the window and its editors, if it holds one.
     pub(crate) fn workspace(&self) -> Option<(&Workspace, &Editors)> {
         match &self.content {
             WindowContent::Workspace {
                 workspace, editors, ..
             } => Some((workspace, editors)),
+            WindowContent::Settings(_) => None,
+        }
+    }
+
+    /// The title of the window.
+    fn title(&self) -> &'static str {
+        match self.content {
+            WindowContent::Settings(_) => "Settings",
+            WindowContent::Workspace { .. } => "Koebi",
         }
     }
 }

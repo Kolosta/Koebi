@@ -19,6 +19,7 @@ use crate::frame_times::FrameTimes;
 use crate::gpu::Gpu;
 use crate::interface::Interface;
 use crate::options::{Options, StartWindow};
+use crate::settings::SettingsView;
 use crate::window::{AppWindow, WindowContent};
 
 /// The smallest size of a window, in logical pixels: its bars and an editor still fit.
@@ -26,6 +27,12 @@ const MIN_WINDOW_SIZE: (u32, u32) = (480, 320);
 
 /// The size a floating window opens at, in logical pixels.
 const FLOATING_SIZE: (u32, u32) = (800, 600);
+
+/// The size the settings window opens at, in logical pixels.
+const SETTINGS_SIZE: (u32, u32) = (960, 680);
+
+/// Mobile platforms show one window: the settings show inside it.
+const MULTIPLE_WINDOWS: bool = !cfg!(any(target_os = "android", target_os = "ios"));
 
 /// Koebi's application state.
 pub(crate) struct KoebiApp {
@@ -91,8 +98,13 @@ impl KoebiApp {
                 AppCommand::NewWindow => {
                     let (workspace, editors) = default_floating();
                     let content = WindowContent::workspace(workspace, editors);
-                    if let Err(error) = self.open_window(context, content, None) {
+                    if let Err(error) = self.open_window(context, content, None, FLOATING_SIZE) {
                         koebi_core::warn!("cannot open a window: {}", error.message);
+                    }
+                }
+                AppCommand::OpenSettings => {
+                    if let Err(error) = self.open_settings(context) {
+                        koebi_core::warn!("cannot open the settings: {}", error.message);
                     }
                 }
             }
@@ -103,18 +115,44 @@ impl KoebiApp {
         AppControl::Continue
     }
 
-    /// Opens a floating window showing `content`, its bar under `pointer` (global coordinates)
-    /// if given. Returns its place among the windows.
+    /// Opens the settings window, brings it to the front if it is open; on platforms with one
+    /// window, shows the settings in it or takes them away.
+    fn open_settings(&mut self, context: &mut AppContext) -> Result<(), AppError> {
+        if !MULTIPLE_WINDOWS {
+            if let Some(main) = self.windows.first_mut() {
+                main.settings_in_place = match main.settings_in_place {
+                    Some(_) => None,
+                    None => Some(Box::new(SettingsView::new())),
+                };
+            }
+            return Ok(());
+        }
+        let open = self
+            .windows
+            .iter()
+            .find(|window| matches!(window.content, WindowContent::Settings(_)));
+        if let Some(window) = open {
+            window.window.raise();
+            return Ok(());
+        }
+        let content = WindowContent::Settings(Box::new(SettingsView::new()));
+        self.open_window(context, content, None, SETTINGS_SIZE)?;
+        Ok(())
+    }
+
+    /// Opens a floating window of `size` showing `content`, its bar under `pointer` (global
+    /// coordinates) if given. Returns its place among the windows.
     fn open_window(
         &mut self,
         context: &mut AppContext,
         content: WindowContent,
         pointer: Option<Vec2>,
+        size: (u32, u32),
     ) -> Result<usize, AppError> {
         let window = context
             .create_window(&WindowDesc {
-                width: FLOATING_SIZE.0,
-                height: FLOATING_SIZE.1,
+                width: size.0,
+                height: size.1,
                 chrome: WindowChrome::Custom,
                 min_size: MIN_WINDOW_SIZE,
                 ..WindowDesc::default()
@@ -138,8 +176,9 @@ impl KoebiApp {
     /// application under the pointer, or into a new one.
     fn apply_detached(&mut self, context: &mut AppContext) {
         for index in 0..self.windows.len() {
-            let WindowContent::Workspace { view, .. } = &mut self.windows[index].content;
-            if let Some(editor) = view.take_detached() {
+            if let WindowContent::Workspace { view, .. } = &mut self.windows[index].content
+                && let Some(editor) = view.take_detached()
+            {
                 self.detach(context, index, editor);
                 return;
             }
@@ -150,11 +189,17 @@ impl KoebiApp {
     /// when something fails, it stays where it was.
     fn detach(&mut self, context: &mut AppContext, source: usize, editor: EditorId) {
         let pointer = context.global_pointer();
-        let target = (0..self.windows.len())
-            .find(|&index| index != source && self.windows[index].window.contains_global(pointer));
+        let target = (0..self.windows.len()).find(|&index| {
+            index != source
+                && self.windows[index].workspace().is_some()
+                && self.windows[index].window.contains_global(pointer)
+        });
         let WindowContent::Workspace {
             workspace, editors, ..
-        } = &mut self.windows[source].content;
+        } = &mut self.windows[source].content
+        else {
+            return;
+        };
         let alone = workspace.editors().count() == 1;
         if target.is_none() && alone {
             // It is already alone in its window.
@@ -180,7 +225,10 @@ impl KoebiApp {
         }
         let WindowContent::Workspace {
             workspace, editors, ..
-        } = &mut self.windows[source].content;
+        } = &mut self.windows[source].content
+        else {
+            return;
+        };
         *workspace = without;
         editors.remove_editor(editor);
         self.windows[source].needs_redraw = true;
@@ -194,7 +242,10 @@ impl KoebiApp {
             workspace,
             view,
             editors,
-        } = &mut shown.content;
+        } = &mut shown.content
+        else {
+            return false;
+        };
         let Some(area) = view.area_at(at).or_else(|| first_area(workspace)) else {
             return false;
         };
@@ -217,7 +268,7 @@ impl KoebiApp {
             editors.adopt(first, entry);
         }
         let content = WindowContent::workspace(workspace, editors);
-        match self.open_window(context, content, Some(pointer)) {
+        match self.open_window(context, content, Some(pointer), FLOATING_SIZE) {
             Ok(_) => true,
             Err(error) => {
                 koebi_core::warn!("cannot open a window: {}", error.message);
@@ -419,10 +470,14 @@ impl App for KoebiApp {
             windows: vec![main],
             gpu,
         };
-        if open == Some(StartWindow::Floating) {
-            let (workspace, editors) = default_floating();
-            let content = WindowContent::workspace(workspace, editors);
-            app.open_window(context, content, None)?;
+        match open {
+            Some(StartWindow::Floating) => {
+                let (workspace, editors) = default_floating();
+                let content = WindowContent::workspace(workspace, editors);
+                app.open_window(context, content, None, FLOATING_SIZE)?;
+            }
+            Some(StartWindow::Settings) => app.open_settings(context)?,
+            None => {}
         }
         Ok(app)
     }
