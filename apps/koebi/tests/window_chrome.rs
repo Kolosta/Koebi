@@ -267,6 +267,19 @@ impl App {
         assert_ne!(posted, 0);
     }
 
+    /// What the window is, for a test that fails.
+    fn describe(&self) -> String {
+        let monitor = self.monitor();
+        format!(
+            "rect {:?}, maximized {}, minimized {}, work area {:?}, monitor {:?}",
+            self.rect(),
+            self.is_maximized(),
+            self.is_minimized(),
+            monitor.work,
+            monitor.monitor
+        )
+    }
+
     fn is_maximized(&self) -> bool {
         // SAFETY: a live window.
         unsafe { IsZoomed(self.window) != 0 }
@@ -286,7 +299,11 @@ impl App {
     fn wait_until(&self, what: &str, done: impl Fn(&Self) -> bool) {
         let started = Instant::now();
         while !done(self) {
-            assert!(started.elapsed() < WAIT, "waited too long for {what}");
+            assert!(
+                started.elapsed() < WAIT,
+                "waited too long for {what}: {}",
+                self.describe()
+            );
             std::thread::sleep(Duration::from_millis(20));
         }
     }
@@ -345,7 +362,6 @@ fn maximizing_fills_the_work_area_and_restoring_brings_the_size_back() {
     let Some(app) = launch("maximize", &[]) else {
         return;
     };
-    // Its size: on a display smaller than the window, as in CI, the system also moves it back on it.
     let before = app.rect();
     app.command(SC_MAXIMIZE);
     app.wait_until("the window to maximize", |app| {

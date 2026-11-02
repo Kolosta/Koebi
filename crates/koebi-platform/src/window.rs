@@ -6,6 +6,7 @@ use std::ptr::NonNull;
 
 use ash::vk;
 use koebi_core::{Extent, Vec2};
+use sdl3_sys::rect::SDL_Rect;
 #[cfg(not(windows))]
 use sdl3_sys::video::SDL_ShowWindowSystemMenu;
 #[cfg(not(any(target_os = "macos", target_os = "android", target_os = "ios")))]
@@ -117,6 +118,7 @@ impl Window {
         let title = CString::new(desc.title.replace('\0', " ")).unwrap_or_default();
         let width = i32::try_from(desc.width).unwrap_or(i32::MAX);
         let height = i32::try_from(desc.height).unwrap_or(i32::MAX);
+        let (width, height) = fitted((width, height), usable_room());
         let mut flags = SDL_WINDOW_VULKAN | SDL_WINDOW_HIGH_PIXEL_DENSITY;
         if desc.resizable {
             flags |= SDL_WINDOW_RESIZABLE;
@@ -486,6 +488,25 @@ pub(crate) fn logical_per_window_coordinate(id: WindowId) -> f32 {
     coordinate_scale(density, display_scale)
 }
 
+/// The room windows have on the primary display, if SDL can tell.
+fn usable_room() -> Option<(i32, i32)> {
+    use sdl3_sys::video::{SDL_GetDisplayUsableBounds, SDL_GetPrimaryDisplay};
+    let mut bounds = SDL_Rect::default();
+    // SAFETY: SDL video is initialized (only `AppContext` creates windows); the out-pointer
+    // references a local.
+    let known = unsafe { SDL_GetDisplayUsableBounds(SDL_GetPrimaryDisplay(), &raw mut bounds) };
+    known.then_some((bounds.w, bounds.h))
+}
+
+/// `size`, no larger than `room`: a window opens with all of it on its display, and comes back at
+/// that size from maximized.
+fn fitted(size: (i32, i32), room: Option<(i32, i32)>) -> (i32, i32) {
+    match room {
+        Some((width, height)) if width > 0 && height > 0 => (size.0.min(width), size.1.min(height)),
+        _ => size,
+    }
+}
+
 /// What a hit test needs of `window`: its size in logical pixels, what the state lets the user
 /// do, and the logical pixels per window coordinate.
 ///
@@ -556,6 +577,16 @@ mod tests {
         // SDL failures (0) fall back to no conversion.
         assert!((coordinate_scale(0.0, 1.25) - 1.0).abs() < f32::EPSILON);
         assert!((coordinate_scale(1.0, 0.0) - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn windows_open_no_larger_than_the_room_of_their_display() {
+        assert_eq!(fitted((1280, 800), Some((1920, 1040))), (1280, 800));
+        assert_eq!(fitted((1280, 800), Some((1024, 728))), (1024, 728));
+        assert_eq!(fitted((1280, 800), Some((1024, 1000))), (1024, 800));
+        // SDL could not tell.
+        assert_eq!(fitted((1280, 800), None), (1280, 800));
+        assert_eq!(fitted((1280, 800), Some((0, 0))), (1280, 800));
     }
 
     #[test]
