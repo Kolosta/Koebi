@@ -195,6 +195,10 @@ impl WinRect {
     fn height(self) -> i32 {
         self.bottom - self.top
     }
+
+    fn size(self) -> (i32, i32) {
+        (self.width(), self.height())
+    }
 }
 
 impl App {
@@ -341,6 +345,7 @@ fn maximizing_fills_the_work_area_and_restoring_brings_the_size_back() {
     let Some(app) = launch("maximize", &[]) else {
         return;
     };
+    // Its size: on a display smaller than the window, as in CI, the system also moves it back on it.
     let before = app.rect();
     app.command(SC_MAXIMIZE);
     app.wait_until("the window to maximize", |app| {
@@ -357,7 +362,7 @@ fn maximizing_fills_the_work_area_and_restoring_brings_the_size_back() {
     assert_eq!(app.hit(rect.width() / 2, rect.height() - 1), HTCLIENT);
     app.command(SC_RESTORE);
     app.wait_until("the window to come back", |app| {
-        !app.is_maximized() && app.rect() == before
+        !app.is_maximized() && app.rect().size() == before.size()
     });
 }
 
@@ -371,7 +376,7 @@ fn minimizing_and_restoring_keep_the_window() {
     app.wait_until("the window to minimize", App::is_minimized);
     app.command(SC_RESTORE);
     app.wait_until("the window to come back", |app| {
-        !app.is_minimized() && app.rect() == before
+        !app.is_minimized() && app.rect().size() == before.size()
     });
 }
 
