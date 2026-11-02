@@ -3,9 +3,9 @@
 use core::time::Duration;
 
 use koebi_core::input::{CursorShape, Modifiers};
-use koebi_core::{Rect, Vec2};
-use koebi_render::Scene;
-use koebi_workspace::{AreaId, EditorId, GRID, GridRect, Orientation, Workspace};
+use koebi_core::{Color, Rect, Vec2};
+use koebi_render::{Corners, Scene};
+use koebi_workspace::{AreaId, EditorId, GRID, GridRect, Orientation, Side, Workspace};
 
 use super::*;
 use crate::{Input, PointerButton, Styles, UiState};
@@ -489,6 +489,291 @@ impl Harness {
 
 /// On the left area's top bar, away from anything drawn on it.
 const LEFT_TOP_BAR: Vec2 = Vec2::new(200.0, 20.0);
+
+/// On the right area's top bar.
+const RIGHT_TOP_BAR: Vec2 = Vec2::new(600.0, 20.0);
+
+impl Harness {
+    /// Presses the left top bar and drags it to `to`, without releasing.
+    fn hold_top_bar(&mut self, to: Vec2) {
+        self.input.pointer_moved(LEFT_TOP_BAR);
+        self.frame();
+        self.input.primary_button(true, LEFT_TOP_BAR);
+        self.frame();
+        self.input.pointer_moved(to);
+        self.frame();
+    }
+
+    /// Draws a frame at `millis` milliseconds.
+    fn frame_at(&mut self, millis: u64) {
+        self.input.set_time(Duration::from_millis(millis));
+        self.frame();
+    }
+
+    /// Draws frames every 16 milliseconds from `from` to `to`.
+    fn frames_between(&mut self, from: u64, to: u64) {
+        let mut at = from;
+        while at <= to {
+            self.frame_at(at);
+            at += 16;
+        }
+    }
+
+    /// How far the tab bar of a lone editor has opened.
+    fn opening(&self) -> f32 {
+        self.view.reveal.map_or(0.0, |reveal| reveal.amount)
+    }
+}
+
+#[test]
+fn a_drag_from_a_top_bar_does_not_open_its_tab_bar_at_once() {
+    let mut harness = Harness::halves();
+    // Past the threshold, still over the bar it started from.
+    harness.hold_top_bar(LEFT_TOP_BAR + Vec2::new(20.0, 0.0));
+    assert!(matches!(
+        harness.view.operation,
+        Some(Operation::Dock { started: true, .. })
+    ));
+    assert_eq!(harness.opening(), 0.0);
+    assert_eq!(harness.tab_rects(), []);
+}
+
+#[test]
+fn a_lone_editors_tab_bar_opens_when_a_drag_waits_over_its_top() {
+    let mut harness = Harness::halves();
+    let style = harness.styles.workspace;
+    harness.hold_top_bar(RIGHT_TOP_BAR);
+    assert_eq!(harness.tab_rects(), []);
+    // The frame asks to be drawn again when the delay ends: no input comes meanwhile.
+    assert_eq!(harness.state.redraw_at(), Some(style.reveal_delay));
+    harness.frame_at(200);
+    assert_eq!(harness.tab_rects(), []);
+    // After the delay it slides in, and each frame asks for the next.
+    harness.frame_at(350);
+    assert!(harness.opening() == 0.0 || harness.opening() < 0.5);
+    harness.frame_at(366);
+    assert!(harness.opening() > 0.0 && harness.opening() < 1.0);
+    assert!(harness.state.redraw_at().is_some());
+    harness.frames_between(382, 900);
+    assert_eq!(harness.opening(), 1.0);
+    let right = harness.area_ids()[1];
+    let content = harness
+        .view
+        .parts
+        .iter()
+        .find(|part| part.area == right)
+        .unwrap()
+        .content;
+    assert_eq!(
+        content.min.y,
+        4.0 + style.tab_bar_height + style.top_bar_height
+    );
+    // Over the bar, the drop goes among its tabs.
+    let target = harness.view.dock_target;
+    harness.frame_at(916);
+    assert!(
+        matches!(
+            harness.view.dock_target,
+            Some(DockTarget::Tabs { in_bar: true, .. })
+        ),
+        "{target:?}"
+    );
+    assert_eq!(harness.state.redraw_at(), None);
+}
+
+#[test]
+fn a_lone_editors_tab_bar_closes_after_the_drag_leaves() {
+    let mut harness = Harness::halves();
+    let style = harness.styles.workspace;
+    harness.hold_top_bar(RIGHT_TOP_BAR);
+    harness.frames_between(350, 900);
+    assert_eq!(harness.opening(), 1.0);
+    // Away from the top: it stays open for the grace, then closes.
+    harness.input.pointer_moved(Vec2::new(600.0, 320.0));
+    harness.frame_at(1000);
+    assert_eq!(
+        harness.state.redraw_at(),
+        Some(Duration::from_millis(1000) + style.reveal_grace)
+    );
+    harness.frame_at(1100);
+    assert_eq!(harness.opening(), 1.0);
+    harness.frames_between(1250, 1800);
+    assert_eq!(harness.opening(), 0.0);
+    assert!(harness.view.reveal.is_none());
+    assert_eq!(harness.tab_rects(), []);
+    assert_eq!(harness.state.redraw_at(), None);
+}
+
+#[test]
+fn a_tab_bar_opening_closes_when_the_drag_is_released_elsewhere() {
+    let mut harness = Harness::halves();
+    harness.hold_top_bar(RIGHT_TOP_BAR);
+    harness.frames_between(350, 900);
+    let at = Vec2::new(790.0, 300.0);
+    harness.input.pointer_moved(at);
+    harness.frame_at(916);
+    harness.input.primary_button(false, at);
+    harness.frame_at(932);
+    assert!(!harness.view.is_operating());
+    // It keeps sliding out after the drop, without a grace.
+    assert!(harness.opening() < 1.0);
+    harness.frames_between(948, 1500);
+    assert!(harness.view.reveal.is_none());
+    assert_eq!(harness.state.redraw_at(), None);
+}
+
+#[test]
+fn a_drop_over_the_top_of_a_lone_editor_goes_beside_it_until_its_bar_opens() {
+    let mut harness = Harness::halves();
+    let right = harness.area_ids()[1];
+    harness.hold_top_bar(RIGHT_TOP_BAR);
+    harness.frame_at(16);
+    assert_eq!(
+        harness.view.dock_target,
+        Some(DockTarget::Side {
+            area: right,
+            side: Side::Top
+        })
+    );
+}
+
+#[test]
+fn the_drop_preview_glides_within_an_area_and_jumps_between_areas() {
+    let (half, quarter) = (GRID / 2, GRID / 4);
+    let mut harness = Harness::tiled(&[
+        (0, GridRect::new(0, 0, half, GRID)),
+        (1, GridRect::new(half, 0, GRID, quarter * 2)),
+        (2, GridRect::new(half, quarter * 2, GRID, GRID)),
+    ]);
+    let glide = |harness: &Harness| harness.view.glide.unwrap();
+    // The first preview shows at once: the right half of the area at the top right.
+    harness.hold_top_bar(Vec2::new(795.0, 150.0));
+    let first = glide(&harness).rect;
+    assert!(first.min.x > 600.0, "{first:?}");
+    // Into the middle of that area: it heads there without arriving, and asks for frames.
+    harness.input.pointer_moved(Vec2::new(600.0, 150.0));
+    harness.frame_at(16);
+    harness.frame_at(32);
+    let moving = glide(&harness).rect;
+    let middle = harness.view.parts[1]
+        .panel
+        .inset(harness.styles.workspace.drop_center_inset);
+    assert!(
+        moving.min.x < first.min.x && moving.min.x > middle.min.x,
+        "{moving:?}"
+    );
+    assert!(harness.state.redraw_at().is_some());
+    harness.frames_between(48, 800);
+    assert_eq!(glide(&harness).rect, middle);
+    assert_eq!(harness.state.redraw_at(), None);
+    // Into the other area: a jump.
+    harness.input.pointer_moved(Vec2::new(600.0, 450.0));
+    harness.frame_at(816);
+    harness.frame_at(832);
+    let other = harness.view.parts[2]
+        .panel
+        .inset(harness.styles.workspace.drop_center_inset);
+    assert_eq!(glide(&harness).rect, other);
+}
+
+#[test]
+fn the_join_preview_darkens_everything_around_the_future_area() {
+    let half = GRID / 2;
+    let harness = Harness::tiled(&[
+        (0, GridRect::new(0, 0, half, GRID)),
+        (1, GridRect::new(half, 0, GRID, half)),
+        (2, GridRect::new(half, half, GRID, GRID)),
+    ]);
+    let ids = harness.area_ids();
+    let layout = harness.workspace.layout();
+    // The top right area takes the top of the left area; the bottom right area takes the rest.
+    let plan = layout.plan_join(ids[1], ids[0]).unwrap();
+    assert_eq!(plan.fills.len(), 1);
+    let style = harness.styles.workspace;
+    let frame = Frame::new(window(), style.gap);
+    let mut drawn = Vec::new();
+    preview::join_preview(layout, &plan, frame, &style, &mut |primitive| {
+        drawn.push(primitive);
+    });
+    let radius = style.corner_radius;
+    let stays = frame.panel(layout.rect(ids[1]).unwrap());
+    let future = frame.panel(plan.result);
+    let piece = frame.panel(plan.fills[0].piece);
+
+    // What stays, lighter and rounded.
+    assert_eq!(drawn[0].rect, stays);
+    assert_eq!(drawn[0].fill, style.join_keep);
+    assert_eq!(drawn[0].corner_radii, Corners::all(radius));
+    // What the kept area takes reaches what stays, across the gutter, square towards it.
+    assert_eq!(drawn[1].fill, style.join_remove);
+    assert_eq!(drawn[1].rect.max.x, stays.min.x);
+    assert_eq!(drawn[1].rect.min.y, future.min.y);
+    assert_eq!(drawn[1].rect.max.y, future.max.y);
+    assert_eq!(drawn[1].corner_radii.top_right, 0.0);
+    assert_eq!(drawn[1].corner_radii.bottom_right, 0.0);
+    assert_eq!(drawn[1].corner_radii.top_left, radius);
+    // What the neighbour takes reaches the future area, across the gutter, with square corners.
+    assert_eq!(drawn[2].fill, style.join_residual);
+    assert_eq!(drawn[2].rect.min.y, future.max.y);
+    assert_eq!(drawn[2].rect.max.y, piece.max.y);
+    assert_eq!(drawn[2].corner_radii, Corners::ZERO);
+    // The outsides of the rounded corners of what stays, on the side that goes.
+    let outsides: Vec<_> = drawn
+        .iter()
+        .filter(|primitive| primitive.inverted)
+        .collect();
+    let around_kept: Vec<_> = outsides.iter().filter(|o| o.rect == stays).collect();
+    assert_eq!(around_kept.len(), 2);
+    assert!(around_kept.iter().all(|o| o.fill == style.join_remove
+        && o.corner_radii.top_right <= 0.0
+        && o.corner_radii.bottom_right <= 0.0));
+    // And of the future area where it ends over what goes: darker next to what neighbours take.
+    let around_future: Vec<_> = outsides.iter().filter(|o| o.rect == future).collect();
+    assert_eq!(around_future.len(), 2);
+    assert!(
+        around_future
+            .iter()
+            .any(|o| o.corner_radii.top_left > 0.0 && o.fill == style.join_remove)
+    );
+    assert!(
+        around_future
+            .iter()
+            .any(|o| o.corner_radii.bottom_left > 0.0 && o.fill == style.join_residual)
+    );
+    // The frame comes last, over the seams.
+    let frame_drawn = drawn.last().unwrap();
+    assert_eq!(frame_drawn.rect, future);
+    assert_eq!(frame_drawn.fill, Color::TRANSPARENT);
+}
+
+#[test]
+fn the_join_preview_of_aligned_areas_darkens_the_whole_area_that_goes() {
+    let harness = Harness::halves();
+    let ids = harness.area_ids();
+    let layout = harness.workspace.layout();
+    let plan = layout.plan_join(ids[0], ids[1]).unwrap();
+    assert_eq!(plan.fills, []);
+    let style = harness.styles.workspace;
+    let frame = Frame::new(window(), style.gap);
+    let mut drawn = Vec::new();
+    preview::join_preview(layout, &plan, frame, &style, &mut |primitive| {
+        drawn.push(primitive);
+    });
+    let stays = frame.panel(layout.rect(ids[0]).unwrap());
+    let goes = frame.panel(layout.rect(ids[1]).unwrap());
+    assert_eq!(drawn[1].rect.min.x, stays.max.x);
+    assert_eq!(drawn[1].rect.max, goes.max);
+    assert_eq!(
+        drawn.iter().filter(|primitive| primitive.inverted).count(),
+        4
+    );
+    assert!(
+        drawn
+            .iter()
+            .filter(|p| p.inverted)
+            .all(|p| p.fill == style.join_remove)
+    );
+}
 
 #[test]
 fn stacked_editors_show_tabs_and_a_click_shows_one() {

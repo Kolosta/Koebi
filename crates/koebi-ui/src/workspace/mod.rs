@@ -32,7 +32,7 @@ use crate::id::WidgetId;
 use crate::ui::Ui;
 use crate::widgets::{MenuItem, MenuState};
 use area::{AreaParts, TabPart};
-use dock::DockTarget;
+use dock::{DockTarget, Glide, Reveal};
 use geometry::{Frame, Segment, segments};
 
 /// The workspace: its gutters and areas.
@@ -166,6 +166,12 @@ pub struct WorkspaceStyle {
     pub drop_preview: Color,
     /// Inset of the preview of a drop into an area's tabs.
     pub drop_center_inset: f32,
+    /// Time constant of the preview gliding to its next place and of a tab bar sliding.
+    pub drop_glide: Duration,
+    /// How long a drag stays over the top of a lone editor before its tab bar opens.
+    pub reveal_delay: Duration,
+    /// How long after a drag leaves the top of a lone editor its tab bar closes.
+    pub reveal_grace: Duration,
     /// Corner radius of the areas.
     pub corner_radius: f32,
     /// How long the pointer stays over a gutter before the band shows.
@@ -219,6 +225,9 @@ impl WorkspaceStyle {
             insert_line_width: tokens.get(component::ZONE_TAB_INSERT_LINE_WIDTH_DEFAULT),
             drop_preview: tokens.get(component::ZONE_TAB_DROP_PREVIEW_COLOR_DEFAULT),
             drop_center_inset: tokens.get(component::ZONE_TAB_DROP_PREVIEW_CENTER_INSET),
+            drop_glide: tokens.get(component::ZONE_TAB_DROP_PREVIEW_ANIM_DURATION),
+            reveal_delay: tokens.get(component::ZONE_TAB_REVEAL_DELAY),
+            reveal_grace: tokens.get(component::ZONE_TAB_REVEAL_GRACE),
             corner_radius: tokens.get(component::EDITOR_CORNER_RADIUS_DEFAULT),
             hover_delay: tokens.get(semantic::INPUT_HOVER_DELAY),
             split_preview: tokens.get(component::ZONE_OVERLAY_SPLIT_PREVIEW),
@@ -282,6 +291,13 @@ pub struct WorkspaceView {
     tabs: Vec<TabPart>,
     /// Where the editor being docked would go.
     dock_target: Option<DockTarget>,
+    /// The tab bar of a lone editor opening or closing for a docking drag.
+    reveal: Option<Reveal>,
+    /// The preview of a docking drag, on its way to where it goes.
+    glide: Option<Glide>,
+    /// The input time of the last frame, and the time since the frame before, for animations.
+    clock: Duration,
+    elapsed: Duration,
     /// The editor type menu open, and the editor it belongs to.
     type_menu: MenuState,
     type_menu_editor: Option<EditorId>,
@@ -340,6 +356,7 @@ impl Ui<'_> {
         let style = self.styles().workspace;
         let frame = Frame::new(area, style.gap);
         view.refresh(workspace.layout());
+        view.tick(self.input().time());
         if view.operation.is_some() {
             self.grab(WORKSPACE_OPERATION);
             if self.triggered(&OPERATION_CANCEL) {

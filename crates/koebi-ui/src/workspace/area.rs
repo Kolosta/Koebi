@@ -5,7 +5,7 @@ use koebi_core::{Color, Rect, Vec2};
 use koebi_render::RectPrimitive;
 use koebi_workspace::{AreaId, EditorId, Workspace};
 
-use super::dock::{DockTarget, dock_cursor};
+use super::dock::dock_cursor;
 use super::geometry::Frame;
 use super::{EditorHost, Operation, WorkspaceStyle, WorkspaceView};
 use crate::bar::BarLayout;
@@ -29,14 +29,6 @@ pub(super) struct AreaParts {
     pub(super) tabs: Option<Rect>,
     pub(super) bar: Rect,
     pub(super) content: Rect,
-}
-
-impl AreaParts {
-    /// The tab bar and the top bar together: where an editor drops into the tabs.
-    pub(super) fn top(&self) -> Rect {
-        self.tabs
-            .map_or(self.bar, |tabs| Rect::from_min_max(tabs.min, self.bar.max))
-    }
 }
 
 /// A tab drawn this frame.
@@ -83,13 +75,18 @@ impl Ui<'_> {
                 continue;
             }
             let editor = stack.active();
-            // An editor about to drop into a single editor's tabs shows its tab bar.
-            let docking_here = matches!(
-                (&view.operation, view.dock_target),
-                (Some(Operation::Dock { started: true, .. }), Some(DockTarget::Tabs { area: target, .. }))
-                    if target == area
-            );
-            let show_tabs = stack.len() > 1 || style.tab_show_solo || docking_here;
+            // A lone editor's tab bar slides in while a drag waits over its top.
+            let permanent = stack.len() > 1 || style.tab_show_solo;
+            let opening = view
+                .reveal
+                .filter(|reveal| reveal.area == area)
+                .map_or(0.0, |reveal| reveal.amount);
+            let show_tabs = permanent || opening > 0.01;
+            let tab_bar_height = if permanent {
+                style.tab_bar_height
+            } else {
+                style.tab_bar_height * opening
+            };
             self.scene.push_rect(
                 &RectPrimitive::new(panel, style.background)
                     .with_corner_radius(style.corner_radius),
@@ -98,7 +95,7 @@ impl Ui<'_> {
             let tabs = show_tabs.then(|| {
                 let bar = Rect::from_min_max(
                     Vec2::new(panel.min.x, top),
-                    Vec2::new(panel.max.x, (top + style.tab_bar_height).min(panel.max.y)),
+                    Vec2::new(panel.max.x, (top + tab_bar_height).min(panel.max.y)),
                 );
                 top = bar.max.y;
                 bar
@@ -145,7 +142,9 @@ impl Ui<'_> {
                         Vec2::new(text.min.x, rect.min.y),
                         Vec2::new(text.max.x, rect.max.y),
                     );
-                    self.label(title, text, &font, ink, Align::Start);
+                    self.clipped(tabs, |ui| {
+                        ui.label(title, text, &font, ink, Align::Start);
+                    });
                     if response.pressed
                         && view.operation.is_none()
                         && let Some(point) = self.input().pointer()
