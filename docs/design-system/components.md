@@ -123,7 +123,7 @@ Blender's number button. `NumberField::new(id, &mut value)` edits any `Numeric`:
 `.max`), `.step(step)` (1 for integers; for floats, about a hundredth of a bounded range, or 0.1), `.decimals(count)` (2 for floats),
 `.unit(&unit)` (from `koebi_core::expr`, shown after the value and used for typed
 expressions), `.label(text)`, `.bar(mapping)`, `.vertical()`, `.step_buttons(shown)`,
-`.fine_mode(mode)`, `.enabled(false)`, and the metrics and colors per state as tokens or values.
+`.fine_mode(mode)`, `.fine_factor(factor)`, `.enabled(false)`, and the metrics and colors per state as tokens or values.
 
 - **Showing**: the value rounded to its decimals, its unit in `number-field.unit.color`,
   centred, or after its label at the start. A bounded field with `.bar(BarMapping::Linear)`,
@@ -132,9 +132,18 @@ expressions), `.label(text)`, `.bar(mapping)`, `.vertical()`, `.step_buttons(sho
 - **Step buttons** appear on hover at both ends, by default on a field without a bar only. Their
   hover zone lies inside the border, follows the rounded end of the field and is translucent
   (`number-field.step-button.background.opacity`), so that a bar shows through. A click adds a
-  step; Shift a finer one (`number-field.drag.fine-factor`); Ctrl goes to the next round unit
-  (`number-field.drag.coarse-factor` steps, finer with Shift); Alt moves by a unit and keeps the
-  last digits.
+  step; Shift a finer one (`number-field.drag.fine-factor`, or `.bar-fine-factor` on a bar); Ctrl
+  goes to the next round unit (`number-field.drag.coarse-factor` steps, finer with Shift); Alt
+  moves by a unit and keeps the hidden digits.
+- **What a drag sets**: the value it shows, never digits hidden below it: `245.15874` dragged
+  until it shows `245.20` is exactly `245.2`, and only typing goes finer. A drag that does not
+  reach another shown value leaves the value as it was. Alt pressed before that keeps the hidden
+  digits (`246.15874`); pressed later, there are none left, and its units count from what shows.
+  Step buttons and the wheel follow the same rule.
+- **The wheel**: Ctrl and the wheel over a field change its value, a step per notch, and what
+  scrolls around the field stays still. Shift makes it finer and goes on and off at any time, as
+  in a drag and with the same `FineMode`; it stops being finer where a notch would no longer
+  show. It lasts as long as Ctrl stays held over the field.
 - **Dragging**: a press locks the pointer at once (`Ui::lock_pointer`), and the field takes
   the keyboard (`NUMBER` context). Past the drag threshold, the travel the locked pointer
   reports (`Input::motion`) changes the value: a step per `number-field.drag.step-distance`
@@ -143,7 +152,7 @@ expressions), `.label(text)`, `.bar(mapping)`, `.vertical()`, `.step_buttons(sho
   follow the share of the drag done, as if the whole drag had been finer, and returns when Shift
   is released, as many times as wanted; `FromHere`, the default without a bar, goes on finer from
   the value reached, without a jump either way. Ctrl goes to round units and Alt moves by units
-  keeping the last digits (`1.23`, `2.23`, `3.23`), both finer with Shift; without a bar, a unit
+  keeping the hidden digits (`1.23`, `2.23`, `3.23`), both finer with Shift; without a bar, a unit
   takes the travel of a step, so that they go faster than plain steps. Escape or Delete
   (`number.cancel`) or a right click cancel at any time and restore the value (a right click that
   cancels asks for no context menu); Enter (`number.confirm`) or the release keep it. The pointer

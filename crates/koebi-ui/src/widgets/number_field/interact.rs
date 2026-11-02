@@ -1,14 +1,15 @@
 //! What a number field does with a frame's input: a press starts a drag with the pointer
 //! locked; travel past the threshold changes the value; a release before it types the value;
-//! the step buttons step; a typed expression is evaluated when the edit is kept.
+//! the step buttons step; Ctrl and the wheel change the value as a drag would; a typed expression
+//! is evaluated when the edit is kept.
 
 use koebi_core::expr::{self, Context};
-use koebi_core::input::CursorShape;
+use koebi_core::input::{CursorShape, ModifierKey};
 use koebi_core::{Rect, Vec2};
 
 use super::format::ValueText;
 use super::math::{DragState, Precision, Scale, stepped};
-use super::state::{NumberDrag, NumberEdit};
+use super::state::{NumberDrag, NumberEdit, NumberWheel};
 use super::{
     EDIT_KEY, NUMBER, NUMBER_CANCEL, NUMBER_CONFIRM, NumberField, NumberFieldResponse, Numeric,
 };
@@ -54,6 +55,8 @@ impl<N: Numeric> NumberField<'_, N> {
                     self.set(next, &mut out);
                 }
             }
+            let over = out.response.hovered || step_responses.iter().any(|step| step.hovered);
+            self.wheel(ui, over && !out.response.held, &scale, &mut out);
         } else if ui.state.number.drag.is_some_and(|drag| drag.id == id) {
             ui.state.number.drag = None;
         }
@@ -86,6 +89,47 @@ impl<N: Numeric> NumberField<'_, N> {
             out.response = out.response.merge(part);
         }
         out
+    }
+
+    /// Ctrl and the wheel over the field: each notch adds what a drag adds for as much travel,
+    /// finer with Shift, which goes on and off as in a drag. It lasts while Ctrl stays held over
+    /// the field. What lies around the field does not scroll meanwhile.
+    fn wheel(&mut self, ui: &mut Ui<'_>, over: bool, scale: &Scale, out: &mut NumberFieldResponse) {
+        let modifiers = ui.input().modifiers();
+        if !over || !modifiers.sides(ModifierKey::Ctrl).any() {
+            return;
+        }
+        ui.claim_wheel();
+        let wheel = ui.input().wheel();
+        let notches = if wheel.y == 0.0 { wheel.x } else { wheel.y };
+        let id = self.id;
+        // A value changed by something else starts over from there.
+        let kept = ui
+            .state
+            .number
+            .wheel
+            .filter(|kept| kept.id == id)
+            .filter(|kept| self.bounded(kept.state.last()) == *self.value);
+        if kept.is_none() && notches == 0.0 {
+            return;
+        }
+        let scale = scale.for_wheel();
+        let mut session = kept.unwrap_or_else(|| NumberWheel {
+            id,
+            state: DragState::new(self.value.to_f64(), &scale),
+            travel: 0.0,
+            seen: true,
+        });
+        session.seen = true;
+        // Ctrl only turns the wheel on: it does not go to round units here.
+        let precision = Precision {
+            round: false,
+            ..Precision::of(modifiers, self.fine_mode_shown())
+        };
+        session.travel += notches * scale.notch_travel(precision);
+        let value = session.state.value(session.travel, precision, &scale);
+        self.set(value, out);
+        ui.state.number.wheel = Some(session);
     }
 
     /// Writes `value`, within the bounds, and says whether it changed.

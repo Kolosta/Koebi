@@ -416,10 +416,10 @@ fn a_field_on_a_bar_counts_shift_from_the_start_and_another_from_here() {
     harness.input.pointer_moved_by(travel);
     show(&mut harness, &mut value, None);
     assert!(close(value, 7.0), "{value}");
-    // Left Shift: as if the whole drag had been ten times finer.
+    // Left Shift: as if the whole drag had been twenty times finer.
     harness.input.set_modifiers(Modifiers::LEFT_SHIFT);
     show(&mut harness, &mut value, None);
-    assert!(close(value, 5.2), "{value}");
+    assert!(close(value, 5.1), "{value}");
     // Released: back, as if it had never been held.
     harness.input.set_modifiers(Modifiers::NONE);
     show(&mut harness, &mut value, None);
@@ -456,4 +456,125 @@ fn a_field_no_longer_shown_drops_its_drag() {
     harness.frame(|_| ());
     assert_eq!(harness.state.number.drag, None);
     assert_eq!(harness.state.pointer_lock(), None);
+}
+
+/// One frame of a plain field with Ctrl and the wheel: `notches` turned, `modifiers` held.
+fn wheel_frame(harness: &mut Harness, value: &mut f64, notches: f32, modifiers: Modifiers) {
+    harness.input.set_modifiers(modifiers);
+    if notches != 0.0 {
+        harness.input.scrolled(Vec2::new(0.0, notches));
+    }
+    harness.show(value);
+}
+
+#[test]
+fn the_wheel_changes_a_value_with_ctrl_only() {
+    let mut harness = Harness::new();
+    let mut value = 1.0;
+    harness.input.pointer_moved(field().center());
+    harness.show(&mut value);
+    harness.show(&mut value);
+    // Alone, it leaves the value to what scrolls around the field.
+    wheel_frame(&mut harness, &mut value, 1.0, Modifiers::NONE);
+    assert!(close(value, 1.0));
+    wheel_frame(&mut harness, &mut value, 0.0, Modifiers::LEFT_CTRL);
+    wheel_frame(&mut harness, &mut value, 1.0, Modifiers::LEFT_CTRL);
+    assert!(close(value, 1.1), "{value}");
+    wheel_frame(&mut harness, &mut value, 2.0, Modifiers::LEFT_CTRL);
+    assert!(close(value, 1.3), "{value}");
+    wheel_frame(&mut harness, &mut value, -1.0, Modifiers::LEFT_CTRL);
+    assert!(close(value, 1.2), "{value}");
+}
+
+#[test]
+fn shift_goes_on_and_off_during_the_wheel_as_in_a_drag() {
+    let mut harness = Harness::new();
+    let mut value = 1.0;
+    let ctrl = Modifiers::LEFT_CTRL;
+    let fine = ctrl.union(Modifiers::LEFT_SHIFT);
+    harness.input.pointer_moved(field().center());
+    harness.show(&mut value);
+    harness.show(&mut value);
+    wheel_frame(&mut harness, &mut value, 1.0, ctrl);
+    assert!(close(value, 1.1), "{value}");
+    // Without a bar, the left Shift is finer from here: a tenth of a step, on what shows.
+    wheel_frame(&mut harness, &mut value, 1.0, fine);
+    assert!(close(value, 1.11), "{value}");
+    // Released, it goes on from there.
+    wheel_frame(&mut harness, &mut value, 1.0, ctrl);
+    assert!(close(value, 1.21), "{value}");
+}
+
+#[test]
+fn the_wheel_over_a_field_with_a_bar_counts_shift_from_the_start() {
+    let mut harness = Harness::new();
+    let mut value = 0.5;
+    let show = |harness: &mut Harness, value: &mut f64, notches: f32, modifiers: Modifiers| {
+        harness.input.set_modifiers(modifiers);
+        harness.input.scrolled(Vec2::new(0.0, notches));
+        harness
+            .frame(|ui| {
+                NumberField::new(ID, value)
+                    .range(0.0, 100.0)
+                    .bar(BarMapping::Linear)
+                    .show(ui, field())
+            })
+            .0
+    };
+    let ctrl = Modifiers::LEFT_CTRL;
+    harness.input.pointer_moved(field().center());
+    show(&mut harness, &mut value, 0.0, Modifiers::NONE);
+    show(&mut harness, &mut value, 0.0, ctrl);
+    // A step of 1 on a range of 100, four notches.
+    show(&mut harness, &mut value, 4.0, ctrl);
+    assert!(close(value, 4.5), "{value}");
+    // The left Shift scales all of it, a twentieth on a bar: 0.2 from 0.5.
+    show(
+        &mut harness,
+        &mut value,
+        0.0,
+        ctrl.union(Modifiers::LEFT_SHIFT),
+    );
+    assert!(close(value, 0.7), "{value}");
+    // Released: as if it never had been.
+    show(&mut harness, &mut value, 0.0, ctrl);
+    assert!(close(value, 4.5), "{value}");
+}
+
+#[test]
+fn shift_on_a_bar_is_blenders_twentieth_or_what_the_call_asks() {
+    let mut harness = Harness::new();
+    let style = harness.styles.number_field;
+    assert!((style.bar_fine_factor - 0.05).abs() < 1e-6);
+    assert!((style.fine_factor - 0.1).abs() < 1e-6);
+    let mut drag = |factor: Option<f32>| {
+        let mut value = 0.0;
+        let show = |harness: &mut Harness, value: &mut f64| {
+            harness
+                .frame(|ui| {
+                    let field_on_bar = NumberField::new(ID, value)
+                        .range(0.0, 100.0)
+                        .bar(BarMapping::Linear);
+                    match factor {
+                        Some(factor) => field_on_bar.fine_factor(factor),
+                        None => field_on_bar,
+                    }
+                    .show(ui, field())
+                })
+                .0
+        };
+        harness.input.set_modifiers(Modifiers::NONE);
+        show(&mut harness, &mut value);
+        harness.input.primary_button(true, field().center());
+        show(&mut harness, &mut value);
+        harness.input.set_modifiers(Modifiers::LEFT_SHIFT);
+        let travel = harness.track_share(0.4);
+        harness.input.pointer_moved_by(travel);
+        show(&mut harness, &mut value);
+        harness.input.primary_button(false, field().center());
+        show(&mut harness, &mut value);
+        value
+    };
+    assert!(close(drag(None), 2.0));
+    assert!(close(drag(Some(0.5)), 20.0));
 }

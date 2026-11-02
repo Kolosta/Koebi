@@ -95,8 +95,13 @@ koebi_design::tokens! {
     /// Number field: pointer travel that changes an unbounded value by one step.
     NUMBER_FIELD_DRAG_STEP_DISTANCE = "number-field.drag.step-distance": Dimension = px(8.0),
         range(1.0, 200.0);
-    /// Number field: how much finer a drag or a step is with Shift.
+    /// Number field: how much finer a drag or a step is with Shift, on a field without a bar: a
+    /// tenth, as Blender's number buttons.
     NUMBER_FIELD_DRAG_FINE_FACTOR = "number-field.drag.fine-factor": Number = 0.1,
+        range(0.001, 1.0);
+    /// Number field: how much finer a drag or a step is with Shift, on a field showing a bar: a
+    /// twentieth, as Blender's sliders.
+    NUMBER_FIELD_DRAG_BAR_FINE_FACTOR = "number-field.drag.bar-fine-factor": Number = 0.05,
         range(0.001, 1.0);
     /// Number field: how many steps make the unit Ctrl and Alt move by.
     NUMBER_FIELD_DRAG_COARSE_FACTOR = "number-field.drag.coarse-factor": Number = 10.0,

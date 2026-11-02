@@ -48,8 +48,10 @@ pub struct NumberFieldStyle {
     pub border_width: f32,
     /// Pointer travel that changes an unbounded value by one step.
     pub step_distance: f32,
-    /// How much finer Shift makes a drag or a step.
+    /// How much finer Shift makes a drag or a step, on a field without a bar.
     pub fine_factor: f32,
+    /// How much finer Shift makes a drag or a step, on a field showing a bar.
+    pub bar_fine_factor: f32,
     /// How many steps make a unit, what Ctrl and Alt move by.
     pub coarse_factor: f32,
 }
@@ -109,6 +111,7 @@ impl NumberFieldStyle {
             border_width: tokens.get(c::NUMBER_FIELD_BORDER_WIDTH_DEFAULT),
             step_distance: tokens.get(c::NUMBER_FIELD_DRAG_STEP_DISTANCE),
             fine_factor: tokens.get(c::NUMBER_FIELD_DRAG_FINE_FACTOR),
+            bar_fine_factor: tokens.get(c::NUMBER_FIELD_DRAG_BAR_FINE_FACTOR),
             coarse_factor: tokens.get(c::NUMBER_FIELD_DRAG_COARSE_FACTOR),
         }
     }
