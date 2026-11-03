@@ -56,9 +56,9 @@ fn factor(index: usize) -> f32 {
 /// per state.
 fn state_cell(variant: Variant, state: ControlState) -> Rect {
     rect(
-        8.0 + 40.0 * factor(state.index()),
+        8.0 + 34.0 * factor(state.index()),
         8.0 + 22.0 * factor(variant.index()),
-        36.0,
+        32.0,
         20.0,
     )
 }
@@ -95,11 +95,8 @@ fn show_in_state(
         }
         _ => Vec2::new(-100.0, -100.0),
     };
-    let selected = matches!(
-        state,
-        ControlState::Selected | ControlState::SelectedHovered
-    );
-    let enabled = state != ControlState::Disabled;
+    let selected = state.is_selected();
+    let enabled = !state.is_disabled();
     let mut input = Input::new();
     input.pointer_moved(pointer);
     let mut ui_state = UiState::new();

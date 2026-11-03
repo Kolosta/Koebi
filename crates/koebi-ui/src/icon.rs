@@ -1,4 +1,4 @@
-//! [`Icon`]: small line icons drawn with round-capped segments.
+//! [`Icon`]: small line icons drawn with round-capped strokes.
 
 use koebi_core::{Color, Rect, Vec2};
 use koebi_render::{LinePrimitive, Scene};
@@ -46,69 +46,99 @@ impl Icon {
         Self::Reset,
     ];
 
-    /// The strokes on the 16 x 16 grid, as `[x0, y0, x1, y1]`. Polylines repeat their
-    /// shared points so that consecutive segments join with round corners.
-    fn strokes(self) -> &'static [[f32; 4]] {
+    /// The strokes on the 16 x 16 grid: polylines, as their points `[x, y]`.
+    fn strokes(self) -> &'static [&'static [[f32; 2]]] {
         match self {
-            Self::Check => &[[3.5, 8.5, 6.5, 11.5], [6.5, 11.5, 12.5, 4.5]],
-            Self::Plus => &[[8.0, 3.0, 8.0, 13.0], [3.0, 8.0, 13.0, 8.0]],
-            Self::Minus => &[[3.0, 8.0, 13.0, 8.0]],
-            Self::Close => &[[4.0, 4.0, 12.0, 12.0], [12.0, 4.0, 4.0, 12.0]],
-            Self::ChevronLeft => &[[10.0, 3.5, 5.5, 8.0], [5.5, 8.0, 10.0, 12.5]],
-            Self::ChevronRight => &[[6.0, 3.5, 10.5, 8.0], [10.5, 8.0, 6.0, 12.5]],
-            Self::ChevronUp => &[[3.5, 10.0, 8.0, 5.5], [8.0, 5.5, 12.5, 10.0]],
-            Self::ChevronDown => &[[3.5, 6.0, 8.0, 10.5], [8.0, 10.5, 12.5, 6.0]],
+            Self::Check => &[&[[3.5, 8.5], [6.5, 11.5], [12.5, 4.5]]],
+            Self::Plus => &[&[[8.0, 3.0], [8.0, 13.0]], &[[3.0, 8.0], [13.0, 8.0]]],
+            Self::Minus => &[&[[3.0, 8.0], [13.0, 8.0]]],
+            Self::Close => &[&[[4.0, 4.0], [12.0, 12.0]], &[[12.0, 4.0], [4.0, 12.0]]],
+            Self::ChevronLeft => &[&[[10.0, 3.5], [5.5, 8.0], [10.0, 12.5]]],
+            Self::ChevronRight => &[&[[6.0, 3.5], [10.5, 8.0], [6.0, 12.5]]],
+            Self::ChevronUp => &[&[[3.5, 10.0], [8.0, 5.5], [12.5, 10.0]]],
+            Self::ChevronDown => &[&[[3.5, 6.0], [8.0, 10.5], [12.5, 6.0]]],
             // An arrow head, and the circle it turns along.
             Self::Reset => &[
-                [2.0, 2.5, 2.0, 6.5],
-                [2.0, 6.5, 6.0, 6.5],
-                [2.0, 6.5, 4.32, 4.32],
-                [4.32, 4.32, 5.89, 3.25],
-                [5.89, 3.25, 7.75, 2.81],
-                [7.75, 2.81, 9.63, 3.06],
-                [9.63, 3.06, 11.3, 3.98],
-                [11.3, 3.98, 12.53, 5.44],
-                [12.53, 5.44, 13.14, 7.24],
-                [13.14, 7.24, 13.07, 9.15],
-                [13.07, 9.15, 12.32, 10.9],
-                [12.32, 10.9, 10.99, 12.26],
-                [10.99, 12.26, 9.25, 13.05],
-                [9.25, 13.05, 7.35, 13.16],
-                [7.35, 13.16, 5.54, 12.58],
-                [5.54, 12.58, 4.05, 11.38],
-                [4.05, 11.38, 3.1, 9.74],
+                &[[2.0, 2.5], [2.0, 6.5], [6.0, 6.5]],
+                &[
+                    [2.0, 6.5],
+                    [4.32, 4.32],
+                    [5.89, 3.25],
+                    [7.75, 2.81],
+                    [9.63, 3.06],
+                    [11.3, 3.98],
+                    [12.53, 5.44],
+                    [13.14, 7.24],
+                    [13.07, 9.15],
+                    [12.32, 10.9],
+                    [10.99, 12.26],
+                    [9.25, 13.05],
+                    [7.35, 13.16],
+                    [5.54, 12.58],
+                    [4.05, 11.38],
+                    [3.1, 9.74],
+                ],
             ],
             // A circle of twelve segments and a handle.
             Self::Search => &[
-                [11.0, 6.75, 10.43, 8.88],
-                [10.43, 8.88, 8.88, 10.43],
-                [8.88, 10.43, 6.75, 11.0],
-                [6.75, 11.0, 4.63, 10.43],
-                [4.63, 10.43, 3.07, 8.88],
-                [3.07, 8.88, 2.5, 6.75],
-                [2.5, 6.75, 3.07, 4.62],
-                [3.07, 4.62, 4.62, 3.07],
-                [4.62, 3.07, 6.75, 2.5],
-                [6.75, 2.5, 8.88, 3.07],
-                [8.88, 3.07, 10.43, 4.62],
-                [10.43, 4.62, 11.0, 6.75],
-                [10.06, 10.06, 13.0, 13.0],
+                &[
+                    [11.0, 6.75],
+                    [10.43, 8.88],
+                    [8.88, 10.43],
+                    [6.75, 11.0],
+                    [4.63, 10.43],
+                    [3.07, 8.88],
+                    [2.5, 6.75],
+                    [3.07, 4.62],
+                    [4.62, 3.07],
+                    [6.75, 2.5],
+                    [8.88, 3.07],
+                    [10.43, 4.62],
+                    [11.0, 6.75],
+                ],
+                &[[10.06, 10.06], [13.0, 13.0]],
             ],
+        }
+    }
+
+    /// Pushes the strokes, each point placed by `point`: the segments of a polyline go by
+    /// pairs joined at their shared point, so that a chevron's or a check mark's corner is
+    /// covered once and keeps the weight of its arms. Longer polylines (the circles of
+    /// `Search` and `Reset`) meet one pair from the next at every other corner, where a
+    /// translucent color blends twice.
+    fn stroke(
+        self,
+        scene: &mut Scene,
+        color: Color,
+        stroke_width: f32,
+        point: impl Fn([f32; 2]) -> Vec2,
+    ) {
+        for polyline in self.strokes() {
+            let mut at = 0;
+            while at + 1 < polyline.len() {
+                let line = LinePrimitive::new(
+                    point(polyline[at]),
+                    point(polyline[at + 1]),
+                    stroke_width,
+                    color,
+                );
+                if let Some(&next) = polyline.get(at + 2) {
+                    scene.push_line(&line.then(point(next)));
+                    at += 2;
+                } else {
+                    scene.push_line(&line);
+                    at += 1;
+                }
+            }
         }
     }
 
     /// Draws the icon scaled to the square `bounds` (use [`Icon::centered`] to place one).
     pub fn draw(self, scene: &mut Scene, bounds: Rect, color: Color, stroke_width: f32) {
         let scale = bounds.width().min(bounds.height()) / GRID;
-        let point = |x: f32, y: f32| bounds.min + Vec2::new(x, y) * scale;
-        for &[x0, y0, x1, y1] in self.strokes() {
-            scene.push_line(&LinePrimitive::new(
-                point(x0, y0),
-                point(x1, y1),
-                stroke_width,
-                color,
-            ));
-        }
+        self.stroke(scene, color, stroke_width, |[x, y]| {
+            bounds.min + Vec2::new(x, y) * scale
+        });
     }
 
     /// Draws the icon like [`Icon::draw`], turned clockwise by `angle` radians around the
@@ -124,18 +154,10 @@ impl Icon {
         let scale = bounds.width().min(bounds.height()) / GRID;
         let center = bounds.center();
         let (sin, cos) = angle.sin_cos();
-        let point = |x: f32, y: f32| {
+        self.stroke(scene, color, stroke_width, |[x, y]| {
             let local = Vec2::new(x - GRID * 0.5, y - GRID * 0.5) * scale;
             center + Vec2::new(local.x * cos - local.y * sin, local.x * sin + local.y * cos)
-        };
-        for &[x0, y0, x1, y1] in self.strokes() {
-            scene.push_line(&LinePrimitive::new(
-                point(x0, y0),
-                point(x1, y1),
-                stroke_width,
-                color,
-            ));
-        }
+        });
     }
 
     /// The square of side `size` centered in `area`, shrunk to fit it, with its corner on a
@@ -158,8 +180,10 @@ mod tests {
     #[test]
     fn strokes_stay_inside_the_grid() {
         for icon in Icon::ALL {
-            for stroke in icon.strokes() {
-                assert!(stroke.iter().all(|v| (0.0..=GRID).contains(v)), "{icon:?}");
+            for polyline in icon.strokes() {
+                assert!(polyline.len() >= 2, "{icon:?}");
+                let inside = polyline.iter().flatten().all(|v| (0.0..=GRID).contains(v));
+                assert!(inside, "{icon:?}");
             }
         }
     }
@@ -171,6 +195,25 @@ mod tests {
         Icon::Plus.draw(&mut scene, bounds, Color::WHITE, 2.0);
         assert_eq!(scene.line_count(), 2);
         assert_eq!(scene.draw_count(), 1);
+    }
+
+    #[test]
+    fn polylines_join_their_segments_by_pairs() {
+        let bounds = Rect::from_origin_size(Vec2::ZERO, Vec2::splat(16.0));
+        let count = |icon: Icon| {
+            let mut scene = Scene::new();
+            icon.draw(&mut scene, bounds, Color::WHITE, 1.5);
+            scene.line_count()
+        };
+        // Two segments joined in one stroke.
+        assert_eq!(count(Icon::ChevronRight), 1);
+        assert_eq!(count(Icon::Check), 1);
+        // Two separate strokes.
+        assert_eq!(count(Icon::Close), 2);
+        // An arrow head, and fifteen segments of the circle: seven pairs and one alone.
+        assert_eq!(count(Icon::Reset), 1 + 8);
+        // Twelve segments of the circle, six pairs, and the handle.
+        assert_eq!(count(Icon::Search), 6 + 1);
     }
 
     #[test]

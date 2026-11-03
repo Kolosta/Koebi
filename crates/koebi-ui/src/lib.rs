@@ -73,6 +73,7 @@ mod bar;
 mod icon;
 mod id;
 mod input;
+mod pixel;
 mod routing;
 mod style;
 mod text;

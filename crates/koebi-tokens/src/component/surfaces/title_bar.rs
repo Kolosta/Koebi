@@ -26,7 +26,8 @@ koebi_design::tokens! {
     TITLE_BAR_BUTTON_PRESSED_LIGHTNESS = "title-bar.button.pressed-lightness": Number = -0.05,
         range(-0.5, 0.5);
     /// Title bar: space between its edges and its items, which are one interface unit high.
-    TITLE_BAR_PADDING_DEFAULT = "title-bar.padding.default": Dimension = px(2.0), range(0.0, 16.0);
+    TITLE_BAR_PADDING_DEFAULT = "title-bar.padding.default": Dimension ->
+        semantic::SPACING_CONTROL_INSET;
     /// Title bar: space between its items.
     TITLE_BAR_GAP_DEFAULT = "title-bar.gap.default": Dimension = px(0.0), range(0.0, 16.0);
     /// Title bar: width of a window button, which is as high as the bar.

@@ -58,6 +58,9 @@ impl TextFieldStyle {
         let editing = get(c::TEXT_FIELD_BACKGROUND_COLOR_EDITING);
         let border_hover = get(c::TEXT_FIELD_BORDER_COLOR_HOVER);
         let border_editing = get(c::TEXT_FIELD_BORDER_COLOR_EDITING);
+        // A disabled field cannot be edited: selected or not, it looks disabled.
+        let disabled = get(c::TEXT_FIELD_BACKGROUND_COLOR_DISABLED);
+        let border_disabled = get(c::TEXT_FIELD_BORDER_COLOR_DISABLED);
         Self {
             background: States {
                 normal: get(c::TEXT_FIELD_BACKGROUND_COLOR_DEFAULT),
@@ -65,7 +68,8 @@ impl TextFieldStyle {
                 pressed: get(c::TEXT_FIELD_BACKGROUND_COLOR_HOVER),
                 selected: editing,
                 selected_hovered: editing,
-                disabled: get(c::TEXT_FIELD_BACKGROUND_COLOR_DISABLED),
+                disabled,
+                selected_disabled: disabled,
             },
             border: States {
                 normal: get(c::TEXT_FIELD_BORDER_COLOR_DEFAULT),
@@ -73,7 +77,8 @@ impl TextFieldStyle {
                 pressed: border_hover,
                 selected: border_editing,
                 selected_hovered: border_editing,
-                disabled: get(c::TEXT_FIELD_BORDER_COLOR_DISABLED),
+                disabled: border_disabled,
+                selected_disabled: border_disabled,
             },
             text: get(c::TEXT_FIELD_TEXT_COLOR_DEFAULT),
             text_disabled: get(c::TEXT_FIELD_TEXT_COLOR_DISABLED),

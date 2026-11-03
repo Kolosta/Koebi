@@ -23,7 +23,7 @@ impl TextField<'_> {
     /// The color of `part` in `state`: the call's, or the style's.
     fn color(&self, ui: &Ui<'_>, part: usize, state: ControlState) -> Color {
         let style = &ui.styles().text_field;
-        let disabled = state == ControlState::Disabled;
+        let disabled = state.is_disabled();
         let fallback = match part {
             BACKGROUND => style.background.get(state),
             BORDER => style.border.get(state),

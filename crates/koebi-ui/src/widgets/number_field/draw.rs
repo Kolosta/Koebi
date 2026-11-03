@@ -198,7 +198,7 @@ impl<N: Numeric> NumberField<'_, N> {
                 area.max.y,
             ),
         );
-        let disabled = state == ControlState::Disabled;
+        let disabled = state.is_disabled();
         let text_color = if disabled {
             style.text_disabled
         } else {

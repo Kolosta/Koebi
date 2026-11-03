@@ -122,7 +122,7 @@ impl TextFieldResponse {
 }
 
 /// The parts whose colors the call can set per state.
-type FieldColors = [[Option<Prop<kind::Color>>; 6]; 4];
+type FieldColors = [[Option<Prop<kind::Color>>; ControlState::ALL.len()]; 4];
 
 const BACKGROUND: usize = 0;
 const BORDER: usize = 1;

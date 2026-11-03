@@ -230,9 +230,10 @@ ImGui residues, with their source value or alias:
 
 The base theme is Dark: the token tables define it. The other themes come from the per-theme aliases of the source and list only what differs from Dark:
 
-- Light (`light`): 20 aliases.
+- Light (`light`): 20 aliases, and `semantic.background.app.disabled` added after the port.
 - Muted green (`muted-green`): 16 aliases.
-- High contrast (`high-contrast`): 24 aliases.
+- High contrast (`high-contrast`): 24 aliases, and `semantic.background.app.disabled` added
+  after the port.
 
 `ThemeDefinition.cpp` holds no theme: it redefines tokens per interface zone (`settings`, `editors/viewport`, `devTest/...`) for every theme. Zones are not part of the token system yet, so these redefinitions are not ported.
 
@@ -272,6 +273,19 @@ Application bar: `component.title-bar.button.pressed-lightness`,
 `.stroke.default` and `.restore-offset`, `component.title-bar.resize-border.default`,
 `component.title-bar.menu.padding.default` and `.corner-radius.default`. Settings:
 `component.side-panel.width.default`.
+
+Insets, chevrons and disabled states (#174): `semantic.spacing.control-inset` (2 pixels, the
+inset around controls one interface unit high), which `component.editor-top-bar.padding.default`,
+`component.zone-tab.padding.vertical.default` and `component.title-bar.padding.default` now
+alias, and `component.panel.header.inset.default`, which adds it above and below a panel
+header's content; `component.icon.stroke-width.chevron` (1.25 px); `semantic.background.app.disabled`
+(gray 780, gray 75 in Light, gray 850 in High contrast), which every disabled control
+background now aliases (`button`, `toggle`, `checkbox`, `dropdown`, `number-field`,
+`text-field`); `semantic.disabled.selected-tint` (0.4), aliased by
+`component.button.selected.disabled.tint` and `component.checkbox.selected.disabled.tint`.
+Both chevron sizes grow by a quarter, at the maintainer's request:
+`component.dropdown.chevron.size` from 8 to 10 pixels, `component.panel.chevron.size` and
+`component.list-row.fold.size.default` from 10 to 12.5 pixels.
 
 Docking: `component.zone-tab.reveal.delay` (350 ms) and `component.zone-tab.reveal.grace`
 (250 ms), which were constants in the source.
@@ -399,7 +413,7 @@ disabled), their metrics, the colored variants, the color families and the group
 - `component.button.background.color.selected-hover` → `semantic.background.accent.hover`
 - `component.button.label.color.selected` → `semantic.static.text.color.white`
 - `component.button.border.color.selected` → `semantic.border.color.accent.default`
-- `component.button.background.color.disabled` → `semantic.background.app.control`
+- `component.button.background.color.disabled` → `semantic.background.app.disabled`
 - `component.button.label.color.disabled` → `semantic.text.color.disabled.default`
 - `component.button.border.color.disabled` → `semantic.border.color.disabled.default`
 - `component.button.height.default` → `semantic.size.control-height`
@@ -466,7 +480,7 @@ disabled), their metrics, the colored variants, the color families and the group
 - `component.button.hue.purple.text` → `semantic.text.color.purple.default`
 - `component.button.group.border.width.default` → `semantic.border.width.thin`
 - `component.checkbox.border.color.hover` → `semantic.border.color.strong.default`
-- `component.checkbox.background.color.disabled` → `semantic.background.app.control`
+- `component.checkbox.background.color.disabled` → `semantic.background.app.disabled`
 - `component.checkbox.border.color.disabled` → `semantic.border.color.disabled.default`
 - `component.checkbox.mark.color.disabled` → `semantic.text.color.disabled.default`
 - `component.checkbox.label.color.default` → `semantic.text.color.primary.default`
@@ -477,7 +491,7 @@ disabled), their metrics, the colored variants, the color families and the group
 - `component.checkbox.line-height.default` → `semantic.size.control-height`
 - `component.toggle.background.color.pressed` → `semantic.background.app.child`
 - `component.toggle.background.color.selected-hover` → `semantic.background.accent.hover`
-- `component.toggle.background.color.disabled` → `semantic.background.app.control`
+- `component.toggle.background.color.disabled` → `semantic.background.app.disabled`
 - `component.toggle.border.color.hover` → `semantic.border.color.strong.default`
 - `component.toggle.border.color.disabled` → `semantic.border.color.disabled.default`
 - `component.toggle.label.color.hover` → `semantic.text.color.primary.default`
@@ -505,7 +519,7 @@ dropdowns (#109, #110) (22):
 - `component.menu.item.radio.size.default` = 6 px
 - `component.menu.wheel-step.default` = 48 px
 - `component.tooltip.offset.default` = 16 px
-- `component.dropdown.background.color.disabled` → `semantic.background.app.control`
+- `component.dropdown.background.color.disabled` → `semantic.background.app.disabled`
 - `component.dropdown.border.color.open` → `semantic.neutral.color.600`
 - `component.dropdown.border.color.disabled` → `semantic.border.color.disabled.default`
 - `component.dropdown.label.color.disabled` → `semantic.text.color.disabled.default`

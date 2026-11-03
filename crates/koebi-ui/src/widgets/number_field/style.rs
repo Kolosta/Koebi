@@ -65,6 +65,10 @@ impl NumberFieldStyle {
         let border_drag = get(c::NUMBER_FIELD_BORDER_COLOR_DRAG);
         let border_hover = get(c::NUMBER_FIELD_BORDER_COLOR_HOVER);
         let fill_hover = get(c::NUMBER_FIELD_FILL_COLOR_HOVER);
+        // A disabled field cannot be dragged or edited: selected or not, it looks disabled.
+        let disabled = get(c::NUMBER_FIELD_BACKGROUND_COLOR_DISABLED);
+        let border_disabled = get(c::NUMBER_FIELD_BORDER_COLOR_DISABLED);
+        let fill_disabled = get(c::NUMBER_FIELD_FILL_COLOR_DISABLED);
         Self {
             background: States {
                 normal: get(c::NUMBER_FIELD_BACKGROUND_COLOR_DEFAULT),
@@ -72,7 +76,8 @@ impl NumberFieldStyle {
                 pressed: get(c::NUMBER_FIELD_BACKGROUND_COLOR_PRESSED),
                 selected: drag,
                 selected_hovered: drag,
-                disabled: get(c::NUMBER_FIELD_BACKGROUND_COLOR_DISABLED),
+                disabled,
+                selected_disabled: disabled,
             },
             border: States {
                 normal: get(c::NUMBER_FIELD_BORDER_COLOR_DEFAULT),
@@ -80,7 +85,8 @@ impl NumberFieldStyle {
                 pressed: border_hover,
                 selected: border_drag,
                 selected_hovered: border_drag,
-                disabled: get(c::NUMBER_FIELD_BORDER_COLOR_DISABLED),
+                disabled: border_disabled,
+                selected_disabled: border_disabled,
             },
             error: get(c::NUMBER_FIELD_BORDER_COLOR_ERROR),
             fill: States {
@@ -89,7 +95,8 @@ impl NumberFieldStyle {
                 pressed: fill_hover,
                 selected: fill_hover,
                 selected_hovered: fill_hover,
-                disabled: get(c::NUMBER_FIELD_FILL_COLOR_DISABLED),
+                disabled: fill_disabled,
+                selected_disabled: fill_disabled,
             },
             text: get(c::NUMBER_FIELD_TEXT_COLOR_DEFAULT),
             text_disabled: get(c::NUMBER_FIELD_TEXT_COLOR_DISABLED),

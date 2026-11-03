@@ -25,5 +25,6 @@ koebi_design::theme! {
         semantic::BACKGROUND_APP_CHILD => primitive::COLOR_GRAY_25;
         semantic::BACKGROUND_APP_FRAME => primitive::COLOR_GRAY_25;
         semantic::BACKGROUND_APP_FRAME_HOVER => primitive::COLOR_GRAY_100;
+        semantic::BACKGROUND_APP_DISABLED => primitive::COLOR_GRAY_75;
     }
 }

@@ -9,15 +9,17 @@ tokens and how to write a new one.
 ## The interface unit
 
 A control is one interface unit high (`ui-unit`, through `semantic.size.control-height`). What
-holds controls is sized from it, with its padding in tokens:
+holds controls in a row is sized from it and leaves the same inset above and below them,
+`semantic.spacing.control-inset` (2 pixels), which its own padding token aliases:
 
 | What | Height | Rule |
 |---|---|---|
 | Button, dropdown, text field, number field, checkbox | one unit | fixed; `height` overrides it for one control |
 | Top bar | one unit + `editor-top-bar.padding` on each side | fixed, and its items are one unit high |
 | Tab bar | one unit + `zone-tab.padding.vertical` on each side | fixed; a tab reaches down to the top bar below it, its label one unit high |
+| Application bar | one unit + `title-bar.padding` on each side | fixed; its menus and window buttons are one unit high |
 | Menu item, list row | one unit, highlight included | fixed; the highlight lies inside and the pointer selects the whole row |
-| Collapsible panel header | one unit | fixed |
+| Collapsible panel header | one unit (`panel.header.height`) + `panel.header.inset` on each side | fixed; the controls at its end are one unit high |
 | Property group row | one unit | fixed; `row_with_height` asks for a taller one |
 | Menu, list, panel content, property group | what they hold | grow with their content, then scroll or stop at a maximum |
 
@@ -49,7 +51,12 @@ what shows.
 | Scrollbar | `Scrollbar::new(id, &mut state, axis, &mut offset, visible, content)`, then `.show(ui, area)` | `component.scrollbar.*` |
 | List and tree | `Ui::list(id, rect, &mut state, &items, &options, &mut delegate)` returns a `ListResponse` | `component.list-row.*`, `component.outliner.*`, `component.table.row.*`, `component.drop-target.*` |
 
-Line icons (`Icon::Check`, `Icon::Plus`, chevrons...) use `component.icon.*`. Labels use the
+Line icons (`Icon::Check`, `Icon::Plus`, chevrons...) use `component.icon.*`: polylines
+whose segments are drawn by pairs joined at their corner, so that a chevron's tip or a check
+mark's corner is covered once and keeps the weight of its arms. The chevrons that fold and open
+(fold arrows, panel headers, dropdowns) take the finer `icon.stroke-width.chevron`.
+`Ui::pixel_span` and `Ui::centered_on_line` place what must line up on the physical pixel grid:
+a line covering whole pixels, and a shape centered on the middle of that line. Labels use the
 fonts given to `UiState::set_fonts`, in the roles of `Styles::text` (label, body, detail): one
 line, cut with an ellipsis when too long ([ADR 0014](../adr/0014-text-basics.md)). Theme cards
 still draw text as bars.
@@ -80,14 +87,20 @@ if save.show(ui, Rect::from_origin_size(origin, size)).clicked {
   family over the disabled colors. A toggle of the default tone has the look of toggles
   (`toggle.*`: colors, corner radius and border width), like Blender's toggle theme.
 - **States** (`ControlState`): normal, hovered, pressed, selected (a toggle switched on, the
-  current choice), selected and hovered, disabled. `States<T>` holds a value per state.
+  current choice), selected and hovered, disabled, selected and disabled (a toggle switched
+  on, then disabled). A disabled control ignores the pointer: it is never hovered nor
+  pressed, but a selected one still shows it is on, its disabled colors keeping
+  `button.selected.disabled.tint` of its selected ones (`checkbox.selected.disabled.tint`
+  for a checked box). `States<T>` holds a value per state. Disabled controls and fields share
+  `semantic.background.app.disabled`, between the surfaces and the fields.
 - **Overrides**: every property takes a `Prop`, a token or a value:
   `.corner_radius(0.0)`, `.padding(semantic::SPACING_EDITOR_INSET)`,
   `.background(ControlState::Hovered, Color::from_hex(0xE0_30_30))`; `.corner_radii(...)`
   takes one radius per corner (`CornerRadii`), and the last of the two calls applies.
 - **Content** (`Content`): a leading icon, a label or an icon, a status dot and a trailing
-  icon, placed by `align`; a label too long is cut with an ellipsis, and content that cannot
-  fit is clipped to the button.
+  icon, placed by `align`; a label too long is cut with an ellipsis, icons that do not fit
+  within the paddings take them, as much on each side (an icon stays centered in a small
+  square button), and content that still cannot fit is clipped to the button.
 - **Size**: one interface unit high (`button.height`), never lower than the content (an icon,
   or the line box of the label's font); as wide as the content, paddings and borders within
   `button.min-width` and `.max_width(...)`, or `.width(...)` for a fixed width. A button
@@ -106,7 +119,8 @@ if save.show(ui, Rect::from_origin_size(origin, size)).clicked {
   the next free one along the group's direction, and a group in a rectangle smaller than its
   size shrinks its fitting tracks first. Neighbours share one border
   (`button.group.border.width`) whose color is the one of the cell of highest state priority
-  (pressed, hovered, selected, rest, disabled); only the group's outer corners are rounded. The
+  (pressed, hovered, selected, rest, selected and disabled, disabled); only the group's outer
+  corners are rounded. The
   `GroupResponse` says which cell fired, was double-clicked, pressed with the secondary
   button or hovered.
 - **Checkboxes**: the box, a label beside it and an optional description below
@@ -120,7 +134,7 @@ if save.show(ui, Rect::from_origin_size(origin, size)).clicked {
 
 `AppBar::new(id, title)` fills the top of a window: the caller's items from the start, the title in
 the middle when it fits, and the window buttons at the end, flush with the corner and as high as
-the bar. It is `title-bar.padding` more than an interface unit high. The system moves the window
+the bar. It is one interface unit high, and `title-bar.padding` above and below. The system moves the window
 from the bar's background, and whatever lies over it takes the pointer
 (`UiState::covering`): [ADR 0019](../adr/0019-window-chrome.md) tells the rest. Window buttons act
 on the release (`AppBarResponse::command`). `.window_buttons(false)` and `.leading_inset(width)`
@@ -263,7 +277,8 @@ Boxes holding trees of sections that fold, as in Blender's properties.
 owns (open or closed, the openness animating between, and the height of the content measured
 on the last frame).
 
-- **Header**: `panel.header.height` high, a chevron (`panel.chevron.*`) pointing right while
+- **Header**: `panel.header.height` high and `panel.header.inset` above and below, a chevron
+  (`panel.chevron.*`, its tip on whole pixels) pointing right while
   closed and turning down as the panel opens, an optional `.icon(icon)`, the title, and room
   for the caller's buttons (`.trailing(width)`, returned as `CollapsiblePanelResponse::trailing`;
   draw them after the panel so that they take the pointer). Under the pointer, the header
@@ -314,8 +329,10 @@ areas use one per axis.
 A row's hover, selected and active states show in a highlight inside it, with rounded corners
 (`list-row.highlight.*`), while the zebra keeps the whole row and the pointer reaches all of it.
 In a tree, the line along the children of a row (`outliner.tree-line.*`) starts just below the
-top of its first child and ends just above the bottom of its last one, on the middle of the
-row's chevron. Each row chooses its look (`ListItem::with_guide`): `TreeGuide::Line`,
+top of its first child and ends just above the bottom of its last one, below the tip of the
+row's chevron: both are placed on the same physical pixels (`Ui::pixel_span`,
+`Ui::centered_on_line`) at every scale factor. Each row chooses its look
+(`ListItem::with_guide`): `TreeGuide::Line`,
 `TreeGuide::Color(color)` or `TreeGuide::Dotted`.
 
 One component draws every list of the application (outliner, layers, color usage, messages);

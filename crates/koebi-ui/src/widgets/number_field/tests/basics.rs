@@ -335,8 +335,8 @@ fn fields_show_their_label_value_unit_bar_and_steps_on_hover() {
     harness.input.pointer_moved(field().center());
     draw(&mut harness, &mut value, Some(true));
     let hovered = draw(&mut harness, &mut value, Some(true));
-    // The step buttons' chevrons, asked for.
-    assert!(hovered.line_count() >= 4);
+    // The step buttons' chevrons, asked for: a stroke each.
+    assert!(hovered.line_count() >= 2);
     // A field on a bar has none by default.
     let hovered = draw(&mut harness, &mut value, None);
     assert_eq!(hovered.line_count(), 0);
@@ -386,7 +386,7 @@ fn fields_without_a_bar_have_step_buttons_unless_told_otherwise() {
     draw(&mut harness, &mut value, None);
     harness.input.pointer_moved(field().center());
     draw(&mut harness, &mut value, None);
-    assert!(draw(&mut harness, &mut value, None).line_count() >= 4);
+    assert!(draw(&mut harness, &mut value, None).line_count() >= 2);
     assert_eq!(draw(&mut harness, &mut value, Some(false)).line_count(), 0);
 }
 

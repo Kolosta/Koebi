@@ -15,7 +15,7 @@ koebi_design::tokens! {
     /// Dropdown: vertical padding.
     DROPDOWN_PADDING_VERTICAL_DEFAULT = "dropdown.padding.vertical.default": Dimension = px(2.0), range(0.0, 32.0);
     /// Dropdown: chevron size.
-    DROPDOWN_CHEVRON_SIZE = "dropdown.chevron.size": Dimension = px(8.0), range(0.0, 32.0);
+    DROPDOWN_CHEVRON_SIZE = "dropdown.chevron.size": Dimension = px(10.0), range(0.0, 32.0);
     /// Dropdown: icon size.
     DROPDOWN_ICON_SIZE = "dropdown.icon.size": Dimension = px(16.0), range(0.0, 64.0);
     /// Dropdown: background color.
@@ -54,7 +54,7 @@ koebi_design::tokens! {
 
     /// Dropdown: background color, disabled.
     DROPDOWN_BACKGROUND_COLOR_DISABLED = "dropdown.background.color.disabled": Color ->
-        semantic::BACKGROUND_APP_CONTROL;
+        semantic::BACKGROUND_APP_DISABLED;
     /// Dropdown: border color, open.
     DROPDOWN_BORDER_COLOR_OPEN = "dropdown.border.color.open": Color ->
         semantic::NEUTRAL_COLOR_600;

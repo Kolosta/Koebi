@@ -140,6 +140,20 @@ pub struct ToneColors {
     pub icon: States<Color>,
 }
 
+impl ToneColors {
+    /// The colors with their selected and disabled ones derived, each keeping `tint` of its
+    /// selected color ([`States::with_selected_disabled`]).
+    #[must_use]
+    pub fn with_selected_disabled(self, tint: f32) -> Self {
+        Self {
+            background: self.background.with_selected_disabled(tint),
+            border: self.border.with_selected_disabled(tint),
+            content: self.content.with_selected_disabled(tint),
+            icon: self.icon.with_selected_disabled(tint),
+        }
+    }
+}
+
 /// The colors of a family, as tokens give them.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct HueColors {
@@ -191,6 +205,8 @@ pub(crate) fn hued(
         selected,
         selected_hovered: shade(selected, shades.hover),
         disabled: color,
+        // Derived with the rest of the style's colors.
+        selected_disabled: color,
     };
     let (mut background, mut border, mut content) = if variant.is_filled() {
         let pressed = shade(hue.fill, shades.pressed);

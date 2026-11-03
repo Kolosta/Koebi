@@ -30,7 +30,7 @@ koebi_design::tokens! {
     LIST_ROW_GAP_DEFAULT = "list-row.gap.default": Dimension = px(4.0), range(0.0, 32.0);
     /// List row: side of the fold arrow.
     LIST_ROW_FOLD_SIZE_DEFAULT = "list-row.fold.size.default": Dimension =
-        px(10.0), range(4.0, 32.0);
+        px(12.5), range(4.0, 32.0);
     /// List row: color of the fold arrow.
     LIST_ROW_FOLD_COLOR_DEFAULT = "list-row.fold.color.default": Color ->
         semantic::TEXT_COLOR_SECONDARY_DEFAULT;

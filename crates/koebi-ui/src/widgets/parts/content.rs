@@ -35,6 +35,8 @@ pub(crate) struct ContentMetrics<'f> {
     /// Side of the trailing icon (a dropdown's chevron is smaller than icons).
     pub(crate) trailing_size: f32,
     pub(crate) stroke_width: f32,
+    /// Stroke width of the trailing icon (a dropdown's chevron is finer than icons).
+    pub(crate) trailing_stroke_width: f32,
     pub(crate) dot_size: f32,
     pub(crate) font: &'f FontStyle,
 }
@@ -49,8 +51,8 @@ pub(crate) struct ContentColors {
 /// One part of laid-out content.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Part<'a> {
-    /// An icon, and its side.
-    Icon(Icon, f32),
+    /// An icon, its side and its stroke width.
+    Icon(Icon, f32, f32),
     Label(&'a str, f32),
     Dot(Color),
 }
@@ -117,20 +119,24 @@ impl<'a> Content<'a> {
     /// The parts in order, the label with its natural width; calls `each` with each part.
     fn parts(&self, ui: &mut Ui<'_>, metrics: &ContentMetrics<'_>, mut each: impl FnMut(Part<'a>)) {
         if let Some(icon) = self.leading {
-            each(Part::Icon(icon, metrics.icon_size));
+            each(Part::Icon(icon, metrics.icon_size, metrics.stroke_width));
         }
         if let Some(label) = self.label {
             let width = ui.text_width(label, metrics.font);
             each(Part::Label(label, width));
         }
         if let Some(icon) = self.icon {
-            each(Part::Icon(icon, metrics.icon_size));
+            each(Part::Icon(icon, metrics.icon_size, metrics.stroke_width));
         }
         if let Some(color) = self.dot {
             each(Part::Dot(color));
         }
         if let Some(icon) = self.trailing {
-            each(Part::Icon(icon, metrics.trailing_size));
+            each(Part::Icon(
+                icon,
+                metrics.trailing_size,
+                metrics.trailing_stroke_width,
+            ));
         }
     }
 
@@ -142,6 +148,20 @@ impl<'a> Content<'a> {
             count += 1;
         });
         width + metrics.gap * f32::from(count.saturating_sub(1))
+    }
+
+    /// The width of what cannot shrink: the content without its label, gaps included.
+    pub(crate) fn fixed_width(&self, ui: &mut Ui<'_>, metrics: &ContentMetrics<'_>) -> f32 {
+        let label = Content {
+            label: None,
+            ..*self
+        };
+        let gap = if self.label.is_some() && !label.is_empty() {
+            metrics.gap
+        } else {
+            0.0
+        };
+        label.width(ui, metrics) + gap
     }
 
     /// The height of the content: its tallest part, a label counting the line box of its font
@@ -165,7 +185,8 @@ impl<'a> Content<'a> {
 
     /// Draws the content inside `rect` in `color`, placed by its alignment; a label too long
     /// for the room left is cut with an ellipsis, and content that still does not fit (icons
-    /// wider or taller than `rect`) is clipped to `bounds`.
+    /// wider or taller than `rect`) overflows by its alignment (as much on each side when
+    /// centered) and is clipped to `bounds`.
     pub(crate) fn draw(
         &self,
         ui: &mut Ui<'_>,
@@ -185,10 +206,11 @@ impl<'a> Content<'a> {
             }
         });
         natural += metrics.gap * f32::from(count.saturating_sub(1));
-        // The label gives up what does not fit.
+        // The label gives up what does not fit; what still does not fit overflows by its
+        // alignment, as much on each side when centered.
         let fixed = natural - label;
         let room = (rect.width() - fixed).max(0.0);
-        let width = natural.min(rect.width());
+        let width = natural.min(rect.width()).max(fixed);
         let overflows =
             fixed > rect.width() + 0.5 || self.height(ui, metrics) > rect.height() + 0.5;
         if overflows {
@@ -218,13 +240,13 @@ impl<'a> Content<'a> {
                 x = x.max(rect.max.x - metrics.trailing_size);
             }
             match part {
-                Part::Icon(icon, size) => {
+                Part::Icon(icon, size, stroke_width) => {
                     let slot = Rect::from_min_max(
                         Vec2::new(x, rect.min.y),
                         Vec2::new(x + size, rect.max.y),
                     );
                     let bounds = Icon::centered(slot, size);
-                    icon.draw(ui.scene(), bounds, colors.icon, metrics.stroke_width);
+                    icon.draw(ui.scene(), bounds, colors.icon, stroke_width);
                     x += size;
                 }
                 Part::Label(label, natural_width) => {
@@ -255,7 +277,7 @@ impl<'a> Content<'a> {
 /// The width of one part.
 fn part_width(part: Part<'_>, metrics: &ContentMetrics<'_>) -> f32 {
     match part {
-        Part::Icon(_, size) => size,
+        Part::Icon(_, size, _) => size,
         Part::Label(_, width) => width,
         Part::Dot(_) => metrics.dot_size,
     }
@@ -285,6 +307,7 @@ mod tests {
             icon_size: 16.0,
             trailing_size: 16.0,
             stroke_width: 1.5,
+            trailing_stroke_width: 1.25,
             dot_size: 6.0,
             font: &styles.text.label,
         };
@@ -310,8 +333,43 @@ mod tests {
         full.draw(&mut ui, narrow, narrow, WHITE, &metrics);
         assert_eq!(ui.scene().clip(), None);
         drop(ui);
-        assert_eq!(scene.line_count(), 4);
+        // The check mark and the chevron, each one stroke of two joined segments.
+        assert_eq!(scene.line_count(), 2);
         assert_eq!(scene.rect_count(), 1);
+    }
+
+    #[test]
+    fn the_fixed_width_leaves_out_the_label_but_its_gaps() {
+        let styles = crate::test_styles();
+        let (mut scene, mut state, input) = (Scene::new(), UiState::new(), Input::new());
+        state.set_fonts(Fonts::with_embedded());
+        let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+        let metrics = ContentMetrics {
+            gap: 4.0,
+            icon_size: 16.0,
+            trailing_size: 12.0,
+            stroke_width: 1.5,
+            trailing_stroke_width: 1.25,
+            dot_size: 6.0,
+            font: &styles.text.label,
+        };
+        assert_eq!(Content::label("Save").fixed_width(&mut ui, &metrics), 0.0);
+        assert_eq!(
+            Content::icon(Icon::Plus).fixed_width(&mut ui, &metrics),
+            16.0
+        );
+        let icons = Content {
+            leading: Some(Icon::Check),
+            ..Content::icon(Icon::Plus)
+        };
+        assert_eq!(icons.fixed_width(&mut ui, &metrics), 16.0 + 4.0 + 16.0);
+        // Both icons and the gaps around the label.
+        let full = Content {
+            leading: Some(Icon::Check),
+            trailing: Some(Icon::ChevronDown),
+            ..Content::label("Save")
+        };
+        assert_eq!(full.fixed_width(&mut ui, &metrics), 16.0 + 12.0 + 2.0 * 4.0);
     }
 
     #[test]
@@ -325,6 +383,7 @@ mod tests {
             icon_size: 16.0,
             trailing_size: 16.0,
             stroke_width: 1.5,
+            trailing_stroke_width: 1.25,
             dot_size: 6.0,
             font: &styles.text.label,
         };
@@ -333,14 +392,14 @@ mod tests {
             trailing: Some(Icon::ChevronDown),
             ..Content::icon(Icon::Plus)
         };
-        // Three icons and two gaps need 56 pixels: drawn from the left of a 10 pixel wide
-        // button, the second and third icons fall outside it and are clipped away.
+        // Three icons and two gaps need 56 pixels: centered on a 10 pixel wide button, the
+        // first and third icons fall outside it and are clipped away.
         let rect = Rect::from_origin_size(Vec2::ZERO, Vec2::new(10.0, 20.0));
         icons.draw(&mut ui, rect, rect, WHITE, &metrics);
         // The clip ends with the content.
         assert_eq!(ui.scene().clip(), None);
         drop(ui);
-        // The check mark's two segments only.
+        // The plus sign's two segments only.
         assert_eq!(scene.line_count(), 2);
     }
 }

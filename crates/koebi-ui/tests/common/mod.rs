@@ -12,12 +12,18 @@ use koebi_text::Fonts;
 /// Renders `scene` offscreen into an RGBA8 image, at scale factor 1, its text set in the
 /// embedded fonts.
 pub(crate) fn render(gpu: &HeadlessGpu, extent: Extent, scene: &Scene) -> Image {
+    render_scaled(gpu, extent, scene, 1.0)
+}
+
+/// [`render`] at `scale` physical pixels per logical pixel, into an image of `extent`
+/// physical pixels.
+pub(crate) fn render_scaled(gpu: &HeadlessGpu, extent: Extent, scene: &Scene, scale: f32) -> Image {
     let format = TextureFormat::Rgba8Unorm;
     let mut renderer = Renderer2D::new(&gpu.device, format).expect("renderer creation");
     renderer.set_fonts(Fonts::with_embedded());
     gpu.render_offscreen(extent, format, |encoder, target| {
         renderer
-            .render(encoder, target, scene, 0, 1.0)
+            .render(encoder, target, scene, 0, scale)
             .expect("render");
     })
     .expect("offscreen rendering")

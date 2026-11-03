@@ -50,7 +50,7 @@ koebi_design::tokens! {
         semantic::BORDER_COLOR_STRONG_DEFAULT;
     /// Checkbox: background color, disabled.
     CHECKBOX_BACKGROUND_COLOR_DISABLED = "checkbox.background.color.disabled": Color ->
-        semantic::BACKGROUND_APP_CONTROL;
+        semantic::BACKGROUND_APP_DISABLED;
     /// Checkbox: border color, disabled.
     CHECKBOX_BORDER_COLOR_DISABLED = "checkbox.border.color.disabled": Color ->
         semantic::BORDER_COLOR_DISABLED_DEFAULT;
@@ -74,4 +74,7 @@ koebi_design::tokens! {
     /// Checkbox: height of a line of label or description.
     CHECKBOX_LINE_HEIGHT_DEFAULT = "checkbox.line-height.default": Dimension ->
         semantic::SIZE_CONTROL_HEIGHT;
+    /// Checked checkbox, then disabled: how much of its checked colors stays.
+    CHECKBOX_SELECTED_DISABLED_TINT = "checkbox.selected.disabled.tint": Number ->
+        semantic::DISABLED_SELECTED_TINT;
 }

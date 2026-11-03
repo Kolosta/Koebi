@@ -69,7 +69,7 @@ pub enum Activation {
 }
 
 /// Color overrides of a call: per part (background, border, content, icons) and per state.
-type ColorOverrides = [[Option<Prop<kind::Color>>; 6]; 4];
+type ColorOverrides = [[Option<Prop<kind::Color>>; ControlState::ALL.len()]; 4];
 
 const BACKGROUND: usize = 0;
 const BORDER: usize = 1;
@@ -485,6 +485,10 @@ impl<'a> Button<'a> {
     /// Draws the content in `color` inside `rect`, centered vertically, clear of the side
     /// borders (`sides`: the left and right widths) and within the paddings; content that does
     /// not fit is clipped to `rect`.
+    ///
+    /// A label too long gives up its end first; icons that do not fit within the paddings take
+    /// them, as much on each side, so that an icon stays centered in a button narrower than
+    /// its paddings and the icon.
     pub(crate) fn draw_content(
         &self,
         ui: &mut Ui<'_>,
@@ -492,15 +496,19 @@ impl<'a> Button<'a> {
         sides: (f32, f32),
         colors: ContentColors,
     ) {
-        let padding = Self::dimension(ui, self.padding.as_ref(), self.defaults(ui).padding);
+        let content = self.shown_content();
+        let metrics = self.metrics(ui);
+        let padding = fitted_padding(
+            Self::dimension(ui, self.padding.as_ref(), self.defaults(ui).padding),
+            rect.width() - sides.0 - sides.1,
+            content.fixed_width(ui, &metrics),
+        );
         let left = rect.min.x + sides.0 + padding;
-        let content = Rect::from_min_max(
+        let inner = Rect::from_min_max(
             Vec2::new(left, rect.min.y),
             Vec2::new((rect.max.x - sides.1 - padding).max(left), rect.max.y),
         );
-        let metrics = self.metrics(ui);
-        self.shown_content()
-            .draw(ui, content, rect, colors, &metrics);
+        content.draw(ui, inner, rect, colors, &metrics);
     }
 
     /// Whether the button is enabled.
@@ -513,4 +521,10 @@ impl<'a> Button<'a> {
         self.menu_state().is_some_and(MenuState::is_open)
             || self.toggle.as_deref().copied().unwrap_or(self.selected)
     }
+}
+
+/// The padding on each side of content whose parts that cannot shrink are `fixed` wide, in
+/// `room`: `padding`, or what is left on each side once they fit, as much on both.
+fn fitted_padding(padding: f32, room: f32, fixed: f32) -> f32 {
+    padding.min(((room - fixed) * 0.5).max(0.0))
 }
