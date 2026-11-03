@@ -64,7 +64,7 @@ impl ViewportConstants {
         (self.clip_rect, self.clip_radii) = match rounded {
             Some((rect, radii)) if radii.max() > 0.0 => {
                 let scale = self.scale_factor;
-                let snap = |value: f32| (value * scale + 0.5).floor();
+                let snap = |value: f32| crate::scene::pixel_edge(value * scale);
                 let low = [snap(rect.min.x), snap(rect.min.y)];
                 let high = [snap(rect.max.x), snap(rect.max.y)];
                 let limit = ((high[0] - low[0]).min(high[1] - low[1]) * 0.5).max(0.0);
@@ -111,7 +111,7 @@ impl Scissor {
                 clippy::cast_sign_loss,
                 reason = "rounded and clamped to the target first"
             )]
-            let pixel = (value * scale).round().clamp(0.0, size as f32) as u32;
+            let pixel = crate::scene::pixel_edge(value * scale).clamp(0.0, size as f32) as u32;
             pixel
         };
         let (width, height) = (viewport.extent.width, viewport.extent.height);

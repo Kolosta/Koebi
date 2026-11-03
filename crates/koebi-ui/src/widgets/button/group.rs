@@ -270,7 +270,9 @@ impl<'t> ButtonGroup<'t> {
                 prop.resolve(&styles.tokens)
             });
         let width = self.border(ui);
-        let snap = |value: f32| value.round();
+        // Cells meet on physical pixel edges, where they are drawn.
+        let scale = ui.scale_factor();
+        let snap = |value: f32| crate::pixel::pixel_edge(value, scale);
         let (count_x, count_y) = grid.size;
         let mut response = GroupResponse::default();
         let mut frames = [(

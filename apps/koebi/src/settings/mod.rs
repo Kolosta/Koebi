@@ -154,7 +154,7 @@ impl SettingsView {
         keymap: &mut Keymap,
     ) {
         let width = design.get(component::SIDE_PANEL_WIDTH_DEFAULT);
-        let margin = design.get(component::SIDE_PANEL_MARGIN_DEFAULT);
+        let margin = ui.whole_pixels(design.get(component::SIDE_PANEL_MARGIN_DEFAULT));
         let column = Rect::from_min_max(
             rect.min,
             Vec2::new((rect.min.x + width).min(rect.max.x), rect.max.y),
@@ -294,7 +294,7 @@ mod tests {
             self.input
                 .set_time(core::time::Duration::from_millis(self.time));
             {
-                let styles = self.styles.update(&self.design);
+                let styles = self.styles.update(&self.design, self.state.scale_factor());
                 let mut ui = Ui::new(&mut scene, styles, &self.input, &mut self.state);
                 self.settings
                     .show(&mut ui, Self::window(), &mut self.design, &mut self.keymap);

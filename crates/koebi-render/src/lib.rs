@@ -29,4 +29,7 @@ mod scene;
 mod shaders;
 
 pub use renderer::{Renderer2D, Viewport};
-pub use scene::{Corners, Edges, GlyphPrimitive, LinePrimitive, RectPrimitive, Scene, Sides};
+pub use scene::{
+    Corners, Edges, GlyphPrimitive, LinePrimitive, RectPrimitive, Scene, Sides, TIE_TOLERANCE,
+    pixel_edge,
+};

@@ -49,7 +49,9 @@
 //! // One frame: components draw, and react to the input against the previous frame.
 //! let mut frame = |input: &mut Input, grid: &mut bool| {
 //!     scene.clear();
-//!     let mut ui = Ui::new(&mut scene, styles.update(&design), input, &mut state);
+//!     // The styles at the window's scale factor: their lengths are whole physical pixels.
+//!     let styles = styles.update(&design, state.scale_factor());
+//!     let mut ui = Ui::new(&mut scene, styles, input, &mut state);
 //!     let response = Button::new(WidgetId::new("grid"))
 //!         .icon(Icon::Plus)
 //!         .toggle(grid)
@@ -85,6 +87,7 @@ pub use bar::BarLayout;
 pub use icon::Icon;
 pub use id::WidgetId;
 pub use input::{Input, PointerButton};
+pub use pixel::whole_pixels;
 pub use routing::Layer;
 pub use style::{CornerRadii, IconStyle, InputStyle, Prop, StateColors, StyleCache, Styles};
 pub use text::{Align, FontStyle, TextStyles};

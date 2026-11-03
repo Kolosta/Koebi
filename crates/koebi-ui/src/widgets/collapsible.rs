@@ -251,7 +251,8 @@ impl<'a> CollapsiblePanel<'a> {
         } else {
             0.0
         };
-        (full * self.state.openness()).round()
+        // Whole physical pixels: the panel below lies a whole number of pixels further.
+        ui.whole_pixels(full * self.state.openness())
     }
 
     /// Shows the panel at the top of `area`, its full width, or indented by

@@ -5,8 +5,6 @@
 use koebi_core::{Rect, Vec2};
 use koebi_render::Corners;
 
-use crate::widgets::snap;
-
 /// The side of its control a panel opens on.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Side {
@@ -205,7 +203,7 @@ impl Placement {
             )
         };
         Placed {
-            rect: snap(Rect::from_origin_size(origin, size)),
+            rect: Rect::from_origin_size(origin, size),
             side,
             align,
         }

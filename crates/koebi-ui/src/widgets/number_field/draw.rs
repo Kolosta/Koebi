@@ -50,7 +50,7 @@ impl<N: Numeric> NumberField<'_, N> {
             self.color(ui, BACKGROUND, state),
             self.color(ui, BORDER, state),
         );
-        let rect = snap(rect);
+        let rect = snap(rect, ui.scale_factor());
         ui.scene().push_rect(
             &RectPrimitive::new(rect, background)
                 .with_corner_radii(radii)
@@ -86,34 +86,27 @@ impl<N: Numeric> NumberField<'_, N> {
             return;
         }
         let inner = rect.inset(border_width);
-        let inset = |radius: f32| (radius - border_width).max(0.0);
-        let full = fraction >= 0.999;
-        let (fill, corners) = if self.vertical {
+        let fraction = fraction.min(1.0);
+        let fill = if self.vertical {
             let top = inner.max.y - inner.height() * fraction;
-            (
-                Rect::from_min_max(Vec2::new(inner.min.x, top), inner.max),
-                Corners {
-                    top_left: if full { inset(radii.top_left) } else { 0.0 },
-                    top_right: if full { inset(radii.top_right) } else { 0.0 },
-                    bottom_left: inset(radii.bottom_left),
-                    bottom_right: inset(radii.bottom_right),
-                },
-            )
+            Rect::from_min_max(Vec2::new(inner.min.x, top), inner.max)
         } else {
             let right = inner.min.x + inner.width() * fraction;
-            (
-                Rect::from_min_max(inner.min, Vec2::new(right, inner.max.y)),
-                Corners {
-                    top_left: inset(radii.top_left),
-                    bottom_left: inset(radii.bottom_left),
-                    top_right: if full { inset(radii.top_right) } else { 0.0 },
-                    bottom_right: if full { inset(radii.bottom_right) } else { 0.0 },
-                },
-            )
+            Rect::from_min_max(inner.min, Vec2::new(right, inner.max.y))
+        };
+        // A plain rectangle cut by the field's inner shape: near either end, the fill follows
+        // the rounded corners instead of passing them.
+        let inset = |radius: f32| (radius - border_width).max(0.0);
+        let shape = Corners {
+            top_left: inset(radii.top_left),
+            top_right: inset(radii.top_right),
+            bottom_left: inset(radii.bottom_left),
+            bottom_right: inset(radii.bottom_right),
         };
         let color = self.color(ui, FILL, state);
-        ui.scene()
-            .push_rect(&RectPrimitive::new(fill, color).with_corner_radii(corners));
+        ui.clipped_rounded(inner, shape, |ui| {
+            ui.scene().push_rect(&RectPrimitive::new(fill, color));
+        });
     }
 
     /// The step buttons: a chevron each, the hovered one on a translucent background inside the

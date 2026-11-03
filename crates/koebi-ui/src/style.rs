@@ -16,6 +16,7 @@ use koebi_design::{DesignSystem, Resolve, Snapshot, Token, TokenId};
 use koebi_render::Corners;
 use koebi_tokens::{component, semantic};
 
+use crate::pixel::whole_pixels;
 use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
@@ -323,18 +324,145 @@ pub struct Styles {
 }
 
 impl Styles {
-    /// Reads every style from `tokens`: the active theme ([`DesignSystem`]) or a
-    /// [`View`](koebi_design::View) of any theme.
+    /// Reads every style from `tokens` (the active theme, [`DesignSystem`], or a
+    /// [`View`](koebi_design::View) of any theme) for a window of one physical pixel per
+    /// logical pixel.
     pub fn resolve(tokens: &impl Resolve) -> Self {
-        Self::resolve_with(tokens, tokens.snapshot())
+        Self::resolve_at(tokens, 1.0)
     }
 
-    /// Reads every style again from `tokens`, reusing the memory of the token snapshot: what
-    /// a frame that changed the design system costs.
-    pub fn refresh(&mut self, tokens: &impl Resolve) {
+    /// Reads every style from `tokens` for a window of `scale` physical pixels per logical
+    /// pixel: layout lengths become whole physical pixels ([`whole_pixels`]), so that an inset
+    /// or a gap is the same number of pixels wherever it lies.
+    pub fn resolve_at(tokens: &impl Resolve, scale: f32) -> Self {
+        let mut styles = Self::resolve_with(tokens, tokens.snapshot());
+        styles.snap_lengths(scale);
+        styles
+    }
+
+    /// Reads every style again from `tokens` at `scale`, reusing the memory of the token
+    /// snapshot: what a frame that changed the design system costs.
+    pub fn refresh_at(&mut self, tokens: &impl Resolve, scale: f32) {
         let mut snapshot = core::mem::take(&mut self.tokens);
         tokens.snapshot_into(&mut snapshot);
         *self = Self::resolve_with(tokens, snapshot);
+        self.snap_lengths(scale);
+    }
+
+    /// Rounds the lengths that lay components out (heights, insets, gaps, paddings, indents)
+    /// to whole physical pixels at `scale`. Strokes, borders, radii and font sizes keep their
+    /// values: the renderer anti-aliases or rounds them itself.
+    fn snap_lengths(&mut self, scale: f32) {
+        let snap = |lengths: &mut [&mut f32]| {
+            for length in lengths {
+                **length = whole_pixels(**length, scale);
+            }
+        };
+        let panel = &mut self.collapsible_panel;
+        let control = whole_pixels(panel.header_height - 2.0 * panel.header_inset, scale);
+        snap(&mut [
+            &mut panel.header_inset,
+            &mut panel.header_padding,
+            &mut panel.header_gap,
+            &mut panel.indent,
+            &mut panel.content_padding,
+            &mut panel.gap,
+        ]);
+        panel.header_height = control + 2.0 * panel.header_inset;
+        let bar = &mut self.app_bar;
+        snap(&mut [
+            &mut bar.padding,
+            &mut bar.gap,
+            &mut bar.button_width,
+            &mut bar.menu_padding,
+            &mut bar.item_height,
+        ]);
+        let button = &mut self.button;
+        snap(&mut [
+            &mut button.height,
+            &mut button.min_width,
+            &mut button.padding,
+            &mut button.gap,
+        ]);
+        let capture = &mut self.capture_field;
+        snap(&mut [&mut capture.padding, &mut capture.min_width]);
+        let checkbox = &mut self.checkbox;
+        snap(&mut [
+            &mut checkbox.box_size,
+            &mut checkbox.gap,
+            &mut checkbox.line_height,
+        ]);
+        let dropdown = &mut self.dropdown;
+        snap(&mut [
+            &mut dropdown.height,
+            &mut dropdown.min_width,
+            &mut dropdown.padding,
+            &mut dropdown.padding_vertical,
+            &mut dropdown.gap,
+        ]);
+        let caps = &mut self.key_caps;
+        snap(&mut [&mut caps.padding, &mut caps.inset, &mut caps.gap]);
+        snap(&mut [&mut self.panel.padding, &mut self.theme_card.padding]);
+        let group = &mut self.property_group;
+        snap(&mut [
+            &mut group.row_height,
+            &mut group.row_gap,
+            &mut group.group_gap,
+            &mut group.column_gap,
+        ]);
+        snap(&mut [&mut self.scroll.margin, &mut self.scroll.padding]);
+        let tooltip = &mut self.tooltip;
+        snap(&mut [
+            &mut tooltip.padding_horizontal,
+            &mut tooltip.padding_vertical,
+            &mut tooltip.offset,
+        ]);
+        let list = &mut self.list;
+        snap(&mut [
+            &mut list.row_height,
+            &mut list.indent,
+            &mut list.padding,
+            &mut list.gap,
+            &mut list.highlight_margin_vertical,
+            &mut list.highlight_margin_horizontal,
+        ]);
+        let menu = &mut self.menu;
+        snap(&mut [
+            &mut menu.padding_vertical,
+            &mut menu.padding_horizontal,
+            &mut menu.item_height,
+            &mut menu.item_gap,
+            &mut menu.item_margin,
+            &mut menu.item_padding,
+            &mut menu.column_gap,
+            &mut menu.icon_gap,
+        ]);
+        let number = &mut self.number_field;
+        snap(&mut [
+            &mut number.height,
+            &mut number.min_width,
+            &mut number.padding,
+            &mut number.step_width,
+        ]);
+        let text = &mut self.text_field;
+        snap(&mut [
+            &mut text.height,
+            &mut text.min_width,
+            &mut text.padding,
+            &mut text.gap,
+        ]);
+        let workspace = &mut self.workspace;
+        snap(&mut [
+            &mut workspace.gap,
+            &mut workspace.top_bar_height,
+            &mut workspace.top_bar_padding,
+            &mut workspace.top_bar_gap,
+            &mut workspace.tab_bar_height,
+            &mut workspace.tab_gap,
+            &mut workspace.tab_bar_padding,
+            &mut workspace.tab_padding,
+            &mut workspace.drop_center_inset,
+        ]);
     }
 
     /// Every style from `tokens`, with `snapshot` already captured from them.
@@ -371,37 +499,69 @@ impl Styles {
     }
 }
 
-/// [`Styles`] that follow a design system's active theme, resolved again only when the
-/// design system changed: every theme switch, override or color vision change shows on the
-/// next frame, and frames without changes read no token at all.
+/// How many scale factors a [`StyleCache`] keeps styles for: one per kind of display the
+/// windows lie on, which is rarely more than two.
+const SCALES_KEPT: usize = 4;
+
+/// [`Styles`] that follow a design system's active theme, at each scale factor windows draw
+/// at, resolved again only when the design system changed: every theme switch, override or
+/// color vision change shows on the next frame, and frames without changes read no token at
+/// all.
 #[derive(Clone, Debug)]
 pub struct StyleCache {
-    revision: u64,
-    styles: Styles,
+    /// The styles at each scale factor (its bits), with the revision of the design system
+    /// they show.
+    entries: Vec<(u32, u64, Styles)>,
+    /// The entry last asked for.
+    last: usize,
 }
 
 impl StyleCache {
-    /// Resolves the styles of the active theme.
+    /// Resolves the styles of the active theme, at one physical pixel per logical pixel.
     pub fn new(design: &DesignSystem) -> Self {
         Self {
-            revision: design.revision(),
-            styles: Styles::resolve(design),
+            entries: vec![(
+                1.0_f32.to_bits(),
+                design.revision(),
+                Styles::resolve(design),
+            )],
+            last: 0,
         }
     }
 
-    /// The styles of the active theme, resolved again if `design` changed since the last
-    /// call.
-    pub fn update(&mut self, design: &DesignSystem) -> &Styles {
-        if design.revision() != self.revision {
-            self.revision = design.revision();
-            self.styles.refresh(design);
+    /// The styles of the active theme at `scale` physical pixels per logical pixel, resolved
+    /// again if `design` changed since they were.
+    pub fn update(&mut self, design: &DesignSystem, scale: f32) -> &Styles {
+        let key = scale.to_bits();
+        let index = match self.entries.iter().position(|entry| entry.0 == key) {
+            Some(index) => index,
+            None if self.entries.len() < SCALES_KEPT => {
+                self.entries
+                    .push((key, design.revision(), Styles::resolve_at(design, scale)));
+                self.entries.len() - 1
+            }
+            // Full: a scale not shown last gives its memory to the new one.
+            None => {
+                let index = usize::from(self.last == 0);
+                let entry = &mut self.entries[index];
+                entry.0 = key;
+                entry.1 = design.revision();
+                entry.2.refresh_at(design, scale);
+                index
+            }
+        };
+        self.last = index;
+        let (_, revision, styles) = &mut self.entries[index];
+        if *revision != design.revision() {
+            *revision = design.revision();
+            styles.refresh_at(design, scale);
         }
-        &self.styles
+        styles
     }
 
-    /// The styles as last resolved.
+    /// The styles last asked for.
     pub fn styles(&self) -> &Styles {
-        &self.styles
+        &self.entries[self.last].2
     }
 }
 
@@ -459,13 +619,79 @@ mod tests {
         let mut cache = StyleCache::new(&design);
         let accent = |styles: &Styles| styles.button.colors(Tone::ACCENT).background.normal;
         let before = accent(cache.styles());
-        assert_eq!(accent(cache.update(&design)), before);
+        assert_eq!(accent(cache.update(&design, 1.0)), before);
 
         let red = Color::from_hex(0xFF_00_00);
         design
             .set_value(Scope::Global, semantic::BACKGROUND_ACCENT_DEFAULT, red)
             .unwrap();
         // The accent button aliases the semantic token: the change flows to its style.
-        assert_eq!(accent(cache.update(&design)), red);
+        assert_eq!(accent(cache.update(&design, 1.0)), red);
+    }
+
+    #[test]
+    fn layout_lengths_are_whole_physical_pixels_at_each_scale() {
+        let design = design();
+        let whole = |length: f32, scale: f32| {
+            let pixels = length * scale;
+            (pixels - pixels.round()).abs() < 1e-4
+        };
+        for scale in [1.0, 1.25, 1.5, 1.75, 2.25] {
+            let styles = Styles::resolve_at(&design, scale);
+            let panel = styles.collapsible_panel;
+            for length in [
+                panel.header_height,
+                panel.header_inset,
+                panel.gap,
+                panel.indent,
+                panel.content_padding,
+                styles.button.height,
+                styles.menu.item_height,
+                styles.workspace.tab_bar_height,
+                styles.property_group.row_gap,
+            ] {
+                assert!(whole(length, scale), "{length} at {scale}");
+            }
+            // What a header holds keeps its own height, the inset around it whole too.
+            let control = design.get(component::PANEL_HEADER_HEIGHT_DEFAULT);
+            assert!(
+                (panel.header_height - 2.0 * panel.header_inset - whole_pixels(control, scale))
+                    .abs()
+                    < 1e-4
+            );
+            // Strokes stay as the tokens say.
+            assert_eq!(
+                styles.icon.chevron_stroke_width,
+                Styles::resolve(&design).icon.chevron_stroke_width
+            );
+        }
+    }
+
+    #[test]
+    fn the_cache_keeps_styles_for_each_scale_it_is_asked_for() {
+        let mut design = design();
+        let mut cache = StyleCache::new(&design);
+        let inset = |styles: &Styles| styles.collapsible_panel.header_inset;
+        let at_one = inset(cache.update(&design, 1.0));
+        let at_five_quarters = inset(cache.update(&design, 1.25));
+        assert!(
+            (at_five_quarters * 1.25 - 2.0).abs() < 1e-4,
+            "{at_five_quarters}"
+        );
+        assert_eq!(inset(cache.update(&design, 1.0)), at_one);
+        assert_eq!(inset(cache.styles()), at_one);
+        // More scales than kept: the oldest ones give way, the one asked for is right.
+        for scale in [1.5, 1.75, 2.0, 2.25, 2.5] {
+            assert!((inset(cache.update(&design, scale)) * scale).fract().abs() < 1e-4);
+        }
+        assert!(cache.entries.len() <= SCALES_KEPT);
+        // A change shows at every scale.
+        let red = Color::from_hex(0xFF_00_00);
+        design
+            .set_value(Scope::Global, semantic::BACKGROUND_ACCENT_DEFAULT, red)
+            .unwrap();
+        let accent = |styles: &Styles| styles.button.colors(Tone::ACCENT).background.normal;
+        assert_eq!(accent(cache.update(&design, 1.25)), red);
+        assert_eq!(accent(cache.update(&design, 2.5)), red);
     }
 }

@@ -169,7 +169,7 @@ pub(crate) fn show(
     object: &mut Object,
     view: &mut View,
 ) {
-    let margin = design.get(component::SIDE_PANEL_MARGIN_DEFAULT);
+    let margin = ui.whole_pixels(design.get(component::SIDE_PANEL_MARGIN_DEFAULT));
     let content = Vec2::new(rect.width(), view.height);
     let mut scroll = view.scroll;
     let height = ui.scroll_area(
