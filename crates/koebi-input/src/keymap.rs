@@ -24,8 +24,8 @@ use koebi_core::input::{Key, Modifiers, MouseButton};
 use crate::action::{ActionDef, ActionGroup, Context};
 use crate::gesture::{Gesture, GestureKind, InputEvent, InputSettings};
 use crate::shortcut::{
-    Binding, ButtonTrigger, Drag, DragDirection, KeyTrigger, PinchDirection, Shortcut,
-    WheelDirection,
+    Binding, ButtonTrigger, DoubleClick, Drag, DragDirection, KeyTrigger, PinchDirection, Shortcut,
+    Trigger, WheelDirection,
 };
 
 /// A keymap error.
@@ -47,6 +47,8 @@ pub enum KeymapError {
         /// The action that has it.
         with: &'static str,
     },
+    /// A default shortcut of an action that does not repeat repeats.
+    Repeats(&'static str),
 }
 
 impl fmt::Display for KeymapError {
@@ -60,6 +62,7 @@ impl fmt::Display for KeymapError {
                 shortcut,
                 with,
             } => write!(f, "{shortcut} of {action} is already a shortcut of {with}"),
+            Self::Repeats(id) => write!(f, "{id} does not repeat, but a default shortcut does"),
         }
     }
 }
@@ -83,7 +86,8 @@ pub struct Triggers {
 }
 
 impl Triggers {
-    const CAPACITY: usize = 4;
+    /// A release that is also a click, each for actions that share their shortcut.
+    const CAPACITY: usize = 8;
 
     fn push(&mut self, triggered: Triggered) {
         if let Some(slot) = self.items.get_mut(self.len) {
@@ -121,10 +125,20 @@ impl Entry {
             })
     }
 
-    /// Replaces the bindings, keeping the first of each shortcut.
+    /// Replaces the bindings, keeping the first of each shortcut. An action that does not
+    /// repeat keeps none that repeats.
     fn set(&mut self, bindings: impl IntoIterator<Item = Binding>) {
         self.bindings.clear();
+        let repeats = self.action.repeats;
         for binding in bindings {
+            let binding = if repeats {
+                binding
+            } else {
+                Binding {
+                    shortcut: once(binding.shortcut),
+                    ..binding
+                }
+            };
             if !self
                 .bindings
                 .iter()
@@ -181,6 +195,8 @@ pub struct Keymap {
     buttons: Vec<ButtonPress>,
     keys: Vec<KeyPress>,
     last_key_press: Option<(Key, Instant)>,
+    /// The last press of a mouse button, when and where: the first half of a double click.
+    last_button_press: Option<(MouseButton, Instant, Vec2)>,
     pointer: Vec2,
     /// Counts the changes of shortcuts: what an editor compares to know it is up to date.
     revision: u64,
@@ -202,6 +218,7 @@ impl Keymap {
             buttons: Vec::new(),
             keys: Vec::new(),
             last_key_press: None,
+            last_button_press: None,
             pointer: Vec2::ZERO,
             revision: 0,
         };
@@ -226,6 +243,9 @@ impl Keymap {
         }
         for index in 0..keymap.entries.len() {
             let action = keymap.entries[index].action;
+            if !action.repeats && action.defaults.iter().any(|shortcut| shortcut.repeats()) {
+                return Err(KeymapError::Repeats(action.id));
+            }
             keymap.assign(index, &on(action.defaults))?;
         }
         Ok(keymap)
@@ -292,10 +312,12 @@ impl Keymap {
             .iter()
             .filter(|&&other| other != index)
             .filter(|&&other| {
-                self.entries[other]
-                    .shortcuts
-                    .iter()
-                    .any(|existing| existing.overlaps(shortcut))
+                let entry = &self.entries[other];
+                !entry.action.excludes(self.entries[index].action)
+                    && entry
+                        .shortcuts
+                        .iter()
+                        .any(|existing| existing.overlaps(shortcut))
             })
             .map(|&other| self.entries[other].action)
             .collect())
@@ -309,6 +331,7 @@ impl Keymap {
             let shortcut = binding.shortcut;
             if let Some(&other) = self.by_context[&action.context].iter().find(|&&other| {
                 other != index
+                    && !self.entries[other].action.excludes(action)
                     && self.entries[other]
                         .shortcuts
                         .iter()
@@ -514,9 +537,9 @@ impl Keymap {
             InputEvent::Button {
                 button,
                 down: true,
-                clicks,
                 position,
                 modifiers,
+                ..
             } => {
                 self.pointer = position;
                 self.buttons.retain(|press| press.button != button);
@@ -530,14 +553,20 @@ impl Keymap {
                     dragged: false,
                     chain: chain.to_vec(),
                 });
-                let whens = [
-                    (true, ButtonTrigger::Press),
-                    (clicks >= 2, ButtonTrigger::DoubleClick),
-                ];
-                for (_, when) in whens.into_iter().filter(|(happened, _)| *happened) {
-                    let kind = GestureKind::Button { button, when };
-                    self.resolve(self.gesture(kind, modifiers), chain, &mut triggers);
-                }
+                let kind = GestureKind::Button {
+                    button,
+                    when: ButtonTrigger::Press,
+                };
+                self.resolve(self.gesture(kind, modifiers), chain, &mut triggers);
+                self.double_click(
+                    button,
+                    position,
+                    modifiers,
+                    chain,
+                    settings,
+                    now,
+                    &mut triggers,
+                );
             }
             InputEvent::Button {
                 button,
@@ -629,6 +658,55 @@ impl Keymap {
             }
         }
         triggers
+    }
+
+    /// The double clicks a press of `button` at `position` makes: the second press near the
+    /// first, within each shortcut's double-click time (its own, or the settings'). The
+    /// platform's count of clicks plays no part: the time is the application's.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "a private step of `handle`, which owns all these values"
+    )]
+    fn double_click(
+        &mut self,
+        button: MouseButton,
+        position: Vec2,
+        modifiers: Modifiers,
+        chain: &[Context],
+        settings: &InputSettings,
+        now: Instant,
+        triggers: &mut Triggers,
+    ) {
+        let interval = self
+            .last_button_press
+            .filter(|(last, _, at)| {
+                *last == button && (position - *at).length() <= settings.drag_threshold
+            })
+            .map(|(_, at, _)| now.saturating_duration_since(at));
+        self.last_button_press = Some((button, now, position));
+        let Some(interval) = interval else {
+            return;
+        };
+        let millis = u16::try_from(interval.as_millis()).unwrap_or(u16::MAX);
+        let kind = GestureKind::Button {
+            button,
+            when: ButtonTrigger::DoubleClick(DoubleClick { time: Some(millis) }),
+        };
+        let gesture = self.gesture(kind, modifiers);
+        let held = gesture.held;
+        let found = self.resolve_with(gesture, chain, triggers, |shortcut| {
+            shortcut.matches_double_click(
+                button,
+                modifiers,
+                held,
+                interval,
+                settings.double_click_time,
+            )
+        });
+        if found {
+            // A third press starts again.
+            self.last_button_press = None;
+        }
     }
 
     #[allow(
@@ -754,27 +832,51 @@ impl Keymap {
             .find(|&key| !key.is_modifier() && Some(key) != except)
     }
 
-    /// Triggers the first action of the chain with a shortcut matching `gesture`; in each
-    /// context, a shortcut holding a key comes before those that do not.
+    /// Triggers the actions of the first context of the chain with a shortcut matching
+    /// `gesture`.
     fn resolve(&self, gesture: Gesture, chain: &[Context], triggers: &mut Triggers) {
-        let found = chain.iter().find_map(|context| {
-            let indices = self.by_context.get(context)?;
-            [true, false].into_iter().find_map(|holding| {
-                indices.iter().find_map(|&index| {
+        self.resolve_with(gesture, chain, triggers, |shortcut| {
+            shortcut.matches(&gesture)
+        });
+    }
+
+    /// Triggers the actions of the first context of the chain with a shortcut `matching`:
+    /// in each context, shortcuts holding a key come before those that do not. Several actions
+    /// of one context share a shortcut only when their conditions exclude each other: each is
+    /// triggered, and acts when its condition holds. Returns whether one was.
+    fn resolve_with(
+        &self,
+        gesture: Gesture,
+        chain: &[Context],
+        triggers: &mut Triggers,
+        matching: impl Fn(&Shortcut) -> bool,
+    ) -> bool {
+        for context in chain {
+            let Some(indices) = self.by_context.get(context) else {
+                continue;
+            };
+            for holding in [true, false] {
+                let mut found = false;
+                for &index in indices {
                     let entry = &self.entries[index];
-                    entry
+                    let matched = entry
                         .shortcuts
                         .iter()
-                        .any(|shortcut| {
-                            shortcut.held.is_some() == holding && shortcut.matches(&gesture)
-                        })
-                        .then_some(entry.action)
-                })
-            })
-        });
-        if let Some(action) = found {
-            triggers.push(Triggered { action, gesture });
+                        .any(|shortcut| shortcut.held.is_some() == holding && matching(shortcut));
+                    if matched {
+                        triggers.push(Triggered {
+                            action: entry.action,
+                            gesture,
+                        });
+                        found = true;
+                    }
+                }
+                if found {
+                    return true;
+                }
+            }
         }
+        false
     }
 
     // --- Saving ---------------------------------------------------------------------------
@@ -792,6 +894,9 @@ impl Keymap {
         self.by_context.values().find_map(|indices| {
             indices.iter().enumerate().find_map(|(position, &a)| {
                 indices[position + 1..].iter().find_map(|&b| {
+                    if self.entries[a].action.excludes(self.entries[b].action) {
+                        return None;
+                    }
                     self.entries[a].shortcuts.iter().find_map(|first| {
                         self.entries[b]
                             .shortcuts
@@ -819,4 +924,19 @@ impl Keymap {
 /// `shortcuts`, all on.
 fn on(shortcuts: &[Shortcut]) -> Vec<Binding> {
     shortcuts.iter().copied().map(Binding::on).collect()
+}
+
+/// `shortcut` without repeating: what an action that does not repeat keeps of it.
+const fn once(shortcut: Shortcut) -> Shortcut {
+    match shortcut.trigger {
+        Trigger::Key { key, when, .. } => Shortcut {
+            trigger: Trigger::Key {
+                key,
+                when,
+                repeat: false,
+            },
+            ..shortcut
+        },
+        _ => shortcut,
+    }
 }

@@ -1,38 +1,31 @@
 //! The rules of editing a shortcut, as pure functions: its device and what changing it keeps,
-//! its event and what follows (only presses repeat, drags keep their direction), the modifiers
-//! by family and by side (both sides mean either key, one side never goes alone), and the
-//! lists the editor offers.
+//! the events each device has and what follows (only presses of actions that repeat repeat,
+//! drags keep their direction), the modifiers by family and by side (both sides mean either
+//! key, one side never goes alone), and the lists the editor offers, keys by section.
 
 use koebi_core::input::{Key, ModifierKey, MouseButton};
 use koebi_input::{
-    ButtonTrigger, Drag, DragDirection, KeyTrigger, ModifierRule, ModifierState, PinchDirection,
-    Side, Trigger, WheelDirection,
+    ActionDef, ButtonTrigger, Drag, DragDirection, KeyTrigger, ModifierRule, ModifierState,
+    PinchDirection, Side, Trigger, WheelDirection,
 };
 
 /// Where a shortcut comes from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Device {
     Keyboard,
+    /// The mouse: its buttons and its wheel.
     Mouse,
-    Wheel,
     Touchpad,
     Pointer,
 }
 
 impl Device {
-    pub(super) const ALL: [Self; 5] = [
-        Self::Keyboard,
-        Self::Mouse,
-        Self::Wheel,
-        Self::Touchpad,
-        Self::Pointer,
-    ];
+    pub(super) const ALL: [Self; 4] = [Self::Keyboard, Self::Mouse, Self::Touchpad, Self::Pointer];
 
     pub(super) const fn label(self) -> &'static str {
         match self {
             Self::Keyboard => "Keyboard",
             Self::Mouse => "Mouse",
-            Self::Wheel => "Wheel",
             Self::Touchpad => "Touchpad",
             Self::Pointer => "Pointer move",
         }
@@ -41,8 +34,7 @@ impl Device {
     pub(super) const fn of(trigger: Trigger) -> Self {
         match trigger {
             Trigger::Key { .. } => Self::Keyboard,
-            Trigger::Button { .. } => Self::Mouse,
-            Trigger::Wheel(_) => Self::Wheel,
+            Trigger::Button { .. } | Trigger::Wheel(_) => Self::Mouse,
             Trigger::Pinch(_) => Self::Touchpad,
             Trigger::PointerMove => Self::Pointer,
         }
@@ -53,8 +45,7 @@ impl Device {
         if matches!(
             (self, from),
             (Self::Keyboard, Trigger::Key { .. })
-                | (Self::Mouse, Trigger::Button { .. })
-                | (Self::Wheel, Trigger::Wheel(_))
+                | (Self::Mouse, Trigger::Button { .. } | Trigger::Wheel(_))
                 | (Self::Touchpad, Trigger::Pinch(_))
                 | (Self::Pointer, Trigger::PointerMove)
         ) {
@@ -63,10 +54,15 @@ impl Device {
         match self {
             Self::Keyboard => Trigger::key(Key::A),
             Self::Mouse => Trigger::button(MouseButton::Left),
-            Self::Wheel => Trigger::Wheel(WheelDirection::Up),
             Self::Touchpad => Trigger::Pinch(PinchDirection::In),
             Self::Pointer => Trigger::PointerMove,
         }
+    }
+
+    /// What a field recording this device's shortcuts takes: its keys or its buttons and
+    /// wheel; nothing for the others, chosen from a list.
+    pub(super) const fn records(self) -> bool {
+        matches!(self, Self::Keyboard | Self::Mouse)
     }
 }
 
@@ -81,7 +77,9 @@ pub(super) enum Event {
 }
 
 impl Event {
-    const KEYS: [Self; 4] = [Self::Press, Self::Release, Self::Click, Self::DoubleClick];
+    /// A key goes down and up: a click or a double click of a key means nothing more.
+    const KEYS: [Self; 2] = [Self::Press, Self::Release];
+    /// A mouse button also clicks, double clicks and drags.
     pub(super) const BUTTONS: [Self; 5] = [
         Self::Press,
         Self::Release,
@@ -100,12 +98,13 @@ impl Event {
         }
     }
 
-    /// The events `device` has: keys and buttons only.
-    pub(super) const fn of_device(device: Device) -> &'static [Self] {
-        match device {
-            Device::Keyboard => &Self::KEYS,
-            Device::Mouse => &Self::BUTTONS,
-            Device::Wheel | Device::Touchpad | Device::Pointer => &[],
+    /// The events `trigger` can happen on: those of its key or its button; none for the
+    /// wheel, pinches and pointer moves, which only happen.
+    pub(super) const fn of_trigger(trigger: Trigger) -> &'static [Self] {
+        match trigger {
+            Trigger::Key { .. } => &Self::KEYS,
+            Trigger::Button { .. } => &Self::BUTTONS,
+            Trigger::Wheel(_) | Trigger::Pinch(_) | Trigger::PointerMove => &[],
         }
     }
 
@@ -121,22 +120,21 @@ impl Event {
                 ButtonTrigger::Press => Self::Press,
                 ButtonTrigger::Release => Self::Release,
                 ButtonTrigger::Click => Self::Click,
-                ButtonTrigger::DoubleClick => Self::DoubleClick,
+                ButtonTrigger::DoubleClick(_) => Self::DoubleClick,
                 ButtonTrigger::Drag(_) => Self::Drag,
             }),
             Trigger::Wheel(_) | Trigger::Pinch(_) | Trigger::PointerMove => None,
         }
     }
 
-    /// `trigger` happening on this event instead: a key repeats on presses only.
+    /// `trigger` happening on this event instead: a key repeats on presses only; a drag and
+    /// a double click keep what they had of their own.
     pub(super) const fn apply(self, trigger: Trigger) -> Trigger {
         match trigger {
             Trigger::Key { key, repeat, .. } => {
                 let when = match self {
-                    Self::Press | Self::Drag => KeyTrigger::Press,
+                    Self::Press | Self::Drag | Self::Click | Self::DoubleClick => KeyTrigger::Press,
                     Self::Release => KeyTrigger::Release,
-                    Self::Click => KeyTrigger::Click,
-                    Self::DoubleClick => KeyTrigger::DoubleClick,
                 };
                 Trigger::Key {
                     key,
@@ -150,7 +148,10 @@ impl Event {
                     (Self::Press, _) => ButtonTrigger::Press,
                     (Self::Release, _) => ButtonTrigger::Release,
                     (Self::Click, _) => ButtonTrigger::Click,
-                    (Self::DoubleClick, _) => ButtonTrigger::DoubleClick,
+                    (Self::DoubleClick, ButtonTrigger::DoubleClick(double)) => {
+                        ButtonTrigger::DoubleClick(double)
+                    }
+                    (Self::DoubleClick, _) => ButtonTrigger::DOUBLE_CLICK,
                     (Self::Drag, ButtonTrigger::Drag(drag)) => ButtonTrigger::Drag(drag),
                     (Self::Drag, _) => ButtonTrigger::Drag(Drag::ANY),
                 },
@@ -160,25 +161,21 @@ impl Event {
     }
 }
 
-/// `true` when `trigger` can repeat while held: a key on its press.
-pub(super) const fn can_repeat(trigger: Trigger) -> bool {
-    matches!(
-        trigger,
-        Trigger::Key {
-            when: KeyTrigger::Press,
-            ..
-        }
-    )
+/// `true` when `trigger` of `action` may repeat while held: a key press, of an action that
+/// repeats (moving through a list, not folding or quitting).
+pub(super) const fn can_repeat(action: &ActionDef, trigger: Trigger) -> bool {
+    action.repeats
+        && matches!(
+            trigger,
+            Trigger::Key {
+                when: KeyTrigger::Press,
+                ..
+            }
+        )
 }
 
-/// `rule` with `family` switched on (either side) or off. Any modifier: it takes that family
-/// alone.
+/// `rule` with `family` switched on (either side) or off.
 pub(super) fn toggle_family(rule: ModifierRule, family: ModifierKey) -> ModifierRule {
-    let rule = if is_any(rule) {
-        ModifierRule::NONE
-    } else {
-        rule
-    };
     let state = match rule.get(family) {
         ModifierState::Down(_) => ModifierState::Up,
         ModifierState::Up | ModifierState::Any => ModifierState::Down(Side::Either),
@@ -212,30 +209,230 @@ pub(super) fn is_any(rule: ModifierRule) -> bool {
     rule == ModifierRule::ANY
 }
 
-/// Any modifiers, or none.
-pub(super) fn toggle_any(rule: ModifierRule) -> ModifierRule {
+/// Any modifiers on, keeping `rule` to give back once it goes off; off, the rule kept (none
+/// when nothing was).
+pub(super) fn toggle_any(rule: ModifierRule, kept: Option<ModifierRule>) -> ModifierRule {
     if is_any(rule) {
-        ModifierRule::NONE
+        kept.filter(|kept| !is_any(*kept))
+            .unwrap_or(ModifierRule::NONE)
     } else {
         ModifierRule::ANY
     }
 }
 
-/// The mouse buttons offered, by name.
-pub(super) const BUTTONS: [(MouseButton, &str); 5] = [
-    (MouseButton::Left, "Left"),
-    (MouseButton::Middle, "Middle"),
-    (MouseButton::Right, "Right"),
-    (MouseButton::Back, "Back"),
-    (MouseButton::Forward, "Forward"),
+/// A list of inputs of a device, by section.
+pub(super) struct Section<T: 'static> {
+    pub(super) name: &'static str,
+    pub(super) inputs: &'static [(T, &'static str)],
+}
+
+/// The keys a shortcut can be chosen from, by section; every named key but the modifiers lies
+/// in one.
+pub(super) const KEY_SECTIONS: [Section<Key>; 8] = [
+    Section {
+        name: "Letters",
+        inputs: &[
+            (Key::A, "A"),
+            (Key::B, "B"),
+            (Key::C, "C"),
+            (Key::D, "D"),
+            (Key::E, "E"),
+            (Key::F, "F"),
+            (Key::G, "G"),
+            (Key::H, "H"),
+            (Key::I, "I"),
+            (Key::J, "J"),
+            (Key::K, "K"),
+            (Key::L, "L"),
+            (Key::M, "M"),
+            (Key::N, "N"),
+            (Key::O, "O"),
+            (Key::P, "P"),
+            (Key::Q, "Q"),
+            (Key::R, "R"),
+            (Key::S, "S"),
+            (Key::T, "T"),
+            (Key::U, "U"),
+            (Key::V, "V"),
+            (Key::W, "W"),
+            (Key::X, "X"),
+            (Key::Y, "Y"),
+            (Key::Z, "Z"),
+        ],
+    },
+    Section {
+        name: "Digits",
+        inputs: &[
+            (Key::Digit0, "0"),
+            (Key::Digit1, "1"),
+            (Key::Digit2, "2"),
+            (Key::Digit3, "3"),
+            (Key::Digit4, "4"),
+            (Key::Digit5, "5"),
+            (Key::Digit6, "6"),
+            (Key::Digit7, "7"),
+            (Key::Digit8, "8"),
+            (Key::Digit9, "9"),
+        ],
+    },
+    Section {
+        name: "Function keys",
+        inputs: &[
+            (Key::F1, "F1"),
+            (Key::F2, "F2"),
+            (Key::F3, "F3"),
+            (Key::F4, "F4"),
+            (Key::F5, "F5"),
+            (Key::F6, "F6"),
+            (Key::F7, "F7"),
+            (Key::F8, "F8"),
+            (Key::F9, "F9"),
+            (Key::F10, "F10"),
+            (Key::F11, "F11"),
+            (Key::F12, "F12"),
+            (Key::F13, "F13"),
+            (Key::F14, "F14"),
+            (Key::F15, "F15"),
+            (Key::F16, "F16"),
+            (Key::F17, "F17"),
+            (Key::F18, "F18"),
+            (Key::F19, "F19"),
+            (Key::F20, "F20"),
+            (Key::F21, "F21"),
+            (Key::F22, "F22"),
+            (Key::F23, "F23"),
+            (Key::F24, "F24"),
+        ],
+    },
+    Section {
+        name: "Navigation",
+        inputs: &[
+            (Key::Up, "Up"),
+            (Key::Down, "Down"),
+            (Key::Left, "Left"),
+            (Key::Right, "Right"),
+            (Key::Home, "Home"),
+            (Key::End, "End"),
+            (Key::PageUp, "Page up"),
+            (Key::PageDown, "Page down"),
+        ],
+    },
+    Section {
+        name: "Editing",
+        inputs: &[
+            (Key::Space, "Space"),
+            (Key::Enter, "Enter"),
+            (Key::Tab, "Tab"),
+            (Key::Backspace, "Backspace"),
+            (Key::Delete, "Delete"),
+            (Key::Insert, "Insert"),
+            (Key::Escape, "Escape"),
+        ],
+    },
+    Section {
+        name: "Punctuation",
+        inputs: &[
+            (Key::Minus, "Minus"),
+            (Key::Equals, "Equals"),
+            (Key::LeftBracket, "Left bracket"),
+            (Key::RightBracket, "Right bracket"),
+            (Key::Backslash, "Backslash"),
+            (Key::Semicolon, "Semicolon"),
+            (Key::Apostrophe, "Apostrophe"),
+            (Key::Grave, "Grave accent"),
+            (Key::Comma, "Comma"),
+            (Key::Period, "Period"),
+            (Key::Slash, "Slash"),
+        ],
+    },
+    Section {
+        name: "Numeric keypad",
+        inputs: &[
+            (Key::Keypad0, "Keypad 0"),
+            (Key::Keypad1, "Keypad 1"),
+            (Key::Keypad2, "Keypad 2"),
+            (Key::Keypad3, "Keypad 3"),
+            (Key::Keypad4, "Keypad 4"),
+            (Key::Keypad5, "Keypad 5"),
+            (Key::Keypad6, "Keypad 6"),
+            (Key::Keypad7, "Keypad 7"),
+            (Key::Keypad8, "Keypad 8"),
+            (Key::Keypad9, "Keypad 9"),
+            (Key::KeypadDivide, "Keypad divide"),
+            (Key::KeypadMultiply, "Keypad multiply"),
+            (Key::KeypadMinus, "Keypad minus"),
+            (Key::KeypadPlus, "Keypad plus"),
+            (Key::KeypadEnter, "Keypad enter"),
+            (Key::KeypadPeriod, "Keypad period"),
+            (Key::NumLock, "Num lock"),
+        ],
+    },
+    Section {
+        name: "System",
+        inputs: &[
+            (Key::CapsLock, "Caps lock"),
+            (Key::PrintScreen, "Print screen"),
+            (Key::ScrollLock, "Scroll lock"),
+            (Key::Pause, "Pause"),
+            (Key::Menu, "Menu"),
+        ],
+    },
 ];
 
-/// The wheel directions offered.
-pub(super) const WHEEL: [(WheelDirection, &str); 4] = [
-    (WheelDirection::Up, "Up"),
-    (WheelDirection::Down, "Down"),
-    (WheelDirection::Left, "Left"),
-    (WheelDirection::Right, "Right"),
+/// What a shortcut of the mouse is made of: a button, or a turn of the wheel.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum MouseInput {
+    Button(MouseButton),
+    Wheel(WheelDirection),
+}
+
+impl MouseInput {
+    /// `trigger` made of this input: a button keeps the event it had.
+    pub(super) const fn apply(self, trigger: Trigger) -> Trigger {
+        match (self, trigger) {
+            (Self::Button(button), Trigger::Button { when, .. }) => {
+                Trigger::Button { button, when }
+            }
+            (Self::Button(button), _) => Trigger::button(button),
+            (Self::Wheel(direction), _) => Trigger::Wheel(direction),
+        }
+    }
+
+    /// The input of `trigger`, when it is the mouse's.
+    pub(super) const fn of(trigger: Trigger) -> Option<Self> {
+        match trigger {
+            Trigger::Button { button, .. } => Some(Self::Button(button)),
+            Trigger::Wheel(direction) => Some(Self::Wheel(direction)),
+            _ => None,
+        }
+    }
+}
+
+/// The mouse inputs offered, by section: every button, side buttons and numbered ones
+/// included, and the wheel turned or tilted.
+pub(super) const MOUSE_SECTIONS: [Section<MouseInput>; 2] = [
+    Section {
+        name: "Buttons",
+        inputs: &[
+            (MouseInput::Button(MouseButton::Left), "Left button"),
+            (MouseInput::Button(MouseButton::Middle), "Middle button"),
+            (MouseInput::Button(MouseButton::Right), "Right button"),
+            (MouseInput::Button(MouseButton::Back), "Back button"),
+            (MouseInput::Button(MouseButton::Forward), "Forward button"),
+            (MouseInput::Button(MouseButton::Other(6)), "Button 6"),
+            (MouseInput::Button(MouseButton::Other(7)), "Button 7"),
+            (MouseInput::Button(MouseButton::Other(8)), "Button 8"),
+        ],
+    },
+    Section {
+        name: "Wheel",
+        inputs: &[
+            (MouseInput::Wheel(WheelDirection::Up), "Wheel up"),
+            (MouseInput::Wheel(WheelDirection::Down), "Wheel down"),
+            (MouseInput::Wheel(WheelDirection::Left), "Wheel left"),
+            (MouseInput::Wheel(WheelDirection::Right), "Wheel right"),
+        ],
+    },
 ];
 
 /// The pinches offered.
@@ -257,16 +454,22 @@ pub(super) const DIRECTIONS: [(DragDirection, &str); 9] = [
     (DragDirection::NorthWest, "Up left"),
 ];
 
-/// The keys a shortcut can be chosen from by name: every named key but the modifiers.
-pub(super) fn chosen_keys() -> impl Iterator<Item = (Key, &'static str)> {
-    Key::named()
+/// The name of `input` in `sections`, if it lies in one.
+pub(super) fn name_in<T: PartialEq + Copy>(
+    sections: &[Section<T>],
+    input: T,
+) -> Option<&'static str> {
+    sections
         .iter()
-        .copied()
-        .filter(|(key, _)| !key.is_modifier())
+        .flat_map(|section| section.inputs.iter())
+        .find(|(candidate, _)| *candidate == input)
+        .map(|(_, name)| *name)
 }
 
 #[cfg(test)]
 mod tests {
+    use koebi_input::Shortcut;
+
     use super::*;
 
     #[test]
@@ -278,27 +481,42 @@ mod tests {
             Device::Mouse.trigger(key),
             Trigger::button(MouseButton::Left)
         );
-        assert_eq!(
-            Device::Wheel.trigger(key),
-            Trigger::Wheel(WheelDirection::Up)
-        );
+        // The wheel is the mouse's.
+        let wheel = Trigger::Wheel(WheelDirection::Up);
+        assert_eq!(Device::of(wheel), Device::Mouse);
+        assert_eq!(Device::Mouse.trigger(wheel), wheel);
         assert_eq!(Device::Pointer.trigger(key), Trigger::PointerMove);
         for device in Device::ALL {
             assert_eq!(Device::of(device.trigger(key)), device);
         }
+        assert!(Device::Keyboard.records() && Device::Mouse.records());
+        assert!(!Device::Touchpad.records() && !Device::Pointer.records());
     }
 
     #[test]
-    fn events_follow_the_device_and_only_presses_repeat() {
-        assert_eq!(Event::of_device(Device::Keyboard).len(), 4);
-        assert!(Event::of_device(Device::Mouse).contains(&Event::Drag));
-        assert_eq!(Event::of_device(Device::Wheel), []);
+    fn keys_have_presses_and_releases_buttons_clicks_and_drags_too() {
+        let key = Trigger::key(Key::F);
+        assert_eq!(Event::of_trigger(key), [Event::Press, Event::Release]);
+        let button = Trigger::button(MouseButton::Left);
+        assert!(Event::of_trigger(button).contains(&Event::DoubleClick));
+        assert!(Event::of_trigger(button).contains(&Event::Drag));
+        assert_eq!(Event::of_trigger(Trigger::Wheel(WheelDirection::Up)), []);
+        assert_eq!(Event::of(Trigger::PointerMove), None);
+        // A click of a key, saved by an older version, becomes a press.
+        assert_eq!(Event::Click.apply(key), key);
+    }
+
+    #[test]
+    fn only_presses_of_actions_that_repeat_repeat() {
         let repeating = Trigger::Key {
             key: Key::Right,
             when: KeyTrigger::Press,
             repeat: true,
         };
-        assert!(can_repeat(repeating));
+        let (next, fold) = (&koebi_ui::LIST_NEXT, &koebi_ui::LIST_FOLD);
+        assert!(next.repeats && !fold.repeats);
+        assert!(can_repeat(next, repeating));
+        assert!(!can_repeat(fold, repeating));
         let released = Event::Release.apply(repeating);
         assert_eq!(
             released,
@@ -308,9 +526,12 @@ mod tests {
                 repeat: false
             }
         );
-        assert!(!can_repeat(released));
+        assert!(!can_repeat(next, released));
         assert_eq!(Event::of(released), Some(Event::Release));
-        // A drag keeps its direction; leaving it and coming back starts in any direction.
+    }
+
+    #[test]
+    fn drags_and_double_clicks_keep_what_they_have_of_their_own() {
         let button = Trigger::button(MouseButton::Left);
         let drag = Event::Drag.apply(button);
         assert_eq!(Event::of(drag), Some(Event::Drag));
@@ -328,7 +549,18 @@ mod tests {
                 when: ButtonTrigger::Click
             }
         );
-        assert_eq!(Event::of(Trigger::PointerMove), None);
+        let own = Trigger::Button {
+            button: MouseButton::Left,
+            when: ButtonTrigger::DoubleClick(koebi_input::DoubleClick { time: Some(300) }),
+        };
+        assert_eq!(Event::DoubleClick.apply(own), own);
+        assert_eq!(
+            Event::DoubleClick.apply(button),
+            Trigger::Button {
+                button: MouseButton::Left,
+                when: ButtonTrigger::DOUBLE_CLICK
+            }
+        );
     }
 
     #[test]
@@ -352,13 +584,65 @@ mod tests {
             ModifierRule::NONE
         );
         assert_eq!(toggle_family(ctrl, ModifierKey::Ctrl), ModifierRule::NONE);
-        // Any modifiers, and a family chosen from there.
-        let any = toggle_any(ctrl);
+    }
+
+    #[test]
+    fn any_keeps_the_modifiers_it_replaces_and_gives_them_back() {
+        let ctrl_shift = Shortcut::key(Key::A)
+            .with(ModifierKey::Ctrl)
+            .with(ModifierKey::Shift)
+            .modifiers;
+        let any = toggle_any(ctrl_shift, None);
         assert!(is_any(any));
-        assert_eq!(toggle_any(any), ModifierRule::NONE);
+        // Off again: the modifiers it replaced come back.
+        assert_eq!(toggle_any(any, Some(ctrl_shift)), ctrl_shift);
+        // Nothing kept: none.
+        assert_eq!(toggle_any(any, None), ModifierRule::NONE);
+        assert_eq!(toggle_any(any, Some(ModifierRule::ANY)), ModifierRule::NONE);
+    }
+
+    #[test]
+    fn every_key_lies_in_one_section_and_every_mouse_input_has_a_name() {
+        let keys: Vec<Key> = KEY_SECTIONS
+            .iter()
+            .flat_map(|section| section.inputs.iter().map(|(key, _)| *key))
+            .collect();
+        for (key, _) in Key::named().iter().filter(|(key, _)| !key.is_modifier()) {
+            let count = keys.iter().filter(|listed| *listed == key).count();
+            assert_eq!(count, 1, "{key:?} lies in {count} sections");
+        }
+        assert!(keys.iter().all(|key| !key.is_modifier()));
+        assert_eq!(name_in(&KEY_SECTIONS, Key::PageUp), Some("Page up"));
+        for direction in [
+            WheelDirection::Up,
+            WheelDirection::Down,
+            WheelDirection::Left,
+            WheelDirection::Right,
+        ] {
+            assert!(name_in(&MOUSE_SECTIONS, MouseInput::Wheel(direction)).is_some());
+        }
+        assert!(name_in(&MOUSE_SECTIONS, MouseInput::Button(MouseButton::Forward)).is_some());
+        // A button keeps its event when another is chosen; the wheel has none.
+        let click = Trigger::Button {
+            button: MouseButton::Left,
+            when: ButtonTrigger::Click,
+        };
         assert_eq!(
-            toggle_family(any, ModifierKey::Shift),
-            ModifierRule::NONE.down(ModifierKey::Shift)
+            MouseInput::Button(MouseButton::Right).apply(click),
+            Trigger::Button {
+                button: MouseButton::Right,
+                when: ButtonTrigger::Click
+            }
+        );
+        let wheel = MouseInput::Wheel(WheelDirection::Left).apply(click);
+        assert_eq!(wheel, Trigger::Wheel(WheelDirection::Left));
+        assert_eq!(
+            MouseInput::of(wheel),
+            Some(MouseInput::Wheel(WheelDirection::Left))
+        );
+        assert_eq!(
+            MouseInput::Button(MouseButton::Middle).apply(wheel),
+            Trigger::button(MouseButton::Middle)
         );
     }
 }

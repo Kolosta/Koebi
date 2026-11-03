@@ -280,6 +280,8 @@ impl AppWindow {
                 modifiers,
                 ..
             } => {
+                // Every button, for what records shortcuts; the three components react to.
+                self.input.mouse_button(button, down);
                 if let Some(button) = actions::pointer_button(button) {
                     self.input.button(button, down, position);
                 }

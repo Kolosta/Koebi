@@ -22,6 +22,8 @@ pub(crate) static VIEW_ALL: ActionDef = ActionDef {
     description: "Zooms and pans so that the whole page shows.",
     context: VIEWPORT,
     defaults: &[Shortcut::key(Key::Home)],
+    repeats: false,
+    when: None,
 };
 
 /// Zooms in on the middle of the view.
@@ -31,6 +33,8 @@ pub(crate) static ZOOM_IN: ActionDef = ActionDef {
     description: "Zooms in by one step on the middle of the view.",
     context: VIEWPORT,
     defaults: &[Shortcut::key(Key::KeypadPlus)],
+    repeats: true,
+    when: None,
 };
 
 /// Zooms out from the middle of the view.
@@ -40,6 +44,8 @@ pub(crate) static ZOOM_OUT: ActionDef = ActionDef {
     description: "Zooms out by one step from the middle of the view.",
     context: VIEWPORT,
     defaults: &[Shortcut::key(Key::KeypadMinus)],
+    repeats: true,
+    when: None,
 };
 
 /// Shows the canvas at its real size.
@@ -49,6 +55,8 @@ pub(crate) static ACTUAL_SIZE: ActionDef = ActionDef {
     description: "Zooms to 100 %: one canvas unit per logical pixel.",
     context: VIEWPORT,
     defaults: &[Shortcut::key(Key::Keypad1)],
+    repeats: false,
+    when: None,
 };
 
 /// Shows or hides the rulers.
@@ -58,6 +66,8 @@ pub(crate) static TOGGLE_RULERS: ActionDef = ActionDef {
     description: "Hides every ruler, or shows the top and left ones.",
     context: VIEWPORT,
     defaults: &[Shortcut::key(Key::R).primary()],
+    repeats: false,
+    when: None,
 };
 
 /// The viewport's actions, for the keymap.

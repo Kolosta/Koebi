@@ -18,6 +18,8 @@ pub(crate) static FRAME_TIMES: ActionDef = ActionDef {
     description: "Shows or hides the frame rate and the CPU and GPU time of a frame.",
     context: APP,
     defaults: &[Shortcut::key(Key::F12)],
+    repeats: false,
+    when: None,
 };
 
 /// Quits the application.
@@ -27,6 +29,8 @@ pub(crate) static QUIT: ActionDef = ActionDef {
     description: "Closes every window and quits.",
     context: APP,
     defaults: &[Shortcut::key(Key::Q).primary()],
+    repeats: false,
+    when: None,
 };
 
 /// Enters or leaves fullscreen.
@@ -36,6 +40,8 @@ pub(crate) static FULLSCREEN: ActionDef = ActionDef {
     description: "Shows the window alone on its display, or brings it back.",
     context: APP,
     defaults: &[Shortcut::key(Key::F11)],
+    repeats: false,
+    when: None,
 };
 
 /// Opens the settings.
@@ -45,6 +51,8 @@ pub(crate) static SETTINGS: ActionDef = ActionDef {
     description: "Opens the settings window, or brings it to the front.",
     context: APP,
     defaults: &[Shortcut::key(Key::Comma).primary()],
+    repeats: false,
+    when: None,
 };
 
 /// The application's actions.

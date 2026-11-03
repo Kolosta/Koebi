@@ -22,6 +22,8 @@ pub(crate) static DELETE: ActionDef = ActionDef {
     description: "Deletes the selected messages.",
     context: INFO,
     defaults: &[Shortcut::key(Key::X), Shortcut::key(Key::Delete)],
+    repeats: false,
+    when: None,
 };
 
 /// Deletes every message.
@@ -31,6 +33,8 @@ pub(crate) static CLEAR: ActionDef = ActionDef {
     description: "Deletes every message.",
     context: INFO,
     defaults: &[Shortcut::key(Key::Delete).with(ModifierKey::Shift)],
+    repeats: false,
+    when: None,
 };
 
 /// The Info editor's actions, for the keymap.

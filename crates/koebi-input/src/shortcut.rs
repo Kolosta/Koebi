@@ -100,6 +100,22 @@ impl Drag {
     };
 }
 
+/// A double click of a mouse button: a second press near the first one, soon enough.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct DoubleClick {
+    /// The longest time between the two presses, in milliseconds, when it differs from the
+    /// double-click time of the input settings. A gesture carries the time it took.
+    pub time: Option<u16>,
+}
+
+impl DoubleClick {
+    /// Within the double-click time of the input settings.
+    pub const DEFAULT: Self = Self { time: None };
+
+    /// The shortest and longest times a double click may be given, in milliseconds.
+    pub const TIMES: (u16, u16) = (100, 2000);
+}
+
 /// When a mouse button triggers its shortcut.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ButtonTrigger {
@@ -109,16 +125,22 @@ pub enum ButtonTrigger {
     Release,
     /// When the button goes up without the pointer having been dragged.
     Click,
-    /// When the button goes down a second time quickly (the platform counts clicks).
-    DoubleClick,
+    /// When the button goes down a second time near the first press, within the double-click
+    /// time: the input settings' or its own.
+    DoubleClick(DoubleClick),
     /// When the pointer moves far enough with the button down.
     Drag(Drag),
 }
 
 impl ButtonTrigger {
+    /// A double click within the double-click time of the input settings.
+    pub const DOUBLE_CLICK: Self = Self::DoubleClick(DoubleClick::DEFAULT);
+
     fn overlaps(self, other: Self) -> bool {
         match (self, other) {
             (Self::Drag(a), Self::Drag(b)) => a.direction.overlaps(b.direction),
+            // A quick double click is one for any time.
+            (Self::DoubleClick(_), Self::DoubleClick(_)) => true,
             (a, b) => a == b,
         }
     }
@@ -174,6 +196,11 @@ pub enum Trigger {
 }
 
 impl Trigger {
+    /// `true` for a key press that triggers again while the key stays down.
+    pub const fn repeats(self) -> bool {
+        matches!(self, Self::Key { repeat: true, .. })
+    }
+
     /// The press of `key`.
     pub const fn key(key: Key) -> Self {
         Self::Key {
@@ -361,6 +388,11 @@ pub struct Shortcut {
 }
 
 impl Shortcut {
+    /// `true` when it triggers again while its key stays down.
+    pub const fn repeats(self) -> bool {
+        self.trigger.repeats()
+    }
+
     /// `trigger` with no modifier held.
     pub const fn new(trigger: Trigger) -> Self {
         Self {

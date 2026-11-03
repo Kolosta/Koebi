@@ -7,17 +7,20 @@
 //! modifier with a key is set apart, since its own press would be recorded first. Escape
 //! cancels; with a keyboard capture, so does a press outside the field.
 
-use koebi_core::input::{Key, ModifierKey, Modifiers, MouseButton};
+use koebi_core::input::{Key, ModifierKey, Modifiers};
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
-use koebi_input::{ButtonTrigger, Context, ModifierRule, ModifierState, Shortcut, Side};
+use koebi_input::{
+    ButtonTrigger, Context, ModifierRule, ModifierState, Shortcut, Side, Trigger, WheelDirection,
+};
 use koebi_render::RectPrimitive;
 use koebi_tokens::component;
 
 use crate::id::WidgetId;
-use crate::input::{Input, PointerButton};
+use crate::input::Input;
 use crate::text::Align;
 use crate::ui::{Response, Ui};
+use crate::widgets::key_caps::ShortcutCaps;
 use crate::widgets::parts::{ControlState, States};
 
 /// What a recording field holds: no shortcut applies while it records.
@@ -200,7 +203,7 @@ impl<'a> CaptureField<'a> {
             self.state.recording = false;
         } else if self.state.recording {
             // The press that started it was a click, released: what comes next is recorded.
-            match recorded(ui.input(), self.capture, response.hovered) {
+            match recorded(ui.input(), self.capture) {
                 Some(Recorded::Shortcut(shortcut)) => {
                     out.captured = Some(shortcut);
                     self.state.recording = false;
@@ -234,7 +237,24 @@ impl<'a> CaptureField<'a> {
             Vec2::new((rect.max.x - style.padding).max(rect.min.x), rect.max.y),
         );
         let font = ui.styles().key_caps.font.clone();
+        let held = rule_of(ui.input().modifiers());
         ui.clipped(rect, |ui| match (recording, self.shortcut) {
+            // Recording: the modifiers held, as they come and go, then what to press.
+            (true, _) if held != ModifierRule::NONE => {
+                let caps = ShortcutCaps::of_modifiers(held, ui.keyboard());
+                let width = ui.caps_width(&caps);
+                let gap = ui.styles().key_caps.gap * 2.0;
+                let hint = ui.text_width("+ …", &font);
+                let start = inner.center().x - (width + gap + hint) * 0.5;
+                let at =
+                    Rect::from_min_max(Vec2::new(start.max(inner.min.x), inner.min.y), inner.max);
+                let shown = ui.draw_caps(at, &caps, Align::Start);
+                let rest = Rect::from_min_max(
+                    Vec2::new((at.min.x + shown + gap).min(inner.max.x), inner.min.y),
+                    inner.max,
+                );
+                ui.label("+ …", rest, &font, style.hint, Align::Start);
+            }
             (true, _) => {
                 ui.label(self.recording_hint, inner, &font, style.hint, Align::Center);
             }
@@ -255,8 +275,12 @@ enum Recorded {
     Cancel,
 }
 
-/// What `input` gives a field recording `capture`, the pointer over it when `over`.
-fn recorded(input: &Input, capture: Capture, over: bool) -> Option<Recorded> {
+/// What `input` gives a field recording `capture`. Modifiers alone wait, shown as they are
+/// pressed and released; the first other key, mouse button or wheel turn ends the recording
+/// with the modifiers held then. Only Escape cancels: Delete, Backspace and the right button
+/// are shortcuts like the others. A keyboard capture ignores the mouse, a mouse capture the
+/// keys.
+fn recorded(input: &Input, capture: Capture) -> Option<Recorded> {
     let modifiers = rule_of(input.modifiers());
     for key in input.keys_pressed() {
         if key == Key::Escape {
@@ -267,27 +291,34 @@ fn recorded(input: &Input, capture: Capture, over: bool) -> Option<Recorded> {
         }
         return Some(Recorded::Shortcut(Shortcut::key(key).modifiers(modifiers)));
     }
-    let buttons = [
-        (PointerButton::Primary, MouseButton::Left),
-        (PointerButton::Middle, MouseButton::Middle),
-        (PointerButton::Secondary, MouseButton::Right),
-    ];
-    for (pointer, button) in buttons {
-        if input.button_pressed_at(pointer).is_none() {
-            continue;
-        }
-        if !capture.buttons() {
-            // A keyboard capture: a click elsewhere gives up.
-            return (!over).then_some(Recorded::Cancel);
-        }
-        let held = input.keys_held().filter(|key| !key.is_modifier()).last();
-        let shortcut = Shortcut::button(button, ButtonTrigger::Press).modifiers(modifiers);
-        return Some(Recorded::Shortcut(match held {
-            Some(held) => shortcut.holding(held),
-            None => shortcut,
-        }));
+    if !capture.buttons() {
+        return None;
     }
-    None
+    let held = input.keys_held().filter(|key| !key.is_modifier()).last();
+    let holding = |shortcut: Shortcut| match held {
+        Some(held) => shortcut.holding(held),
+        None => shortcut,
+    };
+    if let Some(button) = input.mouse_buttons_pressed().next() {
+        let shortcut = Shortcut::button(button, ButtonTrigger::Press).modifiers(modifiers);
+        return Some(Recorded::Shortcut(holding(shortcut)));
+    }
+    let wheel = input.wheel();
+    let direction = if wheel.y > 0.0 {
+        Some(WheelDirection::Up)
+    } else if wheel.y < 0.0 {
+        Some(WheelDirection::Down)
+    } else if wheel.x > 0.0 {
+        Some(WheelDirection::Right)
+    } else if wheel.x < 0.0 {
+        Some(WheelDirection::Left)
+    } else {
+        None
+    };
+    direction.map(|direction| {
+        let shortcut = Shortcut::new(Trigger::Wheel(direction)).modifiers(modifiers);
+        Recorded::Shortcut(holding(shortcut))
+    })
 }
 
 /// The rule of the modifiers held: each family held, on either side, the others up.
@@ -305,7 +336,8 @@ fn rule_of(held: Modifiers) -> ModifierRule {
 
 #[cfg(test)]
 mod tests {
-    use koebi_input::{KeyTrigger, Trigger};
+    use koebi_core::input::MouseButton;
+    use koebi_input::KeyTrigger;
     use koebi_render::Scene;
 
     use super::*;
@@ -397,7 +429,7 @@ mod tests {
     }
 
     #[test]
-    fn escape_cancels_and_a_click_elsewhere_gives_up_a_keyboard_capture() {
+    fn only_escape_cancels_delete_and_clicks_do_not() {
         let mut harness = Harness::new();
         harness.start(Capture::Keyboard);
         harness.input.key(Key::Escape, true);
@@ -405,23 +437,64 @@ mod tests {
         assert!(response.cancelled && response.captured.is_none());
         assert!(!harness.capture.is_recording());
         harness.input.key(Key::Escape, false);
+        // A click elsewhere is no key: a keyboard capture goes on.
         harness.start(Capture::Keyboard);
         harness.input.primary_button(true, Vec2::new(400.0, 400.0));
-        harness.input.pointer_moved(Vec2::new(400.0, 400.0));
-        assert!(harness.frame(Capture::Keyboard).cancelled);
+        harness.input.mouse_button(MouseButton::Left, true);
+        let response = harness.frame(Capture::Keyboard);
+        assert!(!response.cancelled && harness.capture.is_recording());
+        // Delete is a shortcut like the others.
+        harness.input.key(Key::Delete, true);
+        assert_eq!(
+            harness.frame(Capture::Keyboard).captured,
+            Some(Shortcut::key(Key::Delete))
+        );
     }
 
     #[test]
-    fn a_mouse_capture_records_the_button_pressed() {
+    fn modifiers_held_show_live_until_a_key_ends_the_recording() {
+        let mut harness = Harness::new();
+        harness.start(Capture::Any);
+        let caps = |harness: &mut Harness| {
+            let styles = crate::test_styles();
+            let mut scene = Scene::new();
+            let mut ui = Ui::new(&mut scene, &styles, &harness.input, &mut harness.state);
+            CaptureField::new(FIELD, &mut harness.capture, None).show(&mut ui, rect());
+            drop(ui);
+            harness.input.end_frame();
+            scene.rect_count()
+        };
+        let waiting = caps(&mut harness);
+        // Ctrl and Shift down: their caps show, recording goes on.
+        harness
+            .input
+            .set_modifiers(Modifiers::LEFT_CTRL.union(Modifiers::LEFT_SHIFT));
+        harness.input.key(Key::LeftCtrl, true);
+        harness.input.key(Key::LeftShift, true);
+        let held = caps(&mut harness);
+        assert!(held >= waiting + 2, "{held} rectangles, {waiting} before");
+        assert!(harness.capture.is_recording());
+        // Shift released: one cap less.
+        harness.input.set_modifiers(Modifiers::LEFT_CTRL);
+        harness.input.key(Key::LeftShift, false);
+        assert_eq!(caps(&mut harness), held - 1);
+        // A key ends it with the modifiers held then.
+        harness.input.key(Key::K, true);
+        assert_eq!(
+            harness.frame(Capture::Any).captured,
+            Some(Shortcut::key(Key::K).with(ModifierKey::Ctrl))
+        );
+    }
+
+    #[test]
+    fn a_mouse_capture_records_any_button_and_the_wheel() {
         let mut harness = Harness::new();
         harness.start(Capture::Mouse);
         // Keys are not for it.
         harness.input.key(Key::A, true);
         assert_eq!(harness.frame(Capture::Mouse).captured, None);
         harness.input.set_modifiers(Modifiers::LEFT_SHIFT);
-        harness
-            .input
-            .button(PointerButton::Middle, true, rect().center());
+        harness.input.mouse_button(MouseButton::Middle, true);
         let captured = harness.frame(Capture::Mouse).captured;
         assert_eq!(
             captured,
@@ -430,6 +503,28 @@ mod tests {
                     .with(ModifierKey::Shift)
                     .holding(Key::A)
             )
+        );
+        harness.input.key(Key::A, false);
+        harness.input.set_modifiers(Modifiers::NONE);
+        // The right button, a side button and a numbered one are shortcuts too.
+        for button in [
+            MouseButton::Right,
+            MouseButton::Forward,
+            MouseButton::Other(7),
+        ] {
+            harness.start(Capture::Mouse);
+            harness.input.mouse_button(button, true);
+            assert_eq!(
+                harness.frame(Capture::Mouse).captured,
+                Some(Shortcut::button(button, ButtonTrigger::Press))
+            );
+        }
+        // The wheel tilted left.
+        harness.start(Capture::Mouse);
+        harness.input.scrolled(Vec2::new(-1.0, 0.0));
+        assert_eq!(
+            harness.frame(Capture::Mouse).captured,
+            Some(Shortcut::new(Trigger::Wheel(WheelDirection::Left)))
         );
     }
 

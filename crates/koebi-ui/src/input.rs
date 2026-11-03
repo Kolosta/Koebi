@@ -5,7 +5,7 @@ use core::fmt;
 use core::time::Duration;
 
 use koebi_core::Vec2;
-use koebi_core::input::{Key, Modifiers};
+use koebi_core::input::{Key, Modifiers, MouseButton};
 use koebi_input::ActionDef;
 
 /// The keys pressed during a frame and the keys held, for what records a shortcut: a few at a
@@ -37,6 +37,25 @@ impl Keys {
             if *slot == Some(key) {
                 *slot = None;
             }
+        }
+    }
+}
+
+/// The mouse buttons pressed during a frame, whatever they are (side buttons, numbered ones):
+/// what records a shortcut reads.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct Buttons {
+    pressed: [Option<MouseButton>; Self::CAPACITY],
+}
+
+impl Buttons {
+    const CAPACITY: usize = 4;
+
+    fn press(&mut self, button: MouseButton) {
+        if !self.pressed.contains(&Some(button))
+            && let Some(slot) = self.pressed.iter_mut().find(|slot| slot.is_none())
+        {
+            *slot = Some(button);
         }
     }
 }
@@ -172,6 +191,8 @@ pub struct Input {
     typed: Typed,
     modifiers: Modifiers,
     keys: Keys,
+    /// The mouse buttons pressed, all of them.
+    mouse: Buttons,
     actions: Actions,
     /// When the frame is drawn, since a moment the application chose.
     time: Duration,
@@ -245,6 +266,20 @@ impl Input {
         }
     }
 
+    /// A mouse button went down or up, whichever it is; [`Input::button`] tells components
+    /// about the three they react to. What records shortcuts reads the presses
+    /// ([`Input::mouse_buttons_pressed`]).
+    pub fn mouse_button(&mut self, button: MouseButton, down: bool) {
+        if down {
+            self.mouse.press(button);
+        }
+    }
+
+    /// The mouse buttons that went down during the frame, in order.
+    pub fn mouse_buttons_pressed(&self) -> impl Iterator<Item = MouseButton> + '_ {
+        self.mouse.pressed.iter().flatten().copied()
+    }
+
     /// The keys that went down during the frame, in order.
     pub fn keys_pressed(&self) -> impl Iterator<Item = Key> + '_ {
         self.keys.pressed.iter().flatten().copied()
@@ -294,6 +329,7 @@ impl Input {
                 pressed: [None; Keys::CAPACITY],
                 ..self.keys
             },
+            mouse: Buttons::default(),
             ..*self
         };
         for state in &mut settled.buttons {
@@ -412,6 +448,8 @@ mod tests {
         description: "Closes.",
         context: Context::new("test"),
         defaults: &[Shortcut::key(Key::Escape)],
+        repeats: false,
+        when: None,
     };
 
     #[test]

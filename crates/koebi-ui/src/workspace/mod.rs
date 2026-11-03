@@ -52,6 +52,8 @@ pub static OPERATION_CANCEL: ActionDef = ActionDef {
         Shortcut::key(Key::Delete),
         Shortcut::button(MouseButton::Right, ButtonTrigger::Press),
     ],
+    repeats: false,
+    when: None,
 };
 
 /// Applies the split or join previewed under the pointer.
@@ -61,6 +63,8 @@ pub static OPERATION_CONFIRM: ActionDef = ActionDef {
     description: "Applies the split or join previewed under the pointer.",
     context: WORKSPACE_OPERATION,
     defaults: &[Shortcut::key(Key::Enter), Shortcut::key(Key::KeypadEnter)],
+    repeats: false,
+    when: None,
 };
 
 /// The actions of the workspace, for the keymap.

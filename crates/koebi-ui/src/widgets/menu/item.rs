@@ -1,6 +1,8 @@
 //! [`MenuItem`]: the entries of a menu (actions, submenus, separators, titles) and their
 //! builders.
 
+use koebi_input::Shortcut;
+
 use super::state::MAX_DEPTH;
 use crate::icon::Icon;
 
@@ -25,6 +27,8 @@ pub struct MenuAction<'a> {
     pub icon: Option<Icon>,
     /// Its shortcut, shown at the end.
     pub shortcut: Option<&'a str>,
+    /// A shortcut shown as key caps at the end, instead of text: the key a choice stands for.
+    pub caps: Option<Shortcut>,
     /// A check or radio mark.
     pub mark: MenuMark,
     /// Disabled items show but cannot be chosen.
@@ -69,6 +73,7 @@ impl<'a> MenuItem<'a> {
             label,
             icon: None,
             shortcut: None,
+            caps: None,
             mark: MenuMark::None,
             enabled: true,
             selected: false,
@@ -107,6 +112,19 @@ impl<'a> MenuItem<'a> {
         match self {
             Self::Action(mut action) => {
                 action.shortcut = Some(shortcut);
+                Self::Action(action)
+            }
+            other => other,
+        }
+    }
+
+    /// The same choice, showing `shortcut` as key caps at its end ([`crate::Ui::key_caps`]):
+    /// the key or button a choice stands for.
+    #[must_use]
+    pub const fn caps(self, shortcut: Shortcut) -> Self {
+        match self {
+            Self::Action(mut action) => {
+                action.caps = Some(shortcut);
                 Self::Action(action)
             }
             other => other,

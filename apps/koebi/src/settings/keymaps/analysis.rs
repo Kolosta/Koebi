@@ -4,6 +4,8 @@
 //!
 //! Soft conflicts between two default shortcuts are left out: the application designed them
 //! together (a click that selects and a double click that opens). Those the user makes show.
+//! A shortcut shared with an action that never applies at the same time is said, as an
+//! information, and counts as no conflict.
 
 use std::collections::HashMap;
 
@@ -65,7 +67,11 @@ impl Analysis {
                         (conflict.kind, text)
                     })
                     .collect();
-                let worst = self.scratch.first().map(|conflict| conflict.kind);
+                let worst = self
+                    .scratch
+                    .iter()
+                    .map(|conflict| conflict.kind)
+                    .find(|kind| kind.is_conflict());
                 report.worst = report.worst.max(worst);
                 report.bindings.push(BindingReport { worst, messages });
             }
@@ -118,6 +124,11 @@ fn message(zones: &Zones, context: Context, shortcut: Shortcut, conflict: &Confl
         ConflictKind::Similar => format!(
             "{} does {} in {place}: one movement does both, or one instead of the other.",
             conflict.shortcut, other.label
+        ),
+        ConflictKind::Shared => format!(
+            "Also {} {}: the two never apply at once.",
+            other.label,
+            other.when.map_or("", |when| when.state)
         ),
     }
 }

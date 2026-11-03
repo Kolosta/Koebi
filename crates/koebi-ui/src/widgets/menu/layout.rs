@@ -197,6 +197,9 @@ pub(super) fn measure(ui: &mut Ui<'_>, items: &[MenuItem<'_>]) -> Columns {
                         .shortcut
                         .max(ui.text_width(shortcut, &styles.text.detail));
                 }
+                if let Some(caps) = action.caps {
+                    columns.shortcut = columns.shortcut.max(ui.key_caps_width(&caps));
+                }
                 columns.mark |= action.mark != MenuMark::None;
                 columns.icon |= action.icon.is_some();
             }
@@ -363,9 +366,15 @@ fn draw_parts(
 ) {
     let styles = ui.styles();
     let style = &styles.menu;
-    let (label, icon, shortcut, mark) = match item {
-        MenuItem::Action(action) => (action.label, action.icon, action.shortcut, action.mark),
-        MenuItem::Submenu(submenu) => (submenu.label, submenu.icon, None, MenuMark::None),
+    let (label, icon, shortcut, caps, mark) = match item {
+        MenuItem::Action(action) => (
+            action.label,
+            action.icon,
+            action.shortcut,
+            action.caps,
+            action.mark,
+        ),
+        MenuItem::Submenu(submenu) => (submenu.label, submenu.icon, None, None, MenuMark::None),
         _ => return,
     };
     let slot = |x: f32| {
@@ -417,6 +426,9 @@ fn draw_parts(
     let body = Rect::from_min_max(Vec2::new(x, text.min.y), Vec2::new(end.max(x), text.max.y));
     if let Some(shortcut) = shortcut {
         ui.label(shortcut, body, &styles.text.detail, colors.hint, Align::End);
+    }
+    if let Some(caps) = caps {
+        ui.key_caps(body, &caps, Align::End);
     }
     let label_end = if columns.shortcut > 0.0 {
         (end - columns.shortcut - style.column_gap).max(x)

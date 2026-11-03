@@ -53,6 +53,8 @@ pub enum Icon {
     Reset,
     /// A triangle with an exclamation mark: something needs attention.
     Warning,
+    /// A circle holding an i: something to know, which needs nothing done.
+    Info,
     /// The Command key of Apple keyboards.
     Command,
     /// The Windows key.
@@ -71,7 +73,7 @@ pub enum Icon {
 
 impl Icon {
     /// Every icon, for galleries and tests.
-    pub const ALL: [Self; 18] = [
+    pub const ALL: [Self; 19] = [
         Self::Check,
         Self::Plus,
         Self::Minus,
@@ -83,6 +85,7 @@ impl Icon {
         Self::Search,
         Self::Reset,
         Self::Warning,
+        Self::Info,
         Self::Command,
         Self::Windows,
         Self::Shift,
@@ -149,6 +152,30 @@ impl Icon {
                 &[[8.0, 2.0], [14.5, 13.5], [1.5, 13.5], [8.0, 2.0]],
                 &[[8.0, 6.0], [8.0, 9.5]],
                 &[[8.0, 11.75], [8.0, 11.75]],
+            ],
+            // A circle, the dot of the i and its stroke.
+            Self::Info => &[
+                &[
+                    [14.00, 8.00],
+                    [13.54, 10.30],
+                    [12.24, 12.24],
+                    [10.30, 13.54],
+                    [8.00, 14.00],
+                    [5.70, 13.54],
+                    [3.76, 12.24],
+                    [2.46, 10.30],
+                    [2.00, 8.00],
+                    [2.46, 5.70],
+                    [3.76, 3.76],
+                    [5.70, 2.46],
+                    [8.00, 2.00],
+                    [10.30, 2.46],
+                    [12.24, 3.76],
+                    [13.54, 5.70],
+                    [14.00, 8.00],
+                ],
+                &[[8.0, 5.0], [8.0, 5.0]],
+                &[[8.0, 7.5], [8.0, 11.0]],
             ],
             // Two bars each way, looped at their ends: one closed stroke.
             Self::Command => &[&[

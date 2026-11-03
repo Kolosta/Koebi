@@ -7,7 +7,7 @@
 
 use koebi_core::input::Key;
 use koebi_core::{Color, Rect};
-use koebi_input::{ActionDef, ActionGroup, Context, Shortcut};
+use koebi_input::{ActionDef, ActionGroup, Condition, Context, Shortcut};
 use koebi_ui::{
     DropPlace, ListDelegate, ListItem, ListOptions, ListState, TreeGuide, Ui, WidgetId,
 };
@@ -22,6 +22,8 @@ pub(crate) static DELETE: ActionDef = ActionDef {
     description: "Deletes the selected rows and what they hold.",
     context: OUTLINER,
     defaults: &[Shortcut::key(Key::X), Shortcut::key(Key::Delete)],
+    repeats: false,
+    when: None,
 };
 
 /// Puts the selected rows in a new group.
@@ -31,24 +33,33 @@ pub(crate) static GROUP: ActionDef = ActionDef {
     description: "Puts the selected rows in a new group, where the first of them was.",
     context: OUTLINER,
     defaults: &[Shortcut::key(Key::G).primary()],
+    repeats: false,
+    when: None,
 };
 
-/// Unfolds every group.
+/// What folding every group and unfolding them depend on: whether one is unfolded.
+const FOLDS: &str = "outliner.folds";
+
+/// Unfolds every group, when all are folded.
 pub(crate) static UNFOLD_ALL: ActionDef = ActionDef {
     id: "outliner.unfold-all",
     label: "Unfold all",
-    description: "Unfolds every group of the outliner.",
+    description: "Unfolds every group of the outliner, when all are folded.",
     context: OUTLINER,
     defaults: &[Shortcut::key(Key::KeypadPlus)],
+    repeats: false,
+    when: Some(Condition::new(FOLDS, "when every group is folded")),
 };
 
-/// Folds every group.
+/// Folds every group, when one is unfolded.
 pub(crate) static FOLD_ALL: ActionDef = ActionDef {
     id: "outliner.fold-all",
     label: "Fold all",
-    description: "Folds every group of the outliner.",
+    description: "Folds every group of the outliner, when one is unfolded.",
     context: OUTLINER,
     defaults: &[Shortcut::key(Key::KeypadMinus)],
+    repeats: false,
+    when: Some(Condition::new(FOLDS, "when a group is unfolded")),
 };
 
 /// The outliner's actions, for the keymap.
@@ -333,8 +344,24 @@ pub(crate) fn show(
             state.set_active(Some(group));
         }
     }
-    let fold = ui.triggered(&FOLD_ALL);
-    if fold || ui.triggered(&UNFOLD_ALL) {
+    fold_all(
+        tree,
+        state,
+        ui.triggered(&FOLD_ALL),
+        ui.triggered(&UNFOLD_ALL),
+    );
+}
+
+/// Folds every group when `fold` was triggered and one is unfolded, unfolds them when
+/// `unfold` was and all are folded: each action acts under its condition, which excludes the
+/// other's, so that given one key the two fold what is unfolded, then unfold it again.
+fn fold_all(tree: &Tree, state: &mut ListState, fold: bool, unfold: bool) {
+    let unfolded = tree
+        .nodes
+        .iter()
+        .any(|node| node.group && !state.is_folded(node.id));
+    let fold = unfolded && fold;
+    if fold || (!unfolded && unfold) {
         for node in tree.nodes.iter().filter(|node| node.group) {
             state.set_folded(node.id, fold);
         }
@@ -416,6 +443,29 @@ mod tests {
         assert!(tree.delete(&[id(&tree, "Sketch")]));
         assert!(!tree.contains(id(&Tree::template(), "Gesture")));
         assert!(!tree.delete(&[999]));
+    }
+
+    #[test]
+    fn fold_all_and_unfold_all_on_one_key_fold_then_unfold() {
+        assert!(FOLD_ALL.excludes(&UNFOLD_ALL));
+        let tree = Tree::template();
+        let mut state = ListState::new();
+        let groups = || tree.nodes.iter().filter(|node| node.group);
+        assert!(groups().count() > 1);
+        let all_folded = |state: &ListState| groups().all(|node| state.is_folded(node.id));
+        // One group unfolded: the shared key folds every group.
+        fold_all(&tree, &mut state, true, true);
+        assert!(all_folded(&state));
+        // All folded: it unfolds them.
+        fold_all(&tree, &mut state, true, true);
+        assert!(groups().all(|node| !state.is_folded(node.id)));
+        // Each alone acts only under its condition.
+        fold_all(&tree, &mut state, false, true);
+        assert!(groups().all(|node| !state.is_folded(node.id)));
+        fold_all(&tree, &mut state, true, false);
+        assert!(all_folded(&state));
+        fold_all(&tree, &mut state, true, false);
+        assert!(all_folded(&state));
     }
 
     #[test]

@@ -57,6 +57,9 @@ pub enum Nesting {
 /// What a conflict is, for the shortcut it is reported on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ConflictKind {
+    /// Not a conflict: an action of the same context has the same shortcut, but the two
+    /// never apply at once (their conditions exclude each other), so the input does what fits.
+    Shared,
     /// The same input does something else in a zone this shortcut's lies in, or here: one
     /// movement triggers both, or one instead of the other.
     Similar,
@@ -73,6 +76,12 @@ impl ConflictKind {
     /// `true` for the conflicts the keymap refuses: the shortcut cannot be on.
     pub const fn is_total(self) -> bool {
         matches!(self, Self::Total)
+    }
+
+    /// `true` for conflicts; `false` for a shortcut shared by actions that never apply at
+    /// once.
+    pub const fn is_conflict(self) -> bool {
+        !matches!(self, Self::Shared)
     }
 }
 
@@ -227,6 +236,13 @@ impl Keymap {
                     (action.context, shortcut),
                     (other.context, binding.shortcut),
                 );
+                // One context, one input, but never both at once: shared, not a conflict.
+                let found = match found {
+                    Some(ConflictKind::Total) if action.excludes(other) => {
+                        Some(ConflictKind::Shared)
+                    }
+                    found => found,
+                };
                 if let Some(kind) = found {
                     conflicts.push(Conflict {
                         kind,
@@ -376,6 +392,8 @@ mod tests {
         description: "",
         context: VIEWPORT,
         defaults: &[Shortcut::key(Key::Home)],
+        repeats: false,
+        when: None,
     };
     static LINE_START: ActionDef = ActionDef {
         id: "text.line-start",
@@ -383,6 +401,8 @@ mod tests {
         description: "",
         context: TEXT,
         defaults: &[Shortcut::key(Key::Home)],
+        repeats: false,
+        when: None,
     };
     static FRAME: ActionDef = ActionDef {
         id: "viewport.frame",
@@ -390,6 +410,8 @@ mod tests {
         description: "",
         context: VIEWPORT,
         defaults: &[],
+        repeats: false,
+        when: None,
     };
     static GROUP: ActionGroup = ActionGroup {
         name: "Test",

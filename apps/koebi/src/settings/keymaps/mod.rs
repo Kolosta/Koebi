@@ -5,15 +5,17 @@
 //!   ([`crate::actions::CONTEXTS`]). Each zone shows its actions, by feature when it holds
 //!   several, then the zones inside it.
 //! - **Actions**: the header shows the action's first shortcut and, once its shortcuts differ
-//!   from the defaults, the dot bringing them back. The panel holds each shortcut, then a field
-//!   adding one.
+//!   from the defaults, the dot bringing them back. The panel holds each shortcut, then a
+//!   button adding one: an empty draft, which becomes a shortcut once it has its key and
+//!   conflicts with nothing until then.
 //! - **Shortcuts**: the header turns the shortcut on or off, chooses its device and records it;
 //!   the panel tells its conflicts and edits it in detail ([`binding`]).
-//! - **Conflicts**, checked as soon as a shortcut changes ([`analysis`]): the same shortcut in
-//!   one zone is a hard conflict, and the newcomer stays off until one of them changes; a zone
-//!   inside another taking the shortcut, or a similar shortcut, is a soft one. A shortcut in
-//!   conflict tints its header, and every panel holding it shows the warning in the conflict's
-//!   color.
+//! - **Conflicts**, checked as soon as a shortcut changes ([`analysis`]), by the rules of
+//!   `docs/development/editors.md`: the same shortcut in one zone is a hard conflict, and the
+//!   newcomer stays off until one of them changes, unless the two actions never apply at once
+//!   (their conditions exclude each other: shared, said but not a conflict); a zone inside
+//!   another taking the shortcut, or a similar shortcut, is a soft one. A shortcut in conflict
+//!   tints its header, and every panel holding it shows the warning in the conflict's color.
 //! - **Search** by name, or by pressing a shortcut: only the actions found show.
 
 mod analysis;
@@ -32,7 +34,7 @@ use koebi_ui::{
 };
 
 use self::analysis::{Analysis, contains_folded, finds};
-use self::binding::{BindingUi, Choices, Edit, conflict_color};
+use self::binding::{BindingUi, Choices, Draft, Edit, Shown, conflict_color};
 use super::Stack;
 use crate::actions::{CONTEXTS, ZONES};
 
@@ -52,7 +54,8 @@ const BINDING_TRAILING: f32 = 1.0e6;
 struct ActionUi {
     panel: CollapsiblePanelState,
     bindings: Vec<BindingUi>,
-    add: CaptureState,
+    /// The shortcuts being added, waiting for their key.
+    drafts: Vec<Draft>,
 }
 
 impl ActionUi {
@@ -60,9 +63,18 @@ impl ActionUi {
         Self {
             panel: CollapsiblePanelState::new(false),
             bindings: Vec::new(),
-            add: CaptureState::new(),
+            drafts: Vec::new(),
         }
     }
+}
+
+/// Which shortcut of an action an edit is for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Target {
+    /// The keymap's, at this index.
+    Binding(usize),
+    /// A draft, at this index among the action's.
+    Draft(usize),
 }
 
 /// What the search found, and what it looked for.
@@ -150,6 +162,31 @@ impl KeymapsPage {
             });
             self.zones.insert(context, state);
         }
+    }
+
+    /// Adds a draft to the action `id`, as its button does.
+    #[cfg(test)]
+    pub(super) fn add_draft(&mut self, id: &'static str) {
+        let state = self.actions.entry(id).or_insert_with(ActionUi::new);
+        state.panel.set_open(true);
+        state.drafts.push(Draft::new());
+    }
+
+    /// The drafts of the action `id`.
+    #[cfg(test)]
+    fn drafts(&self, id: &str) -> usize {
+        self.actions.get(id).map_or(0, |state| state.drafts.len())
+    }
+
+    /// Applies `edit` to the draft at `index` of the action `id`, as its controls do.
+    #[cfg(test)]
+    fn edit_draft(&mut self, keymap: &mut Keymap, id: &str, index: usize, edit: Edit) {
+        let Some(action) = keymap.action(id) else {
+            return;
+        };
+        let mut state = self.actions.remove(id).unwrap_or_else(ActionUi::new);
+        self.apply(keymap, action, Target::Draft(index), edit, &mut state);
+        self.actions.insert(action.id, state);
     }
 
     /// Opens the panel of the action `id` and those of its shortcuts at `bindings`.
@@ -401,17 +438,17 @@ impl KeymapsPage {
         let ActionUi {
             panel: panel_state,
             bindings,
-            add,
+            drafts,
         } = &mut state;
         let mut panel =
             CollapsiblePanel::new(id, panel_state, action.label).trailing(ACTION_TRAILING);
         if let Some(worst) = worst {
             panel = panel.status(Icon::Warning, conflict_color(design, worst));
         }
-        let mut edits: Vec<(Option<usize>, Edit)> = Vec::new();
+        let mut edits: Vec<(Target, Edit)> = Vec::new();
         let shown = panel.show(ui, rect, |ui, inner| {
             self.action_body(
-                ui, inner, action, bindings, add, design, keymap, bounds, &mut edits,
+                ui, inner, action, bindings, drafts, design, keymap, bounds, &mut edits,
             )
         });
         // At the end of the header: its first shortcut on, and what brings the defaults back.
@@ -447,7 +484,8 @@ impl KeymapsPage {
         shown.height
     }
 
-    /// What an action's panel holds: what it does, its shortcuts, and the field adding one.
+    /// What an action's panel holds: what it does, its shortcuts, its drafts, and the button
+    /// adding one.
     #[allow(clippy::too_many_arguments, reason = "the parts of one action")]
     fn action_body(
         &self,
@@ -455,11 +493,11 @@ impl KeymapsPage {
         rect: Rect,
         action: &'static ActionDef,
         bindings: &mut [BindingUi],
-        add: &mut CaptureState,
+        drafts: &mut Vec<Draft>,
         design: &mut DesignSystem,
         keymap: &Keymap,
         bounds: Rect,
-        edits: &mut Vec<(Option<usize>, Edit)>,
+        edits: &mut Vec<(Target, Edit)>,
     ) -> f32 {
         let padding = ui.styles().panel.padding;
         let row = design.get(semantic::SIZE_CONTROL_HEIGHT);
@@ -491,6 +529,7 @@ impl KeymapsPage {
                     ui,
                     inner,
                     id,
+                    action,
                     *binding,
                     binding_report,
                     &mut state.editor,
@@ -502,47 +541,117 @@ impl KeymapsPage {
             });
             // The header's controls, over the header: after it, so that they take the pointer.
             if let Some(trailing) = shown.trailing
-                && let Some(header) =
-                    binding::header(ui, trailing, id, *binding, &mut state.editor, bounds)
+                && let Some(header) = binding::header(
+                    ui,
+                    trailing,
+                    id,
+                    Shown::Binding(*binding),
+                    &mut state.editor,
+                    bounds,
+                )
             {
                 edit = Some(header);
             }
             if let Some(edit) = edit {
-                edits.push((Some(index), edit));
+                edits.push((Target::Binding(index), edit));
             }
             y += shown.height + gap;
         }
-        // The field adding a shortcut.
+        // The drafts: no color of their own, they conflict with nothing yet.
+        for (index, draft) in drafts.iter_mut().enumerate() {
+            let id = ID.with(name_key(action.id)).with(1000 + index as u64);
+            let at = Rect::from_min_max(Vec2::new(rect.min.x, y), rect.max);
+            let panel =
+                CollapsiblePanel::new(id, &mut draft.ui.panel, "").trailing(BINDING_TRAILING);
+            let mut edit = None;
+            let device = draft.device;
+            let editor = &mut draft.ui.editor;
+            let shown = panel.show(ui, at, |ui, inner| {
+                binding::draft_details(
+                    ui,
+                    inner,
+                    id,
+                    device,
+                    editor,
+                    &self.choices,
+                    design,
+                    bounds,
+                    &mut edit,
+                )
+            });
+            if let Some(trailing) = shown.trailing
+                && let Some(header) =
+                    binding::header(ui, trailing, id, Shown::Draft(device), editor, bounds)
+            {
+                edit = Some(header);
+            }
+            if let Some(edit) = edit {
+                edits.push((Target::Draft(index), edit));
+            }
+            y += shown.height + gap;
+        }
+        // The button adding a draft.
         let at = Rect::from_min_max(
             Vec2::new(rect.min.x + padding, y),
             Vec2::new(rect.max.x - padding, y + row),
         );
-        let recorded = CaptureField::new(ID.with(name_key(action.id)).with(99), add, None)
-            .capture(Capture::Any)
-            .hints("Add a shortcut", "Press the new shortcut")
-            .show(ui, at);
-        if let Some(shortcut) = recorded.captured {
-            edits.push((None, Edit::Set(Binding::on(shortcut))));
+        if Button::new(ID.with(name_key(action.id)).with(99))
+            .leading_icon(Icon::Plus)
+            .label("Add a shortcut")
+            .show(ui, at)
+            .clicked
+        {
+            drafts.push(Draft::new());
         }
         y += row;
         y - rect.min.y
     }
 
-    /// Applies what the user changed in the shortcut at `index` of `action` (a new one for
-    /// `None`). A shortcut that would conflict in its own zone stays off until it changes to a
-    /// free one; one the user turns on against such a conflict stays off.
+    /// Applies what the user changed in the shortcut `target` of `action`. A draft that gets
+    /// its key becomes a shortcut, its panel kept. A shortcut that would conflict in its own
+    /// zone stays off until it changes to a free one; one the user turns on against such a
+    /// conflict stays off.
     fn apply(
         &mut self,
         keymap: &mut Keymap,
         action: &'static ActionDef,
-        index: Option<usize>,
+        target: Target,
         edit: Edit,
         state: &mut ActionUi,
     ) {
+        let index = match target {
+            Target::Binding(index) => Some(index),
+            Target::Draft(draft) => {
+                if draft >= state.drafts.len() {
+                    return;
+                }
+                match edit {
+                    Edit::Remove => {
+                        state.drafts.remove(draft);
+                        return;
+                    }
+                    Edit::Device(device) => {
+                        state.drafts[draft].device = device;
+                        return;
+                    }
+                    Edit::Set(_) => {
+                        // Its panel, open, becomes the new shortcut's.
+                        let draft = state.drafts.remove(draft);
+                        let count = keymap.bindings(action.id).map_or(0, <[Binding]>::len);
+                        state.bindings.resize_with(count, BindingUi::new);
+                        state.bindings.push(draft.ui);
+                        None
+                    }
+                }
+            }
+        };
         let mut bindings = keymap.bindings(action.id).unwrap_or(&[]).to_vec();
-        // One state per shortcut, in step with the keymap.
-        state.bindings.resize_with(bindings.len(), BindingUi::new);
+        // One state per shortcut, in step with the keymap (a draft's added after them).
+        let wanted = bindings.len() + usize::from(index.is_none());
+        state.bindings.resize_with(wanted, BindingUi::new);
         match edit {
+            // Only drafts change device without a key.
+            Edit::Device(_) => {}
             Edit::Remove => {
                 if let Some(index) = index.filter(|&index| index < bindings.len()) {
                     bindings.remove(index);
@@ -584,7 +693,6 @@ impl KeymapsPage {
                     bindings[index] = binding;
                 } else {
                     bindings.push(binding);
-                    state.bindings.push(BindingUi::new());
                 }
                 let position = index.unwrap_or(bindings.len() - 1);
                 if let Some(ui) = state.bindings.get_mut(position) {

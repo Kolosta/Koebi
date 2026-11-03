@@ -6,9 +6,10 @@ use std::time::{Duration, Instant};
 use koebi_core::Vec2;
 use koebi_core::input::{Key, ModifierKey, Modifiers, MouseButton};
 use koebi_input::{
-    ActionDef, ActionGroup, ButtonTrigger, Context, Drag, DragDirection, GestureKind, InputEvent,
-    InputSettings, KeyTrigger, Keymap, KeymapError, ModifierRule, ModifierState, PinchDirection,
-    Shortcut, Side, Trigger, WheelDirection,
+    ActionDef, ActionGroup, ButtonTrigger, Condition, ConflictKind, Context, ContextInfo,
+    DoubleClick, Drag, DragDirection, GestureKind, InputEvent, InputSettings, KeyTrigger, Keymap,
+    KeymapError, ModifierRule, ModifierState, PinchDirection, Shortcut, Side, Trigger,
+    WheelDirection, Within, Zones,
 };
 
 const APP: Context = Context::new("app");
@@ -24,6 +25,9 @@ macro_rules! action {
             description: "An action of the tests.",
             context: $context,
             defaults: &[$($shortcut),*],
+            // The tests' actions may all repeat: the keymap keeps what their shortcuts say.
+            repeats: true,
+            when: None,
         };
     };
 }
@@ -152,7 +156,7 @@ static VIEWPORT: ActionGroup = ActionGroup {
 const NONE: [&str; 0] = [];
 
 /// The identifiers of the actions triggered.
-fn ids(triggers: koebi_input::Triggers) -> Vec<&'static str> {
+fn ids(triggers: &koebi_input::Triggers) -> Vec<&'static str> {
     triggers
         .iter()
         .map(|triggered| triggered.action.id)
@@ -404,7 +408,7 @@ fn wheel_and_pinch_steps_carry_their_amount() {
         modifiers: Modifiers::NONE,
     };
     assert_eq!(
-        ids(keymap.handle(down, ON_CANVAS, &settings, Instant::now())),
+        ids(&keymap.handle(down, ON_CANVAS, &settings, Instant::now())),
         NONE
     );
     let pinch = InputEvent::Pinch {
@@ -420,7 +424,7 @@ fn wheel_and_pinch_steps_carry_their_amount() {
 }
 
 #[test]
-fn mouse_double_clicks_come_from_the_platform_click_count() {
+fn mouse_double_clicks_follow_the_settings_time_or_their_own() {
     static OPEN: ActionDef = ActionDef {
         id: "list.open",
         label: "Open",
@@ -428,32 +432,60 @@ fn mouse_double_clicks_come_from_the_platform_click_count() {
         context: Context::new("list"),
         defaults: &[Shortcut::button(
             MouseButton::Left,
-            ButtonTrigger::DoubleClick,
+            ButtonTrigger::DOUBLE_CLICK,
         )],
+        repeats: false,
+        when: None,
     };
     static LIST: ActionGroup = ActionGroup {
         name: "List",
         actions: &[&OPEN],
     };
     let mut keymap = Keymap::new(&[&LIST]).expect("valid");
-    let press = |clicks| InputEvent::Button {
-        button: MouseButton::Left,
-        down: true,
-        clicks,
-        position: Vec2::ZERO,
-        modifiers: Modifiers::NONE,
-    };
     let chain = [Context::new("list")];
     let settings = InputSettings::default();
-    assert_eq!(
-        ids(keymap.handle(press(1), &chain, &settings, Instant::now())),
-        NONE
+    let start = Instant::now();
+    // The platform's count of clicks plays no part: the time between the presses does.
+    let press = |keymap: &mut Keymap, millis: u64, at: Vec2| {
+        let event = InputEvent::Button {
+            button: MouseButton::Left,
+            down: true,
+            clicks: 1,
+            position: at,
+            modifiers: Modifiers::NONE,
+        };
+        let now = start + Duration::from_millis(millis);
+        let triggers = keymap.handle(event, &chain, &settings, now);
+        let release = InputEvent::Button {
+            button: MouseButton::Left,
+            down: false,
+            clicks: 1,
+            position: at,
+            modifiers: Modifiers::NONE,
+        };
+        keymap.handle(release, &chain, &settings, now);
+        triggers
+            .iter()
+            .any(|triggered| triggered.action.id == "list.open")
+    };
+    let here = Vec2::new(10.0, 10.0);
+    assert!(!press(&mut keymap, 0, here));
+    // Within the settings' 500 ms, near the first press.
+    assert!(press(&mut keymap, 300, here));
+    // A third press starts again.
+    assert!(!press(&mut keymap, 400, here));
+    // Too late, then too far.
+    assert!(!press(&mut keymap, 1000, here));
+    assert!(!press(&mut keymap, 1100, here + Vec2::new(50.0, 0.0)));
+    // A time of its own: 200 ms.
+    let own = Shortcut::button(
+        MouseButton::Left,
+        ButtonTrigger::DoubleClick(DoubleClick { time: Some(200) }),
     );
-    let triggers = keymap.handle(press(2), &chain, &settings, Instant::now());
-    assert_eq!(
-        triggers.iter().next().map(|t| t.action.id),
-        Some("list.open")
-    );
+    keymap.set_shortcuts("list.open", &[own]).expect("free");
+    assert!(!press(&mut keymap, 2000, here));
+    assert!(!press(&mut keymap, 2300, here));
+    assert!(press(&mut keymap, 2450, here));
 }
 
 #[test]
@@ -488,6 +520,8 @@ fn defaults_must_not_conflict() {
         description: "",
         context: APP,
         defaults: &[Shortcut::key(Key::A).with(ModifierKey::Ctrl)],
+        repeats: false,
+        when: None,
     };
     static SECOND: ActionDef = ActionDef {
         id: "a.second",
@@ -497,6 +531,8 @@ fn defaults_must_not_conflict() {
         defaults: &[Shortcut::key(Key::A).modifiers(
             ModifierRule::NONE.with(ModifierKey::Ctrl, ModifierState::Down(Side::Left)),
         )],
+        repeats: false,
+        when: None,
     };
     static GROUP: ActionGroup = ActionGroup {
         name: "A",
@@ -765,7 +801,7 @@ fn shortcuts_turned_off_trigger_nothing_take_nothing_and_are_saved() {
         repeat: false,
         modifiers: Modifiers::LEFT_CTRL,
     };
-    let triggered = ids(keymap.handle(event, &[APP], &InputSettings::default(), Instant::now()));
+    let triggered = ids(&keymap.handle(event, &[APP], &InputSettings::default(), Instant::now()));
     assert_eq!(triggered, [UNDO.id]);
     // Saved with a `!`, and restored off.
     let text = keymap.overrides_text();
@@ -781,4 +817,130 @@ fn shortcuts_turned_off_trigger_nothing_take_nothing_and_are_saved() {
     assert!(keymap.is_modified(QUIT.id));
     keymap.reset(QUIT.id).expect("free");
     assert!(!keymap.is_modified(QUIT.id));
+}
+
+#[test]
+fn actions_whose_conditions_exclude_each_other_share_a_shortcut_and_both_trigger() {
+    const FOLDS: &str = "outliner.folds";
+    static FOLD_ALL: ActionDef = ActionDef {
+        id: "outliner.fold-all",
+        label: "Fold all",
+        description: "Folds every group.",
+        context: Context::new("outliner"),
+        defaults: &[Shortcut::key(Key::KeypadMinus)],
+        repeats: false,
+        when: Some(Condition::new(FOLDS, "when a group is unfolded")),
+    };
+    static UNFOLD_ALL: ActionDef = ActionDef {
+        id: "outliner.unfold-all",
+        label: "Unfold all",
+        description: "Unfolds every group.",
+        context: Context::new("outliner"),
+        defaults: &[Shortcut::key(Key::KeypadPlus)],
+        repeats: false,
+        when: Some(Condition::new(FOLDS, "when every group is folded")),
+    };
+    static DELETE: ActionDef = ActionDef {
+        id: "outliner.delete",
+        label: "Delete",
+        description: "Deletes the selection.",
+        context: Context::new("outliner"),
+        defaults: &[Shortcut::key(Key::Delete)],
+        repeats: false,
+        when: None,
+    };
+    static OUTLINER: ActionGroup = ActionGroup {
+        name: "Outliner",
+        actions: &[&FOLD_ALL, &UNFOLD_ALL, &DELETE],
+    };
+    static INFOS: [ContextInfo; 1] = [ContextInfo {
+        context: Context::new("outliner"),
+        label: "Outliner",
+        within: Within::Root,
+    }];
+    assert!(FOLD_ALL.excludes(&UNFOLD_ALL) && !FOLD_ALL.excludes(&DELETE));
+    let mut keymap = Keymap::new(&[&OUTLINER]).expect("valid");
+    // The same key for both: never at once, so not a conflict.
+    let minus = Shortcut::key(Key::KeypadMinus);
+    keymap
+        .set_shortcuts(UNFOLD_ALL.id, &[minus])
+        .expect("shared, not taken");
+    // With an action they do not exclude, it is one.
+    assert!(matches!(
+        keymap.set_shortcuts(DELETE.id, &[minus]),
+        Err(KeymapError::Conflict { .. })
+    ));
+    // The key triggers both: each acts when its condition holds.
+    let chain = [Context::new("outliner")];
+    let triggers = keymap.handle(
+        InputEvent::Key {
+            key: Key::KeypadMinus,
+            down: true,
+            repeat: false,
+            modifiers: Modifiers::NONE,
+        },
+        &chain,
+        &InputSettings::default(),
+        Instant::now(),
+    );
+    let mut triggered: Vec<&str> = triggers.iter().map(|t| t.action.id).collect();
+    triggered.sort_unstable();
+    assert_eq!(triggered, ["outliner.fold-all", "outliner.unfold-all"]);
+    // The shortcut editor learns they share it.
+    let zones = Zones::new(&INFOS);
+    let mut conflicts = Vec::new();
+    keymap.conflicts_in(&zones, FOLD_ALL.id, minus, &mut conflicts);
+    assert_eq!(conflicts.len(), 1);
+    assert_eq!(conflicts[0].kind, ConflictKind::Shared);
+    assert!(!conflicts[0].kind.is_conflict());
+    assert_eq!(conflicts[0].other.id, UNFOLD_ALL.id);
+}
+
+#[test]
+fn actions_that_do_not_repeat_keep_no_shortcut_that_repeats() {
+    static QUIT: ActionDef = ActionDef {
+        id: "app.quit",
+        label: "Quit",
+        description: "Quits.",
+        context: Context::new("app"),
+        defaults: &[Shortcut::key(Key::Q)],
+        repeats: false,
+        when: None,
+    };
+    static APP: ActionGroup = ActionGroup {
+        name: "Application",
+        actions: &[&QUIT],
+    };
+    static WRONG: ActionDef = ActionDef {
+        id: "app.wrong",
+        label: "Wrong",
+        description: "Says it does not repeat, but its default does.",
+        context: Context::new("app"),
+        defaults: &[Shortcut::new(Trigger::Key {
+            key: Key::R,
+            when: KeyTrigger::Press,
+            repeat: true,
+        })],
+        repeats: false,
+        when: None,
+    };
+    static BROKEN: ActionGroup = ActionGroup {
+        name: "Broken",
+        actions: &[&WRONG],
+    };
+    let mut keymap = Keymap::new(&[&APP]).expect("valid");
+    let repeating = Shortcut::new(Trigger::Key {
+        key: Key::W,
+        when: KeyTrigger::Press,
+        repeat: true,
+    });
+    keymap.set_shortcuts(QUIT.id, &[repeating]).expect("free");
+    let kept = keymap.shortcuts(QUIT.id).expect("known")[0];
+    assert!(!kept.repeats());
+    assert_eq!(kept.trigger, Trigger::key(Key::W));
+    // Declared with a default that repeats: a mistake the keymap refuses.
+    assert!(matches!(
+        Keymap::new(&[&BROKEN]),
+        Err(KeymapError::Repeats("app.wrong"))
+    ));
 }

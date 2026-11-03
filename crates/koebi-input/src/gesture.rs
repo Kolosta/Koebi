@@ -18,8 +18,8 @@ use crate::shortcut::{
 pub struct InputSettings {
     /// How far the pointer moves, in logical pixels, before a press becomes a drag.
     pub drag_threshold: f32,
-    /// Longest time between the two presses of a key's double click (the platform counts
-    /// mouse double clicks with the system's settings).
+    /// Longest time between the two presses of a double click, of a key or of a mouse button
+    /// (unless a shortcut has its own).
     pub double_click_time: Duration,
 }
 
@@ -142,8 +142,9 @@ pub struct Gesture {
 }
 
 impl Shortcut {
-    /// `true` when `gesture` triggers this shortcut. Drags are matched separately, since
-    /// their distance and direction are only known once the pointer moves.
+    /// `true` when `gesture` triggers this shortcut. Drags and double clicks are matched
+    /// separately ([`Shortcut::matches_drag`], [`Shortcut::matches_double_click`]): their
+    /// distance, direction and time depend on the shortcut and the settings.
     pub fn matches(&self, gesture: &Gesture) -> bool {
         let modifiers = match gesture.kind {
             // The modifier key that triggers does not count against the rule.
@@ -170,7 +171,11 @@ impl Shortcut {
                     button: used,
                     when: happened,
                 },
-            ) => button == used && when == happened && !matches!(when, ButtonTrigger::Drag(_)),
+            ) => {
+                button == used
+                    && when == happened
+                    && !matches!(when, ButtonTrigger::Drag(_) | ButtonTrigger::DoubleClick(_))
+            }
             (
                 Trigger::Wheel(direction),
                 GestureKind::Wheel {
@@ -191,6 +196,33 @@ impl Shortcut {
     /// `true` when the key held `held` satisfies the shortcut's: none asked, or that one.
     fn held_by(&self, held: Option<Key>) -> bool {
         self.held.is_none_or(|key| held == Some(key))
+    }
+
+    /// `true` when a second press of `button` with `modifiers` and `held` held, `interval`
+    /// after the first, is this double-click shortcut. `default` is the double-click time of
+    /// the settings, which holds unless the shortcut has its own.
+    pub fn matches_double_click(
+        &self,
+        button: MouseButton,
+        modifiers: Modifiers,
+        held: Option<Key>,
+        interval: Duration,
+        default: Duration,
+    ) -> bool {
+        let Trigger::Button {
+            button: bound,
+            when: ButtonTrigger::DoubleClick(double),
+        } = self.trigger
+        else {
+            return false;
+        };
+        let longest = double
+            .time
+            .map_or(default, |time| Duration::from_millis(u64::from(time)));
+        bound == button
+            && self.modifiers.accepts(modifiers)
+            && self.held_by(held)
+            && interval <= longest
     }
 
     /// `true` when a press of `button` with `modifiers` and `held` held, moved by `delta`

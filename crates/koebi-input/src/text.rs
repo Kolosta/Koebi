@@ -17,8 +17,8 @@ use core::str::FromStr;
 use koebi_core::input::{Key, ModifierKey, MouseButton};
 
 use crate::shortcut::{
-    ButtonTrigger, Drag, DragDirection, KeyTrigger, ModifierRule, ModifierState, PinchDirection,
-    Shortcut, Side, Trigger, WheelDirection,
+    ButtonTrigger, DoubleClick, Drag, DragDirection, KeyTrigger, ModifierRule, ModifierState,
+    PinchDirection, Shortcut, Side, Trigger, WheelDirection,
 };
 
 /// A shortcut whose text form is invalid.
@@ -141,7 +141,13 @@ impl fmt::Display for Shortcut {
                     ButtonTrigger::Press => Ok(()),
                     ButtonTrigger::Release => f.write_str(" release"),
                     ButtonTrigger::Click => f.write_str(" click"),
-                    ButtonTrigger::DoubleClick => f.write_str(" double"),
+                    ButtonTrigger::DoubleClick(double) => {
+                        f.write_str(" double")?;
+                        match double.time {
+                            Some(time) => write!(f, " {time}ms"),
+                            None => Ok(()),
+                        }
+                    }
                     ButtonTrigger::Drag(drag) => {
                         f.write_str(" drag")?;
                         if let Some((_, name)) = DIRECTIONS
@@ -279,7 +285,11 @@ fn button_qualifiers(qualifiers: &[&str]) -> Option<ButtonTrigger> {
         [] => ButtonTrigger::Press,
         ["release"] => ButtonTrigger::Release,
         ["click"] => ButtonTrigger::Click,
-        ["double"] => ButtonTrigger::DoubleClick,
+        ["double"] => ButtonTrigger::DOUBLE_CLICK,
+        ["double", time] => {
+            let time = time.strip_suffix("ms")?.parse().ok()?;
+            ButtonTrigger::DoubleClick(DoubleClick { time: Some(time) })
+        }
         ["drag", rest @ ..] => {
             let mut drag = Drag::ANY;
             let mut rest = rest.iter();
@@ -364,6 +374,16 @@ mod tests {
         let any = round_trip("Any+Ctrl+A");
         assert_eq!(any.modifiers.ctrl, ModifierState::Down(Side::Either));
         assert_eq!(any.modifiers.alt, ModifierState::Any);
+        let own = round_trip("LeftMouse double 300ms");
+        assert_eq!(
+            own.trigger,
+            Trigger::Button {
+                button: MouseButton::Left,
+                when: ButtonTrigger::DoubleClick(DoubleClick { time: Some(300) })
+            }
+        );
+        round_trip("LeftMouse double");
+        assert!("LeftMouse double 300".parse::<Shortcut>().is_err());
         let plus = round_trip("Ctrl++");
         assert_eq!(plus.trigger, Trigger::key(Key::Character('+')));
     }

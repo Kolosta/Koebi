@@ -5,17 +5,20 @@
 //! their default shortcuts and the [`Context`] they apply in.
 //!
 //! - **Shortcuts** ([`Shortcut`]): keys (press, release, click, double click, repeat), mouse
-//!   buttons (press, release, click, double click, drag in a direction from a distance), the
-//!   wheel, pinches and pointer moves, with modifier rules that tell left and right apart
+//!   buttons (press, release, click, double click within a time, drag in a direction from a
+//!   distance), the wheel, pinches and pointer moves, with modifier rules that tell left and right apart
 //!   ([`ModifierRule`]). Their text form (`Ctrl+Shift+Z`, `LeftMouse drag north`) is what
 //!   saved keymaps hold.
 //! - **Contexts**: the application gives, with each input event, the chain of contexts under
 //!   the pointer (application, area, editor, top bar...), innermost first. The innermost
 //!   context with a matching shortcut wins.
-//! - **Conflicts**: two actions of one context never share a shortcut that is on; the same
-//!   shortcut may serve different actions in different contexts, and [`Zones`] tells where
-//!   they meet: an inner zone shadowing an outer one, or similar shortcuts (a press and a
-//!   release of one key).
+//! - **Conflicts**: two actions of one context never share a shortcut that is on, unless they
+//!   never apply at once (their [`Condition`]s exclude each other): then the shortcut triggers
+//!   both, and each acts when its condition holds. The same shortcut may serve different
+//!   actions in different contexts, and [`Zones`] tells where they meet: an inner zone
+//!   shadowing an outer one, or similar shortcuts (a press and a release of one key).
+//! - **Repeats**: only actions that repeat ([`ActionDef::repeats`]) take shortcuts repeating
+//!   while their key is held.
 //! - **Keys held as modifiers**: `Space+G` triggers only while Space is held.
 //! - **Overrides**: shortcuts can be changed, restored one by one, by group or all at once;
 //!   an action is modified when its shortcuts differ from its defaults.
@@ -36,6 +39,8 @@
 //!     description: "Undoes the last change.",
 //!     context: APP,
 //!     defaults: &[Shortcut::key(Key::Z).primary()],
+//!     repeats: true,
+//!     when: None,
 //! };
 //! static EDIT: ActionGroup = ActionGroup { name: "Edit", actions: &[&UNDO] };
 //!
@@ -59,13 +64,13 @@ mod shortcut;
 mod text;
 mod zones;
 
-pub use action::{ActionDef, ActionGroup, Context};
+pub use action::{ActionDef, ActionGroup, Condition, Context};
 pub use gesture::{Gesture, GestureKind, InputEvent, InputSettings};
 pub use keymap::{Keymap, KeymapError, Triggered, Triggers};
 pub use saved::{HEADER, LoadReport};
 pub use shortcut::{
-    Binding, ButtonTrigger, Drag, DragDirection, KeyTrigger, ModifierRule, ModifierState,
-    PinchDirection, Shortcut, Side, Trigger, WheelDirection,
+    Binding, ButtonTrigger, DoubleClick, Drag, DragDirection, KeyTrigger, ModifierRule,
+    ModifierState, PinchDirection, Shortcut, Side, Trigger, WheelDirection,
 };
 pub use text::ParseShortcutError;
 pub use zones::{Conflict, ConflictKind, ContextInfo, Nesting, Within, Zones};

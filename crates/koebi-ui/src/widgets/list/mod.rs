@@ -57,6 +57,8 @@ pub static LIST_NEXT: ActionDef = ActionDef {
     description: "Selects the row below the active one and makes it active.",
     context: LIST,
     defaults: &[repeating(Key::Down)],
+    repeats: true,
+    when: None,
 };
 
 /// Selects the row above the active one.
@@ -66,6 +68,8 @@ pub static LIST_PREVIOUS: ActionDef = ActionDef {
     description: "Selects the row above the active one and makes it active.",
     context: LIST,
     defaults: &[repeating(Key::Up)],
+    repeats: true,
+    when: None,
 };
 
 /// Extends the selection to the row below the active one.
@@ -75,6 +79,8 @@ pub static LIST_EXTEND_NEXT: ActionDef = ActionDef {
     description: "Selects the rows from the first one selected to the row below the active one.",
     context: LIST,
     defaults: &[repeating(Key::Down).with(ModifierKey::Shift)],
+    repeats: true,
+    when: None,
 };
 
 /// Extends the selection to the row above the active one.
@@ -84,6 +90,8 @@ pub static LIST_EXTEND_PREVIOUS: ActionDef = ActionDef {
     description: "Selects the rows from the first one selected to the row above the active one.",
     context: LIST,
     defaults: &[repeating(Key::Up).with(ModifierKey::Shift)],
+    repeats: true,
+    when: None,
 };
 
 /// Unfolds the active row, or goes to its first child.
@@ -93,6 +101,8 @@ pub static LIST_UNFOLD: ActionDef = ActionDef {
     description: "Unfolds the active row, or goes to its first child when it is unfolded.",
     context: LIST,
     defaults: &[Shortcut::key(Key::Right)],
+    repeats: false,
+    when: None,
 };
 
 /// Folds the active row, or goes to its parent.
@@ -103,6 +113,8 @@ pub static LIST_FOLD: ActionDef = ActionDef {
                   children.",
     context: LIST,
     defaults: &[Shortcut::key(Key::Left)],
+    repeats: false,
+    when: None,
 };
 
 /// Selects every row.
@@ -112,6 +124,8 @@ pub static LIST_SELECT_ALL: ActionDef = ActionDef {
     description: "Selects every row of the list, folded ones included.",
     context: LIST,
     defaults: &[Shortcut::key(Key::A).primary()],
+    repeats: false,
+    when: None,
 };
 
 /// Cancels the drag in progress.
@@ -125,6 +139,8 @@ pub static LIST_DRAG_CANCEL: ActionDef = ActionDef {
         Shortcut::key(Key::Delete),
         Shortcut::button(MouseButton::Right, ButtonTrigger::Press),
     ],
+    repeats: false,
+    when: None,
 };
 
 /// The actions of lists, for the keymap.
