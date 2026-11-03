@@ -299,6 +299,8 @@ pub struct Ui<'a> {
     zone: Option<u32>,
     /// Regions are clipped to this rectangle.
     clip: Option<Rect>,
+    /// How many collapsible panels hold what is being drawn: the level a panel shown now takes.
+    pub(crate) panel_depth: u8,
 }
 
 impl<'a> Ui<'a> {
@@ -353,6 +355,7 @@ impl<'a> Ui<'a> {
             layer: Layer::BASE,
             zone: None,
             clip: None,
+            panel_depth: 0,
         }
     }
 
@@ -465,6 +468,26 @@ impl<'a> Ui<'a> {
         self.scene.pop_clip();
         self.clip = previous;
         result
+    }
+
+    /// Draws what `add` draws in `styles` instead of the interface's: a preview of another
+    /// theme or color vision mode, made of real components. It draws on the same scene and
+    /// layer, inside the same clip, with `state` of its own (fonts and scale factor taken from
+    /// this interface) and no input: what it shows never reacts, nor takes the pointer from
+    /// what lies around it.
+    pub fn preview<R>(
+        &mut self,
+        styles: &Styles,
+        state: &mut UiState,
+        add: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> R {
+        state.fonts.clone_from(&self.state.fonts);
+        state.scale_factor = self.state.scale_factor;
+        let input = Input::new();
+        let mut preview = Ui::new(self.scene, styles, &input, state);
+        preview.layer = self.layer;
+        preview.clip = self.clip;
+        add(&mut preview)
     }
 
     /// Like [`Self::clipped`], its content also cut at the corners of `clip`, each rounded by its
@@ -1066,6 +1089,32 @@ mod tests {
             })
         });
         assert!(!responses[0].pressed);
+    }
+
+    #[test]
+    fn previews_draw_in_their_styles_and_never_take_the_pointer() {
+        let (mut state, mut input) = (UiState::new(), Input::new());
+        state.set_scale_factor(1.5);
+        let mut preview_state = UiState::new();
+        let other = crate::test_styles();
+        input.pointer_moved(Vec2::new(5.0, 5.0));
+        let mut counts = (0, 0);
+        let responses = interact_twice(&mut state, &mut input, |ui| {
+            let below = ui.interact(A, rect_a());
+            let before = ui.scene().rect_count();
+            // Over A, a preview whose button would take the pointer if it were live.
+            let inner = ui.preview(&other, &mut preview_state, |ui| {
+                assert_eq!(ui.state.scale_factor(), 1.5);
+                crate::Button::new(B).label("Preview").show(ui, rect_a())
+            });
+            counts = (before, ui.scene().rect_count());
+            vec![below, inner]
+        });
+        // A stays under the pointer: the preview reacts to nothing and covers nothing.
+        assert!(responses[0].hovered);
+        assert!(!responses[1].hovered);
+        // It drew on the same scene.
+        assert!(counts.1 > counts.0);
     }
 
     #[test]

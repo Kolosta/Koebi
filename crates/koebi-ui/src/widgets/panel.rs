@@ -19,6 +19,18 @@ pub enum PanelLevel {
     Third,
 }
 
+impl PanelLevel {
+    /// The level of a panel inside `depth` others: the first on the window, the second inside
+    /// one, the third deeper.
+    pub const fn at_depth(depth: u8) -> Self {
+        match depth {
+            0 => Self::First,
+            1 => Self::Second,
+            _ => Self::Third,
+        }
+    }
+}
+
 /// Colors and metrics of [`Ui::panel`], from the `component.panel.*` tokens.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PanelStyle {

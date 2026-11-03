@@ -28,6 +28,12 @@ koebi_design::tokens! {
     /// Panel: override badge color.
     PANEL_OVERRIDE_BADGE_COLOR_DEFAULT = "panel.override-badge.color.default": Color ->
         semantic::BACKGROUND_ACCENT_DEFAULT;
+    /// Panel: side of the override badge, the dot bringing a changed value back.
+    PANEL_OVERRIDE_BADGE_SIZE_DEFAULT = "panel.override-badge.size.default": Dimension =
+        px(6.0), range(2.0, 24.0);
+    /// Panel: side of the override badge under the pointer.
+    PANEL_OVERRIDE_BADGE_SIZE_HOVER = "panel.override-badge.size.hover": Dimension = px(9.0),
+        range(2.0, 24.0);
     /// Panel: gap size.
     PANEL_GAP_SIZE_DEFAULT = "panel.gap.size.default": Dimension = px(2.0), range(0.0, 20.0);
     /// Panel: corner radius.

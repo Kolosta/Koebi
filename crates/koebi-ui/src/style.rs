@@ -20,8 +20,8 @@ use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
     AppBarStyle, ButtonStyle, CheckboxStyle, CollapsiblePanelStyle, DropdownStyle, ListStyle,
-    MenuStyle, NumberFieldStyle, PanelStyle, PropertyGroupStyle, ScrollStyle, SeparatorStyle,
-    SwatchStyle, TextFieldStyle, ThemeCardStyle, TooltipStyle,
+    MenuStyle, NumberFieldStyle, PanelStyle, PropertyGroupStyle, ResetDotStyle, ScrollStyle,
+    SeparatorStyle, SwatchStyle, TextFieldStyle, ThemeCardStyle, TooltipStyle,
 };
 use crate::workspace::WorkspaceStyle;
 
@@ -297,8 +297,10 @@ pub struct Styles {
     pub separator: SeparatorStyle,
     /// [`Ui::swatch`](crate::Ui::swatch).
     pub swatch: SwatchStyle,
-    /// [`Ui::theme_card`](crate::Ui::theme_card).
+    /// [`Ui::theme_card`](crate::Ui::theme_card) and [`Ui::card`](crate::Ui::card).
     pub theme_card: ThemeCardStyle,
+    /// [`Ui::reset_dot`](crate::Ui::reset_dot).
+    pub reset_dot: ResetDotStyle,
     /// [`Ui::menu`](crate::Ui::menu).
     pub menu: MenuStyle,
     /// [`Dropdown`](crate::Dropdown).
@@ -348,6 +350,7 @@ impl Styles {
             separator: SeparatorStyle::resolve(tokens),
             swatch: SwatchStyle::resolve(tokens),
             theme_card: ThemeCardStyle::resolve(tokens),
+            reset_dot: ResetDotStyle::resolve(tokens),
             menu: MenuStyle::resolve(tokens),
             dropdown: DropdownStyle::resolve(tokens),
             text_field: TextFieldStyle::resolve(tokens),
