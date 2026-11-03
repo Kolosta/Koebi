@@ -61,6 +61,8 @@ impl ButtonStyle {
         let label = States {
             selected: get(c::BUTTON_LABEL_COLOR_SELECTED),
             selected_hovered: get(c::BUTTON_LABEL_COLOR_SELECTED),
+            selected_pressed: get(c::BUTTON_LABEL_COLOR_SELECTED),
+            active: get(c::BUTTON_LABEL_COLOR_ACTIVE),
             disabled: disabled.2,
             ..States::all(get(c::BUTTON_LABEL_COLOR_DEFAULT))
         };
@@ -71,6 +73,8 @@ impl ButtonStyle {
                 pressed: get(c::BUTTON_BACKGROUND_COLOR_PRESSED),
                 selected: get(c::BUTTON_BACKGROUND_COLOR_SELECTED),
                 selected_hovered: get(c::BUTTON_BACKGROUND_COLOR_SELECTED_HOVER),
+                selected_pressed: get(c::BUTTON_BACKGROUND_COLOR_SELECTED_PRESSED),
+                active: get(c::BUTTON_BACKGROUND_COLOR_ACTIVE),
                 disabled: disabled.0,
                 selected_disabled: disabled.0,
             },
@@ -80,6 +84,8 @@ impl ButtonStyle {
                 pressed: get(c::BUTTON_BORDER_COLOR_PRESSED),
                 selected: get(c::BUTTON_BORDER_COLOR_SELECTED),
                 selected_hovered: get(c::BUTTON_BORDER_COLOR_SELECTED),
+                selected_pressed: get(c::BUTTON_BORDER_COLOR_SELECTED),
+                active: get(c::BUTTON_BORDER_COLOR_ACTIVE),
                 disabled: disabled.1,
                 selected_disabled: disabled.1,
             },
@@ -91,8 +97,8 @@ impl ButtonStyle {
             pressed: tokens.get(c::BUTTON_SHADE_PRESSED_LIGHTNESS),
             disabled_tint: tokens.get(c::BUTTON_HUE_DISABLED_TINT),
         };
-        // A filled variant: its own colors, pressed when selected (lighter when hovered), the
-        // shared disabled ones.
+        // A filled variant: its own colors, pressed when selected (lighter when hovered,
+        // darker when pressed again), active as selected, the shared disabled ones.
         let filled = |background: [Color; 3], label: Color, border: Color| ToneColors {
             background: States {
                 normal: background[0],
@@ -100,6 +106,8 @@ impl ButtonStyle {
                 pressed: background[2],
                 selected: background[2],
                 selected_hovered: shade(background[2], shades.hover),
+                selected_pressed: shade(background[2], shades.pressed),
+                active: background[2],
                 disabled: disabled.0,
                 selected_disabled: disabled.0,
             },
@@ -229,6 +237,8 @@ impl ButtonStyle {
             pressed: get(c::TOGGLE_LABEL_COLOR_HOVER),
             selected: get(c::TOGGLE_LABEL_COLOR_SELECTED),
             selected_hovered: get(c::TOGGLE_LABEL_COLOR_SELECTED),
+            selected_pressed: get(c::TOGGLE_LABEL_COLOR_SELECTED),
+            active: get(c::TOGGLE_LABEL_COLOR_SELECTED),
             disabled: get(c::TOGGLE_LABEL_COLOR_DISABLED),
             selected_disabled: get(c::TOGGLE_LABEL_COLOR_DISABLED),
         };
@@ -239,6 +249,8 @@ impl ButtonStyle {
                 pressed: get(c::TOGGLE_BACKGROUND_COLOR_PRESSED),
                 selected: get(c::TOGGLE_BACKGROUND_COLOR_SELECTED),
                 selected_hovered: get(c::TOGGLE_BACKGROUND_COLOR_SELECTED_HOVER),
+                selected_pressed: get(c::TOGGLE_BACKGROUND_COLOR_SELECTED_PRESSED),
+                active: get(c::TOGGLE_BACKGROUND_COLOR_SELECTED),
                 disabled: get(c::TOGGLE_BACKGROUND_COLOR_DISABLED),
                 selected_disabled: get(c::TOGGLE_BACKGROUND_COLOR_DISABLED),
             },
@@ -248,6 +260,8 @@ impl ButtonStyle {
                 pressed: get(c::TOGGLE_BORDER_COLOR_HOVER),
                 selected: get(c::TOGGLE_BORDER_COLOR_SELECTED),
                 selected_hovered: get(c::TOGGLE_BORDER_COLOR_SELECTED),
+                selected_pressed: get(c::TOGGLE_BORDER_COLOR_SELECTED),
+                active: get(c::TOGGLE_BORDER_COLOR_SELECTED),
                 disabled: get(c::TOGGLE_BORDER_COLOR_DISABLED),
                 selected_disabled: get(c::TOGGLE_BORDER_COLOR_DISABLED),
             },

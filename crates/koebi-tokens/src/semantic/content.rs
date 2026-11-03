@@ -165,6 +165,10 @@ koebi_design::tokens! {
     /// Border color of the focused element.
     BORDER_COLOR_FOCUS_DEFAULT = "border.color.focus.default": Color -> ACCENT_COLOR_500;
 
+    /// Border color of a control holding the input: a field being edited or dragged, a
+    /// shortcut being recorded.
+    BORDER_COLOR_ACTIVE = "border.color.active": Color -> BORDER_COLOR_FOCUS_DEFAULT;
+
     /// Blue border color for tagged elements.
     BORDER_COLOR_BLUE_DEFAULT = "border.color.blue.default": Color -> primitive::COLOR_BLUE_500;
 

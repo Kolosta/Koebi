@@ -10,9 +10,9 @@ use crate::widgets::parts::States;
 /// Colors and metrics of number fields, from the `component.number-field.*` tokens.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NumberFieldStyle {
-    /// Background per state; pressed is a press that has not moved yet, selected a drag.
+    /// Background per state; pressed is a press that has not moved yet, active a drag.
     pub background: States<Color>,
-    /// Border color per state; selected is a drag.
+    /// Border color per state; active is a drag.
     pub border: States<Color>,
     /// Border of a typed expression that is not valid.
     pub error: Color,
@@ -65,7 +65,7 @@ impl NumberFieldStyle {
         let border_drag = get(c::NUMBER_FIELD_BORDER_COLOR_DRAG);
         let border_hover = get(c::NUMBER_FIELD_BORDER_COLOR_HOVER);
         let fill_hover = get(c::NUMBER_FIELD_FILL_COLOR_HOVER);
-        // A disabled field cannot be dragged or edited: selected or not, it looks disabled.
+        // A field is never selected; dragged, it is active. Disabled, it cannot be either.
         let disabled = get(c::NUMBER_FIELD_BACKGROUND_COLOR_DISABLED);
         let border_disabled = get(c::NUMBER_FIELD_BORDER_COLOR_DISABLED);
         let fill_disabled = get(c::NUMBER_FIELD_FILL_COLOR_DISABLED);
@@ -74,8 +74,10 @@ impl NumberFieldStyle {
                 normal: get(c::NUMBER_FIELD_BACKGROUND_COLOR_DEFAULT),
                 hovered: get(c::NUMBER_FIELD_BACKGROUND_COLOR_HOVER),
                 pressed: get(c::NUMBER_FIELD_BACKGROUND_COLOR_PRESSED),
-                selected: drag,
-                selected_hovered: drag,
+                selected: get(c::NUMBER_FIELD_BACKGROUND_COLOR_DEFAULT),
+                selected_hovered: get(c::NUMBER_FIELD_BACKGROUND_COLOR_HOVER),
+                selected_pressed: get(c::NUMBER_FIELD_BACKGROUND_COLOR_PRESSED),
+                active: drag,
                 disabled,
                 selected_disabled: disabled,
             },
@@ -83,8 +85,10 @@ impl NumberFieldStyle {
                 normal: get(c::NUMBER_FIELD_BORDER_COLOR_DEFAULT),
                 hovered: border_hover,
                 pressed: border_hover,
-                selected: border_drag,
-                selected_hovered: border_drag,
+                selected: get(c::NUMBER_FIELD_BORDER_COLOR_DEFAULT),
+                selected_hovered: border_hover,
+                selected_pressed: border_hover,
+                active: border_drag,
                 disabled: border_disabled,
                 selected_disabled: border_disabled,
             },
@@ -93,8 +97,10 @@ impl NumberFieldStyle {
                 normal: get(c::NUMBER_FIELD_FILL_COLOR_DEFAULT),
                 hovered: fill_hover,
                 pressed: fill_hover,
-                selected: fill_hover,
+                selected: get(c::NUMBER_FIELD_FILL_COLOR_DEFAULT),
                 selected_hovered: fill_hover,
+                selected_pressed: fill_hover,
+                active: fill_hover,
                 disabled: fill_disabled,
                 selected_disabled: fill_disabled,
             },

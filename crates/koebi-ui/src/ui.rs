@@ -313,6 +313,9 @@ pub struct Ui<'a> {
     clip: Option<Rect>,
     /// How many collapsible panels hold what is being drawn: the level a panel shown now takes.
     pub(crate) panel_depth: u8,
+    /// Where the backgrounds of the panel holding what is being drawn start and end: a panel
+    /// nested in it spans them, whatever its indent.
+    pub(crate) panel_span: Option<(f32, f32)>,
 }
 
 impl<'a> Ui<'a> {
@@ -368,6 +371,7 @@ impl<'a> Ui<'a> {
             zone: None,
             clip: None,
             panel_depth: 0,
+            panel_span: None,
         }
     }
 

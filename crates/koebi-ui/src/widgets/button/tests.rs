@@ -12,7 +12,7 @@ use koebi_render::Corners;
 
 use super::*;
 use crate::style::CornerRadii;
-use crate::widgets::parts::Hue;
+use crate::widgets::parts::{Hue, Variant};
 use crate::{Input, Styles, UiState};
 
 const SAVE: WidgetId = WidgetId::new("save");
@@ -299,6 +299,63 @@ fn the_last_radius_call_applies() {
 }
 
 #[test]
+fn a_selected_button_pressed_keeps_a_selected_color_darker_than_selected() {
+    let harness = Harness::new();
+    let style = &harness.styles.button;
+    let lightness = |color: Color| color.to_oklch().l;
+    // The default tone, toggles and every filled tone.
+    let mut tones = vec![style.colors(Tone::DEFAULT), &style.toggle];
+    tones.extend(
+        Variant::ALL
+            .into_iter()
+            .filter(|variant| variant.is_filled())
+            .map(|variant| style.colors(Tone::new(variant))),
+    );
+    for colors in tones {
+        let background = colors.background;
+        assert_ne!(background.selected_pressed, background.pressed);
+        assert_ne!(background.selected_pressed, background.selected);
+        assert!(lightness(background.selected_pressed) < lightness(background.selected_hovered));
+        assert_eq!(colors.content.selected_pressed, colors.content.selected);
+    }
+}
+
+#[test]
+fn toggles_hover_as_buttons_do_not_as_wells() {
+    let harness = Harness::new();
+    let style = &harness.styles.button;
+    // A toggle under the pointer lightens like a button, never turns black.
+    assert_eq!(
+        style.toggle.background.hovered,
+        style.colors(Tone::DEFAULT).background.hovered
+    );
+    assert_ne!(style.toggle.background.hovered, Color::BLACK);
+}
+
+#[test]
+fn a_menu_button_is_active_while_its_menu_is_open_not_selected() {
+    let mut harness = Harness::new();
+    let style = harness.styles.button.clone();
+    let mut menu = MenuState::new();
+    menu.open_below(rect());
+    let (state, _) = harness.frame(|ui| {
+        let response = ui.interact(SAVE, rect());
+        Button::new(SAVE)
+            .label("Render")
+            .menu(&mut menu, Placement::BELOW)
+            .state_of(&response)
+    });
+    assert_eq!(state, ControlState::Active);
+    assert_eq!(
+        style.colors(Tone::DEFAULT).background.active,
+        harness
+            .styles
+            .tokens
+            .get(koebi_tokens::component::BUTTON_BACKGROUND_COLOR_ACTIVE)
+    );
+}
+
+#[test]
 fn toggles_of_the_default_tone_take_the_look_of_toggles() {
     let mut harness = Harness::new();
     let style = harness.styles.button.clone();
@@ -507,7 +564,7 @@ fn menu_buttons_open_their_menu_and_square_the_corners_it_meets() {
         let button = Button::new(SAVE)
             .label("Render")
             .menu(&mut menu, Placement::BELOW);
-        assert!(button.is_selected());
+        assert!(button.is_active() && !button.is_selected());
         let (_, state) = button.show_with_menu(ui, rect());
         let state = state.expect("a menu button");
         ui.menu(

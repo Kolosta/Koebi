@@ -92,8 +92,14 @@ if save.show(ui, Rect::from_origin_size(origin, size)).clicked {
   family over the disabled colors. A toggle of the default tone has the look of toggles
   (`toggle.*`: colors, corner radius and border width), like Blender's toggle theme.
 - **States** (`ControlState`): normal, hovered, pressed, selected (a toggle switched on, the
-  current choice), selected and hovered, disabled, selected and disabled (a toggle switched
-  on, then disabled). A disabled control ignores the pointer: it is never hovered nor
+  current choice), selected and hovered, selected and pressed (darker than selected, as
+  pressed is darker than at rest: a toggle switched on never turns gray while pressed),
+  active, disabled, selected and disabled (a toggle switched on, then disabled). **Selected**
+  and **active** have their own tokens: selected is switched on or chosen and lasts, active
+  holds the input for a while (a field being edited or dragged, a shortcut being recorded, a
+  menu open: `semantic.background.app.active` and `semantic.border.color.active` for fields,
+  `button.*.active` for a button's open menu). A disabled control ignores the pointer: it is
+  never hovered nor
   pressed, but a selected one still shows it is on, its disabled colors keeping
   `button.selected.disabled.tint` of its selected ones (`checkbox.selected.disabled.tint`
   for a checked box). `States<T>` holds a value per state. Disabled controls and fields share
@@ -124,7 +130,8 @@ if save.show(ui, Rect::from_origin_size(origin, size)).clicked {
   the next free one along the group's direction, and a group in a rectangle smaller than its
   size shrinks its fitting tracks first. Neighbours share one border
   (`button.group.border.width`) whose color is the one of the cell of highest state priority
-  (pressed, hovered, selected, rest, selected and disabled, disabled); only the group's outer
+  (active, pressed, hovered, selected, rest, selected and disabled, disabled); only the
+  group's outer
   corners are rounded. The
   `GroupResponse` says which cell fired, was double-clicked, pressed with the secondary
   button or hovered.
@@ -267,7 +274,7 @@ caller shows its input in:
   `Ui::request_paste` sets `UiState::paste_requested`, and the application answers with
   `UiState::set_pasted_text(text)` before the next frame, where the editing field inserts
   it. A paste the filter empties changes nothing.
-- **Look**: a box of the field's colors per state (selected is editing, with the
+- **Look**: a box of the field's colors per state (active is editing, with the
   `text-field.border.color.editing` focus border), an optional icon (`Icon::Search` for a
   search field), the text cut with an ellipsis while idle or a placeholder while empty, and
   while editing the selection (`text-field.selection.color`) and the caret
@@ -288,22 +295,26 @@ on the last frame).
   for the caller's buttons (`.trailing(width)`, returned as `CollapsiblePanelResponse::trailing`;
   draw them after the panel so that they take the pointer). Under the pointer, the header
   lightens by `panel.header.hover.lightness`.
-- **Content**: `show(ui, area, add)` calls `add(ui, rect)` with the full width of the panel
-  inside the frame, from the top of its content down to the bottom of `area` (the room
-  there is); `add` draws and returns the height it used (a nested panel's `height`). Rows
-  inset themselves by `panel.padding`; nested panels take the rest of the width after their
-  indent. The content draws while
+- **Content**: `show(ui, area, add)` calls `add(ui, rect)` with the panel's width inside the
+  frame, indented as its header, from the top of its content down to the bottom of `area`
+  (the room there is); `add` draws and returns the height it used (a nested panel's
+  `height`). Rows inset themselves by `panel.padding`; nested panels take the rectangle as it
+  is. The content draws while
   the panel is open or opening, clipped to the share shown, and the frame is drawn over it. A
   panel never measured shows its content from the frame after it first drew it (it asks for
   that frame at once); nested levels follow one frame apart, while they settle and while they
   fold.
-- **Levels**: a panel shown in another's content is one level deeper on its own
-  (`PanelLevel::at_depth`), and indented by `CollapsiblePanelStyle::indent` (the chevron's room
-  and the header gap): its chevron lies below its parent's title. `.level(level)` gives a
-  panel shown on its own the colors of a deeper level. A first-level panel is framed and
-  rounded, its header in `panel.header.background.color`; a nested panel's header takes its
-  parent's content color and its content the next level's
-  (`panel.body.background.color.level-*`). `.status(icon, color)` shows an icon at the end of
+- **Levels**: a panel shown in another's content is one level deeper on its own. Its
+  backgrounds span its parent's whole content; only what it holds is indented, by
+  `CollapsiblePanelStyle::indent` (the chevron's room and the header gap): its chevron lies
+  below its parent's title, its content one indent further. `.level(level)` gives a panel
+  shown on its own the colors of a deeper level. A first-level panel is framed and rounded,
+  its header in `panel.header.background.color`; a nested panel's header always takes its
+  parent's content color, and its content the next level's
+  (`panel.body.background.color.level-*`): levels 1, 2 and 3, then 2 and 3 alternating, so
+  that every content differs from the one holding it however deep. The response's
+  `header_rect` is the header as wide as its backgrounds. `.status(icon, color)` shows an
+  icon at the end of
   the title (a conflict inside, carried up to every panel holding it) and `.tint(color)` lays
   a translucent color over the header.
 - **Folding**: a press on the header opens or closes it; the content is revealed along

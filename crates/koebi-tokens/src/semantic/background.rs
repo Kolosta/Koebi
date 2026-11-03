@@ -44,6 +44,9 @@ koebi_design::tokens! {
     /// Background of disabled controls and input fields: apart from the fields and the
     /// controls, close to the surfaces, as if faded into what lies below.
     BACKGROUND_APP_DISABLED = "background.app.disabled": Color -> primitive::COLOR_GRAY_780;
+    /// Background of a control holding the input: a field being edited or dragged, a shortcut
+    /// being recorded. Not the selected color: a selected control is switched on or chosen.
+    BACKGROUND_APP_ACTIVE = "background.app.active": Color -> BACKGROUND_APP_CONTROL;
 
     /// Background of child surfaces nested in a window.
     BACKGROUND_CHILD_DEFAULT = "background.child.default": Color -> primitive::COLOR_GRAY_900;

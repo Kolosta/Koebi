@@ -81,7 +81,7 @@ const ICON: usize = 3;
 ///
 /// A toggle button of the default tone ([`Button::toggle`]) takes the look of toggles
 /// (`component.toggle.*`): its own colors, corner radius and border width. A button opening
-/// a menu ([`Button::menu`]) shows selected while the menu is open.
+/// a menu ([`Button::menu`]) is active while the menu is open.
 #[derive(Debug)]
 pub struct Button<'a> {
     id: WidgetId,
@@ -328,7 +328,7 @@ impl<'a> Button<'a> {
 
     /// A menu button: its action opens the menu of `state` beside it, as `placement` says
     /// (another activation closes it, and so does a press anywhere while it is open). The
-    /// button shows selected while its menu is open, its menu follows it when the layout
+    /// button is active while its menu is open, its menu follows it when the layout
     /// moves, and the corners where the menu meets it are square. Show the menu with
     /// [`Ui::menu`] after the button; a menu button does not toggle a value.
     #[must_use]
@@ -418,7 +418,7 @@ impl<'a> Button<'a> {
         // A disabled button still keeps the pointer from what lies under it.
         let raw = ui.interact(self.id, rect);
         let response = self.react(ui, raw, rect);
-        let state = ControlState::of(&response, self.is_selected(), self.enabled);
+        let state = self.state_of(&response);
         self.draw(ui, rect, state);
         (response, self.menu.take().map(|(menu, _)| menu))
     }
@@ -511,15 +511,20 @@ impl<'a> Button<'a> {
         content.draw(ui, inner, rect, colors, &metrics);
     }
 
-    /// Whether the button is enabled.
-    pub(crate) fn is_enabled(&self) -> bool {
-        self.enabled
+    /// Whether the button shows selected: switched on or chosen.
+    pub(crate) fn is_selected(&self) -> bool {
+        self.toggle.as_deref().copied().unwrap_or(self.selected)
     }
 
-    /// Whether the button shows selected: switched on, chosen, or with its menu open.
-    pub(crate) fn is_selected(&self) -> bool {
+    /// Whether the button is active: its menu open.
+    pub(crate) fn is_active(&self) -> bool {
         self.menu_state().is_some_and(MenuState::is_open)
-            || self.toggle.as_deref().copied().unwrap_or(self.selected)
+    }
+
+    /// The state the button shows after `response`: selected or not, active while its menu
+    /// is open.
+    pub(crate) fn state_of(&self, response: &Response) -> ControlState {
+        ControlState::of(response, self.is_selected(), self.enabled).activated(self.is_active())
     }
 }
 

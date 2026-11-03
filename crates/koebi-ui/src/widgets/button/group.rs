@@ -312,7 +312,7 @@ impl<'t> ButtonGroup<'t> {
                 response.hovered = Some(index);
             }
             response.changed |= reacted.changed;
-            let state = ControlState::of(&reacted, button.is_selected(), button.is_enabled());
+            let state = button.state_of(&reacted);
             // The group's own edges, from the grid: exact wherever the rectangle lies.
             let (left, right) = (place.column == 0, place.column + place.columns == count_x);
             let (top, bottom) = (place.row == 0, place.row + place.rows == count_y);

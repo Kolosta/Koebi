@@ -13,7 +13,7 @@ koebi_design::tokens! {
         semantic::BACKGROUND_APP_FRAME;
     /// Toggle: background color, hovered.
     TOGGLE_BACKGROUND_COLOR_HOVER = "toggle.background.color.hover": Color ->
-        semantic::BACKGROUND_SUNKEN_DEFAULT;
+        semantic::BACKGROUND_APP_FRAME_HOVER;
     /// Toggle: background color, selected.
     TOGGLE_BACKGROUND_COLOR_SELECTED = "toggle.background.color.selected": Color ->
         semantic::BACKGROUND_ACCENT_DEFAULT;
@@ -41,6 +41,9 @@ koebi_design::tokens! {
     /// Toggle: background color, selected and hovered.
     TOGGLE_BACKGROUND_COLOR_SELECTED_HOVER = "toggle.background.color.selected-hover": Color ->
         semantic::BACKGROUND_ACCENT_HOVER;
+    /// Toggle: background color, selected and pressed.
+    TOGGLE_BACKGROUND_COLOR_SELECTED_PRESSED = "toggle.background.color.selected-pressed":
+        Color -> semantic::ACCENT_COLOR_800;
     /// Toggle: background color, disabled.
     TOGGLE_BACKGROUND_COLOR_DISABLED = "toggle.background.color.disabled": Color ->
         semantic::BACKGROUND_APP_DISABLED;

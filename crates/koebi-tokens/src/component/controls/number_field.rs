@@ -33,7 +33,7 @@ koebi_design::tokens! {
         semantic::BACKGROUND_APP_CONTROL;
     /// Number field: background color, while dragging.
     NUMBER_FIELD_BACKGROUND_COLOR_DRAG = "number-field.background.color.drag": Color ->
-        semantic::BACKGROUND_APP_CONTROL;
+        semantic::BACKGROUND_APP_ACTIVE;
     /// Number field: background color, disabled.
     NUMBER_FIELD_BACKGROUND_COLOR_DISABLED = "number-field.background.color.disabled": Color ->
         semantic::BACKGROUND_APP_DISABLED;
@@ -70,7 +70,7 @@ koebi_design::tokens! {
         semantic::NEUTRAL_COLOR_600;
     /// Number field: border color, while dragging.
     NUMBER_FIELD_BORDER_COLOR_DRAG = "number-field.border.color.drag": Color ->
-        semantic::BORDER_COLOR_FOCUS_DEFAULT;
+        semantic::BORDER_COLOR_ACTIVE;
     /// Number field: border color, disabled.
     NUMBER_FIELD_BORDER_COLOR_DISABLED = "number-field.border.color.disabled": Color ->
         semantic::BORDER_COLOR_DISABLED_DEFAULT;
