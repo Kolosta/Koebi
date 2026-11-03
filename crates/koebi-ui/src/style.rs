@@ -19,9 +19,10 @@ use koebi_tokens::{component, semantic};
 use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
-    AppBarStyle, ButtonStyle, CheckboxStyle, CollapsiblePanelStyle, DropdownStyle, ListStyle,
-    MenuStyle, NumberFieldStyle, PanelStyle, PropertyGroupStyle, ResetDotStyle, ScrollStyle,
-    SeparatorStyle, SwatchStyle, TextFieldStyle, ThemeCardStyle, TooltipStyle,
+    AppBarStyle, ButtonStyle, CaptureFieldStyle, CheckboxStyle, CollapsiblePanelStyle,
+    DropdownStyle, KeyCapStyle, ListStyle, MenuStyle, NumberFieldStyle, PanelStyle,
+    PropertyGroupStyle, ResetDotStyle, ScrollStyle, SeparatorStyle, SwatchStyle, TextFieldStyle,
+    ThemeCardStyle, TooltipStyle,
 };
 use crate::workspace::WorkspaceStyle;
 
@@ -301,6 +302,10 @@ pub struct Styles {
     pub theme_card: ThemeCardStyle,
     /// [`Ui::reset_dot`](crate::Ui::reset_dot).
     pub reset_dot: ResetDotStyle,
+    /// [`Ui::key_caps`](crate::Ui::key_caps).
+    pub key_caps: KeyCapStyle,
+    /// [`CaptureField`](crate::CaptureField).
+    pub capture_field: CaptureFieldStyle,
     /// [`Ui::menu`](crate::Ui::menu).
     pub menu: MenuStyle,
     /// [`Dropdown`](crate::Dropdown).
@@ -334,13 +339,15 @@ impl Styles {
 
     /// Every style from `tokens`, with `snapshot` already captured from them.
     fn resolve_with(tokens: &impl Resolve, snapshot: Snapshot) -> Self {
+        let text = TextStyles::resolve(tokens);
+        let key_caps = KeyCapStyle::resolve(tokens, &text.label);
         Self {
             tokens: snapshot,
             input: InputStyle::resolve(tokens),
             background: tokens.get(component::WINDOW_BACKGROUND_COLOR_DEFAULT),
             app_bar: AppBarStyle::resolve(tokens),
             icon: IconStyle::resolve(tokens),
-            text: TextStyles::resolve(tokens),
+            text,
             button: ButtonStyle::resolve(tokens),
             checkbox: CheckboxStyle::resolve(tokens),
             number_field: NumberFieldStyle::resolve(tokens),
@@ -351,6 +358,8 @@ impl Styles {
             swatch: SwatchStyle::resolve(tokens),
             theme_card: ThemeCardStyle::resolve(tokens),
             reset_dot: ResetDotStyle::resolve(tokens),
+            key_caps,
+            capture_field: CaptureFieldStyle::resolve(tokens),
             menu: MenuStyle::resolve(tokens),
             dropdown: DropdownStyle::resolve(tokens),
             text_field: TextFieldStyle::resolve(tokens),

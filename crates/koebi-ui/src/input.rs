@@ -1,12 +1,45 @@
-//! [`Input`]: the pointer, the modifiers, typed text and the triggered actions as components
-//! see them during one frame.
+//! [`Input`]: the pointer, the modifiers, the keys, typed text and the triggered actions as
+//! components see them during one frame.
 
 use core::fmt;
 use core::time::Duration;
 
 use koebi_core::Vec2;
-use koebi_core::input::Modifiers;
+use koebi_core::input::{Key, Modifiers};
 use koebi_input::ActionDef;
+
+/// The keys pressed during a frame and the keys held, for what records a shortcut: a few at a
+/// time, as hands hold.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct Keys {
+    pressed: [Option<Key>; Self::CAPACITY],
+    held: [Option<Key>; Self::CAPACITY],
+}
+
+impl Keys {
+    const CAPACITY: usize = 8;
+
+    fn press(&mut self, key: Key) {
+        if !self.pressed.contains(&Some(key))
+            && let Some(slot) = self.pressed.iter_mut().find(|slot| slot.is_none())
+        {
+            *slot = Some(key);
+        }
+        if !self.held.contains(&Some(key))
+            && let Some(slot) = self.held.iter_mut().find(|slot| slot.is_none())
+        {
+            *slot = Some(key);
+        }
+    }
+
+    fn release(&mut self, key: Key) {
+        for slot in &mut self.held {
+            if *slot == Some(key) {
+                *slot = None;
+            }
+        }
+    }
+}
 
 /// A pointer button components react to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -138,6 +171,7 @@ pub struct Input {
     wheel: Vec2,
     typed: Typed,
     modifiers: Modifiers,
+    keys: Keys,
     actions: Actions,
     /// When the frame is drawn, since a moment the application chose.
     time: Duration,
@@ -201,6 +235,26 @@ impl Input {
         self.modifiers = modifiers;
     }
 
+    /// `key` went down or up; repeats are not presses. What records shortcuts reads them
+    /// ([`Input::keys_pressed`]); everything else goes through the keymap's actions.
+    pub fn key(&mut self, key: Key, down: bool) {
+        if down {
+            self.keys.press(key);
+        } else {
+            self.keys.release(key);
+        }
+    }
+
+    /// The keys that went down during the frame, in order.
+    pub fn keys_pressed(&self) -> impl Iterator<Item = Key> + '_ {
+        self.keys.pressed.iter().flatten().copied()
+    }
+
+    /// The keys held down now, in the order they went down.
+    pub fn keys_held(&self) -> impl Iterator<Item = Key> + '_ {
+        self.keys.held.iter().flatten().copied()
+    }
+
     /// The keymap triggered `action`.
     pub fn trigger(&mut self, action: &'static ActionDef) {
         self.actions.push(action, self.typed.len);
@@ -236,6 +290,10 @@ impl Input {
             wheel: Vec2::ZERO,
             typed: Typed::default(),
             actions: Actions::default(),
+            keys: Keys {
+                pressed: [None; Keys::CAPACITY],
+                ..self.keys
+            },
             ..*self
         };
         for state in &mut settled.buttons {
@@ -298,6 +356,7 @@ impl Input {
             || self.wheel != Vec2::ZERO
             || self.typed.len > 0
             || self.actions.len > 0
+            || self.keys.pressed.iter().any(Option::is_some)
     }
 
     /// How far the pointer moved since the last frame, in logical pixels: the drag of a
@@ -354,6 +413,29 @@ mod tests {
         context: Context::new("test"),
         defaults: &[Shortcut::key(Key::Escape)],
     };
+
+    #[test]
+    fn keys_pressed_last_one_frame_and_keys_held_until_released() {
+        let mut input = Input::new();
+        input.key(Key::Space, true);
+        input.key(Key::G, true);
+        assert_eq!(
+            input.keys_pressed().collect::<Vec<_>>(),
+            [Key::Space, Key::G]
+        );
+        assert!(input.has_events());
+        input.end_frame();
+        assert_eq!(input.keys_pressed().count(), 0);
+        assert_eq!(input.keys_held().collect::<Vec<_>>(), [Key::Space, Key::G]);
+        input.key(Key::Space, false);
+        assert_eq!(input.keys_held().collect::<Vec<_>>(), [Key::G]);
+        // A key pressed twice in a frame counts once.
+        input.key(Key::A, true);
+        input.key(Key::A, false);
+        input.key(Key::A, true);
+        assert_eq!(input.keys_pressed().collect::<Vec<_>>(), [Key::A]);
+        assert!(!input.settled().has_events());
+    }
 
     #[test]
     fn presses_and_releases_last_one_frame() {

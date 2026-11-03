@@ -72,6 +72,18 @@ click brings back every change below, for the application and the current theme;
 button opens a menu bringing back those of the application only, of the current theme only, or
 both.
 
+The Keymaps page shows the shortcuts of every action by zone, as nested panels: the application
+holds the workspace, which holds the editors; lists lie in any zone; menus, fields being edited
+and operations take the input while they last (`actions::CONTEXTS`, `koebi_input::Zones`). An
+action's panel holds each of its shortcuts: on or off, its device and the field recording it in
+the header; its conflicts, its key, its event and what depends on it (repeat, drag direction
+and distance, the double click time), its modifiers with their sides, and a key held as a
+modifier below. Conflicts are checked as soon as a shortcut changes: the same shortcut in one
+zone is hard (the newcomer stays off until one of them changes), a zone inside another taking
+the shortcut or a similar shortcut is soft; the shortcut's header takes the conflict's color
+and every panel holding it shows the warning. A search finds actions by name or by the
+shortcut pressed.
+
 The Accessibility page holds the color vision modes in one panel, a group per kind. Each mode's
 card paints, with the current theme's styles as that mode shows them (`View::seen_as`), real
 components (`Ui::preview`), the main colors by name and the colors of a chart.

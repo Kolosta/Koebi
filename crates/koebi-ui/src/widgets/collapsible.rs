@@ -165,6 +165,10 @@ pub struct CollapsiblePanel<'a> {
     /// The level asked for; `None` follows the nesting.
     level: Option<PanelLevel>,
     trailing: Option<Prop<kind::Dimension>>,
+    /// An icon at the end of the title, in its color: what needs attention inside.
+    status: Option<(Icon, Color)>,
+    /// A color over the header.
+    tint: Option<Color>,
 }
 
 impl<'a> CollapsiblePanel<'a> {
@@ -178,6 +182,8 @@ impl<'a> CollapsiblePanel<'a> {
             icon: None,
             level: None,
             trailing: None,
+            status: None,
+            tint: None,
         }
     }
 
@@ -199,6 +205,22 @@ impl<'a> CollapsiblePanel<'a> {
     /// The level the panel shows: the one asked for, or the one of its nesting once shown.
     fn shown_level(&self) -> PanelLevel {
         self.level.unwrap_or_default()
+    }
+
+    /// Shows `icon` in `color` at the end of the title: what needs attention inside, such as a
+    /// conflict, carried up to every panel holding it.
+    #[must_use]
+    pub fn status(mut self, icon: Icon, color: Color) -> Self {
+        self.status = Some((icon, color));
+        self
+    }
+
+    /// Lays `color` over the header (translucent, to tint it): the panel itself needs
+    /// attention.
+    #[must_use]
+    pub fn tint(mut self, color: Color) -> Self {
+        self.tint = Some(color);
+        self
     }
 
     /// Keeps `width` at the end of the header for the caller's buttons
@@ -338,6 +360,10 @@ impl<'a> CollapsiblePanel<'a> {
         };
         ui.scene()
             .push_rect(&RectPrimitive::new(header, header_color).with_corner_radii(header_radii));
+        if let Some(tint) = self.tint {
+            ui.scene()
+                .push_rect(&RectPrimitive::new(header, tint).with_corner_radii(header_radii));
+        }
         if open {
             let body_radii = Corners {
                 top_left: 0.0,
@@ -410,7 +436,21 @@ impl<'a> CollapsiblePanel<'a> {
                 Vec2::new(end, header.max.y - inset),
             )
         });
-        let title_end = trailing.map_or(end, |room| room.min.x - style.header_gap);
+        let mut title_end = trailing.map_or(end, |room| room.min.x - style.header_gap);
+        if let Some((icon, color)) = self.status {
+            let side = icons.size;
+            let slot = Rect::from_origin_size(
+                Vec2::new((title_end - side).max(x), header.min.y),
+                Vec2::new(side, header.height()),
+            );
+            icon.draw(
+                ui.scene(),
+                Icon::centered(slot, side),
+                color,
+                icons.stroke_width,
+            );
+            title_end = slot.min.x - style.header_gap;
+        }
         let title = Rect::from_min_max(
             Vec2::new(x, header.min.y),
             Vec2::new(title_end.max(x), header.max.y),
@@ -594,6 +634,29 @@ mod tests {
             content
         });
         assert_eq!(content, area().min.x);
+    }
+
+    #[test]
+    fn a_status_and_a_tint_show_on_the_header() {
+        let mut harness = Harness::new();
+        let mut panel = CollapsiblePanelState::new(false);
+        let red = Color::from_hex(0xE0_30_30).with_alpha(0.3);
+        let plain = harness
+            .frame(|ui| {
+                CollapsiblePanel::new(ID, &mut panel, "Transform").show(ui, area(), |_, _| 10.0)
+            })
+            .1;
+        let marked = harness
+            .frame(|ui| {
+                CollapsiblePanel::new(ID, &mut panel, "Transform")
+                    .status(Icon::Warning, red)
+                    .tint(red)
+                    .show(ui, area(), |_, _| 10.0)
+            })
+            .1;
+        // The tint over the header; the icon's strokes.
+        assert_eq!(marked.rect_count(), plain.rect_count() + 1);
+        assert!(marked.line_count() > plain.line_count());
     }
 
     #[test]

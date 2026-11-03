@@ -27,6 +27,8 @@ pub(crate) struct Preferences {
     saved: Option<(Workspace, Editors)>,
     /// The shortcut overrides as last saved or restored.
     saved_shortcuts: Option<String>,
+    /// The revision of the keymap they were last compared with.
+    checked_revision: Option<u64>,
     /// Since when the workspace differs from the saved one.
     dirty_since: Option<Instant>,
 }
@@ -40,6 +42,7 @@ impl Preferences {
             shortcuts_file: SavedFile::new(dir, "shortcuts.txt"),
             saved: None,
             saved_shortcuts: None,
+            checked_revision: None,
             dirty_since: None,
         }
     }
@@ -93,6 +96,37 @@ impl Preferences {
             Err(error) => koebi_core::warn!("shortcuts: cannot read {path} ({error})"),
         }
         self.saved_shortcuts = Some(keymap.overrides_text());
+        self.checked_revision = Some(keymap.revision());
+    }
+
+    /// `true` when the shortcuts changed since they were last compared with the saved ones.
+    pub(crate) fn shortcuts_changed(&self, keymap: &Keymap) -> bool {
+        self.checked_revision != Some(keymap.revision())
+    }
+
+    /// Saves the shortcuts as soon as they change: the shortcut editor changes them one at a
+    /// time, each change worth keeping. They are compared once per change of the keymap.
+    pub(crate) fn save_shortcuts_if_changed(&mut self, keymap: &Keymap) {
+        if self.shortcuts_changed(keymap) {
+            self.write_shortcuts(keymap);
+        }
+    }
+
+    /// Writes the shortcuts if their text differs from the saved one.
+    fn write_shortcuts(&mut self, keymap: &Keymap) {
+        self.checked_revision = Some(keymap.revision());
+        let shortcuts = keymap.overrides_text();
+        if self.saved_shortcuts.as_deref() == Some(shortcuts.as_str()) {
+            return;
+        }
+        let path = self.shortcuts_file.path().display().to_string();
+        match self.shortcuts_file.write(&shortcuts) {
+            Ok(()) => {
+                koebi_core::info!("shortcuts saved to {path}");
+                self.saved_shortcuts = Some(shortcuts);
+            }
+            Err(error) => koebi_core::warn!("cannot save the shortcuts to {path}: {error}"),
+        }
     }
 
     /// `true` when the workspace differs from the saved one.
@@ -120,17 +154,7 @@ impl Preferences {
         if self.is_dirty(workspace, editors) {
             self.save_workspace(workspace, editors);
         }
-        let shortcuts = keymap.overrides_text();
-        if self.saved_shortcuts.as_deref() != Some(shortcuts.as_str()) {
-            let path = self.shortcuts_file.path().display().to_string();
-            match self.shortcuts_file.write(&shortcuts) {
-                Ok(()) => {
-                    koebi_core::info!("shortcuts saved to {path}");
-                    self.saved_shortcuts = Some(shortcuts);
-                }
-                Err(error) => koebi_core::warn!("cannot save the shortcuts to {path}: {error}"),
-            }
-        }
+        self.write_shortcuts(keymap);
     }
 
     fn save_workspace(&mut self, workspace: &Workspace, editors: &Editors) {
@@ -208,6 +232,25 @@ mod tests {
         let mut restored = Keymap::new(&crate::actions::GROUPS).unwrap();
         Preferences::new(&dir, true).load_shortcuts(&mut restored);
         assert!(restored.is_modified("viewport.view-all"));
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn shortcuts_are_saved_as_soon_as_they_change() {
+        let dir = directory("shortcuts-live");
+        let mut preferences = Preferences::new(&dir, true);
+        let mut keymap = Keymap::new(&crate::actions::GROUPS).unwrap();
+        preferences.load_shortcuts(&mut keymap);
+        assert!(!preferences.shortcuts_changed(&keymap));
+        // Nothing to write while nothing changed.
+        preferences.save_shortcuts_if_changed(&keymap);
+        assert!(!dir.join("shortcuts.txt").exists());
+        keymap.set_shortcuts("viewport.view-all", &[]).unwrap();
+        assert!(preferences.shortcuts_changed(&keymap));
+        preferences.save_shortcuts_if_changed(&keymap);
+        assert!(!preferences.shortcuts_changed(&keymap));
+        let saved = fs::read_to_string(dir.join("shortcuts.txt")).unwrap();
+        assert!(saved.contains("viewport.view-all ="), "{saved}");
         fs::remove_dir_all(&dir).ok();
     }
 

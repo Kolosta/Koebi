@@ -118,6 +118,9 @@ fn write_modifiers(f: &mut fmt::Formatter<'_>, rule: ModifierRule) -> fmt::Resul
 impl fmt::Display for Shortcut {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write_modifiers(f, self.modifiers)?;
+        if let Some(key) = self.held {
+            write!(f, "{}+", key.name())?;
+        }
         match self.trigger {
             Trigger::Key { key, when, repeat } => {
                 write!(f, "{}", key.name())?;
@@ -199,6 +202,7 @@ impl FromStr for Shortcut {
         let mut rule = ModifierRule::NONE;
         let mut written = [false; 4];
         let mut any = false;
+        let mut held = None;
         let mut rest = head;
         while let Some((token, after)) = rest.split_once('+') {
             if after.is_empty() {
@@ -217,6 +221,12 @@ impl FromStr for Shortcut {
                 }
                 written[index] = true;
                 rule = rule.with(family, state);
+            } else if let Some(key) = Key::from_name(token)
+                && !key.is_modifier()
+                && held.is_none()
+            {
+                // A key held as a modifier, after the modifiers.
+                held = Some(key);
             } else {
                 break;
             }
@@ -259,6 +269,7 @@ impl FromStr for Shortcut {
         Ok(Self {
             trigger,
             modifiers: rule,
+            held,
         })
     }
 }

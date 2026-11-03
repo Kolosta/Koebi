@@ -44,6 +44,8 @@ what shows.
 | Theme card | `Ui::theme_card(id, rect, &preview, selected)` | `component.theme-card.*` |
 | Card | `Ui::card(id, rect, selected)` returns a `CardResponse` with the room inside its frame | `component.theme-card.*` |
 | Reset dot | `Ui::reset_dot(id, area, hint)`: shown beside a changed value, `clicked` brings it back | `component.panel.override-badge.*` |
+| Key caps | `Ui::key_caps(rect, &shortcut, align)` draws a shortcut as keys joined by `+`, each cap as wide as its label, with icons for Shift, Tab, Command, the Windows key and mouse buttons, named for the keyboard `UiState::set_keyboard` gives (`Keyboard::CURRENT` by default); `ShortcutCaps::of` gives the caps | `component.key-cap.*` |
+| Capture field | `CaptureField::new(id, &mut state, shortcut)` + `.capture(Capture::Keyboard)`, then `.show(ui, rect)` records the next key or button pressed; it takes the keyboard meanwhile (`CAPTURE`), Escape cancels | `component.capture-field.*` |
 | Preview | `Ui::preview(&styles, &mut state, add)` draws real components in other styles, inert | the styles given |
 | Menu | `Ui::menu(id, &mut state, &items, bounds)` returns the chosen item (`MenuChoice`) | `component.menu.*`, `component.separator.*` |
 | Popup | `Ui::popup(id, &mut state, size, bounds, add)` draws custom content | `component.menu.*` |
@@ -301,7 +303,9 @@ on the last frame).
   panel shown on its own the colors of a deeper level. A first-level panel is framed and
   rounded, its header in `panel.header.background.color`; a nested panel's header takes its
   parent's content color and its content the next level's
-  (`panel.body.background.color.level-*`).
+  (`panel.body.background.color.level-*`). `.status(icon, color)` shows an icon at the end of
+  the title (a conflict inside, carried up to every panel holding it) and `.tint(color)` lays
+  a translucent color over the header.
 - **Folding**: a press on the header opens or closes it; the content is revealed along
   `panel.expand.duration` and `panel.expand.curve` (or `panel.collapse.*`), and the panel asks
   for frames while it moves. The response's `height` is what to advance by, then

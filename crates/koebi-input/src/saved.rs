@@ -1,9 +1,10 @@
 //! The text form of a keymap's overrides: a header line, then one line per modified action,
-//! `action.id = shortcut, shortcut` (nothing after `=` removes every shortcut).
+//! `action.id = shortcut, shortcut` (nothing after `=` removes every shortcut; `!` before a
+//! shortcut keeps it turned off).
 //!
 //! ```text
 //! # Koebi shortcuts 1
-//! area.split-vertical = Ctrl+Alt+V, MiddleMouse double
+//! area.split-vertical = Ctrl+Alt+V, !MiddleMouse double
 //! viewport.view-all =
 //! ```
 //!
@@ -13,7 +14,7 @@
 use std::fmt::Write as _;
 
 use crate::keymap::Keymap;
-use crate::shortcut::Shortcut;
+use crate::shortcut::{Binding, Shortcut};
 
 /// The first line of a saved keymap.
 pub const HEADER: &str = "# Koebi shortcuts 1";
@@ -37,16 +38,17 @@ impl Keymap {
     pub fn overrides_text(&self) -> String {
         let mut text = String::from(HEADER);
         text.push('\n');
-        for (action, shortcuts) in self.entries() {
+        for (action, bindings) in self.actions() {
             if !self.is_modified(action.id) {
                 continue;
             }
             text.push_str(action.id);
             text.push_str(" =");
-            for (index, shortcut) in shortcuts.iter().enumerate() {
+            for (index, binding) in bindings.iter().enumerate() {
                 let separator = if index == 0 { " " } else { ", " };
+                let off = if binding.enabled { "" } else { "!" };
                 // Writing into a `String` cannot fail.
-                let _infallible = write!(text, "{separator}{shortcut}");
+                let _infallible = write!(text, "{separator}{off}{}", binding.shortcut);
             }
             text.push('\n');
         }
@@ -81,20 +83,23 @@ impl Keymap {
                 continue;
             };
             let id = id.trim();
-            let parsed: Result<Vec<Shortcut>, _> = list
+            let parsed: Result<Vec<Binding>, _> = list
                 .split(',')
                 .map(str::trim)
                 .filter(|item| !item.is_empty())
-                .map(str::parse)
+                .map(|item| match item.strip_prefix('!') {
+                    Some(off) => off.trim().parse::<Shortcut>().map(Binding::off),
+                    None => item.parse::<Shortcut>().map(Binding::on),
+                })
                 .collect();
-            let shortcuts = match parsed {
-                Ok(shortcuts) => shortcuts,
+            let bindings = match parsed {
+                Ok(bindings) => bindings,
                 Err(error) => {
                     report.skipped.push(format!("line {number}: {error}"));
                     continue;
                 }
             };
-            match self.assign_unchecked(id, shortcuts) {
+            match self.assign_unchecked(id, bindings) {
                 Some(index) => {
                     applied.retain(|&earlier| earlier != index);
                     applied.push(index);

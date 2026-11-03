@@ -8,9 +8,11 @@
 
 mod app_bar;
 mod button;
+mod capture_field;
 mod checkbox;
 mod collapsible;
 mod dropdown;
+mod key_caps;
 mod list;
 mod menu;
 mod menu_bar;
@@ -29,11 +31,15 @@ mod tooltip;
 
 pub use app_bar::{AppBar, AppBarResponse, AppBarStyle, WindowCommand, WindowGlyph};
 pub use button::{Activation, Button, ButtonGroup, ButtonStyle, GroupCell, GroupResponse, Track};
+pub use capture_field::{
+    CAPTURE, Capture, CaptureField, CaptureFieldStyle, CaptureResponse, CaptureState,
+};
 pub use checkbox::{Checkbox, CheckboxStyle};
 pub use collapsible::{
     CollapsiblePanel, CollapsiblePanelResponse, CollapsiblePanelState, CollapsiblePanelStyle,
 };
 pub use dropdown::{Dropdown, DropdownStyle};
+pub use key_caps::{Cap, CapLabel, KEY_SIGNS, KeyCapStyle, Keyboard, ShortcutCaps, key_cap};
 pub use list::{
     DropPlace, ItemMark, LIST, LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT,
     LIST_EXTEND_PREVIOUS, LIST_FOLD, LIST_NEXT, LIST_PREVIOUS, LIST_SELECT_ALL, LIST_UNFOLD,

@@ -23,6 +23,11 @@ macro_rules! keys {
         impl Key {
             /// Every named key with its stable name.
             const NAMED: &'static [(Self, &'static str)] = &[$((Self::$variant, $name),)*];
+
+            /// Every named key with its stable name, letters first, as a list to choose from.
+            pub const fn named() -> &'static [(Self, &'static str)] {
+                Self::NAMED
+            }
         }
     };
 }

@@ -11,11 +11,13 @@
 
 mod accessibility;
 mod inputs;
+mod keymaps;
 mod options;
 mod theme;
 
 use koebi_core::{Rect, Vec2};
 use koebi_design::DesignSystem;
+use koebi_input::Keymap;
 use koebi_tokens::{component, semantic};
 use koebi_ui::{
     Align, Button, ButtonGroup, CollapsiblePanel, CollapsiblePanelResponse, GroupCell, ScrollAxes,
@@ -116,6 +118,7 @@ pub(crate) struct SettingsView {
     page: Page,
     theme: theme::ThemePage,
     accessibility: accessibility::AccessibilityPage,
+    keymaps: keymaps::KeymapsPage,
     inputs: inputs::InputsPage,
     /// How far each page is scrolled, and how high it was on the last frame.
     scroll: [ScrollState; PAGES],
@@ -129,6 +132,7 @@ impl SettingsView {
             page: Page::Theme,
             theme: theme::ThemePage::new(),
             accessibility: accessibility::AccessibilityPage::new(),
+            keymaps: keymaps::KeymapsPage::new(),
             inputs: inputs::InputsPage::new(),
             scroll: [ScrollState::new(); PAGES],
             height: [0.0; PAGES],
@@ -142,7 +146,13 @@ impl SettingsView {
     }
 
     /// Draws the settings in `rect`, applying the changes to `design`.
-    pub(crate) fn show(&mut self, ui: &mut Ui<'_>, rect: Rect, design: &mut DesignSystem) {
+    pub(crate) fn show(
+        &mut self,
+        ui: &mut Ui<'_>,
+        rect: Rect,
+        design: &mut DesignSystem,
+        keymap: &mut Keymap,
+    ) {
         let width = design.get(component::SIDE_PANEL_WIDTH_DEFAULT);
         let margin = design.get(component::SIDE_PANEL_MARGIN_DEFAULT);
         let column = Rect::from_min_max(
@@ -152,7 +162,7 @@ impl SettingsView {
         self.column(ui, column, design, margin);
         let content = Rect::from_min_max(Vec2::new(column.max.x, rect.min.y), rect.max);
         if !content.is_empty() {
-            self.content(ui, content, design, margin);
+            self.content(ui, content, design, keymap, margin);
         }
     }
 
@@ -188,7 +198,14 @@ impl SettingsView {
     }
 
     /// The page shown, scrolling when it is too high for its room.
-    fn content(&mut self, ui: &mut Ui<'_>, rect: Rect, design: &mut DesignSystem, margin: f32) {
+    fn content(
+        &mut self,
+        ui: &mut Ui<'_>,
+        rect: Rect,
+        design: &mut DesignSystem,
+        keymap: &mut Keymap,
+        margin: f32,
+    ) {
         let index = self.page as usize;
         let size = Vec2::new(rect.width(), self.height[index]);
         let mut scroll = self.scroll[index];
@@ -211,6 +228,7 @@ impl SettingsView {
                     Page::Theme => self.theme.show(ui, &mut stack, design),
                     Page::Accessibility => self.accessibility.show(ui, &mut stack, design),
                     Page::Inputs => self.inputs.show(ui, &mut stack, design),
+                    Page::Keymaps => self.keymaps.show(ui, &mut stack, design, keymap),
                     _ => empty_page(ui, area.viewport, design),
                 }
                 stack.y - top + margin
@@ -242,6 +260,7 @@ mod tests {
     /// Runs frames of the settings.
     pub(super) struct Harness {
         pub(super) design: DesignSystem,
+        pub(super) keymap: Keymap,
         pub(super) settings: SettingsView,
         pub(super) state: UiState,
         pub(super) input: Input,
@@ -257,6 +276,7 @@ mod tests {
             Self {
                 styles: StyleCache::new(&design),
                 design,
+                keymap: Keymap::new(&crate::actions::GROUPS).unwrap(),
                 settings: SettingsView::new(),
                 state,
                 input: Input::new(),
@@ -277,7 +297,7 @@ mod tests {
                 let styles = self.styles.update(&self.design);
                 let mut ui = Ui::new(&mut scene, styles, &self.input, &mut self.state);
                 self.settings
-                    .show(&mut ui, Self::window(), &mut self.design);
+                    .show(&mut ui, Self::window(), &mut self.design, &mut self.keymap);
             }
             self.input.end_frame();
             scene
@@ -374,6 +394,40 @@ mod tests {
         harness.settings.page = Page::Accessibility;
         let image = page_image(&gpu, &mut harness);
         assert_page(&image, "settings_accessibility");
+        gpu.assert_no_validation_errors();
+    }
+
+    #[test]
+    fn the_keymaps_page_with_a_conflict_matches_golden() {
+        let Some(gpu) = koebi_testkit::gpu_or_skip("the_keymaps_page_matches_golden") else {
+            return;
+        };
+        let mut harness = Harness::new();
+        harness.settings.page = Page::Keymaps;
+        // Keys named the same on every platform, shortcuts without the primary modifier.
+        harness.state.set_keyboard(koebi_ui::Keyboard::Windows);
+        // Fullscreen with a second shortcut, the frame times', off for the conflict; its panel
+        // open, and the search showing the two actions.
+        let shortcut = |keymap: &Keymap, id: &str| keymap.shortcuts(id).unwrap()[0];
+        let frame_times = shortcut(&harness.keymap, crate::actions::FRAME_TIMES.id);
+        let fullscreen = shortcut(&harness.keymap, crate::actions::FULLSCREEN.id);
+        harness
+            .keymap
+            .set_bindings(
+                crate::actions::FULLSCREEN.id,
+                &[
+                    koebi_input::Binding::on(fullscreen),
+                    koebi_input::Binding::off(frame_times),
+                ],
+            )
+            .unwrap();
+        harness
+            .settings
+            .keymaps
+            .open_action(crate::actions::FULLSCREEN.id, &[1]);
+        harness.settings.keymaps.search_for(frame_times);
+        let image = page_image(&gpu, &mut harness);
+        assert_page(&image, "settings_keymaps");
         gpu.assert_no_validation_errors();
     }
 

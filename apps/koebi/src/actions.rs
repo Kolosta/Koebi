@@ -2,7 +2,9 @@
 
 use koebi_core::Vec2;
 use koebi_core::input::Key;
-use koebi_input::{ActionDef, ActionGroup, Context, InputEvent, Shortcut};
+use koebi_input::{
+    ActionDef, ActionGroup, Context, ContextInfo, InputEvent, Shortcut, Within, Zones,
+};
 use koebi_platform::{Event, GesturePhase, MouseButton, WindowEvent};
 use koebi_ui::PointerButton;
 
@@ -64,6 +66,75 @@ pub(crate) static GROUPS: [&ActionGroup; 10] = [
     &crate::editors::info::ACTIONS,
     &crate::editors::timeline::ACTIONS,
 ];
+
+/// Where the contexts of the shortcuts lie, for the shortcut editor and its conflicts: the
+/// window holds the workspace, which holds the editors; lists lie in any zone. Menus, fields
+/// being edited and operations take the whole input while they last: they never meet a zone.
+pub(crate) static CONTEXTS: [ContextInfo; 12] = [
+    ContextInfo {
+        context: APP,
+        label: "Application",
+        within: Within::Root,
+    },
+    ContextInfo {
+        context: koebi_ui::WORKSPACE,
+        label: "Workspace",
+        within: Within::Zone(APP),
+    },
+    ContextInfo {
+        context: crate::editors::viewport::VIEWPORT,
+        label: "Viewport",
+        within: Within::Zone(koebi_ui::WORKSPACE),
+    },
+    ContextInfo {
+        context: crate::editors::outliner::OUTLINER,
+        label: "Outliner",
+        within: Within::Zone(koebi_ui::WORKSPACE),
+    },
+    ContextInfo {
+        context: crate::editors::timeline::TIMELINE,
+        label: "Timeline",
+        within: Within::Zone(koebi_ui::WORKSPACE),
+    },
+    ContextInfo {
+        context: crate::editors::info::INFO,
+        label: "Info",
+        within: Within::Zone(koebi_ui::WORKSPACE),
+    },
+    ContextInfo {
+        context: koebi_ui::LIST,
+        label: "Lists",
+        within: Within::AnyZone,
+    },
+    ContextInfo {
+        context: koebi_ui::MENU,
+        label: "Open menus",
+        within: Within::Root,
+    },
+    ContextInfo {
+        context: koebi_ui::TEXT,
+        label: "Editing text",
+        within: Within::Root,
+    },
+    ContextInfo {
+        context: koebi_ui::NUMBER,
+        label: "Editing a number",
+        within: Within::Root,
+    },
+    ContextInfo {
+        context: koebi_ui::LIST_DRAG,
+        label: "Dragging rows",
+        within: Within::Root,
+    },
+    ContextInfo {
+        context: koebi_ui::WORKSPACE_OPERATION,
+        label: "Workspace operations",
+        within: Within::Root,
+    },
+];
+
+/// The zones of [`CONTEXTS`].
+pub(crate) const ZONES: Zones = Zones::new(&CONTEXTS);
 
 /// The interface's button for a mouse button, if components react to it.
 pub(crate) fn pointer_button(button: MouseButton) -> Option<PointerButton> {
@@ -169,6 +240,20 @@ mod tests {
     use koebi_platform::WindowId;
 
     use super::*;
+
+    #[test]
+    fn every_context_of_an_action_lies_somewhere() {
+        for group in &GROUPS {
+            for action in group.actions {
+                assert!(
+                    ZONES.info(action.context).is_some(),
+                    "{} lies in {}, which the zones do not describe",
+                    action.id,
+                    action.context
+                );
+            }
+        }
+    }
 
     #[test]
     fn the_application_keymap_has_no_conflict() {

@@ -137,6 +137,8 @@ pub struct Gesture {
     pub origin: Vec2,
     /// Modifiers held: for button gestures, those held when the button went down.
     pub modifiers: Modifiers,
+    /// The key held that is not a modifier, other than the gesture's own: the last one pressed.
+    pub held: Option<Key>,
 }
 
 impl Shortcut {
@@ -150,7 +152,7 @@ impl Shortcut {
             }
             _ => gesture.modifiers,
         };
-        if !self.modifiers.accepts(modifiers) {
+        if !self.modifiers.accepts(modifiers) || !self.held_by(gesture.held) {
             return false;
         }
         match (self.trigger, gesture.kind) {
@@ -186,12 +188,19 @@ impl Shortcut {
         }
     }
 
-    /// `true` when a press of `button` with `modifiers`, moved by `delta` logical pixels,
-    /// starts this drag shortcut. `threshold` is the drag threshold of the settings.
+    /// `true` when the key held `held` satisfies the shortcut's: none asked, or that one.
+    fn held_by(&self, held: Option<Key>) -> bool {
+        self.held.is_none_or(|key| held == Some(key))
+    }
+
+    /// `true` when a press of `button` with `modifiers` and `held` held, moved by `delta`
+    /// logical pixels, starts this drag shortcut. `threshold` is the drag threshold of the
+    /// settings.
     pub fn matches_drag(
         &self,
         button: MouseButton,
         modifiers: Modifiers,
+        held: Option<Key>,
         delta: Vec2,
         threshold: f32,
     ) -> bool {
@@ -205,6 +214,7 @@ impl Shortcut {
         let distance = drag.distance.map_or(threshold, f32::from);
         bound == button
             && self.modifiers.accepts(modifiers)
+            && self.held_by(held)
             && delta.length() >= distance
             && drag.direction.accepts(DragDirection::of(delta.x, delta.y))
     }
@@ -237,6 +247,7 @@ mod tests {
             kind,
             position: Vec2::ZERO,
             origin: Vec2::ZERO,
+            held: None,
             modifiers,
         }
     }
@@ -302,23 +313,31 @@ mod tests {
             }),
         );
         let up = Vec2::new(0.0, -12.0);
-        assert!(north.matches_drag(MouseButton::Left, Modifiers::NONE, up, 4.0));
+        assert!(north.matches_drag(MouseButton::Left, Modifiers::NONE, None, up, 4.0));
         assert!(!north.matches_drag(
             MouseButton::Left,
             Modifiers::NONE,
+            None,
             Vec2::new(0.0, -8.0),
             4.0
         ));
         assert!(!north.matches_drag(
             MouseButton::Left,
             Modifiers::NONE,
+            None,
             Vec2::new(12.0, 0.0),
             4.0
         ));
-        assert!(!north.matches_drag(MouseButton::Right, Modifiers::NONE, up, 4.0));
-        assert!(!north.matches_drag(MouseButton::Left, Modifiers::LEFT_SHIFT, up, 4.0));
+        assert!(!north.matches_drag(MouseButton::Right, Modifiers::NONE, None, up, 4.0));
+        assert!(!north.matches_drag(MouseButton::Left, Modifiers::LEFT_SHIFT, None, up, 4.0));
         let any = Shortcut::button(MouseButton::Left, ButtonTrigger::Drag(Drag::ANY));
-        assert!(any.matches_drag(MouseButton::Left, Modifiers::NONE, Vec2::new(3.0, 3.0), 4.0));
+        assert!(any.matches_drag(
+            MouseButton::Left,
+            Modifiers::NONE,
+            None,
+            Vec2::new(3.0, 3.0),
+            4.0
+        ));
         // Drags never match as plain gestures.
         assert!(!any.matches(&gesture(
             GestureKind::Button {

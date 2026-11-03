@@ -6,6 +6,28 @@ use koebi_render::{LinePrimitive, Scene};
 /// Icons are designed on a 16 x 16 grid, then scaled to the box they are drawn in.
 const GRID: f32 = 16.0;
 
+/// The body of a mouse, rounded at both ends.
+const MOUSE: &[[f32; 2]] = &[
+    [8.0, 2.0],
+    [10.5, 2.5],
+    [11.8, 4.0],
+    [12.0, 6.5],
+    [12.0, 10.0],
+    [11.5, 12.2],
+    [10.0, 13.5],
+    [8.0, 14.0],
+    [6.0, 13.5],
+    [4.5, 12.2],
+    [4.0, 10.0],
+    [4.0, 6.5],
+    [4.2, 4.0],
+    [5.5, 2.5],
+    [8.0, 2.0],
+];
+
+/// The line between a mouse's buttons and its palm, and between its two buttons.
+const MOUSE_SPLIT: &[[f32; 2]] = &[[4.0, 7.5], [12.0, 7.5]];
+
 /// A line icon. Strokes keep their width whatever the icon's size.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Icon {
@@ -29,11 +51,27 @@ pub enum Icon {
     Search,
     /// An arrow going back around a circle: bring back the default.
     Reset,
+    /// A triangle with an exclamation mark: something needs attention.
+    Warning,
+    /// The Command key of Apple keyboards.
+    Command,
+    /// The Windows key.
+    Windows,
+    /// The Shift key: a hollow arrow up.
+    Shift,
+    /// The Tab key: an arrow to a bar.
+    Tab,
+    /// A mouse, its left button marked.
+    MouseLeft,
+    /// A mouse, its wheel button marked.
+    MouseMiddle,
+    /// A mouse, its right button marked.
+    MouseRight,
 }
 
 impl Icon {
     /// Every icon, for galleries and tests.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 18] = [
         Self::Check,
         Self::Plus,
         Self::Minus,
@@ -44,6 +82,14 @@ impl Icon {
         Self::ChevronDown,
         Self::Search,
         Self::Reset,
+        Self::Warning,
+        Self::Command,
+        Self::Windows,
+        Self::Shift,
+        Self::Tab,
+        Self::MouseLeft,
+        Self::MouseMiddle,
+        Self::MouseRight,
     ];
 
     /// The strokes on the 16 x 16 grid: polylines, as their points `[x, y]`.
@@ -98,6 +144,93 @@ impl Icon {
                 ],
                 &[[10.06, 10.06], [13.0, 13.0]],
             ],
+            // A triangle, the stroke of the mark and its dot.
+            Self::Warning => &[
+                &[[8.0, 2.0], [14.5, 13.5], [1.5, 13.5], [8.0, 2.0]],
+                &[[8.0, 6.0], [8.0, 9.5]],
+                &[[8.0, 11.75], [8.0, 11.75]],
+            ],
+            // Two bars each way, looped at their ends: one closed stroke.
+            Self::Command => &[&[
+                [6.0, 4.0],
+                [5.41, 2.59],
+                [4.0, 2.0],
+                [2.59, 2.59],
+                [2.0, 4.0],
+                [2.59, 5.41],
+                [4.0, 6.0],
+                [12.0, 6.0],
+                [13.41, 5.41],
+                [14.0, 4.0],
+                [13.41, 2.59],
+                [12.0, 2.0],
+                [10.59, 2.59],
+                [10.0, 4.0],
+                [10.0, 12.0],
+                [10.59, 13.41],
+                [12.0, 14.0],
+                [13.41, 13.41],
+                [14.0, 12.0],
+                [13.41, 10.59],
+                [12.0, 10.0],
+                [4.0, 10.0],
+                [2.59, 10.59],
+                [2.0, 12.0],
+                [2.59, 13.41],
+                [4.0, 14.0],
+                [5.41, 13.41],
+                [6.0, 12.0],
+                [6.0, 4.0],
+            ]],
+            // Four panes.
+            Self::Windows => &[
+                &[
+                    [3.0, 3.0],
+                    [7.25, 3.0],
+                    [7.25, 7.25],
+                    [3.0, 7.25],
+                    [3.0, 3.0],
+                ],
+                &[
+                    [8.75, 3.0],
+                    [13.0, 3.0],
+                    [13.0, 7.25],
+                    [8.75, 7.25],
+                    [8.75, 3.0],
+                ],
+                &[
+                    [3.0, 8.75],
+                    [7.25, 8.75],
+                    [7.25, 13.0],
+                    [3.0, 13.0],
+                    [3.0, 8.75],
+                ],
+                &[
+                    [8.75, 8.75],
+                    [13.0, 8.75],
+                    [13.0, 13.0],
+                    [8.75, 13.0],
+                    [8.75, 8.75],
+                ],
+            ],
+            Self::Shift => &[&[
+                [8.0, 2.5],
+                [13.5, 8.0],
+                [10.5, 8.0],
+                [10.5, 13.5],
+                [5.5, 13.5],
+                [5.5, 8.0],
+                [2.5, 8.0],
+                [8.0, 2.5],
+            ]],
+            Self::Tab => &[
+                &[[2.5, 8.0], [12.0, 8.0]],
+                &[[8.5, 4.5], [12.0, 8.0], [8.5, 11.5]],
+                &[[13.5, 3.5], [13.5, 12.5]],
+            ],
+            Self::MouseLeft => &[MOUSE, MOUSE_SPLIT, &[[6.0, 4.75], [6.0, 4.75]]],
+            Self::MouseMiddle => &[MOUSE, MOUSE_SPLIT, &[[8.0, 4.0], [8.0, 6.0]]],
+            Self::MouseRight => &[MOUSE, MOUSE_SPLIT, &[[10.0, 4.75], [10.0, 4.75]]],
         }
     }
 

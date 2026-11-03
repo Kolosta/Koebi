@@ -12,7 +12,7 @@ use crate::id::WidgetId;
 use crate::input::{Input, PointerButton};
 use crate::routing::{Layer, Region, Regions};
 use crate::style::Styles;
-use crate::widgets::{NumberState, TextState, TooltipState};
+use crate::widgets::{Keyboard, NumberState, TextState, TooltipState};
 
 /// What must outlive a frame: the widget that holds the pointer, where it took it, and the
 /// regions of the last frame, which decide what is under the pointer.
@@ -58,6 +58,8 @@ pub struct UiState {
     holding_next: bool,
     /// Physical pixels per logical pixel of the window.
     scale_factor: Option<f32>,
+    /// Whose keyboard keys are named for.
+    keyboard: Keyboard,
     /// The fonts labels are laid out with, and a line reused for each label.
     pub(crate) fonts: Fonts,
     pub(crate) line: TextLine,
@@ -99,6 +101,16 @@ impl UiState {
     /// physical pixels.
     pub fn set_scale_factor(&mut self, scale: f32) {
         self.scale_factor = Some(scale);
+    }
+
+    /// Names keys as `keyboard` does: the platform's keyboard by default.
+    pub fn set_keyboard(&mut self, keyboard: Keyboard) {
+        self.keyboard = keyboard;
+    }
+
+    /// Whose keyboard keys are named for.
+    pub fn keyboard(&self) -> Keyboard {
+        self.keyboard
     }
 
     /// The physical pixels per logical pixel of the window: 1 until the application tells.
@@ -392,6 +404,11 @@ impl<'a> Ui<'a> {
     /// Asks for the frame to be drawn again `delay` after this one.
     pub fn request_redraw_after(&mut self, delay: Duration) {
         self.request_redraw_at(self.input.time() + delay);
+    }
+
+    /// Whose keyboard keys are named for ([`UiState::set_keyboard`]).
+    pub fn keyboard(&self) -> Keyboard {
+        self.state.keyboard()
     }
 
     /// Takes the input for an action in the next frame: an open menu, an operation in progress,
