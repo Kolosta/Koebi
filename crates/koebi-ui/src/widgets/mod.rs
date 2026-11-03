@@ -24,6 +24,7 @@ mod reset_dot;
 mod scroll;
 mod scrollbar;
 mod separator;
+mod status_bar;
 mod swatch;
 mod text_field;
 mod theme_card;
@@ -66,6 +67,7 @@ pub use reset_dot::ResetDotStyle;
 pub use scroll::{SCROLL, ScrollAxes, ScrollContent, ScrollState, ScrollStyle};
 pub use scrollbar::{ScrollAxis, Scrollbar, ScrollbarResponse, ScrollbarState};
 pub use separator::SeparatorStyle;
+pub use status_bar::{StatusBarStyle, StatusEntry};
 pub use swatch::SwatchStyle;
 pub(crate) use text_field::TextState;
 pub use text_field::{

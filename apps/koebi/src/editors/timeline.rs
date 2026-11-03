@@ -7,7 +7,9 @@
 use koebi_core::input::{Key, ModifierKey};
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::DesignSystem;
-use koebi_input::{ActionDef, ActionGroup, Context, KeyTrigger, Shortcut, Trigger};
+use koebi_input::{
+    ActionDef, ActionGroup, ActionKind, Context, Hint, KeyTrigger, Shortcut, Trigger,
+};
 use koebi_render::RectPrimitive;
 use koebi_tokens::component;
 use koebi_ui::{Align, ScrollAxes, ScrollState, Ui, WidgetId};
@@ -32,6 +34,7 @@ pub(crate) static NEXT_FRAME: ActionDef = ActionDef {
     defaults: &[repeating(Key::Right)],
     repeats: true,
     when: None,
+    hint: Some(Hint::new(ActionKind::Navigate, 7)),
 };
 
 /// Goes to the previous frame.
@@ -43,6 +46,7 @@ pub(crate) static PREVIOUS_FRAME: ActionDef = ActionDef {
     defaults: &[repeating(Key::Left)],
     repeats: true,
     when: None,
+    hint: Some(Hint::new(ActionKind::Navigate, 7)),
 };
 
 /// Goes to the first frame of the scene.
@@ -54,6 +58,7 @@ pub(crate) static FIRST_FRAME: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Left).with(ModifierKey::Shift)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Navigate, 4)),
 };
 
 /// Goes to the last frame of the scene.
@@ -65,6 +70,7 @@ pub(crate) static LAST_FRAME: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Right).with(ModifierKey::Shift)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Navigate, 4)),
 };
 
 /// Widens the frames.
@@ -76,6 +82,7 @@ pub(crate) static ZOOM_IN: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::KeypadPlus)],
     repeats: true,
     when: None,
+    hint: Some(Hint::new(ActionKind::View, 4)),
 };
 
 /// Narrows the frames.
@@ -87,6 +94,7 @@ pub(crate) static ZOOM_OUT: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::KeypadMinus)],
     repeats: true,
     when: None,
+    hint: Some(Hint::new(ActionKind::View, 4)),
 };
 
 /// Shows the whole scene.
@@ -98,6 +106,7 @@ pub(crate) static VIEW_ALL: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Home)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::View, 5)),
 };
 
 /// The timeline's actions, for the keymap.

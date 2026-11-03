@@ -22,8 +22,8 @@ use crate::ui::WidgetState;
 use crate::widgets::{
     AppBarStyle, ButtonStyle, CaptureFieldStyle, CheckboxStyle, CollapsiblePanelStyle,
     DropdownStyle, KeyCapStyle, ListStyle, MenuStyle, NumberFieldStyle, PanelStyle,
-    PropertyGroupStyle, ResetDotStyle, ScrollStyle, SeparatorStyle, SwatchStyle, TextFieldStyle,
-    ThemeCardStyle, TooltipStyle,
+    PropertyGroupStyle, ResetDotStyle, ScrollStyle, SeparatorStyle, StatusBarStyle, SwatchStyle,
+    TextFieldStyle, ThemeCardStyle, TooltipStyle,
 };
 use crate::workspace::WorkspaceStyle;
 
@@ -321,6 +321,8 @@ pub struct Styles {
     pub list: ListStyle,
     /// [`Ui::tooltip`](crate::Ui::tooltip).
     pub tooltip: TooltipStyle,
+    /// [`Ui::status_bar`](crate::Ui::status_bar).
+    pub status_bar: StatusBarStyle,
 }
 
 impl Styles {
@@ -451,6 +453,10 @@ impl Styles {
             &mut text.padding,
             &mut text.gap,
         ]);
+        let bar = &mut self.status_bar;
+        let control = whole_pixels(bar.height - 2.0 * bar.inset, scale);
+        snap(&mut [&mut bar.inset, &mut bar.padding, &mut bar.gap]);
+        bar.height = control + 2.0 * bar.inset;
         let workspace = &mut self.workspace;
         snap(&mut [
             &mut workspace.gap,
@@ -495,6 +501,7 @@ impl Styles {
             scroll: ScrollStyle::resolve(tokens),
             list: ListStyle::resolve(tokens),
             tooltip: TooltipStyle::resolve(tokens),
+            status_bar: StatusBarStyle::resolve(tokens),
         }
     }
 }

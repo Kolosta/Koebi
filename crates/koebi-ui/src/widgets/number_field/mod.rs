@@ -43,7 +43,7 @@ use koebi_core::expr::Unit;
 use koebi_core::input::Key;
 use koebi_core::{Rect, Vec2};
 use koebi_design::kind::{self, Kind};
-use koebi_input::{ActionDef, ActionGroup, Context, Shortcut};
+use koebi_input::{ActionDef, ActionGroup, ActionKind, Context, Hint, Shortcut};
 
 use self::math::Scale;
 use crate::id::WidgetId;
@@ -64,6 +64,7 @@ pub static NUMBER_CANCEL: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Escape), Shortcut::key(Key::Delete)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Confirm, 8)),
 };
 
 /// Ends the drag of a number field, keeping the value.
@@ -75,6 +76,7 @@ pub static NUMBER_CONFIRM: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Enter), Shortcut::key(Key::KeypadEnter)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Confirm, 9)),
 };
 
 /// The actions of number fields, for the keymap.

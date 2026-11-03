@@ -4,14 +4,16 @@
 mod common;
 
 use common::render;
+use koebi_core::input::{Key, ModifierKey};
 use koebi_core::{Color, Extent, Rect, Vec2};
 use koebi_design::DesignSystem;
 use koebi_gpu::TextureFormat;
+use koebi_input::Shortcut;
 use koebi_render::{Renderer2D, Scene};
 use koebi_testkit::{HeadlessGpu, Image, Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
-use koebi_ui::{AppBar, Input, Styles, Ui, UiState, WidgetId, WindowGlyph};
+use koebi_ui::{AppBar, Input, StatusEntry, Styles, Ui, UiState, WidgetId, WindowGlyph};
 
 /// Anti-aliased edges may differ by a few units between drivers.
 const CROSS_DRIVER: Tolerance = Tolerance::new(3, 8);
@@ -151,5 +153,55 @@ fn the_bar_matches_golden() {
     }
     let image = render(&gpu, Extent::new(320, 24), &scene);
     assert_golden!(image, "app_bar_dark", CROSS_DRIVER);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn the_status_bar_matches_golden() {
+    let Some(gpu) = gpu_or_skip("the_status_bar_matches_golden") else {
+        return;
+    };
+    let design = DesignSystem::new(&KOEBI).expect("Koebi's schema is valid");
+    let styles = Styles::resolve(&design);
+    let mut state = UiState::new();
+    state.set_fonts(Fonts::with_embedded());
+    let input = Input::new();
+    let height = styles.status_bar.height;
+    let bar = Rect::from_origin_size(Vec2::ZERO, Vec2::new(480.0, height));
+    let entries = [
+        StatusEntry {
+            shortcut: Shortcut::key(Key::Delete),
+            label: "Delete",
+            priority: 7,
+        },
+        StatusEntry {
+            shortcut: Shortcut::key(Key::G).with(ModifierKey::Ctrl),
+            label: "Group",
+            priority: 6,
+        },
+        StatusEntry {
+            shortcut: Shortcut::key(Key::Home),
+            label: "Frame all",
+            priority: 5,
+        },
+        // Lowest, and no room left for it.
+        StatusEntry {
+            shortcut: Shortcut::key(Key::F12),
+            label: "Frame times, a long label that does not fit",
+            priority: 1,
+        },
+    ];
+    let mut scene = Scene::new();
+    scene.set_clear_color(styles.background);
+    let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+    ui.status_bar(bar, &entries, "Koebi 0.4.0");
+    drop(ui);
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a bar a few dozen pixels high"
+    )]
+    let image = render(&gpu, Extent::new(480, height as u32), &scene);
+    assert_golden!(image, "status_bar_dark", CROSS_DRIVER);
     gpu.assert_no_validation_errors();
 }

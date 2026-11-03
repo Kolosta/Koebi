@@ -19,6 +19,7 @@ use crate::frame_times::FrameTimes;
 use crate::gpu::WindowGpu;
 use crate::interface::Interface;
 use crate::settings::SettingsView;
+use crate::status::{StatusShortcuts, VERSION};
 
 /// What a window holds.
 #[allow(
@@ -103,6 +104,8 @@ pub(crate) struct AppWindow {
     locked_at: Option<Vec2>,
     /// Where text is edited while text input is on.
     typing: Option<Rect>,
+    /// What the status bar shows.
+    status: StatusShortcuts,
     // Field order is drop order: GPU objects (surface included) before the native window.
     pub(crate) gpu: WindowGpu,
     pub(crate) window: Window,
@@ -133,6 +136,7 @@ impl AppWindow {
             pointer_locked: false,
             locked_at: None,
             typing: None,
+            status: StatusShortcuts::default(),
             gpu,
             window,
         }
@@ -202,6 +206,7 @@ impl AppWindow {
             content,
             command,
             settings_in_place,
+            status,
             ..
         } = self;
         let Interface {
@@ -217,6 +222,8 @@ impl AppWindow {
         scene.clear();
         let styles = styles.update(design, state.scale_factor());
         scene.set_clear_color(styles.background);
+        // The shortcuts where the pointer is, from the zones of the last frame.
+        let entries = status.refresh(state, input.pointer(), keymap);
         let mut ui = Ui::new(scene, styles, input, state);
         shown.messages.collect();
         ui.zone(area, actions::APP, |ui| {
@@ -243,7 +250,13 @@ impl AppWindow {
                         window: area,
                     };
                     view.set_window(area);
-                    ui.workspace(view, workspace, rest, &mut host);
+                    // The status bar along the bottom, the workspace above it.
+                    let bar = ui.styles().status_bar.height.min(rest.height());
+                    let split = rest.max.y - bar;
+                    let work = Rect::from_min_max(rest.min, Vec2::new(rest.max.x, split));
+                    ui.workspace(view, workspace, work, &mut host);
+                    let bar = Rect::from_min_max(Vec2::new(rest.min.x, split), rest.max);
+                    ui.status_bar(bar, entries, VERSION);
                 }
             }
         });

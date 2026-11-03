@@ -39,7 +39,7 @@ pub use style::MenuStyle;
 
 use koebi_core::input::Key;
 use koebi_core::{Rect, Vec2};
-use koebi_input::{ActionDef, ActionGroup, Context, Shortcut};
+use koebi_input::{ActionDef, ActionGroup, ActionKind, Context, Hint, Shortcut};
 use koebi_render::{Corners, RectPrimitive};
 
 use self::layout::RowLook;
@@ -62,6 +62,7 @@ pub static MENU_CLOSE: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Escape)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Confirm, 8)),
 };
 
 /// Highlights the next item.
@@ -73,6 +74,7 @@ pub static MENU_NEXT: ActionDef = ActionDef {
     defaults: &[repeating(Key::Down)],
     repeats: true,
     when: None,
+    hint: Some(Hint::new(ActionKind::Navigate, 6)),
 };
 
 /// Highlights the previous item.
@@ -84,6 +86,7 @@ pub static MENU_PREVIOUS: ActionDef = ActionDef {
     defaults: &[repeating(Key::Up)],
     repeats: true,
     when: None,
+    hint: Some(Hint::new(ActionKind::Navigate, 5)),
 };
 
 /// Opens the submenu of the highlighted item.
@@ -95,6 +98,7 @@ pub static MENU_OPEN_SUBMENU: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Right)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Fold, 4)),
 };
 
 /// Closes the innermost submenu.
@@ -106,6 +110,7 @@ pub static MENU_CLOSE_SUBMENU: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Left)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Fold, 3)),
 };
 
 /// Chooses the highlighted item, or opens its submenu.
@@ -121,6 +126,7 @@ pub static MENU_CHOOSE: ActionDef = ActionDef {
     ],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Confirm, 9)),
 };
 
 /// The actions of menus, for the keymap.

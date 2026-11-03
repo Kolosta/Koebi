@@ -23,7 +23,7 @@ use core::time::Duration;
 use koebi_core::input::{CursorShape, Key, MouseButton};
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
-use koebi_input::{ActionDef, ActionGroup, ButtonTrigger, Context, Shortcut};
+use koebi_input::{ActionDef, ActionGroup, ActionKind, ButtonTrigger, Context, Hint, Shortcut};
 use koebi_tokens::{component, semantic};
 use koebi_workspace::{AreaId, EditorId, Layout, Line, Orientation, Workspace};
 
@@ -54,6 +54,7 @@ pub static OPERATION_CANCEL: ActionDef = ActionDef {
     ],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Confirm, 8)),
 };
 
 /// Applies the split or join previewed under the pointer.
@@ -65,6 +66,7 @@ pub static OPERATION_CONFIRM: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Enter), Shortcut::key(Key::KeypadEnter)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Confirm, 9)),
 };
 
 /// The actions of the workspace, for the keymap.
