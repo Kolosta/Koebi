@@ -5,10 +5,16 @@
 use koebi_core::Rect;
 use koebi_render::Corners;
 
+use koebi_core::Color;
+use koebi_design::kind;
+
 use super::{BACKGROUND, BORDER, Button, CONTENT};
+use crate::style::Prop;
 use crate::ui::Ui;
 use crate::widgets::dropdown::chevron;
-use crate::widgets::parts::{Content, ContentMetrics, ControlState, Side, Tone, ToneColors};
+use crate::widgets::parts::{
+    Content, ContentMetrics, ControlState, Side, States, Tone, ToneColors,
+};
 
 /// Which tokens draw a button.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -102,7 +108,8 @@ impl<'a> Button<'a> {
     }
 
     /// The colors the button draws with: its look's or its tone's, with the overrides of the
-    /// call.
+    /// call. A selected and disabled color not given at the call derives from the selected
+    /// and disabled ones it gives.
     pub fn colors(&self, ui: &Ui<'_>) -> ToneColors {
         let styles = ui.styles();
         let mut colors = match self.look() {
@@ -128,6 +135,12 @@ impl<'a> Button<'a> {
                 }
             }
         }
+        let tint = styles.button.selected_disabled_tint;
+        let [background, border, content, icon] = &self.colors;
+        rederive(&mut colors.background, [background], tint);
+        rederive(&mut colors.border, [border], tint);
+        rederive(&mut colors.content, [content], tint);
+        rederive(&mut colors.icon, [content, icon], tint);
         colors
     }
 
@@ -197,5 +210,21 @@ impl<'a> Button<'a> {
             },
             None => radii,
         }
+    }
+}
+
+/// Derives `colors.selected_disabled` again from the colors' selected and disabled ones when
+/// `overrides` (the parts drawn in these colors) give either of them but not it: a call that
+/// changes a disabled or selected color sees it in the selected and disabled state too.
+fn rederive<const N: usize>(
+    colors: &mut States<Color>,
+    overrides: [&[Option<Prop<kind::Color>>; ControlState::ALL.len()]; N],
+    tint: f32,
+) {
+    let given = |state: ControlState| overrides.iter().any(|part| part[state.index()].is_some());
+    if (given(ControlState::Disabled) || given(ControlState::Selected))
+        && !given(ControlState::SelectedDisabled)
+    {
+        *colors = colors.with_selected_disabled(tint);
     }
 }

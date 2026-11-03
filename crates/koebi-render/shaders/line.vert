@@ -3,9 +3,9 @@
 //
 // One instance per stroke, drawn as a 4-vertex triangle strip: a quad aligned with the
 // segment (or around both joined segments), inflated by the half width plus AA_MARGIN
-// physical pixels on every side so the fragment shader can compute anti-aliased coverage. Keep the instance layout in sync with
-// `LineInstance` (crates/koebi-render/src/scene.rs) and the push constants with
-// `ViewportConstants` (crates/koebi-render/src/renderer.rs).
+// physical pixels on every side so the fragment shader can compute anti-aliased coverage.
+// Keep the instance layout in sync with `LineInstance` (crates/koebi-render/src/scene.rs)
+// and the push constants with `ViewportConstants` (crates/koebi-render/src/renderer.rs).
 
 layout(push_constant) uniform ViewportConstants {
     vec2 viewport_px;   // render target size, physical pixels

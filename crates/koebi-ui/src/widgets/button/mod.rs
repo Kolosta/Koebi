@@ -498,10 +498,11 @@ impl<'a> Button<'a> {
     ) {
         let content = self.shown_content();
         let metrics = self.metrics(ui);
-        let room = (rect.width() - sides.0 - sides.1).max(0.0);
-        let spare = ((room - content.fixed_width(ui, &metrics)) * 0.5).max(0.0);
-        let padding =
-            Self::dimension(ui, self.padding.as_ref(), self.defaults(ui).padding).min(spare);
+        let padding = fitted_padding(
+            Self::dimension(ui, self.padding.as_ref(), self.defaults(ui).padding),
+            rect.width() - sides.0 - sides.1,
+            content.fixed_width(ui, &metrics),
+        );
         let left = rect.min.x + sides.0 + padding;
         let inner = Rect::from_min_max(
             Vec2::new(left, rect.min.y),
@@ -520,4 +521,10 @@ impl<'a> Button<'a> {
         self.menu_state().is_some_and(MenuState::is_open)
             || self.toggle.as_deref().copied().unwrap_or(self.selected)
     }
+}
+
+/// The padding on each side of content whose parts that cannot shrink are `fixed` wide, in
+/// `room`: `padding`, or what is left on each side once they fit, as much on both.
+fn fitted_padding(padding: f32, room: f32, fixed: f32) -> f32 {
+    padding.min(((room - fixed) * 0.5).max(0.0))
 }

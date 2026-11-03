@@ -14,10 +14,12 @@ use crate::Ui;
 
 /// The span a line `width` logical pixels wide covers around `center` at `scale` physical
 /// pixels per logical pixel: whole physical pixels, at least one, as near `center` as they
-/// can be. Returns its start and end in logical pixels.
+/// can be, ties rounding up as the renderer moves edges (`floor(x + 0.5)`). Returns its start
+/// and end in logical pixels.
 fn span(center: f32, width: f32, scale: f32) -> (f32, f32) {
-    let pixels = (width * scale).round().max(1.0);
-    let start = (center * scale - pixels * 0.5).round();
+    let nearest = |x: f32| (x + 0.5).floor();
+    let pixels = nearest(width * scale).max(1.0);
+    let start = nearest(center * scale - pixels * 0.5);
     (start / scale, (start + pixels) / scale)
 }
 
@@ -72,6 +74,9 @@ mod tests {
         assert_eq!(span(10.4, 2.0, 1.0), (9.0, 11.0));
         // Thinner than a pixel, a line still covers one.
         assert_eq!(span(10.0, 0.25, 1.0), (10.0, 11.0));
+        // Ties round up, on both sides of zero, as the renderer's edges do.
+        assert_eq!(span(-2.0, 1.0, 1.0), (-2.0, -1.0));
+        assert_eq!(span(-2.5, 2.0, 1.0), (-3.0, -1.0));
         // At 1.5, one logical pixel is two physical pixels wide, on whole physical pixels.
         let (start, end) = span(10.0, 1.0, 1.5);
         assert_eq!((start * 1.5, end * 1.5), (14.0, 16.0));

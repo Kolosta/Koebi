@@ -40,6 +40,8 @@ pub struct ButtonStyle {
     pub hues: [[ToneColors; 7]; 8],
     /// Colors of toggle buttons of the default tone (`component.toggle.*`).
     pub toggle: ToneColors,
+    /// Share of its selected colors a selected button keeps once disabled.
+    pub selected_disabled_tint: f32,
     /// Corner radius of toggle buttons.
     pub toggle_corner_radius: f32,
     /// Border width of toggle buttons.
@@ -271,6 +273,7 @@ impl ButtonStyle {
             variants,
             hues,
             toggle,
+            selected_disabled_tint: tint,
             toggle_corner_radius: tokens.get(c::TOGGLE_CORNER_RADIUS_DEFAULT),
             toggle_border_width: tokens.get(c::TOGGLE_BORDER_WIDTH_DEFAULT),
         }

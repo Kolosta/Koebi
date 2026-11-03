@@ -103,7 +103,9 @@ impl Icon {
 
     /// Pushes the strokes, each point placed by `point`: the segments of a polyline go by
     /// pairs joined at their shared point, so that a chevron's or a check mark's corner is
-    /// covered once and keeps the weight of its arms.
+    /// covered once and keeps the weight of its arms. Longer polylines (the circles of
+    /// `Search` and `Reset`) meet one pair from the next at every other corner, where a
+    /// translucent color blends twice.
     fn stroke(
         self,
         scene: &mut Scene,

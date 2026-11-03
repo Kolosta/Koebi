@@ -41,8 +41,8 @@ koebi_design::tokens! {
     BACKGROUND_APP_FRAME = "background.app.frame": Color -> primitive::COLOR_GRAY_740;
     /// Background of input fields and frames, hovered.
     BACKGROUND_APP_FRAME_HOVER = "background.app.frame-hover": Color -> primitive::COLOR_GRAY_700;
-    /// Background of disabled controls and input fields: between the surfaces and the fields,
-    /// as if faded into what lies below.
+    /// Background of disabled controls and input fields: apart from the fields and the
+    /// controls, close to the surfaces, as if faded into what lies below.
     BACKGROUND_APP_DISABLED = "background.app.disabled": Color -> primitive::COLOR_GRAY_780;
 
     /// Background of child surfaces nested in a window.

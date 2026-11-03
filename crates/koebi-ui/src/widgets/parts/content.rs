@@ -185,7 +185,8 @@ impl<'a> Content<'a> {
 
     /// Draws the content inside `rect` in `color`, placed by its alignment; a label too long
     /// for the room left is cut with an ellipsis, and content that still does not fit (icons
-    /// wider or taller than `rect`) is clipped to `bounds`.
+    /// wider or taller than `rect`) overflows by its alignment (as much on each side when
+    /// centered) and is clipped to `bounds`.
     pub(crate) fn draw(
         &self,
         ui: &mut Ui<'_>,
@@ -335,6 +336,40 @@ mod tests {
         // The check mark and the chevron, each one stroke of two joined segments.
         assert_eq!(scene.line_count(), 2);
         assert_eq!(scene.rect_count(), 1);
+    }
+
+    #[test]
+    fn the_fixed_width_leaves_out_the_label_but_its_gaps() {
+        let styles = crate::test_styles();
+        let (mut scene, mut state, input) = (Scene::new(), UiState::new(), Input::new());
+        state.set_fonts(Fonts::with_embedded());
+        let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+        let metrics = ContentMetrics {
+            gap: 4.0,
+            icon_size: 16.0,
+            trailing_size: 12.0,
+            stroke_width: 1.5,
+            trailing_stroke_width: 1.25,
+            dot_size: 6.0,
+            font: &styles.text.label,
+        };
+        assert_eq!(Content::label("Save").fixed_width(&mut ui, &metrics), 0.0);
+        assert_eq!(
+            Content::icon(Icon::Plus).fixed_width(&mut ui, &metrics),
+            16.0
+        );
+        let icons = Content {
+            leading: Some(Icon::Check),
+            ..Content::icon(Icon::Plus)
+        };
+        assert_eq!(icons.fixed_width(&mut ui, &metrics), 16.0 + 4.0 + 16.0);
+        // Both icons and the gaps around the label.
+        let full = Content {
+            leading: Some(Icon::Check),
+            trailing: Some(Icon::ChevronDown),
+            ..Content::label("Save")
+        };
+        assert_eq!(full.fixed_width(&mut ui, &metrics), 16.0 + 12.0 + 2.0 * 4.0);
     }
 
     #[test]

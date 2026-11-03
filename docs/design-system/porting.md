@@ -413,7 +413,7 @@ disabled), their metrics, the colored variants, the color families and the group
 - `component.button.background.color.selected-hover` → `semantic.background.accent.hover`
 - `component.button.label.color.selected` → `semantic.static.text.color.white`
 - `component.button.border.color.selected` → `semantic.border.color.accent.default`
-- `component.button.background.color.disabled` → `semantic.background.app.control`
+- `component.button.background.color.disabled` → `semantic.background.app.disabled`
 - `component.button.label.color.disabled` → `semantic.text.color.disabled.default`
 - `component.button.border.color.disabled` → `semantic.border.color.disabled.default`
 - `component.button.height.default` → `semantic.size.control-height`
@@ -480,7 +480,7 @@ disabled), their metrics, the colored variants, the color families and the group
 - `component.button.hue.purple.text` → `semantic.text.color.purple.default`
 - `component.button.group.border.width.default` → `semantic.border.width.thin`
 - `component.checkbox.border.color.hover` → `semantic.border.color.strong.default`
-- `component.checkbox.background.color.disabled` → `semantic.background.app.control`
+- `component.checkbox.background.color.disabled` → `semantic.background.app.disabled`
 - `component.checkbox.border.color.disabled` → `semantic.border.color.disabled.default`
 - `component.checkbox.mark.color.disabled` → `semantic.text.color.disabled.default`
 - `component.checkbox.label.color.default` → `semantic.text.color.primary.default`
@@ -491,7 +491,7 @@ disabled), their metrics, the colored variants, the color families and the group
 - `component.checkbox.line-height.default` → `semantic.size.control-height`
 - `component.toggle.background.color.pressed` → `semantic.background.app.child`
 - `component.toggle.background.color.selected-hover` → `semantic.background.accent.hover`
-- `component.toggle.background.color.disabled` → `semantic.background.app.control`
+- `component.toggle.background.color.disabled` → `semantic.background.app.disabled`
 - `component.toggle.border.color.hover` → `semantic.border.color.strong.default`
 - `component.toggle.border.color.disabled` → `semantic.border.color.disabled.default`
 - `component.toggle.label.color.hover` → `semantic.text.color.primary.default`

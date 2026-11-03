@@ -11,7 +11,8 @@
 //!   own left and top edges and the shared line just past its right and bottom edges, so two
 //!   neighbours draw the same line at the same place, never two lines.
 //! - **Colors of shared lines**: outlines are drawn in the order of their cell's state
-//!   priority ([`ControlState::priority`]): disabled, rest, selected, hovered, pressed; the cell
+//!   priority ([`ControlState::priority`]): disabled, selected and disabled, rest, selected,
+//!   hovered, pressed; the cell
 //!   of highest priority draws last and owns all four sides of its outline, so a hovered or
 //!   pressed button never shows a neighbour's color on one side. Equal priorities keep the
 //!   cells' order. Outlines are drawn over one another: with translucent border colors, a

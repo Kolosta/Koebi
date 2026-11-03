@@ -554,7 +554,15 @@ fn joined_segments_cover_their_corner_once() {
         ink,
     ));
     let image = render(&gpu, Extent::new(48, 32), 1.0, &scene);
-    let once = Color::from_rgba8(23, 126, 94, 255).to_rgba8();
+    // Premultiplied over the opaque background, as the renderer blends.
+    let blend = |top: f32, bottom: f32| top * ink.a + bottom * (1.0 - ink.a);
+    let once = Color::new(
+        blend(ink.r, BACKGROUND.r),
+        blend(ink.g, BACKGROUND.g),
+        blend(ink.b, BACKGROUND.b),
+        1.0,
+    )
+    .to_rgba8();
     // Both arms, and the corner as much as them.
     assert_pixel(&image, 10, 8, once, 1);
     assert_pixel(&image, 16, 16, once, 1);

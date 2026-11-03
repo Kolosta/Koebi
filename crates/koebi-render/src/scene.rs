@@ -216,7 +216,8 @@ impl LinePrimitive {
         }
     }
 
-    /// The stroke going on from `to` to `next`: one stroke with a round corner at `to`.
+    /// The stroke going on from `to` to `next`: one stroke with a round corner at `to`. A
+    /// primitive joins two segments at most: calling it again moves the end of the second.
     #[must_use]
     pub const fn then(self, next: Vec2) -> Self {
         Self {

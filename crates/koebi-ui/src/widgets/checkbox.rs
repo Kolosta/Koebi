@@ -86,6 +86,7 @@ impl CheckboxStyle {
                 hovered: get(c::CHECKBOX_BORDER_COLOR_HOVER),
                 selected_hovered: get(c::CHECKBOX_BORDER_COLOR_HOVER),
                 disabled: disabled_border,
+                selected_disabled: disabled_border,
                 ..States::all(get(c::CHECKBOX_BORDER_COLOR_DEFAULT))
             },
             border_checked: States {

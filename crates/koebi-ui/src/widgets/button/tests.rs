@@ -234,6 +234,57 @@ fn tones_pick_their_colors_and_calls_override_them() {
 }
 
 #[test]
+fn overrides_of_the_disabled_or_selected_colors_reach_the_selected_and_disabled_one() {
+    let mut harness = Harness::new();
+    let style = harness.styles.button.clone();
+    let tint = style.selected_disabled_tint;
+    let red = Color::from_hex(0xE0_30_30);
+    let blue = Color::from_hex(0x30_60_E0);
+    let mut on = true;
+    let (colors, _) = harness.frame(|ui| {
+        Button::new(SAVE)
+            .toggle(&mut on)
+            .background(ControlState::Disabled, red)
+            .content_color(ControlState::Selected, blue)
+            .enabled(false)
+            .colors(ui)
+    });
+    let toggle = style.toggle;
+    // Derived from the colors of the call, not from the style's.
+    let expected = red.mix_oklab(toggle.background.selected, tint);
+    assert_eq!(colors.background.selected_disabled, expected);
+    let expected = toggle.content.disabled.mix_oklab(blue, tint);
+    assert_eq!(colors.content.selected_disabled, expected);
+    assert_eq!(colors.icon.selected_disabled, expected);
+    // Untouched parts keep the style's.
+    assert_eq!(
+        colors.border.selected_disabled,
+        toggle.border.selected_disabled
+    );
+    // Given at the call, it is taken as it is.
+    let (colors, _) = harness.frame(|ui| {
+        Button::new(SAVE)
+            .background(ControlState::Disabled, red)
+            .background(ControlState::SelectedDisabled, blue)
+            .colors(ui)
+    });
+    assert_eq!(colors.background.selected_disabled, blue);
+}
+
+#[test]
+fn icons_that_do_not_fit_take_the_paddings_as_much_on_each_side() {
+    // Room enough: the paddings stay.
+    assert_eq!(fitted_padding(8.0, 80.0, 40.0), 8.0);
+    // An icon of 16 in a square of 20: 2 on each side.
+    assert_eq!(fitted_padding(8.0, 20.0, 16.0), 2.0);
+    // Two icons and a label's gaps (40) in 44: the label has no room, 2 on each side.
+    assert_eq!(fitted_padding(8.0, 44.0, 40.0), 2.0);
+    // Narrower than the icons: no padding, the content overflows evenly and is clipped.
+    assert_eq!(fitted_padding(8.0, 12.0, 16.0), 0.0);
+    assert_eq!(fitted_padding(8.0, -2.0, 16.0), 0.0);
+}
+
+#[test]
 fn the_last_radius_call_applies() {
     let corners = Corners {
         top_left: 1.0,

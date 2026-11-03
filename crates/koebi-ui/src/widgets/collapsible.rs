@@ -37,6 +37,8 @@ pub struct CollapsiblePanelStyle {
     /// Height of a header: what it holds, one interface unit high, and its inset above and
     /// below.
     pub header_height: f32,
+    /// Space above and below what a header holds.
+    pub header_inset: f32,
     /// Background of a first-level header; deeper headers take their parent's content color.
     pub header_background: Color,
     /// Space between a header's sides and its content.
@@ -65,9 +67,10 @@ impl CollapsiblePanelStyle {
     /// Reads the style from `tokens`.
     pub fn resolve(tokens: &impl Resolve) -> Self {
         use component as c;
+        let header_inset = tokens.get(c::PANEL_HEADER_INSET_DEFAULT);
         Self {
-            header_height: tokens.get(c::PANEL_HEADER_HEIGHT_DEFAULT)
-                + 2.0 * tokens.get(c::PANEL_HEADER_INSET_DEFAULT),
+            header_height: tokens.get(c::PANEL_HEADER_HEIGHT_DEFAULT) + 2.0 * header_inset,
+            header_inset,
             header_background: tokens.get(c::PANEL_HEADER_BACKGROUND_COLOR_DEFAULT),
             header_padding: tokens.get(c::PANEL_HEADER_PADDING_DEFAULT),
             header_gap: tokens.get(c::PANEL_HEADER_GAP_DEFAULT),
@@ -140,7 +143,8 @@ pub struct CollapsiblePanelResponse {
     pub toggled: bool,
     /// The height the panel took: its header and the share of its content shown.
     pub height: f32,
-    /// Room kept at the end of the header for the caller's buttons, when it asked for some.
+    /// Room kept at the end of the header for the caller's buttons, when it asked for some:
+    /// as high as what the header holds, clear of its inset above and below.
     pub trailing: Option<Rect>,
 }
 
@@ -346,7 +350,7 @@ impl<'a> CollapsiblePanel<'a> {
             Rect::from_origin_size(Vec2::new(x, header.min.y), Vec2::new(side, header.height()))
         };
         // The chevron points right while closed and down while open, turning as it folds,
-        // its tip on whole pixels.
+        // centered on a pixel: the axis it is symmetric around covers whole pixels.
         let chevron = ui.pixel_centered(slot(x, style.chevron_size), style.chevron_size);
         Icon::ChevronRight.draw_rotated(
             ui.scene(),
@@ -371,11 +375,13 @@ impl<'a> CollapsiblePanel<'a> {
             .trailing
             .as_ref()
             .map_or(0.0, |width| width.resolve(&ui.styles().tokens).max(0.0));
-        // Room after the title's start, or none: never an inverted rectangle.
+        // Room after the title's start, or none: never an inverted rectangle. It is as high as
+        // the controls it holds, the header's inset above and below.
+        let inset = style.header_inset.min(header.height() * 0.5);
         let trailing = (width > 0.0 && end > x).then(|| {
             Rect::from_min_max(
-                Vec2::new((end - width).max(x), header.min.y),
-                Vec2::new(end, header.max.y),
+                Vec2::new((end - width).max(x), header.min.y + inset),
+                Vec2::new(end, header.max.y - inset),
             )
         });
         let title_end = trailing.map_or(end, |room| room.min.x - style.header_gap);
@@ -529,6 +535,14 @@ mod tests {
         let trailing = response.trailing.expect("room for buttons");
         assert_eq!(trailing.max.x, area().max.x - style.header_padding);
         assert_eq!(trailing.width(), 40.0);
+        // As high as a control, the header's inset above and below it.
+        let tokens = &harness.styles.tokens;
+        let control = tokens.get(component::PANEL_HEADER_HEIGHT_DEFAULT);
+        let inset = tokens.get(component::PANEL_HEADER_INSET_DEFAULT);
+        assert!(inset > 0.0);
+        assert_eq!(trailing.height(), control);
+        assert_eq!(trailing.min.y, area().min.y + inset);
+        assert_eq!(style.header_height, control + 2.0 * inset);
         // Opening: the content draws clipped to the share shown.
         panel.set_open(true);
         let (duration, _) = style.expand;
