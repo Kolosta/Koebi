@@ -1,5 +1,7 @@
 //! [`View`]: token values in any theme with any set of layers.
 
+use koebi_core::ColorMatrix;
+
 use crate::active::Active;
 use crate::graph::Graph;
 use crate::kind::Kind;
@@ -9,6 +11,7 @@ use crate::theme::ThemeId;
 use crate::tier::Tier;
 use crate::token::{TextStyle, Token, TokenId, Typography};
 use crate::value::{Definition, Value};
+use crate::vision::ColorVision;
 
 /// The most tokens a resolution chain follows: far more than token tables nest.
 const MAX_CHAIN: usize = 32;
@@ -49,6 +52,9 @@ pub struct View<'a> {
     active: &'a Active,
     theme: ThemeId,
     layers: Layers,
+    /// The matrix of the color vision layer, when the view shows another color vision than
+    /// the system's ([`View::seen_as`]).
+    vision: Option<ColorMatrix>,
 }
 
 impl<'a> View<'a> {
@@ -63,6 +69,19 @@ impl<'a> View<'a> {
             active,
             theme,
             layers,
+            vision: None,
+        }
+    }
+
+    /// The view as `vision` shows it: its color vision layer, on whatever the view's layers
+    /// were, applies `vision` instead of the system's setting. What previews of the color
+    /// vision modes read, each painting the interface as one mode would.
+    #[must_use]
+    pub fn seen_as(self, vision: ColorVision) -> Self {
+        Self {
+            layers: self.layers.union(Layers::COLOR_VISION),
+            vision: Some(vision.matrix()),
+            ..self
         }
     }
 
@@ -82,7 +101,7 @@ impl<'a> View<'a> {
     }
 
     fn is_active(&self) -> bool {
-        self.theme == self.graph.active && self.layers == Layers::ALL
+        self.theme == self.graph.active && self.layers == Layers::ALL && self.vision.is_none()
     }
 
     /// The value of `token` in this view.
@@ -104,7 +123,12 @@ impl<'a> View<'a> {
         if self.is_active() {
             return self.active.value(token).cloned();
         }
-        Some(self.graph.value(token, self.theme, self.layers))
+        Some(match &self.vision {
+            Some(matrix) => self
+                .graph
+                .value_seen(token, self.theme, self.layers, matrix),
+            None => self.graph.value(token, self.theme, self.layers),
+        })
     }
 
     /// The resolved text style of a typography composite in this view.

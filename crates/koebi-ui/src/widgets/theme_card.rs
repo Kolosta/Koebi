@@ -175,16 +175,22 @@ impl ThemePreview {
     }
 }
 
+/// What happened to a card, and the room inside its frame ([`Ui::card`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct CardResponse {
+    /// The pointer's interaction with the card.
+    pub response: Response,
+    /// The room inside the frame and its padding.
+    pub content: Rect,
+    /// The corner radius that follows the frame's inside the room.
+    pub corner_radius: f32,
+}
+
 impl Ui<'_> {
-    /// A card filling `rect` that shows `preview`. The card itself uses the active theme's
-    /// style: `selected` marks the active theme's card. Clicks are reported.
-    pub fn theme_card(
-        &mut self,
-        id: WidgetId,
-        rect: Rect,
-        preview: &ThemePreview,
-        selected: bool,
-    ) -> Response {
+    /// A card filling `rect`: a frame in the style of theme cards, marked when `selected` and
+    /// lighter under the pointer, around what the caller draws in
+    /// [`CardResponse::content`]. Clicks are reported.
+    pub fn card(&mut self, id: WidgetId, rect: Rect, selected: bool) -> CardResponse {
         let response = self.interact(id, rect);
         let style = &self.styles().theme_card;
         let (border, width) = if selected {
@@ -200,12 +206,27 @@ impl Ui<'_> {
                 .with_border(width, border),
         );
         let inset = width + style.padding;
-        let content = rect.inset(inset);
-        if !content.is_empty() {
-            let radius = (style.corner_radius - inset).max(0.0);
-            preview.paint(self.scene, content, radius);
+        CardResponse {
+            response,
+            content: rect.inset(inset),
+            corner_radius: (style.corner_radius - inset).max(0.0),
         }
-        response
+    }
+
+    /// A card filling `rect` that shows `preview`. The card itself uses the active theme's
+    /// style: `selected` marks the active theme's card. Clicks are reported.
+    pub fn theme_card(
+        &mut self,
+        id: WidgetId,
+        rect: Rect,
+        preview: &ThemePreview,
+        selected: bool,
+    ) -> Response {
+        let card = self.card(id, rect, selected);
+        if !card.content.is_empty() {
+            preview.paint(self.scene, card.content, card.corner_radius);
+        }
+        card.response
     }
 }
 

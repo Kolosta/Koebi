@@ -50,8 +50,18 @@ Floating windows are not restored at the next start yet, unlike the main window'
 ## The settings window
 
 `Edit > Settings` opens it, or brings it to the front. A column of pages in groups lies beside the
-page shown. Options are expandable panels: the header edits the value for the whole application;
-the panel opens on the value for the application (`Scope::Global`) and for the current theme
-(`Scope::ActiveTheme`), each with a place for the icon that brings it back, then on how the token
-gets its value (`View::chain`): the tokens it refers to, down to the one holding the value, and,
-grayed, what that one would refer to without its override.
+page shown. Options are expandable panels, nested in their group and indented below its title:
+the header edits the value for the whole application; the panel opens on the value for the
+application (`Scope::Global`) and for the current theme (`Scope::ActiveTheme`), each with a place
+for the dot that brings it back (`Ui::reset_dot`), then on how the token gets its value
+(`View::chain`): the tokens it refers to, down to the one holding the value, and, grayed, what
+that one would refer to without its override.
+
+The header of an option, and of a group, shows a dot while anything below holds a change: a
+click brings back every change below, for the application and the current theme; the secondary
+button opens a menu bringing back those of the application only, of the current theme only, or
+both.
+
+The Accessibility page holds the color vision modes in one panel, a group per kind. Each mode's
+card paints, with the current theme's styles as that mode shows them (`View::seen_as`), real
+components (`Ui::preview`), the main colors by name and the colors of a chart.

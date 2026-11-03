@@ -2,8 +2,13 @@
 //!
 //! The header shows the option's name and, at its end, its value for the whole application. The
 //! panel opens on the value for the application and for the current theme, side by side, then on
-//! how the token gets its value. Beside every input lies a place for what brings the value back:
-//! it stays empty until the value is changed, and takes no other room then.
+//! how the token gets its value. Beside every input lies a place for the dot bringing the value
+//! back ([`Ui::reset_dot`]): it stays empty until the value is changed, and takes no other room
+//! then.
+//!
+//! Headers show a dot too, when anything they hold is changed: the option's for its two scopes,
+//! the group's for all its options. A click brings back every change below, for the application
+//! and the current theme; the secondary button opens a menu bringing back those of one scope.
 
 use core::fmt::Write as _;
 use core::time::Duration;
@@ -16,8 +21,8 @@ use koebi_design::{ChainRole, ChainStep, DesignSystem, Layers, Origin, Scope, To
 use koebi_render::RectPrimitive;
 use koebi_tokens::semantic;
 use koebi_ui::{
-    Align, BarMapping, Button, CollapsiblePanel, CollapsiblePanelState, Icon, NumberField,
-    PanelLevel, Ui, WidgetId,
+    Align, BarMapping, CollapsiblePanel, CollapsiblePanelState, MenuItem, MenuState, NumberField,
+    PointerButton, Ui, WidgetId,
 };
 
 use super::Stack;
@@ -47,6 +52,8 @@ pub(super) struct OptionRow {
     desc: OptionDesc,
     panel: CollapsiblePanelState,
     chain: CollapsiblePanelState,
+    /// The menu of the header's dot.
+    menu: MenuState,
     /// The steps of the resolution chain, and the text of a value: reused from frame to frame.
     steps: Vec<ChainStep>,
     text: String,
@@ -58,6 +65,7 @@ impl OptionRow {
             desc,
             panel: CollapsiblePanelState::new(false),
             chain: CollapsiblePanelState::new(false),
+            menu: MenuState::new(),
             steps: Vec::new(),
             text: String::new(),
         }
@@ -70,6 +78,9 @@ pub(super) struct OptionGroup {
     title: &'static str,
     panel: CollapsiblePanelState,
     rows: Vec<OptionRow>,
+    /// What the options edit, for the header's dot, and its menu.
+    tokens: Vec<TokenId>,
+    menu: MenuState,
 }
 
 impl OptionGroup {
@@ -78,6 +89,8 @@ impl OptionGroup {
             title,
             panel: CollapsiblePanelState::new(true),
             rows: options.iter().copied().map(OptionRow::new).collect(),
+            tokens: options.iter().map(|option| option.token).collect(),
+            menu: MenuState::new(),
         }
     }
 
@@ -85,6 +98,12 @@ impl OptionGroup {
     #[cfg(test)]
     pub(super) fn descriptions(&self) -> impl Iterator<Item = OptionDesc> + '_ {
         self.rows.iter().map(|row| row.desc)
+    }
+
+    /// The menu of the header's dot.
+    #[cfg(test)]
+    pub(super) fn menu(&self) -> &MenuState {
+        &self.menu
     }
 
     /// Opens or closes the option at `index`, and its resolution chain.
@@ -104,31 +123,141 @@ impl OptionGroup {
         id: WidgetId,
         design: &mut DesignSystem,
     ) {
-        let Self { title, panel, rows } = self;
-        let group = CollapsiblePanel::new(id, panel, title);
-        stack.panel(ui, group, |ui, rect| {
+        let Self {
+            title,
+            panel,
+            rows,
+            tokens,
+            menu,
+        } = self;
+        let bounds = stack.bounds;
+        let group = CollapsiblePanel::new(id, panel, title).trailing(reset_slot(design));
+        let shown = stack.panel(ui, group, |ui, rect| {
             let mut y = rect.min.y;
             for (index, row) in rows.iter_mut().enumerate() {
                 let at = Rect::from_min_max(Vec2::new(rect.min.x, y), rect.max);
-                y += show_option(ui, at, id.with(index as u64 + 1), design, row);
+                y += show_option(ui, at, id.with(index as u64 + 1), design, row, bounds);
             }
             y - rect.min.y
         });
+        if let Some(trailing) = shown.trailing {
+            header_dot(ui, trailing, id.with(0), design, tokens, menu, bounds);
+        }
     }
 }
 
-/// The side of the place for the button bringing a value back.
+/// The side of the place for the dot bringing a value back.
 fn reset_slot(design: &DesignSystem) -> f32 {
     design.get(semantic::SIZE_CONTROL_HEIGHT)
 }
 
-/// Shows an option at the top of `area`. Returns the height it took.
+/// What a header's dot brings back: the changes of one scope, or of both.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Reset {
+    /// The changes for the whole application.
+    Application,
+    /// The changes for the current theme.
+    CurrentTheme,
+    /// Both.
+    Both,
+}
+
+impl Reset {
+    /// The scopes it brings back.
+    const fn scopes(self) -> &'static [Scope] {
+        match self {
+            Self::Application => &[Scope::Global],
+            Self::CurrentTheme => &[Scope::ActiveTheme],
+            Self::Both => &[Scope::Global, Scope::ActiveTheme],
+        }
+    }
+
+    /// The choice of the item at `index` of the dot's menu ([`reset_items`]).
+    const fn of_item(index: usize) -> Self {
+        match index {
+            0 => Self::Application,
+            1 => Self::CurrentTheme,
+            _ => Self::Both,
+        }
+    }
+}
+
+/// The items of a header's dot's menu, those with nothing to bring back disabled.
+const fn reset_items(application: bool, theme: bool) -> [MenuItem<'static>; 4] {
+    [
+        MenuItem::action("Reset for the application").enabled(application),
+        MenuItem::action("Reset for the current theme").enabled(theme),
+        MenuItem::Separator,
+        MenuItem::action("Reset both").enabled(application || theme),
+    ]
+}
+
+/// Which of `tokens` hold a change: for the application, for the current theme.
+fn changes(design: &DesignSystem, tokens: &[TokenId]) -> (bool, bool) {
+    let changed = |scope| {
+        tokens
+            .iter()
+            .any(|token| design.override_of(scope, *token).is_some())
+    };
+    (changed(Scope::Global), changed(Scope::ActiveTheme))
+}
+
+/// Brings back the changes of `tokens` that `reset` names.
+fn reset_tokens(design: &mut DesignSystem, tokens: &[TokenId], reset: Reset) {
+    for &scope in reset.scopes() {
+        for &token in tokens {
+            if design.override_of(scope, token).is_some()
+                && let Err(error) = design.reset(scope, token)
+            {
+                koebi_core::warn!("cannot bring {token} back: {error}");
+            }
+        }
+    }
+}
+
+/// The dot at the end of a header whose options edit `tokens`, shown in `area` while any of
+/// them holds a change: a click brings back every change, the secondary button opens `menu`,
+/// which brings back those of one scope or of both. Menus lie within `bounds`.
+fn header_dot(
+    ui: &mut Ui<'_>,
+    area: Rect,
+    id: WidgetId,
+    design: &mut DesignSystem,
+    tokens: &[TokenId],
+    menu: &mut MenuState,
+    bounds: Rect,
+) {
+    let (application, theme) = changes(design, tokens);
+    let mut chosen = None;
+    if application || theme {
+        let hint = "Reset what changed below; right-click to choose for what";
+        let response = ui.reset_dot(id, area, hint);
+        if response.clicked {
+            chosen = Some(Reset::Both);
+        }
+        if response.secondary_pressed
+            && let Some(point) = ui.input().button_pressed_at(PointerButton::Secondary)
+        {
+            menu.open_at_pointer(point);
+        }
+    }
+    let items = reset_items(application, theme);
+    if let Some(choice) = ui.menu(id.with(1), menu, &items, bounds) {
+        chosen = Some(Reset::of_item(choice.index()));
+    }
+    if let Some(reset) = chosen {
+        reset_tokens(design, tokens, reset);
+    }
+}
+
+/// Shows an option at the top of `area`, its menus within `bounds`. Returns the height it took.
 fn show_option(
     ui: &mut Ui<'_>,
     area: Rect,
     id: WidgetId,
     design: &mut DesignSystem,
     row: &mut OptionRow,
+    bounds: Rect,
 ) -> f32 {
     let desc = row.desc;
     let slot = reset_slot(design);
@@ -136,23 +265,38 @@ fn show_option(
     let OptionRow {
         panel,
         chain,
+        menu,
         steps,
         text,
         ..
     } = row;
     let shown = CollapsiblePanel::new(id, panel, desc.label)
-        .level(PanelLevel::Second)
         .trailing(HEADER_INPUT + gap + slot)
         .show(ui, area, |ui, rect| {
             option_body(ui, rect, id, design, desc, chain, steps, text)
         });
+    // Over the header, which would take the press otherwise: the application's value, then
+    // the dot bringing back the option's changes.
     if let Some(trailing) = shown.trailing {
-        // Over the header, which would take the press otherwise; a row high in its middle.
-        let height = design.get(semantic::SIZE_CONTROL_HEIGHT);
-        let input = Rect::from_center_size(trailing.center(), Vec2::new(trailing.width(), height));
-        scoped_input(ui, input, id.with(10), design, desc, Scope::Global);
+        let (field, dot) = field_and_dot(trailing, slot, gap);
+        scoped_field(ui, field, id.with(10), design, desc, Scope::Global);
+        header_dot(ui, dot, id.with(11), design, &[desc.token], menu, bounds);
     }
     shown.height
+}
+
+/// `rect` cut into the room of a field and, at its end, the place of a dot `slot` wide, `gap`
+/// apart.
+fn field_and_dot(rect: Rect, slot: f32, gap: f32) -> (Rect, Rect) {
+    let dot = Rect::from_min_max(
+        Vec2::new((rect.max.x - slot).max(rect.min.x), rect.min.y),
+        rect.max,
+    );
+    let field = Rect::from_min_max(
+        rect.min,
+        Vec2::new((dot.min.x - gap).max(rect.min.x), rect.max.y),
+    );
+    (field, dot)
 }
 
 /// The two columns of an option, and how its token gets its value. Returns the height used.
@@ -169,6 +313,8 @@ fn option_body(
 ) -> f32 {
     let padding = ui.styles().panel.padding;
     let row = design.get(semantic::SIZE_CONTROL_HEIGHT);
+    let slot = reset_slot(design);
+    let inset = design.get(semantic::SPACING_EDITOR_INSET) * 0.5;
     let font = ui.styles().text.label.clone();
     let secondary = design.get(semantic::TEXT_COLOR_SECONDARY_DEFAULT);
     let (left, right) = (rect.min.x + padding, rect.max.x - padding);
@@ -192,19 +338,24 @@ fn option_body(
         }
         ui.label(text, title, &font, secondary, Align::Start);
         let input = Rect::from_origin_size(Vec2::new(x, top + row), Vec2::new(width, row));
-        scoped_input(ui, input, id.with(20 + index as u64), design, desc, scope);
+        let (field, dot) = field_and_dot(input, slot, inset);
+        let key = id.with(20 + index as u64);
+        scoped_field(ui, field, key, design, desc, scope);
+        scope_dot(ui, dot, key.with(1), design, desc, scope);
     }
     let gap = ui.styles().collapsible_panel.gap;
     let below = top + 2.0 * row + gap;
     let panel = Rect::from_min_max(Vec2::new(rect.min.x, below), rect.max);
-    let shown = CollapsiblePanel::new(id.with(30), chain, "Resolution chain")
-        .level(PanelLevel::Third)
-        .show(ui, panel, |ui, inner| {
+    let shown = CollapsiblePanel::new(id.with(30), chain, "Resolution chain").show(
+        ui,
+        panel,
+        |ui, inner| {
             if let Some(view) = design.view(design.active_theme(), Layers::ALL) {
                 view.chain(desc.token, steps);
             }
             chain_rows(ui, inner, design, desc, steps, text)
-        });
+        },
+    );
     below + shown.height - top
 }
 
@@ -245,9 +396,9 @@ fn value_like(like: &Value, number: f64) -> Option<Value> {
     }
 }
 
-/// An input of the option for `scope` in `rect`: a number field, then the place of the button
-/// bringing the value back, which shows once `scope` overrides the token.
-fn scoped_input(
+/// The field of the option's value for `scope` in `rect`: a number field, on a bar when the
+/// token has a range.
+fn scoped_field(
     ui: &mut Ui<'_>,
     rect: Rect,
     id: WidgetId,
@@ -255,13 +406,6 @@ fn scoped_input(
     desc: OptionDesc,
     scope: Scope,
 ) {
-    let slot = reset_slot(design);
-    let gap = design.get(semantic::SPACING_EDITOR_INSET) * 0.5;
-    let reset_rect = Rect::from_min_max(Vec2::new(rect.max.x - slot, rect.min.y), rect.max);
-    let field_rect = Rect::from_min_max(
-        rect.min,
-        Vec2::new((reset_rect.min.x - gap).max(rect.min.x), rect.max.y),
-    );
     let Some(mut number) = value_in(design, desc.token, scope) else {
         return;
     };
@@ -274,7 +418,7 @@ fn scoped_input(
             .range(range.min(), range.max())
             .bar(BarMapping::Linear);
     }
-    if field.show(ui, field_rect).changed {
+    if field.show(ui, rect).changed {
         let like = design
             .view(design.active_theme(), Layers::ALL)
             .and_then(|view| view.value(desc.token));
@@ -284,11 +428,25 @@ fn scoped_input(
             koebi_core::warn!("cannot change {}: {error}", desc.label);
         }
     }
-    if design.override_of(scope, desc.token).is_some()
-        && Button::new(id.with(1))
-            .icon(Icon::Reset)
-            .show(ui, reset_rect)
-            .clicked
+}
+
+/// The dot bringing back the option's value for `scope`, in `area` once `scope` changes it.
+fn scope_dot(
+    ui: &mut Ui<'_>,
+    area: Rect,
+    id: WidgetId,
+    design: &mut DesignSystem,
+    desc: OptionDesc,
+    scope: Scope,
+) {
+    if design.override_of(scope, desc.token).is_none() {
+        return;
+    }
+    let hint = match scope {
+        Scope::Global => "Reset for the application",
+        Scope::ActiveTheme | Scope::Theme(_) => "Reset for the current theme",
+    };
+    if ui.reset_dot(id, area, hint).clicked
         && let Err(error) = design.reset(scope, desc.token)
     {
         koebi_core::warn!("cannot bring {} back: {error}", desc.label);

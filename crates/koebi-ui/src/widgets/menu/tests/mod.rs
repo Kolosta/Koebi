@@ -145,10 +145,14 @@ fn the_keyboard_highlights_active_items_wrapping_around() {
 #[test]
 fn clicking_an_item_chooses_it_and_closes_the_menu() {
     let mut harness = Harness::new();
+    assert_eq!(harness.menu.rect(), None);
     harness.menu.open_at(Vec2::new(10.0, 10.0));
     let (chosen, scene) = harness.frame_with(&items());
     assert_eq!(chosen, None);
     assert!(scene.glyph_count() > 20, "{}", scene.glyph_count());
+    // Where it lies, from its corner at the point.
+    let rect = harness.menu.rect().expect("drawn");
+    assert_eq!(rect.min, Vec2::new(10.0, 10.0));
     // The disabled "Join areas" does nothing; "Vertical split" is chosen.
     let join = harness.row(0, 2, &items());
     harness.click(join);

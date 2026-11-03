@@ -125,6 +125,60 @@ fn exempt_colors_are_never_transformed() {
 }
 
 #[test]
+fn views_can_show_another_color_vision_than_the_systems() {
+    let mut design = design();
+    let accent = design.get(component::BUTTON_BACKGROUND);
+    let base = design.view(ThemeId::BASE, Layers::ALL).unwrap();
+    // Seen as another mode, colors are transformed as that mode would, the rest untouched.
+    let seen = base.seen_as(deutan());
+    assert_eq!(
+        seen.get(component::BUTTON_BACKGROUND),
+        deutan().matrix().apply(accent)
+    );
+    assert_eq!(seen.get(component::BUTTON_RADIUS), 2.0);
+    assert!(seen.layers().contains(Layers::COLOR_VISION));
+    // Its resolution chain shows the transformed values too.
+    let mut steps = Vec::new();
+    seen.chain(component::BUTTON_BACKGROUND, &mut steps);
+    let shown = steps.first().and_then(|step| step.value.clone());
+    assert_eq!(
+        shown,
+        Some(koebi_design::value::Value::Color(
+            deutan().matrix().apply(accent)
+        ))
+    );
+    // A view without the color vision layer takes it on.
+    let original = design.view(ThemeId::BASE, Layers::DEFINITIONS).unwrap();
+    assert_eq!(
+        original.seen_as(deutan()).get(component::BUTTON_BACKGROUND),
+        deutan().matrix().apply(accent)
+    );
+    // With another mode set, normal vision shows the original colors, and exempt colors stay.
+    design
+        .set_token_layers(
+            primitive::COLOR_PURPLE_500,
+            Layers::ALL - Layers::COLOR_VISION,
+        )
+        .unwrap();
+    design.set_color_vision(deutan()).unwrap();
+    let normal = design
+        .view(ThemeId::BASE, Layers::ALL)
+        .unwrap()
+        .seen_as(ColorVision::Normal);
+    assert_eq!(normal.get(component::BUTTON_BACKGROUND), accent);
+    let seen = design
+        .view(ThemeId::BASE, Layers::ALL)
+        .unwrap()
+        .seen_as(ColorVision::SimulateAchromatopsia { severity: 1.0 });
+    assert_eq!(
+        seen.get(component::LOGO),
+        design.get(primitive::COLOR_PURPLE_500)
+    );
+    let gray = seen.get(component::BUTTON_BACKGROUND);
+    assert!((gray.r - gray.g).abs() < 2e-3 && (gray.g - gray.b).abs() < 2e-3);
+}
+
+#[test]
 fn a_component_property_can_be_exempt_alone() {
     let mut design = design();
     let brand = design.get(primitive::COLOR_PURPLE_500);

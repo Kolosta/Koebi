@@ -11,7 +11,7 @@ use koebi_core::{Color, Oklch, Rect, Vec2};
 use koebi_design::kind::{Dimension, Kind};
 use koebi_design::tier::Tier;
 use koebi_design::{DesignSystem, Layers, Scope, Token};
-use koebi_render::{LinePrimitive, RectPrimitive};
+use koebi_render::RectPrimitive;
 use koebi_tokens::{component, semantic};
 use koebi_ui::{
     BarMapping, Button, Dropdown, Icon, MenuChoice, MenuItem, MenuState, NumberField, PanelLevel,
@@ -122,17 +122,10 @@ impl Channel {
     }
 }
 
-/// The override marker at the start of a row: a dot when the row's token is overridden in
-/// the editor's scope. Clicking the dot removes the override.
-fn badge(ui: &mut Ui<'_>, id: WidgetId, area: Rect, overridden: bool, color: Color) -> bool {
-    let response = ui.interact(id, area);
-    if overridden {
-        let size = area.height() * if response.hovered { 0.45 } else { 0.3 };
-        let center = area.center();
-        ui.scene()
-            .push_line(&LinePrimitive::new(center, center, size, color));
-    }
-    overridden && response.clicked
+/// The override marker at the start of a row: a reset dot when the row's token is overridden
+/// in the editor's scope. Clicking the dot removes the override.
+fn badge(ui: &mut Ui<'_>, id: WidgetId, area: Rect, overridden: bool) -> bool {
+    overridden && ui.reset_dot(id, area, "Reset").clicked
 }
 
 /// The icon of a scope toggle: four squares for every theme, one for the active theme.
@@ -198,15 +191,8 @@ fn dimension_row<T: Tier>(
 ) {
     let id = WidgetId::new("dimension").with(token.id().index() as u64);
     let (row, gap) = (metrics.row, metrics.row_gap());
-    let marker = design.get(component::PANEL_OVERRIDE_BADGE_COLOR_DEFAULT);
     let overridden = design.override_of(scope, token).is_some();
-    if badge(
-        ui,
-        id.with(0),
-        cut_left(&mut line, row, gap),
-        overridden,
-        marker,
-    ) {
+    if badge(ui, id.with(0), cut_left(&mut line, row, gap), overridden) {
         reset(design, scope, token);
     }
     let value = definition(design, token);
@@ -348,20 +334,13 @@ fn accent_rows(
     let overridden = design
         .override_of(scope, semantic::ACCENT_COLOR_700)
         .is_some();
-    let marker = design.get(component::PANEL_OVERRIDE_BADGE_COLOR_DEFAULT);
     let frame = design.get(semantic::BORDER_COLOR_DEFAULT);
     let mut accent = gallery.accent;
     let (mut changed, mut cleared) = (false, false);
     for (index, channel) in Channel::ALL.into_iter().enumerate() {
         let id = ID.with(index as u64);
         let mut line = cut_top(content, row, gap);
-        cleared |= badge(
-            ui,
-            id.with(0),
-            cut_left(&mut line, row, gap),
-            overridden,
-            marker,
-        );
+        cleared |= badge(ui, id.with(0), cut_left(&mut line, row, gap), overridden);
         channel.paint(ui, cut_left(&mut line, 3.0 * row, gap), accent, frame);
         let range = channel.range();
         changed |= NumberField::new(id.with(1), channel.value(&mut accent))

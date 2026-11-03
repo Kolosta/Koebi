@@ -255,11 +255,20 @@ impl Graph {
     /// kept inside the token's range: an alias to a token that accepts more cannot bring in a
     /// value this one refuses.
     pub(crate) fn value(&self, token: TokenId, theme: ThemeId, layers: Layers) -> Value {
+        self.value_seen(token, theme, layers, &self.matrix)
+    }
+
+    /// [`Graph::value`], the color vision layer applying `matrix` instead of the system's.
+    pub(crate) fn value_seen(
+        &self,
+        token: TokenId,
+        theme: ThemeId,
+        layers: Layers,
+        matrix: &ColorMatrix,
+    ) -> Value {
         let resolution = self.resolve(token, theme, layers);
         let value = match resolution.value {
-            Value::Color(color) if resolution.color_vision => {
-                Value::Color(self.matrix.apply(*color))
-            }
+            Value::Color(color) if resolution.color_vision => Value::Color(matrix.apply(*color)),
             value => value.clone(),
         };
         match self.ranges.get(token.index()).copied().flatten() {

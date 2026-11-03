@@ -274,6 +274,9 @@ Application bar: `component.title-bar.button.pressed-lightness`,
 `component.title-bar.menu.padding.default` and `.corner-radius.default`. Settings:
 `component.side-panel.width.default`.
 
+Reset dots (#175): `component.panel.override-badge.size.default` (6 px) and `.size.hover`
+(9 px), the dot of a changed value, which brings it back.
+
 Insets, chevrons and disabled states (#174): `semantic.spacing.control-inset` (2 pixels, the
 inset around controls one interface unit high), which `component.editor-top-bar.padding.default`,
 `component.zone-tab.padding.vertical.default` and `component.title-bar.padding.default` now

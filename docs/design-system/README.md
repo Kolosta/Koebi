@@ -215,6 +215,7 @@ let original = design.view(theme, Layers::THEME)?.get(token);       // the theme
 let base = design.view(theme, Layers::NONE)?.get(token);            // the base theme
 let mine = design.view(theme, Layers::THEME | Layers::THEME_OVERRIDES)?.get(token);
 let preview = design.view(other_theme, Layers::ALL)?.get(token);    // a preview card
+let seen = design.view(theme, Layers::ALL)?.seen_as(vision).get(token); // as a mode shows it
 let origin = design.origin(token);                                  // which layer wins
 ```
 

@@ -10,7 +10,7 @@ use super::Stack;
 const ID: WidgetId = WidgetId::new("settings-theme");
 
 /// The width of a card, at least.
-const CARD_WIDTH: f32 = 200.0;
+const CARD_WIDTH: f32 = 150.0;
 /// How wide a card is for its height.
 const CARD_RATIO: f32 = 1.6;
 
@@ -42,7 +42,7 @@ fn grid(width: f32, gap: f32, count: usize) -> (usize, f32) {
         reason = "a few cards, a positive whole number"
     )]
     let columns = (fitting.max(1.0) as usize).min(count.max(1));
-    let card = ((width - gap * (columns - 1) as f32) / columns as f32).min(CARD_WIDTH * 1.5);
+    let card = ((width - gap * (columns - 1) as f32) / columns as f32).min(CARD_WIDTH * 1.25);
     (columns, card.max(0.0))
 }
 
@@ -104,15 +104,15 @@ mod tests {
 
     #[test]
     fn cards_fill_the_row_as_they_fit() {
-        assert_eq!(grid(830.0, 10.0, 4), (4, 200.0));
+        assert_eq!(grid(630.0, 10.0, 4), (4, 150.0));
         // Fewer fit: they wrap.
-        assert_eq!(grid(410.0, 10.0, 4), (2, 200.0));
+        assert_eq!(grid(310.0, 10.0, 4), (2, 150.0));
         // Too narrow for one: it takes what there is.
         assert_eq!(grid(100.0, 10.0, 4), (1, 100.0));
         // Few cards are not stretched without limit.
         let (columns, card) = grid(2000.0, 10.0, 2);
         assert_eq!(columns, 2);
-        assert!((card - 300.0).abs() < 1e-3);
+        assert!((card - 187.5).abs() < 1e-3);
     }
 
     #[test]

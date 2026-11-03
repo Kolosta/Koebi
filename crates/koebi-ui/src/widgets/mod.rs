@@ -18,6 +18,7 @@ mod number_field;
 mod panel;
 mod parts;
 mod property_group;
+mod reset_dot;
 mod scroll;
 mod scrollbar;
 mod separator;
@@ -55,6 +56,7 @@ pub use parts::{
     Tone, ToneColors, Variant,
 };
 pub use property_group::{PropertyGroup, PropertyGroupStyle};
+pub use reset_dot::ResetDotStyle;
 pub use scroll::{SCROLL, ScrollAxes, ScrollContent, ScrollState, ScrollStyle};
 pub use scrollbar::{ScrollAxis, Scrollbar, ScrollbarResponse, ScrollbarState};
 pub use separator::SeparatorStyle;
@@ -69,7 +71,7 @@ pub use text_field::{
     TEXT_START, TEXT_UNDO, TEXT_WORD_LEFT, TEXT_WORD_RIGHT, TextField, TextFieldResponse,
     TextFieldStyle,
 };
-pub use theme_card::{ThemeCardStyle, ThemePreview};
+pub use theme_card::{CardResponse, ThemeCardStyle, ThemePreview};
 pub(crate) use tooltip::TooltipState;
 pub use tooltip::TooltipStyle;
 
