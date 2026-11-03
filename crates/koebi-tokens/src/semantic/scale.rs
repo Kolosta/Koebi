@@ -11,6 +11,9 @@ koebi_design::tokens! {
 
     /// Inset of editor content from the editor border.
     SPACING_EDITOR_INSET = "spacing.editor-inset": Dimension -> primitive::SPACING_300;
+    /// Space above and below controls one interface unit high in what holds them in a row:
+    /// panel headers, editor top bars, tab bars and title bars.
+    SPACING_CONTROL_INSET = "spacing.control-inset": Dimension -> primitive::SPACING_50;
 
     /// Size scale: extra-extra-small, for component dimensions.
     SIZE_XXS = "size.xxs": Dimension -> primitive::SIZE_75;
@@ -77,6 +80,9 @@ koebi_design::tokens! {
     OPACITY_DEFAULT = "opacity.default": Number -> primitive::OPACITY_1000;
     /// Opacity of disabled elements.
     OPACITY_DISABLED = "opacity.disabled": Number -> primitive::OPACITY_300;
+    /// Share of its selected color a selected control keeps once disabled (a toggle switched
+    /// on, then disabled): the rest is its disabled color.
+    DISABLED_SELECTED_TINT = "disabled.selected-tint": Number -> primitive::OPACITY_400;
 
     /// Light veil over content.
     OPACITY_DIM_LIGHT = "opacity.dim.light": Number -> OPACITY_MODERATE;

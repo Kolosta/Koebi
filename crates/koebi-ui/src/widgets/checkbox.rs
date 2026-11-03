@@ -59,6 +59,10 @@ impl CheckboxStyle {
         let get = |token| tokens.get(token);
         let disabled_background = get(c::CHECKBOX_BACKGROUND_COLOR_DISABLED);
         let disabled_border = get(c::CHECKBOX_BORDER_COLOR_DISABLED);
+        // Checked, then disabled: the disabled colors, tinted with the checked ones.
+        let tint = tokens.get(c::CHECKBOX_SELECTED_DISABLED_TINT);
+        let checked = get(c::CHECKBOX_BACKGROUND_COLOR_SELECTED);
+        let border_checked = get(c::CHECKBOX_BORDER_COLOR_SELECTED);
         Self {
             background: States {
                 normal: get(c::CHECKBOX_BACKGROUND_COLOR_DEFAULT),
@@ -67,14 +71,16 @@ impl CheckboxStyle {
                 selected: get(c::CHECKBOX_BACKGROUND_COLOR_DEFAULT),
                 selected_hovered: get(c::CHECKBOX_BACKGROUND_COLOR_HOVER),
                 disabled: disabled_background,
+                selected_disabled: disabled_background,
             },
             background_checked: States {
-                normal: get(c::CHECKBOX_BACKGROUND_COLOR_SELECTED),
+                normal: checked,
                 hovered: get(c::CHECKBOX_BACKGROUND_COLOR_SELECTED_HOVER),
                 pressed: get(c::CHECKBOX_BACKGROUND_COLOR_SELECTED_PRESSED),
-                selected: get(c::CHECKBOX_BACKGROUND_COLOR_SELECTED),
+                selected: checked,
                 selected_hovered: get(c::CHECKBOX_BACKGROUND_COLOR_SELECTED_HOVER),
-                disabled: disabled_background,
+                disabled: disabled_background.mix_oklab(checked, tint),
+                selected_disabled: disabled_background.mix_oklab(checked, tint),
             },
             border: States {
                 hovered: get(c::CHECKBOX_BORDER_COLOR_HOVER),
@@ -83,8 +89,9 @@ impl CheckboxStyle {
                 ..States::all(get(c::CHECKBOX_BORDER_COLOR_DEFAULT))
             },
             border_checked: States {
-                disabled: disabled_border,
-                ..States::all(get(c::CHECKBOX_BORDER_COLOR_SELECTED))
+                disabled: disabled_border.mix_oklab(border_checked, tint),
+                selected_disabled: disabled_border.mix_oklab(border_checked, tint),
+                ..States::all(border_checked)
             },
             mark: get(c::CHECKBOX_MARK_COLOR_DEFAULT),
             mark_disabled: get(c::CHECKBOX_MARK_COLOR_DISABLED),
@@ -117,7 +124,7 @@ fn box_rect(side: f32, line: Rect) -> Rect {
 }
 
 /// Color overrides of a call: per part (background, border), unchecked or checked, per state.
-type BoxColors = [[[Option<Prop<kind::Color>>; 6]; 2]; 2];
+type BoxColors = [[[Option<Prop<kind::Color>>; ControlState::ALL.len()]; 2]; 2];
 
 const BACKGROUND: usize = 0;
 const BORDER: usize = 1;
@@ -444,7 +451,8 @@ mod tests {
         input.primary_button(false, Vec2::new(120.0, 10.0));
         let (response, scene) = frame(&mut state, &mut input, &mut checked, |c| c.label("Snap"));
         assert!(checked && response.changed);
-        assert_eq!(scene.line_count(), 2);
+        // The check mark: one stroke.
+        assert_eq!(scene.line_count(), 1);
     }
 
     #[test]

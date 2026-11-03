@@ -30,7 +30,7 @@ koebi_design::tokens! {
         semantic::BACKGROUND_APP_CONTROL;
     /// Text field: background color, disabled.
     TEXT_FIELD_BACKGROUND_COLOR_DISABLED = "text-field.background.color.disabled": Color ->
-        semantic::BACKGROUND_APP_FRAME;
+        semantic::BACKGROUND_APP_DISABLED;
     /// Text field: border color.
     TEXT_FIELD_BORDER_COLOR_DEFAULT = "text-field.border.color.default": Color ->
         semantic::NEUTRAL_COLOR_700;

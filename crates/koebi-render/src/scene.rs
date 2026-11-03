@@ -182,17 +182,22 @@ impl RectPrimitive {
     }
 }
 
-/// A straight segment with round caps: strokes of check marks, chevrons and icons.
+/// A straight segment with round caps, or two joined at a corner: strokes of check marks,
+/// chevrons and icons.
 ///
 /// Caps extend half the width beyond both ends, so segments sharing an end point join with a
-/// round corner, and a zero-length segment is a dot. Where translucent segments overlap, the
-/// overlap blends twice.
+/// round corner, and a zero-length segment is a dot. Where separate segments overlap, their
+/// anti-aliased edges blend twice and the overlap looks heavier; the two segments of one
+/// primitive ([`LinePrimitive::then`]) cover each pixel once, so that their corner keeps the
+/// weight of the rest of the stroke.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LinePrimitive {
     /// Start point in logical pixels.
     pub from: Vec2,
     /// End point in logical pixels.
     pub to: Vec2,
+    /// The end of a second segment, from `to`, in logical pixels.
+    pub next: Option<Vec2>,
     /// Stroke width in logical pixels.
     pub width: f32,
     /// Color.
@@ -205,9 +210,26 @@ impl LinePrimitive {
         Self {
             from,
             to,
+            next: None,
             width,
             color,
         }
+    }
+
+    /// The stroke going on from `to` to `next`: one stroke with a round corner at `to`.
+    #[must_use]
+    pub const fn then(self, next: Vec2) -> Self {
+        Self {
+            next: Some(next),
+            ..self
+        }
+    }
+
+    /// The points of the stroke: `from`, `to`, and `next` when it goes on.
+    fn points(&self) -> impl Iterator<Item = Vec2> {
+        [Some(self.from), Some(self.to), self.next]
+            .into_iter()
+            .flatten()
     }
 }
 
@@ -287,7 +309,8 @@ pub(crate) struct LineInstance {
     pub(crate) points: [f32; 4],
     /// Premultiplied color.
     pub(crate) color: [f32; 4],
-    /// `half_width, 0, 0, 0` in logical pixels.
+    /// `half_width, next.x, next.y, 1` in logical pixels for two joined segments,
+    /// `half_width, 0, 0, 0` for one.
     pub(crate) params: [f32; 4],
 }
 
@@ -301,10 +324,13 @@ impl LineInstance {
 
     fn from_primitive(primitive: &LinePrimitive) -> Self {
         let (from, to) = (primitive.from, primitive.to);
+        let half_width = primitive.width * 0.5;
         Self {
             points: [from.x, from.y, to.x, to.y],
             color: primitive.color.premultiplied(),
-            params: [primitive.width * 0.5, 0.0, 0.0, 0.0],
+            params: primitive.next.map_or([half_width, 0.0, 0.0, 0.0], |next| {
+                [half_width, next.x, next.y, 1.0]
+            }),
         }
     }
 }
@@ -502,18 +528,24 @@ impl Scene {
         self.extend_batch(PrimitiveKind::Rect, self.rects.len());
     }
 
-    /// Appends a segment. Segments without width or color are culled, and so are segments
-    /// with a non-finite coordinate or width, which cannot be drawn.
+    /// Appends a segment, or two joined. Strokes without width or color are culled, and so are
+    /// strokes with a non-finite coordinate or width, which cannot be drawn.
     pub fn push_line(&mut self, primitive: &LinePrimitive) {
-        let (from, to, width) = (primitive.from, primitive.to, primitive.width);
-        let finite = [from.x, from.y, to.x, to.y, width]
-            .iter()
-            .all(|v| v.is_finite());
+        let width = primitive.width;
+        let finite = width.is_finite()
+            && primitive
+                .points()
+                .all(|point| point.x.is_finite() && point.y.is_finite());
         if !finite || width <= 0.0 || primitive.color.a <= 0.0 {
             return;
         }
         let reach = Vec2::splat(width * 0.5);
-        let bounds = Rect::from_min_max(from.min(to) - reach, from.max(to) + reach);
+        let (low, high) = primitive
+            .points()
+            .fold((primitive.from, primitive.from), |(low, high), point| {
+                (low.min(point), high.max(point))
+            });
+        let bounds = Rect::from_min_max(low - reach, high + reach);
         if !self.visible(bounds) {
             return;
         }
@@ -670,6 +702,10 @@ mod tests {
         assert_eq!(instance.points, [1.0, 2.0, 3.0, 4.0]);
         assert_eq!(instance.color, [0.0, 0.5, 0.25, 0.5]);
         assert_eq!(instance.params, [1.0, 0.0, 0.0, 0.0]);
+        // A second segment joined at `to`.
+        let joined = LineInstance::from_primitive(&line().then(Vec2::new(5.0, 2.0)));
+        assert_eq!(joined.points, [1.0, 2.0, 3.0, 4.0]);
+        assert_eq!(joined.params, [1.0, 5.0, 2.0, 1.0]);
     }
 
     #[test]
@@ -704,6 +740,7 @@ mod tests {
                 to: Vec2::new(f32::INFINITY, 0.0),
                 ..line()
             },
+            line().then(Vec2::new(0.0, f32::NAN)),
         ] {
             scene.push_line(&invisible);
         }

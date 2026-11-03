@@ -1,5 +1,7 @@
 //! [`ControlState`] and [`States`]: the visual states of controls, and a value for each.
 
+use koebi_core::Color;
+
 use crate::ui::Response;
 
 /// The visual state of a control: from the pointer, and from the control's own state
@@ -17,19 +19,23 @@ pub enum ControlState {
     Selected,
     /// Selected, under the pointer.
     SelectedHovered,
-    /// Not available: no interaction.
+    /// Not available: no interaction, whatever the pointer does.
     Disabled,
+    /// Selected but not available: a toggle switched on, then disabled. It shows it is on,
+    /// dimmed, and the pointer changes nothing.
+    SelectedDisabled,
 }
 
 impl ControlState {
     /// Every state, in declaration order.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Normal,
         Self::Hovered,
         Self::Pressed,
         Self::Selected,
         Self::SelectedHovered,
         Self::Disabled,
+        Self::SelectedDisabled,
     ];
 
     /// The position of the state in [`ControlState::ALL`].
@@ -37,8 +43,22 @@ impl ControlState {
         self as usize
     }
 
-    /// The state of a control that got `response`: disabled first, then pressed (held under
-    /// the pointer), then hovered, each selected or not.
+    /// `true` for the states of a control that is not available.
+    pub const fn is_disabled(self) -> bool {
+        matches!(self, Self::Disabled | Self::SelectedDisabled)
+    }
+
+    /// `true` for the states of a selected control.
+    pub const fn is_selected(self) -> bool {
+        matches!(
+            self,
+            Self::Selected | Self::SelectedHovered | Self::SelectedDisabled
+        )
+    }
+
+    /// The state of a control that got `response`: disabled first (selected or not, the
+    /// pointer changing nothing), then pressed (held under the pointer), then hovered, each
+    /// selected or not.
     pub fn of(response: &Response, selected: bool, enabled: bool) -> Self {
         match (
             enabled,
@@ -46,6 +66,7 @@ impl ControlState {
             response.hovered,
             selected,
         ) {
+            (false, .., true) => Self::SelectedDisabled,
             (false, ..) => Self::Disabled,
             (true, true, ..) => Self::Pressed,
             (true, false, true, true) => Self::SelectedHovered,
@@ -57,13 +78,14 @@ impl ControlState {
 
     /// How a state ranks where two controls share an edge (grouped buttons): the shared
     /// border takes the colors of the higher one. Pressed ranks first, then hovered, then
-    /// selected, then rest, then disabled.
+    /// selected, then rest, then selected and disabled, then disabled.
     pub const fn priority(self) -> u8 {
         match self {
-            Self::Pressed => 5,
-            Self::Hovered | Self::SelectedHovered => 4,
-            Self::Selected => 3,
-            Self::Normal => 2,
+            Self::Pressed => 6,
+            Self::Hovered | Self::SelectedHovered => 5,
+            Self::Selected => 4,
+            Self::Normal => 3,
+            Self::SelectedDisabled => 2,
             Self::Disabled => 1,
         }
     }
@@ -84,6 +106,8 @@ pub struct States<T> {
     pub selected_hovered: T,
     /// Disabled.
     pub disabled: T,
+    /// Selected and disabled.
+    pub selected_disabled: T,
 }
 
 impl<T: Copy> States<T> {
@@ -96,6 +120,7 @@ impl<T: Copy> States<T> {
             selected: value,
             selected_hovered: value,
             disabled: value,
+            selected_disabled: value,
         }
     }
 
@@ -108,6 +133,7 @@ impl<T: Copy> States<T> {
             ControlState::Selected => self.selected,
             ControlState::SelectedHovered => self.selected_hovered,
             ControlState::Disabled => self.disabled,
+            ControlState::SelectedDisabled => self.selected_disabled,
         }
     }
 
@@ -120,6 +146,7 @@ impl<T: Copy> States<T> {
             ControlState::Selected => &mut self.selected,
             ControlState::SelectedHovered => &mut self.selected_hovered,
             ControlState::Disabled => &mut self.disabled,
+            ControlState::SelectedDisabled => &mut self.selected_disabled,
         } = value;
     }
 
@@ -133,6 +160,20 @@ impl<T: Copy> States<T> {
             selected: map(self.selected),
             selected_hovered: map(self.selected_hovered),
             disabled: map(self.disabled),
+            selected_disabled: map(self.selected_disabled),
+        }
+    }
+}
+
+impl States<Color> {
+    /// The colors with their selected and disabled one derived: the disabled color, keeping
+    /// `tint` of the selected one, so that a control switched on and then disabled still
+    /// shows it is on.
+    #[must_use]
+    pub fn with_selected_disabled(self, tint: f32) -> Self {
+        Self {
+            selected_disabled: self.disabled.mix_oklab(self.selected, tint),
+            ..self
         }
     }
 }
@@ -172,10 +213,41 @@ mod tests {
             ControlState::of(&response(true, false), true, true),
             ControlState::SelectedHovered
         );
+        // Disabled, the pointer changes nothing; a selected control stays selected.
         assert_eq!(
-            ControlState::of(&response(true, true), true, false),
+            ControlState::of(&response(true, true), false, false),
             ControlState::Disabled
         );
+        assert_eq!(
+            ControlState::of(&response(true, false), false, false),
+            ControlState::Disabled
+        );
+        assert_eq!(
+            ControlState::of(&response(true, true), true, false),
+            ControlState::SelectedDisabled
+        );
+        assert_eq!(
+            ControlState::of(&response(false, false), true, false),
+            ControlState::SelectedDisabled
+        );
+    }
+
+    #[test]
+    fn states_tell_whether_they_are_selected_or_disabled() {
+        for state in ControlState::ALL {
+            let selected = matches!(
+                state,
+                ControlState::Selected
+                    | ControlState::SelectedHovered
+                    | ControlState::SelectedDisabled
+            );
+            assert_eq!(state.is_selected(), selected, "{state:?}");
+            let disabled = matches!(
+                state,
+                ControlState::Disabled | ControlState::SelectedDisabled
+            );
+            assert_eq!(state.is_disabled(), disabled, "{state:?}");
+        }
     }
 
     #[test]
@@ -183,7 +255,8 @@ mod tests {
         let mut ranked = ControlState::ALL;
         ranked.sort_by_key(|state| core::cmp::Reverse(state.priority()));
         assert_eq!(ranked[0], ControlState::Pressed);
-        assert_eq!(ranked[5], ControlState::Disabled);
+        assert_eq!(ranked[5], ControlState::SelectedDisabled);
+        assert_eq!(ranked[6], ControlState::Disabled);
     }
 
     #[test]
@@ -193,5 +266,31 @@ mod tests {
         assert_eq!(values.get(ControlState::SelectedHovered), 4);
         assert_eq!(values.get(ControlState::Normal), 0);
         assert_eq!(values.map(|value| value * 2).selected_hovered, 8);
+        values.set(ControlState::SelectedDisabled, 6);
+        assert_eq!(values.get(ControlState::SelectedDisabled), 6);
+        assert_eq!(values.get(ControlState::Disabled), 0);
+    }
+
+    #[test]
+    fn selected_disabled_colors_keep_a_tint_of_the_selected_one() {
+        let accent = Color::from_hex(0x3D_7E_FF);
+        let disabled = Color::from_hex(0x30_30_30);
+        let colors = States {
+            selected: accent,
+            disabled,
+            ..States::all(Color::WHITE)
+        };
+        let shown = |tint: f32| {
+            colors
+                .with_selected_disabled(tint)
+                .selected_disabled
+                .to_rgba8()
+        };
+        assert_eq!(shown(0.0), disabled.to_rgba8());
+        assert_eq!(shown(1.0), accent.to_rgba8());
+        assert_ne!(shown(0.4), disabled.to_rgba8());
+        assert_ne!(shown(0.4), accent.to_rgba8());
+        // The rest is left as it was.
+        assert_eq!(colors.with_selected_disabled(0.4).disabled, disabled);
     }
 }

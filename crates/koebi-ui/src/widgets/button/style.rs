@@ -70,6 +70,7 @@ impl ButtonStyle {
                 selected: get(c::BUTTON_BACKGROUND_COLOR_SELECTED),
                 selected_hovered: get(c::BUTTON_BACKGROUND_COLOR_SELECTED_HOVER),
                 disabled: disabled.0,
+                selected_disabled: disabled.0,
             },
             border: States {
                 normal: get(c::BUTTON_BORDER_COLOR_DEFAULT),
@@ -78,6 +79,7 @@ impl ButtonStyle {
                 selected: get(c::BUTTON_BORDER_COLOR_SELECTED),
                 selected_hovered: get(c::BUTTON_BORDER_COLOR_SELECTED),
                 disabled: disabled.1,
+                selected_disabled: disabled.1,
             },
             content: label,
             icon: label,
@@ -97,6 +99,7 @@ impl ButtonStyle {
                 selected: background[2],
                 selected_hovered: shade(background[2], shades.hover),
                 disabled: disabled.0,
+                selected_disabled: disabled.0,
             },
             border: States {
                 disabled: disabled.1,
@@ -225,6 +228,7 @@ impl ButtonStyle {
             selected: get(c::TOGGLE_LABEL_COLOR_SELECTED),
             selected_hovered: get(c::TOGGLE_LABEL_COLOR_SELECTED),
             disabled: get(c::TOGGLE_LABEL_COLOR_DISABLED),
+            selected_disabled: get(c::TOGGLE_LABEL_COLOR_DISABLED),
         };
         let toggle = ToneColors {
             background: States {
@@ -234,6 +238,7 @@ impl ButtonStyle {
                 selected: get(c::TOGGLE_BACKGROUND_COLOR_SELECTED),
                 selected_hovered: get(c::TOGGLE_BACKGROUND_COLOR_SELECTED_HOVER),
                 disabled: get(c::TOGGLE_BACKGROUND_COLOR_DISABLED),
+                selected_disabled: get(c::TOGGLE_BACKGROUND_COLOR_DISABLED),
             },
             border: States {
                 normal: get(c::TOGGLE_BORDER_COLOR_DEFAULT),
@@ -242,10 +247,16 @@ impl ButtonStyle {
                 selected: get(c::TOGGLE_BORDER_COLOR_SELECTED),
                 selected_hovered: get(c::TOGGLE_BORDER_COLOR_SELECTED),
                 disabled: get(c::TOGGLE_BORDER_COLOR_DISABLED),
+                selected_disabled: get(c::TOGGLE_BORDER_COLOR_DISABLED),
             },
             content: toggle_label,
             icon: toggle_label,
         };
+        // Switched on, then disabled: the disabled colors, tinted with the selected ones.
+        let tint = tokens.get(c::BUTTON_SELECTED_DISABLED_TINT);
+        let variants = variants.map(|colors| colors.with_selected_disabled(tint));
+        let hues = hues.map(|row| row.map(|colors| colors.with_selected_disabled(tint)));
+        let toggle = toggle.with_selected_disabled(tint);
         Self {
             height: tokens.get(c::BUTTON_HEIGHT_DEFAULT),
             min_width: tokens.get(c::BUTTON_MIN_WIDTH_DEFAULT),

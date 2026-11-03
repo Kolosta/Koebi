@@ -140,6 +140,11 @@ impl<'a> Button<'a> {
             icon_size: defaults.icon_size,
             trailing_size: defaults.trailing_size,
             stroke_width: styles.button.stroke_width,
+            trailing_stroke_width: if self.look() == Look::Dropdown {
+                styles.icon.chevron_stroke_width
+            } else {
+                styles.button.stroke_width
+            },
             dot_size: styles.button.dot_size,
             font: &styles.text.label,
         }

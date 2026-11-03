@@ -43,7 +43,7 @@ koebi_design::tokens! {
         semantic::BACKGROUND_ACCENT_HOVER;
     /// Toggle: background color, disabled.
     TOGGLE_BACKGROUND_COLOR_DISABLED = "toggle.background.color.disabled": Color ->
-        semantic::BACKGROUND_APP_CONTROL;
+        semantic::BACKGROUND_APP_DISABLED;
     /// Toggle: border color, hovered or pressed.
     TOGGLE_BORDER_COLOR_HOVER = "toggle.border.color.hover": Color ->
         semantic::BORDER_COLOR_STRONG_DEFAULT;

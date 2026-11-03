@@ -6,7 +6,9 @@
 
 mod common;
 
-use common::{assert_pixel, over, render};
+use std::ops::Range;
+
+use common::{assert_pixel, over, render, render_scaled};
 use koebi_core::{Color, Extent, Rect, Vec2};
 use koebi_design::{ColorVision, Deficiency, DesignSystem, Scope};
 use koebi_render::RectPrimitive;
@@ -611,5 +613,158 @@ fn menus_cover_what_is_drawn_after_them() {
     let background = design.get(component::MENU_BACKGROUND_COLOR_DEFAULT);
     assert_pixel(&image, 18, 24, background.to_rgba8());
     assert_pixel(&image, 150, 80, red.to_rgba8());
+    gpu.assert_no_validation_errors();
+}
+
+/// The horizontal middle, in physical pixels, of what differs from `fill` in the pixels
+/// `columns` and `rows`, each pixel weighing by how much it differs.
+fn ink_middle(
+    image: &koebi_testkit::Image,
+    columns: Range<u32>,
+    rows: Range<u32>,
+    fill: [u8; 4],
+) -> f64 {
+    let (mut weight, mut moment) = (0.0, 0.0);
+    for y in rows {
+        for x in columns.clone() {
+            let pixel = image.pixel(x, y);
+            let ink: u32 = (0..3).map(|c| u32::from(pixel[c].abs_diff(fill[c]))).sum();
+            weight += f64::from(ink);
+            moment += f64::from(ink) * (f64::from(x) + 0.5);
+        }
+    }
+    assert!(weight > 0.0, "nothing drawn there");
+    moment / weight
+}
+
+#[test]
+fn a_fold_arrow_points_along_the_line_of_its_children_at_every_scale() {
+    let Some(gpu) =
+        gpu_or_skip("a_fold_arrow_points_along_the_line_of_its_children_at_every_scale")
+    else {
+        return;
+    };
+    let styles = Styles::resolve(&design());
+    let items = [
+        ListItem::new(1, ""),
+        ListItem::new(2, "").with_depth(1),
+        ListItem::new(3, "").with_depth(1),
+    ];
+    let options = ListOptions {
+        zebra: false,
+        ..ListOptions::TREE
+    };
+    let fill = styles.background.to_rgba8();
+    for scale in [1.0_f32, 1.25, 1.5, 1.75, 2.0] {
+        let mut scene = Scene::new();
+        scene.set_clear_color(styles.background);
+        let (mut state, input) = (UiState::new(), Input::new());
+        state.set_scale_factor(scale);
+        let mut list = ListState::new();
+        let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+        let bounds = rect(0.0, 0.0, 100.0, 80.0);
+        ui.list(
+            WidgetId::new("tree"),
+            bounds,
+            &mut list,
+            &items,
+            &options,
+            &mut (),
+        );
+        drop(ui);
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "positive pixel positions"
+        )]
+        let px = |logical: f32| (logical * scale).round() as u32;
+        let image = render_scaled(&gpu, Extent::new(px(100.0), px(80.0)), &scene, scale);
+        // The arrow's slot: 16 pixels after 4 of padding, in the first row, 20 pixels high;
+        // below it, the line along its two children.
+        let columns = px(4.0)..px(20.0);
+        let arrow = ink_middle(&image, columns.clone(), 0..px(20.0), fill);
+        let line = ink_middle(&image, columns, px(20.0)..px(60.0), fill);
+        assert!(
+            (arrow - line).abs() < 0.05,
+            "at {scale}: the arrow's middle is at {arrow}, the line's at {line}"
+        );
+    }
+    gpu.assert_no_validation_errors();
+}
+
+/// Each control, enabled or not, in the row at `top`: a text field, a number field, a
+/// dropdown, a button and a checkbox. Returns where each shows its background alone.
+fn control_row(ui: &mut Ui<'_>, top: f32, enabled: bool) -> [(u32, u32); 5] {
+    let id = |name: &str| WidgetId::new(name).with(u64::from(enabled));
+    let (mut text, mut value, mut checked) = (String::new(), 0.5, false);
+    let mut menu = MenuState::new();
+    let items = [MenuItem::action("One")];
+    let cells: [Rect; 5] = core::array::from_fn(|index| {
+        let x = 4.0 + 40.0 * f32::from(u8::try_from(index).expect("five cells"));
+        rect(x, top, 36.0, 20.0)
+    });
+    koebi_ui::TextField::new(id("text"), &mut text)
+        .enabled(enabled)
+        .show(ui, cells[0]);
+    NumberField::new(id("number"), &mut value)
+        .range(0.0, 1.0)
+        .enabled(enabled)
+        .show(ui, cells[1]);
+    Dropdown::new(id("dropdown"), &mut menu, &items)
+        .enabled(enabled)
+        .show(ui, cells[2], rect(0.0, 0.0, 200.0, 100.0));
+    Button::new(id("button"))
+        .enabled(enabled)
+        .show(ui, cells[3]);
+    Checkbox::new(id("checkbox"), &mut checked)
+        .enabled(enabled)
+        .show(ui, cells[4]);
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "positive pixel positions"
+    )]
+    let pixel = |x: f32, y: f32| (x as u32, y as u32);
+    let mut places = cells.map(|cell| pixel(cell.min.x + 4.0, cell.center().y));
+    // The checkbox's box, at its start.
+    let checkbox = Styles::resolve(&design()).checkbox.box_rect(cells[4]);
+    places[4] = pixel(checkbox.min.x + 3.0, checkbox.min.y + 3.0);
+    places
+}
+
+#[test]
+fn disabled_controls_show_the_disabled_background_in_every_theme() {
+    let Some(gpu) = gpu_or_skip("disabled_controls_show_the_disabled_background_in_every_theme")
+    else {
+        return;
+    };
+    let mut design = design();
+    let themes: Vec<_> = design.themes().map(|(id, _)| id).collect();
+    for theme in themes {
+        design.set_active_theme(theme).expect("a built-in theme");
+        let mut places = ([(0, 0); 5], [(0, 0); 5]);
+        let scene = draw(&design, |ui| {
+            places = (control_row(ui, 10.0, true), control_row(ui, 50.0, false));
+        });
+        let image = render(&gpu, SIZE, &scene);
+        let disabled = design.get(semantic::BACKGROUND_APP_DISABLED).to_rgba8();
+        let controls = [
+            "text field",
+            "number field",
+            "dropdown",
+            "button",
+            "checkbox",
+        ];
+        for ((name, enabled), (x, y)) in controls.iter().zip(places.0).zip(places.1) {
+            assert_pixel(&image, x, y, disabled);
+            let (ex, ey) = enabled;
+            assert_ne!(
+                image.pixel(ex, ey),
+                disabled,
+                "{name}: enabled and disabled look alike in {:?}",
+                design.active_theme()
+            );
+        }
+    }
     gpu.assert_no_validation_errors();
 }

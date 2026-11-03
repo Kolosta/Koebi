@@ -22,7 +22,7 @@ fn hex(rgb: u32) -> Color {
 #[test]
 fn schema_passes_the_run_time_validation() {
     assert_eq!(KOEBI.validate(), Ok(()));
-    assert_eq!(KOEBI.len(), 1832);
+    assert_eq!(KOEBI.len(), 1839);
     assert_eq!(KOEBI.composites().count(), 21);
     let keys: Vec<_> = design().themes().map(|(_, t)| t.key().to_owned()).collect();
     assert_eq!(keys, ["dark", "light", "muted-green", "high-contrast"]);
@@ -262,9 +262,9 @@ fn themes_redefine_what_differs_from_the_base() {
             themes::LIGHT.entries().len(),
             themes::MUTED_GREEN.entries().len()
         ),
-        (20, 16)
+        (21, 16)
     );
-    assert_eq!(themes::HIGH_CONTRAST.entries().len(), 24);
+    assert_eq!(themes::HIGH_CONTRAST.entries().len(), 25);
 }
 
 #[test]

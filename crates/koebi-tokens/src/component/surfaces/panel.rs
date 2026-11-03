@@ -38,9 +38,13 @@ koebi_design::tokens! {
         semantic::BORDER_WIDTH_THIN;
     /// Panel: space between the border and the content.
     PANEL_PADDING_DEFAULT = "panel.padding.default": Dimension = px(8.0), range(0.0, 32.0);
-    /// Collapsible panel: height of a header.
+    /// Collapsible panel: height of what a header holds (its title, the controls at its end),
+    /// one interface unit; the header adds its inset above and below.
     PANEL_HEADER_HEIGHT_DEFAULT = "panel.header.height.default": Dimension ->
         semantic::SIZE_CONTROL_HEIGHT;
+    /// Collapsible panel: space above and below what a header holds.
+    PANEL_HEADER_INSET_DEFAULT = "panel.header.inset.default": Dimension ->
+        semantic::SPACING_CONTROL_INSET;
     /// Collapsible panel: space between a header's sides and its content.
     PANEL_HEADER_PADDING_DEFAULT = "panel.header.padding.default": Dimension = px(6.0),
         range(0.0, 32.0);
@@ -51,7 +55,7 @@ koebi_design::tokens! {
     PANEL_HEADER_HOVER_LIGHTNESS = "panel.header.hover.lightness": Number = 0.04,
         range(-0.5, 0.5);
     /// Collapsible panel: side of a header's chevron.
-    PANEL_CHEVRON_SIZE = "panel.chevron.size": Dimension = px(10.0), range(0.0, 32.0);
+    PANEL_CHEVRON_SIZE = "panel.chevron.size": Dimension = px(12.5), range(0.0, 32.0);
     /// Collapsible panel: chevron color.
     PANEL_CHEVRON_COLOR_DEFAULT = "panel.chevron.color.default": Color ->
         semantic::TEXT_COLOR_SECONDARY_DEFAULT;

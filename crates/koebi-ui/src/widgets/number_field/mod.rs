@@ -184,7 +184,7 @@ impl NumberFieldResponse {
 }
 
 /// The parts whose colors the call can set per state.
-type FieldColors = [[Option<Prop<kind::Color>>; 6]; 3];
+type FieldColors = [[Option<Prop<kind::Color>>; ControlState::ALL.len()]; 3];
 
 const BACKGROUND: usize = 0;
 const BORDER: usize = 1;

@@ -55,6 +55,9 @@ impl DropdownStyle {
         let open = get(c::DROPDOWN_BACKGROUND_COLOR_OPEN);
         let border_open = get(c::DROPDOWN_BORDER_COLOR_OPEN);
         let border_hover = get(c::DROPDOWN_BORDER_COLOR_HOVER);
+        // A disabled dropdown cannot be open: selected or not, it looks disabled.
+        let disabled = get(c::DROPDOWN_BACKGROUND_COLOR_DISABLED);
+        let border_disabled = get(c::DROPDOWN_BORDER_COLOR_DISABLED);
         Self {
             colors: ToneColors {
                 background: States {
@@ -63,7 +66,8 @@ impl DropdownStyle {
                     pressed: get(c::DROPDOWN_BACKGROUND_COLOR_PRESSED),
                     selected: open,
                     selected_hovered: open,
-                    disabled: get(c::DROPDOWN_BACKGROUND_COLOR_DISABLED),
+                    disabled,
+                    selected_disabled: disabled,
                 },
                 border: States {
                     normal: get(c::DROPDOWN_BORDER_COLOR_DEFAULT),
@@ -71,14 +75,17 @@ impl DropdownStyle {
                     pressed: border_hover,
                     selected: border_open,
                     selected_hovered: border_open,
-                    disabled: get(c::DROPDOWN_BORDER_COLOR_DISABLED),
+                    disabled: border_disabled,
+                    selected_disabled: border_disabled,
                 },
                 content: States {
                     disabled: get(c::DROPDOWN_LABEL_COLOR_DISABLED),
+                    selected_disabled: get(c::DROPDOWN_LABEL_COLOR_DISABLED),
                     ..States::all(get(c::DROPDOWN_LABEL_COLOR_DEFAULT))
                 },
                 icon: States {
                     disabled: get(c::DROPDOWN_ICON_COLOR_DISABLED),
+                    selected_disabled: get(c::DROPDOWN_ICON_COLOR_DISABLED),
                     ..States::all(get(c::DROPDOWN_ICON_COLOR_DEFAULT))
                 },
             },
@@ -365,8 +372,8 @@ mod tests {
     fn a_click_opens_the_menu_below_and_a_choice_closes_it() {
         let mut harness = Harness::new();
         let (_, closed) = harness.frame(Placement::BELOW, control());
-        // The control, its chevron and its label.
-        assert_eq!((closed.rect_count(), closed.line_count()), (1, 2));
+        // The control, its chevron (one stroke) and its label.
+        assert_eq!((closed.rect_count(), closed.line_count()), (1, 1));
         assert!(closed.glyph_count() >= 8);
         harness.click(Vec2::new(50.0, 20.0));
         let (_, open) = harness.frame(Placement::BELOW, control());

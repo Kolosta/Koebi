@@ -56,9 +56,9 @@ fn factor(index: usize) -> f32 {
 /// per state.
 fn state_cell(variant: Variant, state: ControlState) -> Rect {
     rect(
-        8.0 + 40.0 * factor(state.index()),
+        8.0 + 34.0 * factor(state.index()),
         8.0 + 22.0 * factor(variant.index()),
-        36.0,
+        32.0,
         20.0,
     )
 }
@@ -95,11 +95,8 @@ fn show_in_state(
         }
         _ => Vec2::new(-100.0, -100.0),
     };
-    let selected = matches!(
-        state,
-        ControlState::Selected | ControlState::SelectedHovered
-    );
-    let enabled = state != ControlState::Disabled;
+    let selected = state.is_selected();
+    let enabled = !state.is_disabled();
     let mut input = Input::new();
     input.pointer_moved(pointer);
     let mut ui_state = UiState::new();
@@ -614,5 +611,137 @@ fn every_tone_shows_its_border_colors_in_every_state() {
             );
         }
     }
+    gpu.assert_no_validation_errors();
+}
+
+/// The first and last columns of `cell` where something other than `fill` shows, in the rows
+/// clear of its rounded corners (`radius`).
+fn inked_columns(
+    image: &koebi_testkit::Image,
+    cell: Rect,
+    radius: f32,
+    fill: [u8; 4],
+) -> Option<(u32, u32)> {
+    let (top, bottom) = (px(cell.min.y + radius), px(cell.max.y - radius));
+    let inked = |x: u32| (top..bottom).any(|y| image.pixel(x, y) != fill);
+    let columns = px(cell.min.x)..px(cell.max.x);
+    let first = columns.clone().find(|&x| inked(x))?;
+    let last = columns.rev().find(|&x| inked(x))?;
+    Some((first, last))
+}
+
+#[test]
+fn an_icon_is_centered_in_a_button_too_narrow_for_its_paddings() {
+    let Some(gpu) = gpu_or_skip("an_icon_is_centered_in_a_button_too_narrow_for_its_paddings")
+    else {
+        return;
+    };
+    let design = design();
+    let styles = Styles::resolve(&design);
+    let icons = [Icon::Reset, Icon::Check, Icon::Minus, Icon::Close];
+    let sizes = [16.0, 18.0, 20.0, 24.0, 40.0];
+    let cell = |row: u64, column: u64| {
+        let side = sizes[usize::try_from(column).expect("five sizes")];
+        let at = |index: u64| 8.0 + 48.0 * f32::from(u8::try_from(index).expect("a few cells"));
+        rect(at(column), at(row), side, side)
+    };
+    let mut scene = Scene::new();
+    scene.set_clear_color(styles.background);
+    let (mut state, input) = (UiState::new(), Input::new());
+    state.set_fonts(Fonts::with_embedded());
+    let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+    for (row, &icon) in (0_u64..).zip(&icons) {
+        for (column, _) in (0_u64..).zip(&sizes) {
+            Button::new(WidgetId::new("icon").with(row * 8 + column))
+                .icon(icon)
+                .show(&mut ui, cell(row, column));
+        }
+    }
+    drop(ui);
+    let image = render(&gpu, SHEET, &scene);
+    let fill = over(
+        styles.button.colors(Tone::DEFAULT).background.normal,
+        styles.background,
+    )
+    .to_rgba8();
+    for (row, icon) in (0_u64..).zip(&icons) {
+        for (column, _) in (0_u64..).zip(&sizes) {
+            let cell = cell(row, column);
+            let (first, last) = inked_columns(&image, cell, styles.button.corner_radius, fill)
+                .unwrap_or_else(|| panic!("{icon:?} in {cell:?} shows nothing"));
+            // As much room on each side, to the pixel, and none of the icon cut away.
+            let (left, right) = (first - px(cell.min.x), px(cell.max.x) - 1 - last);
+            assert!(
+                left.abs_diff(right) <= 1,
+                "{icon:?} in {cell:?}: {left} pixels on its left, {right} on its right"
+            );
+            assert!(
+                left > 0 && right > 0,
+                "{icon:?} in {cell:?} touches its sides"
+            );
+        }
+    }
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn a_toggle_switched_on_then_disabled_shows_it_is_on_and_ignores_the_pointer() {
+    let Some(gpu) =
+        gpu_or_skip("a_toggle_switched_on_then_disabled_shows_it_is_on_and_ignores_the_pointer")
+    else {
+        return;
+    };
+    let design = design();
+    let styles = Styles::resolve(&design);
+    let (mut on, mut off) = (true, false);
+    let cells = [
+        rect(8.0, 8.0, 60.0, 20.0),
+        rect(8.0, 36.0, 60.0, 20.0),
+        rect(80.0, 8.0, 60.0, 20.0),
+        rect(80.0, 36.0, 60.0, 20.0),
+    ];
+    let mut scene = Scene::new();
+    scene.set_clear_color(styles.background);
+    let mut state = UiState::new();
+    // Over the second toggle of each column, and pressed: what a disabled control ignores.
+    let mut input = Input::new();
+    for _ in 0..2 {
+        scene.clear();
+        for pointer in [cells[1].center(), cells[3].center()] {
+            input.pointer_moved(pointer);
+            input.primary_button(true, pointer);
+        }
+        let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+        for (index, cell) in cells.into_iter().enumerate() {
+            let value = if index < 2 { &mut on } else { &mut off };
+            let id = WidgetId::new("toggle").with(u64::try_from(index).expect("four"));
+            Button::new(id)
+                .label("On")
+                .toggle(value)
+                .enabled(false)
+                .show(&mut ui, cell);
+        }
+        drop(ui);
+        input.end_frame();
+    }
+    // Nothing flipped.
+    assert!(on && !off);
+    let image = render(&gpu, SHEET, &scene);
+    let colors = &styles.button.toggle;
+    let shown = |state: ControlState| over(colors.background.get(state), styles.background);
+    let at = |cell: Rect| (px(cell.min.x + 5.0), px(cell.center().y));
+    for (index, cell) in cells.into_iter().enumerate() {
+        let expected = if index < 2 {
+            ControlState::SelectedDisabled
+        } else {
+            ControlState::Disabled
+        };
+        let (x, y) = at(cell);
+        assert_pixel(&image, x, y, shown(expected).to_rgba8());
+    }
+    // Switched on shows, dimmed: neither the plain disabled color nor the selected one.
+    let on_disabled = shown(ControlState::SelectedDisabled).to_rgba8();
+    assert_ne!(on_disabled, shown(ControlState::Disabled).to_rgba8());
+    assert_ne!(on_disabled, shown(ControlState::Selected).to_rgba8());
     gpu.assert_no_validation_errors();
 }

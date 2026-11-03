@@ -54,7 +54,7 @@ koebi_design::tokens! {
         semantic::BORDER_COLOR_ACCENT_DEFAULT;
     /// Button: background color, disabled.
     BUTTON_BACKGROUND_COLOR_DISABLED = "button.background.color.disabled": Color ->
-        semantic::BACKGROUND_APP_CONTROL;
+        semantic::BACKGROUND_APP_DISABLED;
     /// Button: label color, disabled.
     BUTTON_LABEL_COLOR_DISABLED = "button.label.color.disabled": Color ->
         semantic::TEXT_COLOR_DISABLED_DEFAULT;
@@ -182,6 +182,9 @@ koebi_design::tokens! {
         -0.05, range(-0.5, 0.5);
     /// Disabled button colored by a family: how much of the family's color stays.
     BUTTON_HUE_DISABLED_TINT = "button.hue.disabled.tint": Number = 0.35, range(0.0, 1.0);
+    /// Selected button, then disabled: how much of its selected color stays.
+    BUTTON_SELECTED_DISABLED_TINT = "button.selected.disabled.tint": Number ->
+        semantic::DISABLED_SELECTED_TINT;
 
     /// Blue buttons: fill of colored variants.
     BUTTON_HUE_BLUE_FILL = "button.hue.blue.fill": Color -> semantic::BACKGROUND_BLUE_DEFAULT;

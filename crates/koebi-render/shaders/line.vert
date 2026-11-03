@@ -1,9 +1,9 @@
 #version 450
-// Instanced straight segment with round caps (a capsule).
+// Instanced straight segment with round caps (a capsule), or two joined at a corner.
 //
-// One instance per segment, drawn as a 4-vertex triangle strip: a quad aligned with the
-// segment, inflated by the half width plus AA_MARGIN physical pixels on every side so the
-// fragment shader can compute anti-aliased coverage. Keep the instance layout in sync with
+// One instance per stroke, drawn as a 4-vertex triangle strip: a quad aligned with the
+// segment (or around both joined segments), inflated by the half width plus AA_MARGIN
+// physical pixels on every side so the fragment shader can compute anti-aliased coverage. Keep the instance layout in sync with
 // `LineInstance` (crates/koebi-render/src/scene.rs) and the push constants with
 // `ViewportConstants` (crates/koebi-render/src/renderer.rs).
 
@@ -15,12 +15,13 @@ layout(push_constant) uniform ViewportConstants {
 
 layout(location = 0) in vec4 in_points; // from.xy, to.xy (logical px)
 layout(location = 1) in vec4 in_color;  // premultiplied, gamma-encoded
-layout(location = 2) in vec4 in_params; // x: half width (logical px)
+layout(location = 2) in vec4 in_params; // x: half width, yz: `next` (logical px), w: joined
 
 layout(location = 0) out vec2 v_local;            // position relative to `from` (px)
 layout(location = 1) flat out vec2 v_segment;     // `to - from` (px)
 layout(location = 2) flat out float v_half_width; // px
 layout(location = 3) flat out vec4 v_color;
+layout(location = 4) flat out vec3 v_next;        // `next - from` (px), and 1 when joined
 
 const float AA_MARGIN = 1.0;
 
@@ -39,6 +40,14 @@ void main() {
     float reach = half_width + AA_MARGIN;
     vec2 local = mix(-along * reach, segment + along * reach, corner.x)
         + across * reach * (corner.y * 2.0 - 1.0);
+    bool joined = in_params.w > 0.5;
+    vec2 next = in_params.yz * pc.scale_factor - from;
+    if (joined) {
+        // Both segments: the box around the three points.
+        vec2 low = min(min(vec2(0.0), segment), next) - reach;
+        vec2 high = max(max(vec2(0.0), segment), next) + reach;
+        local = mix(low, high, corner);
+    }
 
     // Vulkan clip space: y points down, so the top-left pixel maps to (-1, -1).
     vec2 ndc = (from + local) / pc.viewport_px * 2.0 - 1.0;
@@ -48,4 +57,5 @@ void main() {
     v_segment = segment;
     v_half_width = half_width;
     v_color = in_color;
+    v_next = vec3(next, joined ? 1.0 : 0.0);
 }

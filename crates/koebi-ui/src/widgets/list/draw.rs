@@ -203,14 +203,20 @@ impl Ui<'_> {
         }
     }
 
-    /// One piece of the line along the children of a row, between `top` and `bottom`, at `x`.
-    /// The dashes of a dotted line lie at multiples of their period from `origin`, so that they
-    /// continue from one row to the next.
-    fn guide_piece(&mut self, guide: TreeGuide, x: f32, top: f32, bottom: f32, origin: f32) {
+    /// One piece of the line along the children of a row, between `top` and `bottom`, over
+    /// the columns `span`. The dashes of a dotted line lie at multiples of their period from
+    /// `origin`, so that they continue from one row to the next.
+    fn guide_piece(
+        &mut self,
+        guide: TreeGuide,
+        span: (f32, f32),
+        top: f32,
+        bottom: f32,
+        origin: f32,
+    ) {
         let style = self.styles().list;
-        let piece = |from: f32, to: f32| {
-            Rect::from_min_max(Vec2::new(x, from), Vec2::new(x + style.line_width, to))
-        };
+        let piece =
+            |from: f32, to: f32| Rect::from_min_max(Vec2::new(span.0, from), Vec2::new(span.1, to));
         let plain = match guide {
             TreeGuide::Line => style.line,
             TreeGuide::Color(color) => color,
@@ -259,15 +265,15 @@ impl Ui<'_> {
 
         if options.tree && options.lines {
             // A line along the children of each ancestor, through the middle of its arrow's
-            // slot, leaving room below the ancestor and after its last child.
+            // slot where the tip of the open arrow points, leaving room below the ancestor and
+            // after its last child.
             let depth_at =
                 |position: usize| state.rows.get(position).map(|row| items[row.item].depth);
             let previous = position.checked_sub(1).and_then(depth_at);
             let next = depth_at(position + 1).unwrap_or(0);
             for level in 0..depth {
-                let x = (metrics.start + f32::from(level) * indent + indent * 0.5
-                    - style.line_width * 0.5)
-                    .round();
+                let axis = metrics.start + f32::from(level) * indent + indent * 0.5;
+                let span = self.pixel_span(axis, style.line_width);
                 let top = if previous == Some(level) {
                     rect.min.y + style.line_inset
                 } else {
@@ -283,7 +289,7 @@ impl Ui<'_> {
                         .get(usize::from(level))
                         .copied()
                         .unwrap_or(TreeGuide::Line);
-                    self.guide_piece(guide, x, top, bottom, origin);
+                    self.guide_piece(guide, span, top, bottom, origin);
                 }
             }
         }
@@ -295,11 +301,13 @@ impl Ui<'_> {
                 Vec2::new(slot, rect.min.y),
                 Vec2::new(slot + indent, rect.max.y),
             );
+            // Centered on the pixels of the line along its children, below its tip.
+            let bounds = self.centered_on_line(slot, style.fold_size, style.line_width);
             Icon::ChevronRight.draw_rotated(
                 self.scene,
-                Icon::centered(slot, style.fold_size),
+                bounds,
                 style.fold_color,
-                styles.icon.stroke_width,
+                styles.icon.chevron_stroke_width,
                 row.openness * FRAC_PI_2,
             );
             // On the press, as panels do: a fold follows the hand.

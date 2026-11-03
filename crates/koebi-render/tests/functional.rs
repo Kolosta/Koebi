@@ -532,3 +532,42 @@ fn higher_layers_cover_what_the_base_draws_later() {
     assert_pixel(&image, 1, 1, FILL.to_rgba8(), 1);
     gpu.assert_no_validation_errors();
 }
+
+#[test]
+fn joined_segments_cover_their_corner_once() {
+    let Some(gpu) = gpu_or_skip("joined_segments_cover_their_corner_once") else {
+        return;
+    };
+    let ink = Color { a: 0.5, ..STROKE };
+    let elbow = |offset: f32| {
+        let point = |x: f32, y: f32| Vec2::new(x + offset, y);
+        LinePrimitive::new(point(4.0, 8.0), point(16.0, 8.0), 4.0, ink)
+    };
+    let mut scene = scene_with(&[]);
+    // Joined on the left, two separate segments on the right.
+    scene.push_line(&elbow(0.0).then(Vec2::new(16.0, 24.0)));
+    scene.push_line(&elbow(16.0));
+    scene.push_line(&LinePrimitive::new(
+        Vec2::new(32.0, 8.0),
+        Vec2::new(32.0, 24.0),
+        4.0,
+        ink,
+    ));
+    let image = render(&gpu, Extent::new(48, 32), 1.0, &scene);
+    let once = Color::from_rgba8(23, 126, 94, 255).to_rgba8();
+    // Both arms, and the corner as much as them.
+    assert_pixel(&image, 10, 8, once, 1);
+    assert_pixel(&image, 16, 16, once, 1);
+    assert_pixel(&image, 16, 8, once, 1);
+    // Outside the bend, and beyond the round corner.
+    assert_pixel(&image, 10, 16, BACKGROUND.to_rgba8(), 1);
+    assert_pixel(&image, 19, 5, BACKGROUND.to_rgba8(), 1);
+    // Separate segments blend twice where they meet.
+    assert_pixel(&image, 26, 8, once, 1);
+    let [red, ..] = image.pixel(32, 8);
+    assert!(
+        red > once[0] + 2,
+        "the overlap of separate segments is {red}"
+    );
+    gpu.assert_no_validation_errors();
+}

@@ -36,7 +36,7 @@ koebi_design::tokens! {
         semantic::BACKGROUND_APP_CONTROL;
     /// Number field: background color, disabled.
     NUMBER_FIELD_BACKGROUND_COLOR_DISABLED = "number-field.background.color.disabled": Color ->
-        semantic::BACKGROUND_APP_FRAME;
+        semantic::BACKGROUND_APP_DISABLED;
     /// Number field: value color.
     NUMBER_FIELD_TEXT_COLOR_DEFAULT = "number-field.text.color.default": Color ->
         semantic::TEXT_COLOR_PRIMARY_DEFAULT;

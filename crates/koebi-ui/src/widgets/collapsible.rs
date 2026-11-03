@@ -34,7 +34,8 @@ use crate::widgets::parts::{Tween, shade};
 /// Metrics, colors and motion of collapsible panels, from the `component.panel.*` tokens.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CollapsiblePanelStyle {
-    /// Height of a header.
+    /// Height of a header: what it holds, one interface unit high, and its inset above and
+    /// below.
     pub header_height: f32,
     /// Background of a first-level header; deeper headers take their parent's content color.
     pub header_background: Color,
@@ -65,7 +66,8 @@ impl CollapsiblePanelStyle {
     pub fn resolve(tokens: &impl Resolve) -> Self {
         use component as c;
         Self {
-            header_height: tokens.get(c::PANEL_HEADER_HEIGHT_DEFAULT),
+            header_height: tokens.get(c::PANEL_HEADER_HEIGHT_DEFAULT)
+                + 2.0 * tokens.get(c::PANEL_HEADER_INSET_DEFAULT),
             header_background: tokens.get(c::PANEL_HEADER_BACKGROUND_COLOR_DEFAULT),
             header_padding: tokens.get(c::PANEL_HEADER_PADDING_DEFAULT),
             header_gap: tokens.get(c::PANEL_HEADER_GAP_DEFAULT),
@@ -338,30 +340,31 @@ impl<'a> CollapsiblePanel<'a> {
     /// The chevron, the icon and the title; returns the room kept for the caller's buttons.
     fn draw_header(&self, ui: &mut Ui<'_>, header: Rect) -> Option<Rect> {
         let style = &ui.styles().collapsible_panel;
-        let stroke = ui.styles().icon.stroke_width;
+        let icons = ui.styles().icon;
         let mut x = header.min.x + style.header_padding;
         let slot = |x: f32, side: f32| {
             Rect::from_origin_size(Vec2::new(x, header.min.y), Vec2::new(side, header.height()))
         };
-        // The chevron points right while closed and down while open, turning as it folds.
-        let chevron = Icon::centered(slot(x, style.chevron_size), style.chevron_size);
+        // The chevron points right while closed and down while open, turning as it folds,
+        // its tip on whole pixels.
+        let chevron = ui.pixel_centered(slot(x, style.chevron_size), style.chevron_size);
         Icon::ChevronRight.draw_rotated(
             ui.scene(),
             chevron,
             style.chevron,
-            stroke,
+            icons.chevron_stroke_width,
             self.state.openness() * FRAC_PI_2,
         );
-        x += style.chevron_size + style.header_gap;
+        // The title on whole pixels, whatever the chevron's size.
+        x += style.chevron_size.ceil() + style.header_gap;
         if let Some(icon) = self.icon {
-            let side = ui.styles().icon.size;
             icon.draw(
                 ui.scene(),
-                Icon::centered(slot(x, side), side),
+                Icon::centered(slot(x, icons.size), icons.size),
                 style.title,
-                stroke,
+                icons.stroke_width,
             );
-            x += side + style.header_gap;
+            x += icons.size + style.header_gap;
         }
         let end = header.max.x - style.header_padding;
         let width = self

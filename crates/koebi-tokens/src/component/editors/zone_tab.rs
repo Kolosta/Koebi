@@ -12,8 +12,9 @@ koebi_design::tokens! {
     /// Zone tab: horizontal padding.
     ZONE_TAB_PADDING_HORIZONTAL_DEFAULT = "zone-tab.padding.horizontal.default": Dimension =
         px(8.0), range(0.0, 32.0);
-    /// Zone tab: vertical padding.
-    ZONE_TAB_PADDING_VERTICAL_DEFAULT = "zone-tab.padding.vertical.default": Dimension = px(2.0), range(0.0, 32.0);
+    /// Zone tab: space above and below the tabs, one interface unit high, in their bar.
+    ZONE_TAB_PADDING_VERTICAL_DEFAULT = "zone-tab.padding.vertical.default": Dimension ->
+        semantic::SPACING_CONTROL_INSET;
     /// Zone tab: background color.
     ZONE_TAB_BACKGROUND_COLOR_DEFAULT = "zone-tab.background.color.default": Color ->
         semantic::BACKGROUND_SURFACE_CANVAS;

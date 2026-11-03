@@ -244,7 +244,7 @@ mod tests {
         ui.theme_card(WidgetId::new("dark"), rect, &preview, true);
         drop(ui);
         // Frame, background, panel, 2 lines, checkbox, its label, heading, 3 lines, button
-        // and its label; the check mark is two segments.
-        assert_eq!((scene.rect_count(), scene.line_count()), (13, 2));
+        // and its label; the check mark is one stroke.
+        assert_eq!((scene.rect_count(), scene.line_count()), (13, 1));
     }
 }

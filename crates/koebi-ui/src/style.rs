@@ -250,6 +250,8 @@ pub struct IconStyle {
     pub size: f32,
     /// Stroke width.
     pub stroke_width: f32,
+    /// Stroke width of the chevrons that fold and open: fold arrows, panel headers, dropdowns.
+    pub chevron_stroke_width: f32,
 }
 
 impl IconStyle {
@@ -258,6 +260,7 @@ impl IconStyle {
         Self {
             size: tokens.get(component::ICON_SIZE_DEFAULT),
             stroke_width: tokens.get(component::ICON_STROKE_WIDTH_DEFAULT),
+            chevron_stroke_width: tokens.get(component::ICON_STROKE_WIDTH_CHEVRON),
         }
     }
 }
@@ -419,7 +422,8 @@ mod tests {
             styles.icon,
             IconStyle {
                 size: 16.0,
-                stroke_width: 1.5
+                stroke_width: 1.5,
+                chevron_stroke_width: 1.25,
             }
         );
     }
