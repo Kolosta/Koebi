@@ -190,6 +190,150 @@ mod tests {
         assert!((harness.design.get(token) - before).abs() < 1e-3);
     }
 
+    /// Opens the Inputs page and lets it settle.
+    fn inputs_page() -> Harness {
+        let mut harness = Harness::new();
+        let at = harness.page_button(Page::Inputs);
+        harness.click(at);
+        harness.settle();
+        harness
+    }
+
+    /// Where the dot of the first group's header lies.
+    fn group_dot(harness: &Harness) -> Vec2 {
+        let styles = koebi_ui::Styles::resolve(&harness.design);
+        let panel = styles.collapsible_panel;
+        let margin = harness.design.get(component::SIDE_PANEL_MARGIN_DEFAULT);
+        let row = harness.design.get(semantic::SIZE_CONTROL_HEIGHT);
+        let right = Harness::window().max.x - margin;
+        Vec2::new(
+            right - panel.header_padding - row * 0.5,
+            margin + panel.header_height * 0.5,
+        )
+    }
+
+    #[test]
+    fn a_group_shows_a_dot_while_an_option_is_changed_and_it_brings_every_change_back() {
+        let mut harness = inputs_page();
+        let (drag, click) = (
+            semantic::INPUT_DRAG_THRESHOLD,
+            semantic::INPUT_DOUBLE_CLICK_TIME,
+        );
+        let base = (harness.design.get(drag), harness.design.get(click));
+        // Nothing changed: no dot, a click on its place changes nothing.
+        let dots = |harness: &mut Harness| {
+            harness.settle();
+            harness.frame().rect_count()
+        };
+        let none = dots(&mut harness);
+        harness
+            .design
+            .set_value(Scope::Global, drag, base.0 + 2.0)
+            .unwrap();
+        harness
+            .design
+            .set_value(
+                Scope::ActiveTheme,
+                click,
+                base.1 + core::time::Duration::from_millis(50),
+            )
+            .unwrap();
+        // Changed: the group and both options show their dot.
+        assert!(dots(&mut harness) >= none + 3);
+        harness.click(group_dot(&harness));
+        harness.settle();
+        for scope in [Scope::Global, Scope::ActiveTheme] {
+            assert!(harness.design.override_of(scope, drag).is_none());
+            assert!(harness.design.override_of(scope, click).is_none());
+        }
+        assert_eq!(dots(&mut harness), none);
+    }
+
+    #[test]
+    fn the_secondary_button_on_a_group_dot_brings_back_one_scope_only() {
+        let mut harness = inputs_page();
+        let drag = semantic::INPUT_DRAG_THRESHOLD;
+        let base = harness.design.get(drag);
+        harness
+            .design
+            .set_value(Scope::Global, drag, base + 2.0)
+            .unwrap();
+        harness
+            .design
+            .set_value(Scope::ActiveTheme, drag, base + 1.0)
+            .unwrap();
+        harness.settle();
+        let dot = group_dot(&harness);
+        harness.input.pointer_moved(dot);
+        harness.frame();
+        harness
+            .input
+            .button(koebi_ui::PointerButton::Secondary, true, dot);
+        harness.frame();
+        harness
+            .input
+            .button(koebi_ui::PointerButton::Secondary, false, dot);
+        harness.settle();
+        // The menu opens at the pointer, within the page; its first item brings back the
+        // application's change.
+        let menu = harness.settings.inputs.groups[0]
+            .menu()
+            .rect()
+            .expect("the menu is open");
+        let row = harness.design.get(component::MENU_ITEM_HEIGHT_DEFAULT);
+        let padding = harness.design.get(component::MENU_PADDING_VERTICAL_DEFAULT);
+        let first = Vec2::new(menu.center().x, menu.min.y + padding + row * 0.5);
+        harness.click(first);
+        harness.settle();
+        assert!(harness.design.override_of(Scope::Global, drag).is_none());
+        assert!(
+            harness
+                .design
+                .override_of(Scope::ActiveTheme, drag)
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn the_dot_beside_an_input_brings_back_its_scope_only() {
+        let mut harness = inputs_page();
+        harness.settings.inputs.open_option(0, 0, false);
+        let drag = semantic::INPUT_DRAG_THRESHOLD;
+        let base = harness.design.get(drag);
+        harness
+            .design
+            .set_value(Scope::Global, drag, base + 2.0)
+            .unwrap();
+        harness
+            .design
+            .set_value(Scope::ActiveTheme, drag, base + 1.0)
+            .unwrap();
+        harness.settle();
+        // The option's body: the application's column, then the current theme's, each with its
+        // dot at its end, below their titles.
+        let styles = koebi_ui::Styles::resolve(&harness.design);
+        let panel = styles.collapsible_panel;
+        let margin = harness.design.get(component::SIDE_PANEL_MARGIN_DEFAULT);
+        let row = harness.design.get(semantic::SIZE_CONTROL_HEIGHT);
+        let right = Harness::window().max.x - margin - styles.panel.border_width;
+        let y = margin
+            + panel.header_height
+            + panel.content_padding
+            + panel.header_height
+            + panel.content_padding
+            + row * 1.5;
+        let theme_dot = Vec2::new(right - styles.panel.padding - row * 0.5, y);
+        harness.click(theme_dot);
+        harness.settle();
+        assert!(
+            harness
+                .design
+                .override_of(Scope::ActiveTheme, drag)
+                .is_none()
+        );
+        assert!(harness.design.override_of(Scope::Global, drag).is_some());
+    }
+
     /// Where the input and the reset button of the option at `index` of the first group lie.
     fn header_input(harness: &Harness, index: usize) -> (Vec2, Vec2) {
         let styles = koebi_ui::Styles::resolve(&harness.design);

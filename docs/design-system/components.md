@@ -42,6 +42,9 @@ what shows.
 | Separator | `Ui::separator(rect)` | `component.separator.*` |
 | Color swatch | `Ui::swatch(id, rect, color, selected)` | `component.color-swatch.*` |
 | Theme card | `Ui::theme_card(id, rect, &preview, selected)` | `component.theme-card.*` |
+| Card | `Ui::card(id, rect, selected)` returns a `CardResponse` with the room inside its frame | `component.theme-card.*` |
+| Reset dot | `Ui::reset_dot(id, area, hint)`: shown beside a changed value, `clicked` brings it back | `component.panel.override-badge.*` |
+| Preview | `Ui::preview(&styles, &mut state, add)` draws real components in other styles, inert | the styles given |
 | Menu | `Ui::menu(id, &mut state, &items, bounds)` returns the chosen item (`MenuChoice`) | `component.menu.*`, `component.separator.*` |
 | Popup | `Ui::popup(id, &mut state, size, bounds, add)` draws custom content | `component.menu.*` |
 | Dropdown | `Dropdown::new(id, &mut state, &items)` + options, then `.show(ui, rect, bounds)` | `component.dropdown.*`, then the menu's |
@@ -278,7 +281,7 @@ owns (open or closed, the openness animating between, and the height of the cont
 on the last frame).
 
 - **Header**: `panel.header.height` high and `panel.header.inset` above and below, a chevron
-  (`panel.chevron.*`, its tip on whole pixels) pointing right while
+  (`panel.chevron.*`, centered on a pixel) pointing right while
   closed and turning down as the panel opens, an optional `.icon(icon)`, the title, and room
   for the caller's buttons (`.trailing(width)`, returned as `CollapsiblePanelResponse::trailing`;
   draw them after the panel so that they take the pointer). Under the pointer, the header
@@ -286,14 +289,18 @@ on the last frame).
 - **Content**: `show(ui, area, add)` calls `add(ui, rect)` with the full width of the panel
   inside the frame, from the top of its content down to the bottom of `area` (the room
   there is); `add` draws and returns the height it used (a nested panel's `height`). Rows
-  inset themselves by `panel.padding`; nested panels fill the width. The content draws while
+  inset themselves by `panel.padding`; nested panels take the rest of the width after their
+  indent. The content draws while
   the panel is open or opening, clipped to the share shown, and the frame is drawn over it. A
   panel never measured shows its content from the frame after it first drew it (it asks for
   that frame at once); nested levels follow one frame apart, while they settle and while they
   fold.
-- **Levels**: `.level(PanelLevel::Second)` and `Third` for panels inside a panel's content.
-  A first-level panel is framed and rounded, its header in `panel.header.background.color`;
-  a nested panel's header takes its parent's content color and its content the next level's
+- **Levels**: a panel shown in another's content is one level deeper on its own
+  (`PanelLevel::at_depth`), and indented by `CollapsiblePanelStyle::indent` (the chevron's room
+  and the header gap): its chevron lies below its parent's title. `.level(level)` gives a
+  panel shown on its own the colors of a deeper level. A first-level panel is framed and
+  rounded, its header in `panel.header.background.color`; a nested panel's header takes its
+  parent's content color and its content the next level's
   (`panel.body.background.color.level-*`).
 - **Folding**: a press on the header opens or closes it; the content is revealed along
   `panel.expand.duration` and `panel.expand.curve` (or `panel.collapse.*`), and the panel asks

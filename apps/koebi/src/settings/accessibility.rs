@@ -20,9 +20,9 @@ const ID: WidgetId = WidgetId::new("settings-accessibility");
 
 /// The width of a card, at least.
 const CARD_WIDTH: f32 = 260.0;
-/// How high a card's preview is, in rows: its name and what it does, the components, the main
-/// colors with their names, and the chart.
-const CARD_ROWS: f32 = 6.5;
+/// How high a card is, in rows: its name and what it does, the components, the main colors
+/// with their names, and a chart a row and a half high.
+const CARD_ROWS: f32 = 8.0;
 
 /// A color vision mode offered, at full strength.
 #[derive(Clone, Copy, Debug)]
@@ -92,7 +92,7 @@ const MODES: [Mode; 8] = [
 
 /// The groups of modes: their titles and the range of [`MODES`] they hold.
 const GROUPS: [(&str, core::ops::Range<usize>); 3] = [
-    ("Normal vision", 0..1),
+    ("No transformation", 0..1),
     ("See as someone with a color deficiency", 1..5),
     ("Correct a color deficiency", 5..8),
 ];
@@ -478,7 +478,37 @@ fn mode_preview(ui: &mut Ui<'_>, rect: Rect, corner_radius: f32, mode: &Mode) {
 
 #[cfg(test)]
 mod tests {
+    use koebi_tokens::component;
+
+    use super::super::Page;
+    use super::super::tests::Harness;
     use super::*;
+
+    #[test]
+    fn a_click_on_a_card_sets_its_mode() {
+        let mut harness = Harness::new();
+        let at = harness.page_button(Page::Accessibility);
+        harness.click(at);
+        harness.settle();
+        assert_eq!(harness.design.color_vision(), ColorVision::Normal);
+        let styles = Styles::resolve(&harness.design);
+        let (panel, frame) = (styles.collapsible_panel, styles.panel);
+        let margin = harness.design.get(component::SIDE_PANEL_MARGIN_DEFAULT);
+        let column = harness.design.get(component::SIDE_PANEL_WIDTH_DEFAULT);
+        let row = harness.design.get(semantic::SIZE_CONTROL_HEIGHT);
+        let card = (row * CARD_ROWS).round();
+        // Inside the container, the first group holds one card; the second group's first card,
+        // Protanopia, lies below it.
+        let content = margin + panel.header_height + panel.content_padding;
+        let first = panel.header_height + 2.0 * panel.content_padding + 2.0 * frame.padding + card;
+        let second = content + first + panel.gap + panel.header_height + panel.content_padding;
+        let x = column + frame.border_width + panel.indent + frame.padding + 30.0;
+        harness.click(Vec2::new(x, second + frame.padding + card * 0.5));
+        harness.settle();
+        let vision = harness.design.color_vision();
+        assert!(is_mode(vision, simulate(Deficiency::Protan)), "{vision:?}");
+        assert_eq!(strength_of(vision), Some(1.0));
+    }
 
     #[test]
     fn modes_are_recognized_at_any_strength() {
@@ -535,7 +565,7 @@ mod tests {
         // Normal vision shows the theme's colors; achromatopsia shows them gray.
         assert_eq!(
             accent(&previews, 0),
-            design.get(koebi_tokens::component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT)
+            design.get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT)
         );
         let gray = accent(&previews, 4);
         assert!((gray.r - gray.g).abs() < 2e-3 && (gray.g - gray.b).abs() < 2e-3);
@@ -554,7 +584,7 @@ mod tests {
             design
                 .view(design.active_theme(), Layers::DEFINITIONS)
                 .unwrap()
-                .get(koebi_tokens::component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT)
+                .get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT)
         );
     }
 }

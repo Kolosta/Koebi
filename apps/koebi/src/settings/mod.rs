@@ -18,7 +18,8 @@ use koebi_core::{Rect, Vec2};
 use koebi_design::DesignSystem;
 use koebi_tokens::{component, semantic};
 use koebi_ui::{
-    Align, Button, ButtonGroup, CollapsiblePanel, GroupCell, ScrollAxes, ScrollState, Ui, WidgetId,
+    Align, Button, ButtonGroup, CollapsiblePanel, CollapsiblePanelResponse, GroupCell, ScrollAxes,
+    ScrollState, Ui, WidgetId,
 };
 
 const ID: WidgetId = WidgetId::new("settings");
@@ -86,21 +87,26 @@ pub(crate) struct Stack {
     pub(crate) right: f32,
     pub(crate) y: f32,
     pub(crate) gap: f32,
+    /// Where menus opened from the page may lie: the room the page shows in.
+    pub(crate) bounds: Rect,
 }
 
 impl Stack {
-    /// Shows `panel` below the previous one, `add` drawing its content.
+    /// Shows `panel` below the previous one, `add` drawing its content. Returns what happened
+    /// to it.
     pub(crate) fn panel(
         &mut self,
         ui: &mut Ui<'_>,
         panel: CollapsiblePanel<'_>,
         add: impl FnOnce(&mut Ui<'_>, Rect) -> f32,
-    ) {
+    ) -> CollapsiblePanelResponse {
         let at = Rect::from_min_max(
             Vec2::new(self.left, self.y),
             Vec2::new(self.right, self.y + UNBOUNDED),
         );
-        self.y += panel.show(ui, at, add).height + self.gap;
+        let response = panel.show(ui, at, add);
+        self.y += response.height + self.gap;
+        response
     }
 }
 
@@ -199,6 +205,7 @@ impl SettingsView {
                     right: area.viewport.max.x - margin,
                     y: top + margin,
                     gap: ui.styles().collapsible_panel.gap,
+                    bounds: area.viewport,
                 };
                 match self.page {
                     Page::Theme => self.theme.show(ui, &mut stack, design),

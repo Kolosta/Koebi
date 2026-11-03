@@ -184,6 +184,13 @@ impl MenuState {
         self.placed.filter(|_| self.is_open())
     }
 
+    /// Where the root menu lay on the last frame, while open: what lies under the pointer
+    /// there belongs to the menu.
+    pub fn rect(&self) -> Option<Rect> {
+        let rect = self.levels[0].rect;
+        (self.is_open() && !rect.is_empty()).then_some(rect)
+    }
+
     /// The control the menu opens beside and its placement, while open.
     pub(crate) fn opened_for(&self) -> Option<(Rect, Placement)> {
         match self.anchor {
