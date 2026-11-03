@@ -39,9 +39,9 @@ what shows.
 | Text field | `TextField::new(id, &mut text)` + options, then `.show(ui, rect)` returns a `TextFieldResponse` | `component.text-field.*` |
 | Panel | `Ui::panel(rect, level)` returns the content area | `component.panel.*` |
 | Collapsible panel | `CollapsiblePanel::new(id, &mut state, title)` + options, then `.show(ui, area, add)` returns a `CollapsiblePanelResponse` | `component.panel.*` |
-| Separator | `Ui::separator(rect)` | `component.separator.*` |
+| Separator | `Ui::separator(rect)`; `Ui::section_title(rect, title)` heads a section of a container that never folds: the title, then a line to the end of the row | `component.separator.*` |
 | Color swatch | `Ui::swatch(id, rect, color, selected)` | `component.color-swatch.*` |
-| Theme card | `Ui::theme_card(id, rect, &preview, selected)` | `component.theme-card.*` |
+| Theme card | `Ui::theme_card(id, rect, &preview, selected)`: a miniature of shapes painted from a `ThemePreview` (surfaces, text, accent, the colors of states and of a chart), resolved from a theme's view or a color vision mode's | `component.theme-card.*` |
 | Card | `Ui::card(id, rect, selected)` returns a `CardResponse` with the room inside its frame | `component.theme-card.*` |
 | Reset dot | `Ui::reset_dot(id, area, hint)`: shown beside a changed value, `clicked` brings it back | `component.panel.override-badge.*` |
 | Key caps | `Ui::key_caps(rect, &shortcut, align)` draws a shortcut as keys joined by `+`, each cap as wide as its label, with icons for Shift, Tab, Command, the Windows key and mouse buttons, named for the keyboard `UiState::set_keyboard` gives (`Keyboard::CURRENT` by default); `ShortcutCaps::of` gives the caps, `ShortcutCaps::of_modifiers` those of modifiers alone, `Ui::draw_caps` draws any; menu items show them with `MenuItem::caps(shortcut)` | `component.key-cap.*` |

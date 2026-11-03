@@ -10,6 +10,7 @@
 //! theme, each with what brings it back, and on how the token gets its value.
 
 mod accessibility;
+mod cards;
 mod inputs;
 mod keymaps;
 mod options;
@@ -20,8 +21,8 @@ use koebi_design::DesignSystem;
 use koebi_input::Keymap;
 use koebi_tokens::{component, semantic};
 use koebi_ui::{
-    Align, Button, ButtonGroup, CollapsiblePanel, CollapsiblePanelResponse, GroupCell, ScrollAxes,
-    ScrollState, Ui, WidgetId,
+    Align, Button, ButtonGroup, CollapsiblePanel, CollapsiblePanelResponse, GroupCell, PanelLevel,
+    ScrollAxes, ScrollState, Ui, WidgetId,
 };
 
 const ID: WidgetId = WidgetId::new("settings");
@@ -109,6 +110,39 @@ impl Stack {
         let response = panel.show(ui, at, add);
         self.y += response.height + self.gap;
         response
+    }
+
+    /// Where the content of the next container lies: inside its frame and padding, from the
+    /// top of it down.
+    pub(crate) fn content(&self, ui: &Ui<'_>) -> Rect {
+        let panel = &ui.styles().panel;
+        let inset = panel.border_width + panel.padding;
+        Rect::from_min_max(
+            Vec2::new(self.left + inset, self.y + inset),
+            Vec2::new(
+                (self.right - inset).max(self.left + inset),
+                self.y + UNBOUNDED,
+            ),
+        )
+    }
+
+    /// Shows, below the previous one, a container that never folds, holding `height` of
+    /// content (its sections, which `add` draws in the rectangle [`Self::content`] gives).
+    pub(crate) fn container(
+        &mut self,
+        ui: &mut Ui<'_>,
+        height: f32,
+        add: impl FnOnce(&mut Ui<'_>, Rect),
+    ) {
+        let panel = &ui.styles().panel;
+        let inset = panel.border_width + panel.padding;
+        let rect = Rect::from_min_max(
+            Vec2::new(self.left, self.y),
+            Vec2::new(self.right, self.y + height + 2.0 * inset),
+        );
+        let content = ui.panel(rect, PanelLevel::First);
+        add(ui, content);
+        self.y += rect.height() + self.gap;
     }
 }
 
