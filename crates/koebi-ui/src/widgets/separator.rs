@@ -5,6 +5,7 @@ use koebi_design::Resolve;
 use koebi_render::RectPrimitive;
 use koebi_tokens::component;
 
+use crate::text::Align;
 use crate::ui::Ui;
 
 /// Color and thickness of [`Ui::separator`], from the `component.separator.*` tokens.
@@ -42,6 +43,21 @@ impl SeparatorStyle {
 }
 
 impl Ui<'_> {
+    /// The heading of a section of a container in `rect` (a row): `title` in the label font,
+    /// then a line to the end of the row. Sections split a container that never folds; panels
+    /// that fold are [`crate::CollapsiblePanel`]s.
+    pub fn section_title(&mut self, rect: Rect, title: &str) {
+        let font = self.styles().text.label.clone();
+        let color = self.styles().text.primary;
+        let gap = self.styles().collapsible_panel.header_gap;
+        let width = self.text_width(title, &font).ceil();
+        self.label(title, rect, &font, color, Align::Start);
+        let start = rect.min.x + width + gap;
+        if start < rect.max.x {
+            self.separator(Rect::from_min_max(Vec2::new(start, rect.min.y), rect.max));
+        }
+    }
+
     /// A line across the middle of `rect`, horizontal when `rect` is wider than tall.
     pub fn separator(&mut self, rect: Rect) {
         let style = &self.styles().separator;

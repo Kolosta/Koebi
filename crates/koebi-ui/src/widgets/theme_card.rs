@@ -1,4 +1,7 @@
-//! Theme cards: a miniature of a theme, painted with that theme's own tokens.
+//! Theme cards: a miniature of a theme, painted with that theme's own tokens: a mock
+//! interface of shapes (never real components, which would seem to answer the pointer), with
+//! the colors where themes and color vision modes differ the most: surfaces, text, the accent,
+//! the colors of states and a chart.
 
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::{DesignSystem, Layers, Resolve, ThemeId};
@@ -65,6 +68,10 @@ pub struct ThemePreview {
     pub check_background: Color,
     /// Check mark.
     pub check_mark: Color,
+    /// The colors of states: positive, negative, notice and info buttons.
+    pub tones: [Color; 4],
+    /// The first colors of charts.
+    pub chart: [Color; 4],
     /// Corner radius of panels and controls.
     pub corner_radius: f32,
 }
@@ -82,6 +89,18 @@ impl ThemePreview {
             accent_label: tokens.get(component::BUTTON_ACCENT_LABEL_COLOR_DEFAULT),
             check_background: tokens.get(component::CHECKBOX_BACKGROUND_COLOR_SELECTED),
             check_mark: tokens.get(component::CHECKBOX_MARK_COLOR_DEFAULT),
+            tones: [
+                tokens.get(component::BUTTON_POSITIVE_BACKGROUND_COLOR_DEFAULT),
+                tokens.get(component::BUTTON_NEGATIVE_BACKGROUND_COLOR_DEFAULT),
+                tokens.get(component::BUTTON_NOTICE_BACKGROUND_COLOR_DEFAULT),
+                tokens.get(component::BUTTON_INFO_BACKGROUND_COLOR_DEFAULT),
+            ],
+            chart: [
+                tokens.get(semantic::DATA_VIZ_CATEGORICAL_SHORT_1),
+                tokens.get(semantic::DATA_VIZ_CATEGORICAL_SHORT_2),
+                tokens.get(semantic::DATA_VIZ_CATEGORICAL_SHORT_3),
+                tokens.get(semantic::DATA_VIZ_CATEGORICAL_SHORT_4),
+            ],
             corner_radius: tokens.get(component::PANEL_CORNER_RADIUS_DEFAULT),
         }
     }
@@ -94,8 +113,9 @@ impl ThemePreview {
             .map(|view| Self::resolve(&view))
     }
 
-    /// Paints the miniature in `rect`: a panel with text and a checked checkbox, a heading,
-    /// a paragraph and a button. Text is drawn as bars until Koebi renders text.
+    /// Paints the miniature in `rect`: a panel with text, a checked checkbox and the colors of
+    /// states; a heading, a line, a small chart and a button. Text is drawn as bars, so that it
+    /// reads at any size.
     pub fn paint(&self, scene: &mut Scene, rect: Rect, corner_radius: f32) {
         let rounded = |rect: Rect, color: Color, radius: f32| {
             RectPrimitive::new(rect, color).with_corner_radius(radius)
@@ -147,6 +167,15 @@ impl ThemePreview {
             self.text_secondary,
             pill,
         ));
+        // The colors of states, as small chips.
+        let chip = (inner_width / 4.0 - unit * 0.3).max(0.0);
+        for (index, color) in self.tones.into_iter().enumerate() {
+            let at = Rect::from_origin_size(
+                Vec2::new(inner_x + (chip + unit * 0.4) * index as f32, line(3.2)),
+                Vec2::new(chip, unit),
+            );
+            scene.push_rect(&rounded(at, color, self.corner_radius * 0.5));
+        }
 
         // On the right: a heading, a paragraph and a button.
         let right_x = panel.max.x + unit;
@@ -156,13 +185,26 @@ impl ThemePreview {
             Vec2::new(right_width * 0.8, unit),
         );
         scene.push_rect(&rounded(heading, self.text_primary, unit * 0.5));
-        for (row, length) in [0.95, 0.7, 0.85].into_iter().enumerate() {
-            let y = heading.max.y + unit * (0.9 + 1.1 * row as f32);
-            scene.push_rect(&rounded(
-                bar(right_x, y, right_width * length, unit),
-                self.text_secondary,
-                pill,
-            ));
+        scene.push_rect(&rounded(
+            bar(right_x, heading.max.y + unit * 0.9, right_width * 0.9, unit),
+            self.text_secondary,
+            pill,
+        ));
+        // A chart: bars of its first colors.
+        let base = rect.max.y - unit * 4.0;
+        let column = right_width / 6.0;
+        for (index, (color, share)) in self
+            .chart
+            .into_iter()
+            .zip([0.5, 0.9, 0.35, 0.7])
+            .enumerate()
+        {
+            let height = unit * 2.4 * share;
+            let at = Rect::from_min_max(
+                Vec2::new(right_x + column * 1.4 * index as f32, base - height),
+                Vec2::new(right_x + column * (1.4 * index as f32 + 1.0), base),
+            );
+            scene.push_rect(&rounded(at, color, pill * 0.5));
         }
         let button = Rect::from_min_max(
             Vec2::new(right_x, rect.max.y - unit * 3.2),
@@ -264,8 +306,8 @@ mod tests {
         let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
         ui.theme_card(WidgetId::new("dark"), rect, &preview, true);
         drop(ui);
-        // Frame, background, panel, 2 lines, checkbox, its label, heading, 3 lines, button
-        // and its label; the check mark is one stroke.
-        assert_eq!((scene.rect_count(), scene.line_count()), (13, 1));
+        // Frame, background, panel, 2 lines, checkbox, its label, 4 chips, heading, a line,
+        // 4 bars, button and its label; the check mark is one stroke.
+        assert_eq!((scene.rect_count(), scene.line_count()), (19, 1));
     }
 }

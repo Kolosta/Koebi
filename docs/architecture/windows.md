@@ -87,6 +87,10 @@ shortcut changes, by the [shortcut rules](../development/editors.md#shortcut-rul
 shortcut's header takes the conflict's color and every panel holding it shows the warning. A
 search finds actions by name or by the shortcut pressed.
 
-The Accessibility page holds the color vision modes in one panel, a group per kind. Each mode's
-card paints, with the current theme's styles as that mode shows them (`View::seen_as`), real
-components (`Ui::preview`), the main colors by name and the colors of a chart.
+The Theme and Accessibility pages are containers that never fold, split into sections
+(`Ui::section_title`); their cards are all the same size, as many as fit a row, a name below
+each (`settings::cards`). The Theme page shows a card per theme; the Accessibility page the
+color vision modes, a section per kind. A mode's card paints the current theme's miniature
+as that mode shows it (`View::seen_as`, `ThemePreview`): surfaces, text, the accent, the
+colors of states and of a chart, as shapes that never seem to answer the pointer; what the
+mode does shows under the pointer.

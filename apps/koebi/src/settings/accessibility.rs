@@ -1,28 +1,20 @@
 //! The Accessibility page: the color vision modes, as cards showing the interface each makes.
 //!
-//! One panel holds the three kinds of modes, each a panel of cards. A card paints, as its mode
-//! shows them, real components of the current theme (an accent button, a checked box, a filled
-//! bar), the main colors of the interface by name and the colors of a chart: the differences a
-//! mode makes are seen where they matter.
+//! One container holds the three kinds of modes, a section each, which never fold. A card
+//! paints the miniature of the current theme as its mode shows it (its surfaces, text, accent,
+//! the colors of states and of a chart: where the differences a mode makes matter), the same
+//! miniature as the theme cards, of the same size: shapes, never real components, which would
+//! seem to answer the pointer.
 
 use koebi_core::{Rect, Vec2};
-use koebi_design::{ColorVision, Deficiency, DesignSystem, Layers, Resolve};
-use koebi_render::RectPrimitive;
+use koebi_design::{ColorVision, Deficiency, DesignSystem, Layers};
 use koebi_tokens::semantic;
-use koebi_ui::{
-    Align, BarMapping, Button, Checkbox, CollapsiblePanel, CollapsiblePanelState, NumberField,
-    Styles, Tone, Ui, UiState, WidgetId,
-};
+use koebi_ui::{Align, BarMapping, NumberField, ThemePreview, Ui, WidgetId};
 
 use super::Stack;
+use super::cards::Cards;
 
 const ID: WidgetId = WidgetId::new("settings-accessibility");
-
-/// The width of a card, at least.
-const CARD_WIDTH: f32 = 260.0;
-/// How high a card is, in rows: its name and what it does, the components, the main colors
-/// with their names, and a chart a row and a half high.
-const CARD_ROWS: f32 = 8.0;
 
 /// A color vision mode offered, at full strength.
 #[derive(Clone, Copy, Debug)]
@@ -97,15 +89,6 @@ const GROUPS: [(&str, core::ops::Range<usize>); 3] = [
     ("Correct a color deficiency", 5..8),
 ];
 
-/// The main colors a card names: the button tones of the interface.
-const MAIN_COLORS: [(&str, Tone); 5] = [
-    ("Accent", Tone::ACCENT),
-    ("Positive", Tone::POSITIVE),
-    ("Negative", Tone::NEGATIVE),
-    ("Notice", Tone::NOTICE),
-    ("Info", Tone::INFO),
-];
-
 /// `true` when `current` is `mode`, at any strength.
 fn is_mode(current: ColorVision, mode: ColorVision) -> bool {
     match (current, mode) {
@@ -161,167 +144,196 @@ fn shown_vision(mode: ColorVision, current: ColorVision) -> ColorVision {
     }
 }
 
-/// The styles of the current theme as each mode shows them, resolved again only when the
+/// The miniatures of the current theme as each mode shows it, resolved again only when the
 /// design system changes.
 #[derive(Debug)]
 struct Previews {
-    /// The revision of the design system the styles were resolved from.
+    /// The revision of the design system they were resolved from.
     revision: Option<u64>,
     /// One per mode of [`MODES`].
-    styles: Vec<Styles>,
-    /// The state of the interface the previews draw with.
-    state: UiState,
+    previews: Vec<ThemePreview>,
 }
 
 impl Previews {
     fn new() -> Self {
         Self {
             revision: None,
-            styles: Vec::new(),
-            state: UiState::new(),
+            previews: Vec::new(),
         }
     }
 
-    /// Resolves the styles again if `design` changed since.
+    /// Resolves the miniatures again if `design` changed since.
     fn refresh(&mut self, design: &DesignSystem) {
-        if self.revision == Some(design.revision()) && self.styles.len() == MODES.len() {
+        if self.revision == Some(design.revision()) && self.previews.len() == MODES.len() {
             return;
         }
         let Some(view) = design.view(design.active_theme(), Layers::ALL) else {
             return;
         };
         let current = design.color_vision();
-        self.styles.clear();
-        self.styles.extend(
-            MODES
-                .iter()
-                .map(|mode| Styles::resolve(&view.seen_as(shown_vision(mode.vision, current)))),
+        self.previews.clear();
+        self.previews.extend(
+            MODES.iter().map(|mode| {
+                ThemePreview::resolve(&view.seen_as(shown_vision(mode.vision, current)))
+            }),
         );
         self.revision = Some(design.revision());
     }
 }
 
+/// Where a section of the container lies: its title, its cards, the strength of the mode set
+/// when it is one of the section's.
+#[derive(Clone, Copy, Debug)]
+struct Section {
+    title: Rect,
+    cards: Cards,
+    strength: Option<Rect>,
+}
+
+/// The sections in `content`, the mode set being `current`; and the height they take.
+fn layout(
+    ui: &Ui<'_>,
+    content: Rect,
+    gap: f32,
+    current: ColorVision,
+) -> ([Option<Section>; GROUPS.len()], f32) {
+    let row = ui.styles().button.height;
+    let mut sections = [None; GROUPS.len()];
+    let mut y = content.min.y;
+    for (index, (_, modes)) in GROUPS.iter().enumerate() {
+        if index > 0 {
+            // Sections stand apart more than the rows they hold.
+            y += 2.0 * gap;
+        }
+        let title =
+            Rect::from_origin_size(Vec2::new(content.min.x, y), Vec2::new(content.width(), row));
+        y += row + gap;
+        let cards = Cards::new(
+            Vec2::new(content.min.x, y),
+            content.width(),
+            modes.len(),
+            gap,
+            row,
+            |length| ui.whole_pixels(length),
+        );
+        y += cards.height();
+        let chosen = MODES[modes.clone()]
+            .iter()
+            .any(|mode| is_mode(current, mode.vision));
+        let strength = (chosen && strength_of(current).is_some()).then(|| {
+            y += gap;
+            let at = Rect::from_origin_size(
+                Vec2::new(content.min.x, y),
+                Vec2::new(content.width(), row),
+            );
+            y += row;
+            at
+        });
+        sections[index] = Some(Section {
+            title,
+            cards,
+            strength,
+        });
+    }
+    (sections, y - content.min.y)
+}
+
 /// The Accessibility page's state.
 #[derive(Debug)]
 pub(super) struct AccessibilityPage {
-    /// The panel holding the groups, and each group.
-    panel: CollapsiblePanelState,
-    groups: [CollapsiblePanelState; 3],
     previews: Previews,
+    /// Where the sections lay on the last frame.
+    sections: [Option<Section>; GROUPS.len()],
 }
 
 impl AccessibilityPage {
     pub(super) fn new() -> Self {
         Self {
-            panel: CollapsiblePanelState::new(true),
-            groups: [CollapsiblePanelState::new(true); 3],
             previews: Previews::new(),
+            sections: [None; GROUPS.len()],
         }
     }
 
     pub(super) fn show(&mut self, ui: &mut Ui<'_>, stack: &mut Stack, design: &mut DesignSystem) {
-        let Self {
-            panel,
-            groups,
-            previews,
-        } = self;
-        previews.refresh(design);
-        let container = CollapsiblePanel::new(ID, panel, "Color vision");
-        stack.panel(ui, container, |ui, rect| {
-            let gap = ui.styles().collapsible_panel.gap;
-            let mut y = rect.min.y;
-            for (index, (state, (title, modes))) in groups.iter_mut().zip(GROUPS).enumerate() {
+        self.previews.refresh(design);
+        let gap = ui.whole_pixels(design.get(semantic::SPACING_EDITOR_INSET));
+        let current = design.color_vision();
+        let (sections, height) = layout(ui, stack.content(ui), gap, current);
+        self.sections = sections;
+        let previews = &self.previews;
+        let mut chosen = None;
+        stack.container(ui, height, |ui, _| {
+            for (index, (section, (title, modes))) in sections.iter().zip(GROUPS).enumerate() {
+                let Some(section) = section else {
+                    continue;
+                };
+                ui.section_title(section.title, title);
                 let id = ID.with(index as u64 + 1);
-                let at = Rect::from_min_max(Vec2::new(rect.min.x, y), rect.max);
-                let shown = CollapsiblePanel::new(id, state, title).show(ui, at, |ui, rect| {
-                    mode_cards(ui, rect, id, design, previews, modes.clone())
-                });
-                y += shown.height + if index + 1 < GROUPS.len() { gap } else { 0.0 };
+                if let Some(vision) = mode_cards(ui, id, section, previews, current, modes) {
+                    chosen = Some(vision);
+                }
             }
-            y - rect.min.y
         });
-    }
-}
-
-/// How many cards go in a row of `width`, and how wide they are.
-fn grid(width: f32, gap: f32, count: usize) -> (usize, f32) {
-    let fitting = ((width + gap) / (CARD_WIDTH + gap)).floor();
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        reason = "a few cards, a positive whole number"
-    )]
-    let columns = (fitting.max(1.0) as usize).min(count.max(1));
-    let card = ((width - gap * (columns - 1) as f32) / columns as f32).clamp(0.0, CARD_WIDTH * 1.5);
-    (columns, card)
-}
-
-/// The cards of the modes at `modes` of [`MODES`] in `rect`, and how strong the chosen one is.
-/// Returns the height used.
-fn mode_cards(
-    ui: &mut Ui<'_>,
-    rect: Rect,
-    id: WidgetId,
-    design: &mut DesignSystem,
-    previews: &mut Previews,
-    modes: core::ops::Range<usize>,
-) -> f32 {
-    let padding = ui.styles().panel.padding;
-    let gap = design.get(semantic::SPACING_EDITOR_INSET);
-    let row = design.get(semantic::SIZE_CONTROL_HEIGHT);
-    let left = rect.min.x + padding;
-    let width = rect.width() - 2.0 * padding;
-    let count = modes.len();
-    let (columns, card) = grid(width, gap, count);
-    let height = (row * CARD_ROWS).round();
-    let current = design.color_vision();
-    let mut chosen = None;
-    for (index, mode_index) in modes.clone().enumerate() {
-        let mode = &MODES[mode_index];
-        let (column, line) = (index % columns, index / columns);
-        let at = Rect::from_origin_size(
-            Vec2::new(
-                left + (card + gap) * column as f32,
-                rect.min.y + padding + (height + gap) * line as f32,
-            ),
-            Vec2::new(card, height),
-        );
-        let selected = is_mode(current, mode.vision);
-        let Some(styles) = previews.styles.get(mode_index) else {
-            continue;
-        };
-        let clicked = mode_card(
-            ui,
-            id.with(index as u64 + 1),
-            at,
-            mode,
-            styles,
-            &mut previews.state,
-            selected,
-        );
-        if clicked {
-            chosen = Some(mode.vision);
+        if let Some(vision) = chosen
+            && let Err(error) = design.set_color_vision(vision)
+        {
+            koebi_core::warn!("cannot change the color vision setting: {error}");
         }
     }
-    let lines = count.div_ceil(columns) as f32;
-    let mut used = padding + lines * height + (lines - 1.0).max(0.0) * gap;
-    // How strong the mode chosen in this group is.
-    if MODES[modes]
-        .iter()
-        .any(|mode| is_mode(current, mode.vision))
+
+    /// The card of the mode at `index` of the section at `section`, where the last frame drew
+    /// it.
+    #[cfg(test)]
+    fn card(&self, section: usize, index: usize) -> Option<Rect> {
+        self.sections
+            .get(section)
+            .copied()
+            .flatten()
+            .map(|section| section.cards.card(index))
+    }
+}
+
+/// The cards of the modes at `modes` of [`MODES`] in `section`, and how strong the mode set is
+/// when it is one of them. Returns the vision chosen.
+fn mode_cards(
+    ui: &mut Ui<'_>,
+    id: WidgetId,
+    section: &Section,
+    previews: &Previews,
+    current: ColorVision,
+    modes: core::ops::Range<usize>,
+) -> Option<ColorVision> {
+    let font = ui.styles().text.label.clone();
+    let (primary, secondary) = (ui.styles().text.primary, ui.styles().text.secondary);
+    let mut chosen = None;
+    for (index, mode_index) in modes.enumerate() {
+        let mode = &MODES[mode_index];
+        let Some(preview) = previews.previews.get(mode_index) else {
+            continue;
+        };
+        let selected = is_mode(current, mode.vision);
+        let card = section.cards.card(index);
+        let key = id.with(index as u64 + 1);
+        if ui.theme_card(key, card, preview, selected).clicked {
+            chosen = Some(mode.vision);
+        }
+        ui.tooltip(key, mode.detail, card);
+        let color = if selected { primary } else { secondary };
+        ui.label(
+            mode.label,
+            section.cards.name(index),
+            &font,
+            color,
+            Align::Center,
+        );
+    }
+    // How strong the mode set is.
+    if let Some(at) = section.strength
         && let Some(strength) = strength_of(current)
     {
-        let label = Rect::from_origin_size(
-            Vec2::new(left, rect.min.y + used + gap),
-            Vec2::new(width * 0.3, row),
-        );
-        let font = ui.styles().text.label.clone();
-        let color = ui.styles().text.primary;
-        ui.label("Strength", label, &font, color, Align::Start);
-        let field = Rect::from_min_max(
-            Vec2::new(label.max.x, label.min.y),
-            Vec2::new(left + width, label.max.y),
-        );
+        let label = Rect::from_origin_size(at.min, Vec2::new(at.width() * 0.3, at.height()));
+        ui.label("Strength", label, &font, primary, Align::Start);
+        let field = Rect::from_min_max(Vec2::new(label.max.x, at.min.y), at.max);
         let mut percent = f64::from(strength) * 100.0;
         if NumberField::new(id.with(100), &mut percent)
             .range(0.0, 100.0)
@@ -337,143 +349,8 @@ fn mode_cards(
             let strength = (percent / 100.0) as f32;
             chosen = Some(with_strength(current, strength));
         }
-        used += gap + row;
     }
-    if let Some(vision) = chosen
-        && let Err(error) = design.set_color_vision(vision)
-    {
-        koebi_core::warn!("cannot change the color vision setting: {error}");
-    }
-    used + padding
-}
-
-/// A card: the interface as `mode` shows it, painted with `styles`. Returns whether it was
-/// clicked.
-fn mode_card(
-    ui: &mut Ui<'_>,
-    id: WidgetId,
-    rect: Rect,
-    mode: &Mode,
-    styles: &Styles,
-    state: &mut UiState,
-    selected: bool,
-) -> bool {
-    let card = ui.card(id, rect, selected);
-    if !card.content.is_empty() {
-        ui.preview(styles, state, |ui| {
-            mode_preview(ui, card.content, card.corner_radius, mode);
-        });
-    }
-    card.response.clicked
-}
-
-/// What a card shows of the interface, drawn in `rect` with the preview's styles: the mode's
-/// name and what it does, real components, the main colors by name and a chart.
-fn mode_preview(ui: &mut Ui<'_>, rect: Rect, corner_radius: f32, mode: &Mode) {
-    let styles = ui.styles();
-    let text = styles.text.clone();
-    let background = styles.panel.backgrounds[0];
-    let row = styles.button.height;
-    let inset = styles.panel.padding;
-    ui.scene()
-        .push_rect(&RectPrimitive::new(rect, background).with_corner_radius(corner_radius));
-    let inner = rect.inset(inset);
-    let (left, width) = (inner.min.x, inner.width());
-    let line =
-        |y: f32, height: f32| Rect::from_origin_size(Vec2::new(left, y), Vec2::new(width, height));
-
-    // Its name and what it does.
-    let mut y = inner.min.y;
-    ui.label(
-        mode.label,
-        line(y, row),
-        &text.label,
-        text.primary,
-        Align::Start,
-    );
-    y += row;
-    let detail = (row * 0.8).round();
-    ui.label(
-        mode.detail,
-        line(y, detail),
-        &text.detail,
-        text.secondary,
-        Align::Start,
-    );
-    y += detail + inset * 0.5;
-
-    // Components of the theme: an accent button, a checked box, a filled bar.
-    let id = WidgetId::new("color-vision-preview");
-    let button = Button::new(id.with(1)).label("Apply").tone(Tone::ACCENT);
-    let button_width = button.size(ui).x.min(width * 0.3);
-    button.show(
-        ui,
-        Rect::from_origin_size(Vec2::new(left, y), Vec2::new(button_width, row)),
-    );
-    let mut checked = true;
-    let check = Rect::from_origin_size(
-        Vec2::new(left + button_width + inset, y),
-        Vec2::new(width * 0.25, row),
-    );
-    Checkbox::new(id.with(2), &mut checked)
-        .label("On")
-        .show(ui, check);
-    let mut share = 0.6;
-    let bar = Rect::from_min_max(
-        Vec2::new(check.max.x + inset, y),
-        Vec2::new(inner.max.x, y + row),
-    );
-    if bar.width() > row {
-        NumberField::new(id.with(3), &mut share)
-            .range(0.0, 1.0)
-            .decimals(2)
-            .bar(BarMapping::Linear)
-            .show(ui, bar);
-    }
-    y += row + inset;
-
-    // The main colors, by name.
-    let styles = ui.styles();
-    let cell = width / MAIN_COLORS.len() as f32;
-    let swatch = (row * 0.6).round();
-    for (index, (name, tone)) in MAIN_COLORS.into_iter().enumerate() {
-        let x = left + cell * index as f32;
-        let color = styles.button.colors(tone).background.normal;
-        let chip = Rect::from_origin_size(
-            Vec2::new(x + 2.0, y),
-            Vec2::new((cell - 4.0).max(0.0), swatch),
-        );
-        ui.scene().push_rect(
-            &RectPrimitive::new(chip, color).with_corner_radius(styles.button.corner_radius),
-        );
-        let label = Rect::from_origin_size(Vec2::new(x, y + swatch), Vec2::new(cell, detail));
-        ui.label(name, label, &text.detail, text.secondary, Align::Center);
-    }
-    y += swatch + detail + inset * 0.5;
-
-    // A chart: the colors data takes, each bar as high as its share of the tallest.
-    let bars = [
-        (semantic::DATA_VIZ_CATEGORICAL_SHORT_1, 0.55),
-        (semantic::DATA_VIZ_CATEGORICAL_SHORT_2, 0.85),
-        (semantic::DATA_VIZ_CATEGORICAL_SHORT_3, 0.4),
-        (semantic::DATA_VIZ_CATEGORICAL_SHORT_4, 0.7),
-        (semantic::DATA_VIZ_CATEGORICAL_SHORT_5, 1.0),
-        (semantic::DATA_VIZ_CATEGORICAL_SHORT_6, 0.6),
-    ];
-    let chart = Rect::from_min_max(Vec2::new(left, y), Vec2::new(inner.max.x, inner.max.y));
-    if chart.height() > 0.0 {
-        let bar = chart.width() / bars.len() as f32;
-        for (index, (token, share)) in bars.into_iter().enumerate() {
-            let color = ui.styles().tokens.get(token);
-            let height = (chart.height() * share).round();
-            let column = Rect::from_min_max(
-                Vec2::new(chart.min.x + bar * index as f32 + 2.0, chart.max.y - height),
-                Vec2::new(chart.min.x + bar * (index + 1) as f32 - 2.0, chart.max.y),
-            );
-            ui.scene()
-                .push_rect(&RectPrimitive::new(column, color).with_corner_radius(2.0));
-        }
-    }
+    chosen
 }
 
 #[cfg(test)]
@@ -491,23 +368,34 @@ mod tests {
         harness.click(at);
         harness.settle();
         assert_eq!(harness.design.color_vision(), ColorVision::Normal);
-        let styles = Styles::resolve(&harness.design);
-        let (panel, frame) = (styles.collapsible_panel, styles.panel);
-        let margin = harness.design.get(component::SIDE_PANEL_MARGIN_DEFAULT);
-        let column = harness.design.get(component::SIDE_PANEL_WIDTH_DEFAULT);
-        let row = harness.design.get(semantic::SIZE_CONTROL_HEIGHT);
-        let card = (row * CARD_ROWS).round();
-        // Inside the container, the first group holds one card; the second group's first card,
-        // Protanopia, lies below it.
-        let content = margin + panel.header_height + panel.content_padding;
-        let first = panel.header_height + 2.0 * panel.content_padding + 2.0 * frame.padding + card;
-        let second = content + first + panel.gap + panel.header_height + panel.content_padding;
-        let x = column + frame.border_width + panel.indent + frame.padding + 30.0;
-        harness.click(Vec2::new(x, second + frame.padding + card * 0.5));
+        // Protanopia, the first card of the second section.
+        let card = harness
+            .settings
+            .accessibility
+            .card(1, 0)
+            .expect("cards laid out");
+        harness.click(card.center());
         harness.settle();
         let vision = harness.design.color_vision();
         assert!(is_mode(vision, simulate(Deficiency::Protan)), "{vision:?}");
         assert_eq!(strength_of(vision), Some(1.0));
+    }
+
+    #[test]
+    fn every_card_has_the_size_of_the_others_alone_or_not() {
+        let mut harness = Harness::new();
+        let at = harness.page_button(Page::Accessibility);
+        harness.click(at);
+        harness.settle();
+        let page = &harness.settings.accessibility;
+        let alone = page.card(0, 0).expect("the normal vision card");
+        for (section, (_, modes)) in GROUPS.iter().enumerate() {
+            for index in 0..modes.len() {
+                let card = page.card(section, index).expect("laid out");
+                assert_eq!(card.size(), alone.size());
+            }
+        }
+        assert_eq!(alone.width(), super::super::cards::CARD_WIDTH);
     }
 
     #[test]
@@ -554,14 +442,8 @@ mod tests {
         let mut design = DesignSystem::new(&koebi_tokens::KOEBI).unwrap();
         let mut previews = Previews::new();
         previews.refresh(&design);
-        assert_eq!(previews.styles.len(), MODES.len());
-        let accent = |previews: &Previews, index: usize| {
-            previews.styles[index]
-                .button
-                .colors(Tone::ACCENT)
-                .background
-                .normal
-        };
+        assert_eq!(previews.previews.len(), MODES.len());
+        let accent = |previews: &Previews, index: usize| previews.previews[index].accent;
         // Normal vision shows the theme's colors; achromatopsia shows them gray.
         assert_eq!(
             accent(&previews, 0),
