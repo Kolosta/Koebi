@@ -403,3 +403,60 @@ fn the_workspace_and_shortcuts_survive_a_restart() {
     let kept = std::fs::read_to_string(&workspace).expect("read the workspace");
     assert!(kept.contains("editor 0 timeline"), "{kept}");
 }
+
+#[test]
+fn an_untitled_instance_shares_the_design_state_but_keeps_its_own_workspace() {
+    let dir = data_dir("e2e-untitled");
+    let dir_arg = dir.to_str().expect("the target directory has a UTF-8 path");
+    let first = run_koebi(
+        &["--frames", "3", "--data-dir", dir_arg],
+        Duration::from_secs(120),
+    );
+    if first.code == Some(exit_code::UNSUPPORTED) && !koebi_testkit::require_gpu() {
+        eprintln!(
+            "SKIPPED: no display or Vulkan driver
+{}",
+            first.stderr
+        );
+        return;
+    }
+    assert_eq!(first.code, Some(exit_code::SUCCESS), "{}", first.stderr);
+    let workspace = dir.join("workspace.txt");
+    let saved = std::fs::read_to_string(&workspace).expect("the workspace is saved on exit");
+    // The first instance's layout, as a session would have changed it.
+    let changed = saved.replace("editor 0 gallery", "editor 0 timeline");
+    std::fs::write(&workspace, &changed).expect("write the workspace");
+    // Another instance: the theme it activates is kept for every instance, the workspace is
+    // neither read nor written.
+    let second = run_koebi(
+        &[
+            "--untitled",
+            "--frames",
+            "3",
+            "--data-dir",
+            dir_arg,
+            "--theme",
+            "light",
+        ],
+        Duration::from_secs(120),
+    );
+    assert_eq!(second.code, Some(exit_code::SUCCESS), "{}", second.stderr);
+    assert!(
+        !second.stderr.contains("workspace restored from")
+            && !second.stderr.contains("workspace saved to"),
+        "{}",
+        second.stderr
+    );
+    let kept = std::fs::read_to_string(&workspace).expect("read the workspace");
+    assert_eq!(kept, changed);
+    let third = run_koebi(
+        &["--frames", "3", "--data-dir", dir_arg],
+        Duration::from_secs(120),
+    );
+    assert_eq!(third.code, Some(exit_code::SUCCESS), "{}", third.stderr);
+    assert!(
+        third.stderr.contains("design: theme light"),
+        "{}",
+        third.stderr
+    );
+}

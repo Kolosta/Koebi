@@ -20,7 +20,8 @@ const DELAY: Duration = Duration::from_secs(1);
 /// The saved workspace and shortcuts.
 #[derive(Debug)]
 pub(crate) struct Preferences {
-    workspace_file: SavedFile,
+    /// Where the workspace is kept; `None` for a document of its own, never read nor saved.
+    workspace_file: Option<SavedFile>,
     shortcuts_file: SavedFile,
     /// The workspace and its editors' kinds as last saved or restored.
     saved: Option<(Workspace, Editors)>,
@@ -31,10 +32,11 @@ pub(crate) struct Preferences {
 }
 
 impl Preferences {
-    /// The files in `dir`.
-    pub(crate) fn new(dir: &Path) -> Self {
+    /// The files in `dir`; with `keeps_workspace` false, the workspace is the instance's own:
+    /// it is neither restored nor saved, the shortcuts still are.
+    pub(crate) fn new(dir: &Path, keeps_workspace: bool) -> Self {
         Self {
-            workspace_file: SavedFile::new(dir, "workspace.txt"),
+            workspace_file: keeps_workspace.then(|| SavedFile::new(dir, "workspace.txt")),
             shortcuts_file: SavedFile::new(dir, "shortcuts.txt"),
             saved: None,
             saved_shortcuts: None,
@@ -44,8 +46,9 @@ impl Preferences {
 
     /// The saved workspace and its editors, if one can be restored.
     pub(crate) fn load_workspace(&mut self) -> Option<(Workspace, Editors)> {
-        let path = self.workspace_file.path().display().to_string();
-        let texts = match self.workspace_file.read() {
+        let file = self.workspace_file.as_ref()?;
+        let path = file.path().display().to_string();
+        let texts = match file.read() {
             Ok(texts) => texts,
             Err(error) => {
                 koebi_core::warn!("workspace: cannot read {path} ({error})");
@@ -94,9 +97,10 @@ impl Preferences {
 
     /// `true` when the workspace differs from the saved one.
     pub(crate) fn is_dirty(&self, workspace: &Workspace, editors: &Editors) -> bool {
-        self.saved.as_ref().is_none_or(|(saved, kinds)| {
-            saved != workspace || !editors::saved::same_kinds(workspace, editors, kinds)
-        })
+        self.workspace_file.is_some()
+            && self.saved.as_ref().is_none_or(|(saved, kinds)| {
+                saved != workspace || !editors::saved::same_kinds(workspace, editors, kinds)
+            })
     }
 
     /// Saves the workspace once it has stayed changed for a second.
@@ -130,9 +134,12 @@ impl Preferences {
     }
 
     fn save_workspace(&mut self, workspace: &Workspace, editors: &Editors) {
-        let path = self.workspace_file.path().display().to_string();
+        let Some(file) = &self.workspace_file else {
+            return;
+        };
+        let path = file.path().display().to_string();
         let text = editors::saved::encode(workspace, editors);
-        match self.workspace_file.write(&text) {
+        match file.write(&text) {
             Ok(()) => {
                 koebi_core::info!("workspace saved to {path}");
                 self.saved = Some((workspace.clone(), editors.clone()));
@@ -161,7 +168,7 @@ mod tests {
     #[test]
     fn workspaces_save_once_changes_settle_and_come_back() {
         let dir = directory("workspace");
-        let mut preferences = Preferences::new(&dir);
+        let mut preferences = Preferences::new(&dir, true);
         assert!(preferences.load_workspace().is_none());
         let (mut workspace, mut editors) = default_workspace();
         let start = Instant::now();
@@ -180,7 +187,7 @@ mod tests {
         assert!(preferences.is_dirty(&workspace, &editors));
         let keymap = Keymap::new(&crate::actions::GROUPS).unwrap();
         preferences.save(&workspace, &editors, &keymap);
-        let (restored, kinds) = Preferences::new(&dir).load_workspace().unwrap();
+        let (restored, kinds) = Preferences::new(&dir, true).load_workspace().unwrap();
         assert_eq!(restored, workspace);
         assert_eq!(kinds.kind(split.editor), EditorKind::Timeline);
         fs::remove_dir_all(&dir).ok();
@@ -189,7 +196,7 @@ mod tests {
     #[test]
     fn shortcut_overrides_save_only_when_they_change() {
         let dir = directory("shortcuts");
-        let mut preferences = Preferences::new(&dir);
+        let mut preferences = Preferences::new(&dir, true);
         let mut keymap = Keymap::new(&crate::actions::GROUPS).unwrap();
         preferences.load_shortcuts(&mut keymap);
         let (workspace, editors) = default_workspace();
@@ -199,8 +206,36 @@ mod tests {
         keymap.load_overrides(&text);
         preferences.save(&workspace, &editors, &keymap);
         let mut restored = Keymap::new(&crate::actions::GROUPS).unwrap();
-        Preferences::new(&dir).load_shortcuts(&mut restored);
+        Preferences::new(&dir, true).load_shortcuts(&mut restored);
         assert!(restored.is_modified("viewport.view-all"));
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_workspace_of_its_own_is_neither_restored_nor_saved_but_shortcuts_are() {
+        let dir = directory("untitled");
+        // What another instance saved.
+        let (workspace, editors) = default_workspace();
+        let keymap = Keymap::new(&crate::actions::GROUPS).unwrap();
+        Preferences::new(&dir, true).save(&workspace, &editors, &keymap);
+        let saved = fs::read_to_string(dir.join("workspace.txt")).unwrap();
+        let mut own = Preferences::new(&dir, false);
+        assert!(own.load_workspace().is_none());
+        // Changed, it never writes over the other instance's.
+        let (mut changed, editors) = default_workspace();
+        let area = changed.layout().areas().next().unwrap().0;
+        changed
+            .split(area, Orientation::Vertical, koebi_workspace::GRID / 8, 1)
+            .unwrap();
+        assert!(!own.is_dirty(&changed, &editors));
+        let mut keymap = Keymap::new(&crate::actions::GROUPS).unwrap();
+        keymap.load_overrides(&format!("{}\nviewport.view-all =\n", koebi_input::HEADER));
+        own.save(&changed, &editors, &keymap);
+        assert_eq!(
+            fs::read_to_string(dir.join("workspace.txt")).unwrap(),
+            saved
+        );
+        assert!(dir.join("shortcuts.txt").exists());
         fs::remove_dir_all(&dir).ok();
     }
 }

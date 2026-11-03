@@ -1,5 +1,12 @@
 //! The application state machine: SDL callbacks in, frames out, in every window.
+//!
+//! Windows are main windows or floating ones ([`Role`]). The application quits when its last
+//! main window closes; a main window's floating windows close with it. The workspace saved is
+//! the one of the oldest main window open. `Window > New Instance` starts another process on a
+//! workspace of its own (`--untitled`), sharing the design state and the shortcuts.
 
+use std::path::Path;
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use koebi_core::{Rect, Vec2};
@@ -20,7 +27,7 @@ use crate::gpu::Gpu;
 use crate::interface::Interface;
 use crate::options::{Options, StartWindow};
 use crate::settings::SettingsView;
-use crate::window::{AppWindow, WindowContent};
+use crate::window::{AppWindow, Role, WindowContent, closed_with};
 
 /// The smallest size of a window, in logical pixels: its bars and an editor still fit.
 const MIN_WINDOW_SIZE: (u32, u32) = (480, 320);
@@ -44,15 +51,15 @@ pub(crate) struct KoebiApp {
     rate: IterationRate,
     /// Cursors the application drew.
     cursors: AppCursors,
-    // Field order is drop order: every window before what they share. The main window is first.
+    // Field order is drop order: every window before what they share.
     windows: Vec<AppWindow>,
     gpu: Gpu,
 }
 
 impl KoebiApp {
-    /// The workspace of the main window, what is saved.
+    /// The workspace of the oldest main window open, what is saved.
     fn main_workspace(&self) -> Option<(&Workspace, &Editors)> {
-        self.windows.first().and_then(AppWindow::workspace)
+        saved_workspace(&self.windows)
     }
 
     /// Saves what changed now.
@@ -60,9 +67,15 @@ impl KoebiApp {
         let Self {
             interface, windows, ..
         } = self;
-        if let Some((workspace, editors)) = windows.first().and_then(AppWindow::workspace) {
+        if let Some((workspace, editors)) = saved_workspace(windows) {
             interface.save(workspace, editors);
         }
+    }
+
+    /// The main window the window at `index` belongs to: what a window opened from it belongs
+    /// to.
+    fn owner_of(&self, index: usize) -> Option<WindowId> {
+        self.windows.get(index).and_then(AppWindow::owner)
     }
 
     /// Applies what the bars asked for. Returns what the application does next.
@@ -78,11 +91,23 @@ impl KoebiApp {
                     return self.finish();
                 }
                 AppCommand::Window(WindowCommand::Close) => {
-                    if self.windows[index].is_main {
+                    let roles: Vec<(WindowId, Role)> = self
+                        .windows
+                        .iter()
+                        .map(|window| (window.id(), window.role))
+                        .collect();
+                    let Some(closed) = closed_with(&roles, index) else {
                         self.save();
                         return self.finish();
+                    };
+                    // The workspace saved may be the next main window's: save this one first.
+                    if self.windows[index].is_main() {
+                        self.save();
                     }
-                    self.close_window(index);
+                    for window in closed {
+                        self.close_window(window);
+                    }
+                    // Windows after it moved down: the loop goes on from the next lower one.
                     continue;
                 }
                 AppCommand::Window(WindowCommand::Minimize) => window.minimize(),
@@ -98,10 +123,21 @@ impl KoebiApp {
                 AppCommand::NewWindow => {
                     let (workspace, editors) = default_floating();
                     let content = WindowContent::workspace(workspace, editors);
-                    if let Err(error) = self.open_window(context, content, None, FLOATING_SIZE) {
+                    let role = Role::Floating {
+                        owner: self.owner_of(index),
+                    };
+                    if let Err(error) =
+                        self.open_window(context, content, None, FLOATING_SIZE, role)
+                    {
                         koebi_core::warn!("cannot open a window: {}", error.message);
                     }
                 }
+                AppCommand::NewMainWindow => {
+                    if let Err(error) = self.open_main_window(context, index) {
+                        koebi_core::warn!("cannot open a window: {}", error.message);
+                    }
+                }
+                AppCommand::NewInstance => self.start_instance(),
                 AppCommand::OpenSettings => {
                     if let Err(error) = self.open_settings(context) {
                         koebi_core::warn!("cannot open the settings: {}", error.message);
@@ -136,11 +172,42 @@ impl KoebiApp {
             return Ok(());
         }
         let content = WindowContent::Settings(Box::new(SettingsView::new()));
-        self.open_window(context, content, None, SETTINGS_SIZE)?;
+        // The application's own: it belongs to no main window.
+        let role = Role::Floating { owner: None };
+        self.open_window(context, content, None, SETTINGS_SIZE, role)?;
         Ok(())
     }
 
-    /// Opens a floating window of `size` showing `content`, its bar under `pointer` (global
+    /// Opens another main window, of the same document: the workspace of the window at `index`
+    /// (or of the oldest main window) as it is now.
+    fn open_main_window(&mut self, context: &mut AppContext, index: usize) -> Result<(), AppError> {
+        let (workspace, editors) = self
+            .windows
+            .get(index)
+            .and_then(AppWindow::workspace)
+            .or_else(|| self.main_workspace())
+            .map_or_else(crate::editors::default_workspace, |(workspace, editors)| {
+                (workspace.clone(), editors.clone())
+            });
+        let content = WindowContent::workspace(workspace, editors);
+        // The size the first main window opens at.
+        let desc = WindowDesc::default();
+        let size = (desc.width, desc.height);
+        self.open_window(context, content, None, size, Role::Main)?;
+        Ok(())
+    }
+
+    /// Starts another instance of the application, on a workspace of its own.
+    fn start_instance(&self) {
+        let started =
+            std::env::current_exe().and_then(|exe| instance_command(&exe, &self.options).spawn());
+        match started {
+            Ok(child) => koebi_core::info!("another instance started (process {})", child.id()),
+            Err(error) => koebi_core::warn!("cannot start another instance: {error}"),
+        }
+    }
+
+    /// Opens a window of `size` and `role` showing `content`, its bar under `pointer` (global
     /// coordinates) if given. Returns its place among the windows.
     fn open_window(
         &mut self,
@@ -148,6 +215,7 @@ impl KoebiApp {
         content: WindowContent,
         pointer: Option<Vec2>,
         size: (u32, u32),
+        role: Role,
     ) -> Result<usize, AppError> {
         let window = context
             .create_window(&WindowDesc {
@@ -168,7 +236,7 @@ impl KoebiApp {
         }
         let gpu = self.gpu.for_window(&window)?;
         self.windows
-            .push(AppWindow::new(false, window, gpu, content, &self.interface));
+            .push(AppWindow::new(role, window, gpu, content, &self.interface));
         Ok(self.windows.len() - 1)
     }
 
@@ -212,14 +280,15 @@ impl KoebiApp {
             return;
         }
         let entry = editors.entry_of(editor);
+        let owner = self.owner_of(source);
         let placed = match target {
             Some(index) => self.add_to_window(index, pointer, entry),
-            None => self.open_with(context, pointer, entry),
+            None => self.open_with(context, pointer, entry, owner),
         };
         if !placed {
             return;
         }
-        if alone && !self.windows[source].is_main {
+        if alone && !self.windows[source].is_main() {
             self.close_window(source);
             return;
         }
@@ -261,14 +330,21 @@ impl KoebiApp {
         true
     }
 
-    /// Opens a floating window holding an editor, under `pointer`.
-    fn open_with(&mut self, context: &mut AppContext, pointer: Vec2, entry: Entry) -> bool {
+    /// Opens a floating window of the main window `owner` holding an editor, under `pointer`.
+    fn open_with(
+        &mut self,
+        context: &mut AppContext,
+        pointer: Vec2,
+        entry: Entry,
+        owner: Option<WindowId>,
+    ) -> bool {
         let (workspace, mut editors) = default_floating();
         if let Some(first) = workspace.editors().next() {
             editors.adopt(first, entry);
         }
         let content = WindowContent::workspace(workspace, editors);
-        match self.open_window(context, content, Some(pointer), FLOATING_SIZE) {
+        let role = Role::Floating { owner };
+        match self.open_window(context, content, Some(pointer), FLOATING_SIZE, role) {
             Ok(_) => true,
             Err(error) => {
                 koebi_core::warn!("cannot open a window: {}", error.message);
@@ -308,7 +384,7 @@ impl KoebiApp {
         let built = started.elapsed();
         match shown.gpu.render(gpu, &shown.scene, scale_factor) {
             Ok((RenderOutcome::Presented, recording)) => {
-                if shown.is_main {
+                if shown.is_main() {
                     let gpu_time = shown.gpu.gpu_frame_time();
                     frame_times.record(built + recording, gpu_time, Instant::now());
                     *frames_presented += 1;
@@ -458,7 +534,7 @@ impl App for KoebiApp {
             );
         }
         let content = WindowContent::workspace(workspace, editors);
-        let main = AppWindow::new(true, window, window_gpu, content, &interface);
+        let main = AppWindow::new(Role::Main, window, window_gpu, content, &interface);
         let open = options.open_window;
         let mut app = Self {
             options,
@@ -474,8 +550,12 @@ impl App for KoebiApp {
             Some(StartWindow::Floating) => {
                 let (workspace, editors) = default_floating();
                 let content = WindowContent::workspace(workspace, editors);
-                app.open_window(context, content, None, FLOATING_SIZE)?;
+                let role = Role::Floating {
+                    owner: app.owner_of(0),
+                };
+                app.open_window(context, content, None, FLOATING_SIZE, role)?;
             }
+            Some(StartWindow::Main) => app.open_main_window(context, 0)?,
             Some(StartWindow::Settings) => app.open_settings(context)?,
             None => {}
         }
@@ -521,7 +601,7 @@ impl App for KoebiApp {
         let Self {
             interface, windows, ..
         } = self;
-        if let Some((workspace, editors)) = windows.first().and_then(AppWindow::workspace) {
+        if let Some((workspace, editors)) = saved_workspace(windows) {
             interface.save_if_due(workspace, editors);
         }
         self.update_rate(context);
@@ -599,6 +679,26 @@ const fn close_command() -> AppCommand {
     AppCommand::Window(WindowCommand::Close)
 }
 
+/// The workspace of the oldest main window among `windows`: what is saved.
+fn saved_workspace(windows: &[AppWindow]) -> Option<(&Workspace, &Editors)> {
+    windows
+        .iter()
+        .find(|window| window.is_main())
+        .and_then(AppWindow::workspace)
+}
+
+/// The command starting another instance of the application at `exe`, on a workspace of its
+/// own, in the data directory `options` names: its design state and shortcuts are shared.
+fn instance_command(exe: &Path, options: &Options) -> Command {
+    let mut command = Command::new(exe);
+    command.arg("--untitled");
+    if let Some(dir) = &options.data_dir {
+        command.arg("--data-dir").arg(dir);
+    }
+    command.stdin(Stdio::null());
+    command
+}
+
 /// Creates the main window, in the state the command line asks for.
 fn main_window(context: &mut AppContext, options: &Options) -> Result<Window, AppError> {
     let window = context
@@ -619,4 +719,33 @@ fn main_window(context: &mut AppContext, options: &Options) -> Result<Window, Ap
         WindowState::Minimized | WindowState::Normal => {}
     }
     Ok(window)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsStr;
+    use std::path::PathBuf;
+
+    use super::*;
+
+    #[test]
+    fn another_instance_starts_untitled_in_the_same_data_directory() {
+        let exe = Path::new("koebi");
+        let args = |options: &Options| -> Vec<String> {
+            instance_command(exe, options)
+                .get_args()
+                .map(|arg| arg.to_string_lossy().into_owned())
+                .collect()
+        };
+        let command = instance_command(exe, &Options::default());
+        assert_eq!(command.get_program(), OsStr::new("koebi"));
+        assert_eq!(args(&Options::default()), ["--untitled"]);
+        let options = Options {
+            data_dir: Some(PathBuf::from("state")),
+            frames: Some(3),
+            ..Options::default()
+        };
+        // The data directory only: the other options were this instance's.
+        assert_eq!(args(&options), ["--untitled", "--data-dir", "state"]);
+    }
 }

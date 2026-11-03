@@ -73,7 +73,9 @@ impl Interface {
             .map_err(|message| AppError::new(exit_code::FAILURE, message))?;
         let mut keymap = Keymap::new(&actions::GROUPS)
             .map_err(|error| AppError::new(exit_code::FAILURE, format!("shortcuts: {error}")))?;
-        let mut preferences = directory.as_deref().map(Preferences::new);
+        let mut preferences = directory
+            .as_deref()
+            .map(|directory| Preferences::new(directory, !options.untitled));
         let (workspace, editors) = preferences
             .as_mut()
             .and_then(Preferences::load_workspace)

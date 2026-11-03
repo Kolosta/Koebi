@@ -552,3 +552,38 @@ fn closing_a_floating_window_leaves_the_application_and_closing_the_main_one_qui
         std::thread::sleep(Duration::from_millis(20));
     }
 }
+
+#[test]
+fn closing_a_main_window_leaves_the_other_one_and_closing_the_last_quits() {
+    let Some(mut first) = launch("mains", &["--open-window", "main"]) else {
+        return;
+    };
+    first.wait_until("both main windows", |app| {
+        find_windows(app.child.id()).len() == 2
+    });
+    let windows = find_windows(first.child.id());
+    // Both main windows open at the size of a main window.
+    let size = |window: Hwnd| {
+        let rect = App::rect_of(window);
+        (rect.width(), rect.height())
+    };
+    assert_eq!(size(windows[0]), size(windows[1]));
+    let (closed, kept) = (windows[0], windows[1]);
+    // SAFETY: a live window; the message carries no pointer.
+    assert_ne!(unsafe { PostMessageW(closed, WM_CLOSE, 0, 0) }, 0);
+    first.wait_until("one main window to go", |app| {
+        find_windows(app.child.id()).len() == 1
+    });
+    assert!(first.child.try_wait().expect("cannot poll koebi").is_none());
+    // SAFETY: a live window; the message carries no pointer.
+    assert_ne!(unsafe { PostMessageW(kept, WM_CLOSE, 0, 0) }, 0);
+    let started = Instant::now();
+    loop {
+        if let Some(status) = first.child.try_wait().expect("cannot poll koebi") {
+            assert_eq!(status.code(), Some(exit_code::SUCCESS));
+            return;
+        }
+        assert!(started.elapsed() < WAIT, "koebi did not quit");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
