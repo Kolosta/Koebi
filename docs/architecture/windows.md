@@ -34,16 +34,26 @@ without simulating any input.
 | what editors show: document, gallery, messages | workspace and the state of its editors |
 
 - **One renderer per window**: its streaming buffers follow the frames in flight of one presenter.
-- **Windows are independent**: no window owns another, so that minimizing the main one leaves the
-  others, and one process gives them one icon on the taskbar, in the dock or their equivalents.
-- **The main window** is the first one: closing it quits, and only it is saved and shows the frame
-  times. Closing another one closes it alone.
+- **Windows are independent for the system**: no window owns another, so that minimizing a main
+  window leaves the others, and one process gives them one icon on the taskbar, in the dock or
+  their equivalents.
+- **Main windows and floating windows** (`Role`), as in Blender: `Window > New Main Window` opens
+  another main window, on a copy of the workspace it is chosen from; `Window > New Window` opens a
+  floating window, which belongs to the main window it is chosen from (or that of the floating
+  window it is chosen from). Closing a main window closes its floating windows with it; closing the
+  last main window quits. The settings window belongs to no main window: it stays while one does.
+  The workspace saved is the one of the oldest main window open, and main windows show the frame
+  times.
+- **Another instance**: `Window > New Instance` starts another process, as VS Code's new window
+  does, with `--untitled`: it shares the data directory, so the design state and the shortcuts,
+  but its workspace is its own, neither restored nor saved. Closing one instance leaves the other.
 - **Redraws**: each window redraws when it asks to, and when the design system has changed since
   its last frame, wherever the change came from.
 - **Editors between windows**: an editor dropped outside its window goes to the window under the
   pointer, as a tab of the area there, or to a new floating window with its state. A floating window
-  left empty closes. `Window > New Window` opens one.
-- **Mobile platforms** have one window: the settings show inside it.
+  left empty closes; it belongs to the main window of the window the editor came from.
+- **Mobile platforms** have one window: the settings show inside it, and the Window menu opens
+  nothing.
 
 Floating windows are not restored at the next start yet, unlike the main window's workspace.
 

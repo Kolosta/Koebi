@@ -14,6 +14,8 @@ use crate::design_options::COLOR_VISION_MODES;
 pub enum StartWindow {
     /// A floating window of editors.
     Floating,
+    /// Another main window.
+    Main,
     /// The settings.
     Settings,
 }
@@ -44,6 +46,9 @@ pub struct Options {
     pub window_state: WindowState,
     /// A window to open beside the main one.
     pub open_window: Option<StartWindow>,
+    /// Work on a document of its own: the default workspace, neither restored nor saved; the
+    /// design state and the shortcuts are still shared. What a new instance starts with.
+    pub untitled: bool,
     /// Show (`Some(true)`) or hide the frame-time overlay; `None` shows it in debug builds.
     pub frame_times: Option<bool>,
     /// Print usage and exit.
@@ -109,7 +114,9 @@ Options:
   --export-schema <FILE>   Write every token, with its base definition, to FILE
   --maximized              Open the window maximized
   --fullscreen             Open the window in fullscreen
-  --open-window <WINDOW>   Open another window as well: floating or settings
+  --open-window <WINDOW>   Open another window as well: floating, main or settings
+  --untitled               Start on a workspace of its own, neither restored nor saved
+                           (the design state and the shortcuts are shared)
   --fps, --no-fps          Show or hide the frame-time overlay (shown in debug builds)
   -h, --help               Print this help
   -V, --version            Print the version
@@ -195,6 +202,7 @@ Environment:
                         .ok_or(ParseError::MissingValue("--open-window"))?;
                     options.open_window = Some(match value.as_ref() {
                         "floating" => StartWindow::Floating,
+                        "main" => StartWindow::Main,
                         "settings" => StartWindow::Settings,
                         other => {
                             return Err(ParseError::InvalidValue {
@@ -204,6 +212,7 @@ Environment:
                         }
                     });
                 }
+                "--untitled" => options.untitled = true,
                 "--maximized" => options.window_state = WindowState::Maximized,
                 "--fullscreen" => options.window_state = WindowState::Fullscreen,
                 "--fps" => options.frame_times = Some(true),
@@ -254,8 +263,16 @@ mod tests {
         assert_eq!(parsed.open_window, Some(StartWindow::Floating));
         let parsed = Options::parse(["--open-window", "settings"]).unwrap();
         assert_eq!(parsed.open_window, Some(StartWindow::Settings));
+        let parsed = Options::parse(["--open-window", "main"]).unwrap();
+        assert_eq!(parsed.open_window, Some(StartWindow::Main));
         assert!(Options::parse(["--open-window"]).is_err());
         assert!(Options::parse(["--open-window", "nothing"]).is_err());
+    }
+
+    #[test]
+    fn an_untitled_start_is_an_option() {
+        assert!(!Options::parse(["--fps"]).unwrap().untitled);
+        assert!(Options::parse(["--untitled"]).unwrap().untitled);
     }
 
     #[test]

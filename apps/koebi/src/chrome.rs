@@ -8,8 +8,7 @@ use koebi_core::{Rect, Vec2};
 use koebi_input::Keymap;
 use koebi_platform::{ChromeInsets, MaximizeButtonState, Window, WindowRegions, WindowState};
 use koebi_ui::{
-    AppBar, BarLayout, MenuBarEntry, MenuBarState, MenuChoice, MenuItem, Ui, UiState, WidgetId,
-    WindowCommand,
+    AppBar, BarLayout, MenuBarEntry, MenuBarState, MenuItem, Ui, UiState, WidgetId, WindowCommand,
 };
 
 use crate::actions;
@@ -46,8 +45,12 @@ pub(crate) enum AppCommand {
     Quit,
     /// Opens the system's window menu there.
     SystemMenu(Vec2),
-    /// Opens a floating window.
+    /// Opens a floating window of the same document, which closes with its main window.
     NewWindow,
+    /// Opens another main window of the same document.
+    NewMainWindow,
+    /// Starts another instance of the application, on a document of its own.
+    NewInstance,
     /// Opens the settings window, or brings it to the front.
     OpenSettings,
 }
@@ -182,11 +185,7 @@ impl AppChrome {
             MenuItem::action("Settings"),
             &labels.settings,
         )];
-        let fullscreen = MenuItem::action("Fullscreen").checked(state == WindowState::Fullscreen);
-        let window = [
-            MenuItem::action("New Window").enabled(MULTIPLE_WINDOWS),
-            with_shortcut(fullscreen, &labels.fullscreen),
-        ];
+        let window = window_items(state, labels);
         let entries = [
             MenuBarEntry {
                 title: "File",
@@ -202,7 +201,7 @@ impl AppChrome {
             },
         ];
         let (menu, choice) = ui.menu_bar(MENUS, &mut self.menus, &entries, layout, area)?;
-        command_of(menu, &choice)
+        command_of(menu, choice.index())
     }
 
     /// Tells `window` where the bar was drawn and what lies on it, according to the frame `state`
@@ -227,13 +226,27 @@ impl AppChrome {
     }
 }
 
-/// What the item `choice` of the menu at `menu` on the bar asks for.
-fn command_of(menu: usize, choice: &MenuChoice) -> Option<AppCommand> {
-    match (menu, choice.index()) {
+/// The Window menu: windows of the same document, another instance, fullscreen.
+fn window_items(state: WindowState, labels: &ShortcutLabels) -> [MenuItem<'_>; 5] {
+    let fullscreen = MenuItem::action("Fullscreen").checked(state == WindowState::Fullscreen);
+    [
+        MenuItem::action("New Window").enabled(MULTIPLE_WINDOWS),
+        MenuItem::action("New Main Window").enabled(MULTIPLE_WINDOWS),
+        MenuItem::action("New Instance").enabled(MULTIPLE_WINDOWS),
+        MenuItem::Separator,
+        with_shortcut(fullscreen, &labels.fullscreen),
+    ]
+}
+
+/// What the item at `index` of the menu at `menu` on the bar asks for.
+fn command_of(menu: usize, index: usize) -> Option<AppCommand> {
+    match (menu, index) {
         (0, 5) => Some(AppCommand::Quit),
         (1, 0) => Some(AppCommand::OpenSettings),
         (2, 0) => Some(AppCommand::NewWindow),
-        (2, 1) => Some(AppCommand::ToggleFullscreen),
+        (2, 1) => Some(AppCommand::NewMainWindow),
+        (2, 2) => Some(AppCommand::NewInstance),
+        (2, 4) => Some(AppCommand::ToggleFullscreen),
         _ => None,
     }
 }
@@ -254,6 +267,34 @@ mod tests {
         // With no shortcut left, the item shows none.
         keymap.set_shortcuts(actions::FULLSCREEN.id, &[]).unwrap();
         assert_eq!(ShortcutLabels::read(&keymap).fullscreen, "");
+    }
+
+    #[test]
+    fn the_window_menu_opens_windows_of_the_document_and_another_instance() {
+        let labels = ShortcutLabels::default();
+        let items = window_items(WindowState::Normal, &labels);
+        let names: Vec<Option<&str>> = items
+            .iter()
+            .map(|item| match item {
+                MenuItem::Action(action) => Some(action.label),
+                _ => None,
+            })
+            .collect();
+        let expected = [
+            ("New Window", AppCommand::NewWindow),
+            ("New Main Window", AppCommand::NewMainWindow),
+            ("New Instance", AppCommand::NewInstance),
+            ("Fullscreen", AppCommand::ToggleFullscreen),
+        ];
+        for (name, command) in expected {
+            let index = names
+                .iter()
+                .position(|label| *label == Some(name))
+                .unwrap_or_else(|| panic!("no {name}"));
+            assert_eq!(command_of(2, index), Some(command), "{name}");
+        }
+        // The separator asks for nothing.
+        assert_eq!(command_of(2, 3), None);
     }
 
     #[test]

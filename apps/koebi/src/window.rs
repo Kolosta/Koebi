@@ -47,10 +47,44 @@ impl WindowContent {
     }
 }
 
+/// What a window is to the application.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Role {
+    /// A main window: the application quits when its last one closes, and its floating windows
+    /// close with it.
+    Main,
+    /// A floating window of the main window `owner`, which it closes with. The application's
+    /// own windows (the settings) belong to none: they stay while a main window does.
+    Floating {
+        /// The main window it belongs to.
+        owner: Option<WindowId>,
+    },
+}
+
+/// The windows that closing the window at `index` of `roles` closes, the last one first: it,
+/// and the floating windows it owns when it is a main window. `None` when it is the last main
+/// window: the application quits.
+pub(crate) fn closed_with(roles: &[(WindowId, Role)], index: usize) -> Option<Vec<usize>> {
+    let (id, role) = *roles.get(index)?;
+    if role != Role::Main {
+        return Some(vec![index]);
+    }
+    let mains = roles.iter().filter(|(_, role)| *role == Role::Main).count();
+    if mains <= 1 {
+        return None;
+    }
+    let owned = Role::Floating { owner: Some(id) };
+    let mut closed: Vec<usize> = (0..roles.len())
+        .filter(|&other| other == index || roles[other].1 == owned)
+        .collect();
+    closed.reverse();
+    Some(closed)
+}
+
 /// A window of the application.
 pub(crate) struct AppWindow {
-    /// The main window: closing it quits the application, and it shows the frame times.
-    pub(crate) is_main: bool,
+    /// A main window, or a floating one and the main window it belongs to.
+    pub(crate) role: Role,
     pub(crate) state: UiState,
     pub(crate) input: Input,
     pub(crate) scene: Scene,
@@ -77,7 +111,7 @@ pub(crate) struct AppWindow {
 impl AppWindow {
     /// A window showing `content`, drawn from the next iteration.
     pub(crate) fn new(
-        is_main: bool,
+        role: Role,
         window: Window,
         gpu: WindowGpu,
         content: WindowContent,
@@ -86,7 +120,7 @@ impl AppWindow {
         let mut state = UiState::new();
         state.set_fonts(interface.fonts.clone());
         Self {
-            is_main,
+            role,
             state,
             input: Input::new(),
             scene: Scene::new(),
@@ -107,6 +141,19 @@ impl AppWindow {
     /// The window's identifier in events.
     pub(crate) fn id(&self) -> WindowId {
         self.window.id()
+    }
+
+    /// `true` for a main window.
+    pub(crate) fn is_main(&self) -> bool {
+        self.role == Role::Main
+    }
+
+    /// The main window this window belongs to: itself for a main window.
+    pub(crate) fn owner(&self) -> Option<WindowId> {
+        match self.role {
+            Role::Main => Some(self.id()),
+            Role::Floating { owner } => owner,
+        }
     }
 
     /// Builds the scene of a frame covering `area`. When the frame changes the design system
@@ -146,8 +193,8 @@ impl AppWindow {
             insets: self.window.chrome_insets(),
             maximize: self.window.maximize_button(),
         };
+        let is_main = self.is_main();
         let Self {
-            is_main,
             state,
             scene,
             chrome,
@@ -199,7 +246,7 @@ impl AppWindow {
             }
         });
         drop(ui);
-        if *is_main && let Some(overlay) = overlay {
+        if is_main && let Some(overlay) = overlay {
             overlay.draw(scene, design, fonts, times, area);
         }
     }
@@ -340,5 +387,59 @@ impl AppWindow {
             WindowContent::Settings(_) => "Settings",
             WindowContent::Workspace { .. } => "Koebi",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MAIN: Role = Role::Main;
+
+    fn of(owner: u32) -> Role {
+        Role::Floating {
+            owner: Some(WindowId(owner)),
+        }
+    }
+
+    /// Windows 1 and 4 are main windows; 2 and 5 belong to 1, 6 to 4, 3 is the settings.
+    fn roles() -> Vec<(WindowId, Role)> {
+        [
+            (1, MAIN),
+            (2, of(1)),
+            (3, Role::Floating { owner: None }),
+            (4, MAIN),
+            (5, of(1)),
+            (6, of(4)),
+        ]
+        .into_iter()
+        .map(|(id, role)| (WindowId(id), role))
+        .collect()
+    }
+
+    #[test]
+    fn a_floating_window_closes_alone() {
+        assert_eq!(closed_with(&roles(), 1), Some(vec![1]));
+        // The settings belong to no main window.
+        assert_eq!(closed_with(&roles(), 2), Some(vec![2]));
+    }
+
+    #[test]
+    fn a_main_window_closes_with_its_floating_windows_while_another_stays() {
+        // The last one first: removing them in this order keeps the others' places.
+        assert_eq!(closed_with(&roles(), 0), Some(vec![4, 1, 0]));
+        assert_eq!(closed_with(&roles(), 3), Some(vec![5, 3]));
+    }
+
+    #[test]
+    fn the_last_main_window_closes_the_application() {
+        let roles = [
+            (WindowId(1), MAIN),
+            (WindowId(2), of(1)),
+            (WindowId(3), Role::Floating { owner: None }),
+        ];
+        assert_eq!(closed_with(&roles, 0), None);
+        assert_eq!(closed_with(&roles, 1), Some(vec![1]));
+        assert_eq!(closed_with(&roles, 9), None);
     }
 }
