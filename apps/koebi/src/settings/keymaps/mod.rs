@@ -165,6 +165,12 @@ impl KeymapsPage {
         }
     }
 
+    /// Searches the actions with `shortcut`, as pressing it in the search does.
+    #[cfg(test)]
+    pub(super) fn search_for(&mut self, shortcut: Shortcut) {
+        self.search_shortcut = Some(shortcut);
+    }
+
     /// The search: by name, by shortcut, and what clears them.
     fn search_row(&mut self, ui: &mut Ui<'_>, stack: &mut Stack, design: &DesignSystem) {
         let row = design.get(semantic::SIZE_CONTROL_HEIGHT);

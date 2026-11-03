@@ -44,7 +44,7 @@ what shows.
 | Theme card | `Ui::theme_card(id, rect, &preview, selected)` | `component.theme-card.*` |
 | Card | `Ui::card(id, rect, selected)` returns a `CardResponse` with the room inside its frame | `component.theme-card.*` |
 | Reset dot | `Ui::reset_dot(id, area, hint)`: shown beside a changed value, `clicked` brings it back | `component.panel.override-badge.*` |
-| Key caps | `Ui::key_caps(rect, &shortcut, align)` draws a shortcut as keys joined by `+`, each cap as wide as its label, with icons for Shift, Tab, Command, the Windows key and mouse buttons; `ShortcutCaps::of` gives the caps | `component.key-cap.*` |
+| Key caps | `Ui::key_caps(rect, &shortcut, align)` draws a shortcut as keys joined by `+`, each cap as wide as its label, with icons for Shift, Tab, Command, the Windows key and mouse buttons, named for the keyboard `UiState::set_keyboard` gives (`Keyboard::CURRENT` by default); `ShortcutCaps::of` gives the caps | `component.key-cap.*` |
 | Capture field | `CaptureField::new(id, &mut state, shortcut)` + `.capture(Capture::Keyboard)`, then `.show(ui, rect)` records the next key or button pressed; it takes the keyboard meanwhile (`CAPTURE`), Escape cancels | `component.capture-field.*` |
 | Preview | `Ui::preview(&styles, &mut state, add)` draws real components in other styles, inert | the styles given |
 | Menu | `Ui::menu(id, &mut state, &items, bounds)` returns the chosen item (`MenuChoice`) | `component.menu.*`, `component.separator.*` |

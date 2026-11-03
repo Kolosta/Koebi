@@ -39,7 +39,7 @@ pub use collapsible::{
     CollapsiblePanel, CollapsiblePanelResponse, CollapsiblePanelState, CollapsiblePanelStyle,
 };
 pub use dropdown::{Dropdown, DropdownStyle};
-pub use key_caps::{Cap, CapLabel, KEY_SIGNS, KeyCapStyle, ShortcutCaps, key_cap};
+pub use key_caps::{Cap, CapLabel, KEY_SIGNS, KeyCapStyle, Keyboard, ShortcutCaps, key_cap};
 pub use list::{
     DropPlace, ItemMark, LIST, LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT,
     LIST_EXTEND_PREVIOUS, LIST_FOLD, LIST_NEXT, LIST_PREVIOUS, LIST_SELECT_ALL, LIST_UNFOLD,

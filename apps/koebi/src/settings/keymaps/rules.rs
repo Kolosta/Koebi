@@ -221,17 +221,6 @@ pub(super) fn toggle_any(rule: ModifierRule) -> ModifierRule {
     }
 }
 
-/// The name the platform gives the GUI key.
-pub(super) const fn gui_name() -> &'static str {
-    if cfg!(any(target_os = "macos", target_os = "ios")) {
-        "Cmd"
-    } else if cfg!(target_os = "windows") {
-        "Win"
-    } else {
-        "Super"
-    }
-}
-
 /// The mouse buttons offered, by name.
 pub(super) const BUTTONS: [(MouseButton, &str); 5] = [
     (MouseButton::Left, "Left"),

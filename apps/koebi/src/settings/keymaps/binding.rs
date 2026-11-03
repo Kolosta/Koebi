@@ -21,8 +21,8 @@ use koebi_ui::{
 
 use super::analysis::BindingReport;
 use super::rules::{
-    BUTTONS, DIRECTIONS, Device, Event, PINCHES, WHEEL, can_repeat, chosen_keys, gui_name, is_any,
-    side_on, toggle_any, toggle_family, toggle_side,
+    BUTTONS, DIRECTIONS, Device, Event, PINCHES, WHEEL, can_repeat, chosen_keys, is_any, side_on,
+    toggle_any, toggle_family, toggle_side,
 };
 
 /// What the user changed in a shortcut.
@@ -505,19 +505,8 @@ fn modifiers(
     id: WidgetId,
     rule: ModifierRule,
 ) -> Option<ModifierRule> {
-    let families = [
-        (ModifierKey::Ctrl, "Ctrl"),
-        (ModifierKey::Shift, "Shift"),
-        (
-            ModifierKey::Alt,
-            if cfg!(target_os = "macos") {
-                "Option"
-            } else {
-                "Alt"
-            },
-        ),
-        (ModifierKey::Gui, gui_name()),
-    ];
+    let keyboard = ui.keyboard();
+    let families = ModifierKey::ALL.map(|family| (family, keyboard.modifier_name(family)));
     let any = is_any(rule);
     // The grid's columns: two per family (its sides below), two for any.
     let column = |index: usize| u16::try_from(index).unwrap_or(u16::MAX);

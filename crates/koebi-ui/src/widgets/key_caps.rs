@@ -76,6 +76,65 @@ impl KeyCapStyle {
     }
 }
 
+/// Whose keyboard keys are named for: Command and Option on Apple keyboards, the Windows key on
+/// Windows, Super elsewhere. The platform's by default ([`Keyboard::CURRENT`]); tests and
+/// previews may name another's ([`crate::UiState::set_keyboard`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Keyboard {
+    /// macOS and iOS.
+    Apple,
+    /// Windows.
+    Windows,
+    /// Linux, Android and the others.
+    Other,
+}
+
+impl Default for Keyboard {
+    /// The platform's.
+    fn default() -> Self {
+        Self::CURRENT
+    }
+}
+
+impl Keyboard {
+    /// The keyboard of the platform Koebi runs on.
+    pub const CURRENT: Self = if cfg!(any(target_os = "macos", target_os = "ios")) {
+        Self::Apple
+    } else if cfg!(target_os = "windows") {
+        Self::Windows
+    } else {
+        Self::Other
+    };
+
+    /// The names of `family`'s keys: either, the left one, the right one, either or none.
+    const fn names(self, family: ModifierKey) -> [&'static str; 4] {
+        match (family, self) {
+            (ModifierKey::Ctrl, _) => ["Ctrl", "L Ctrl", "R Ctrl", "Any Ctrl"],
+            (ModifierKey::Shift, _) => ["Shift", "L Shift", "R Shift", "Any Shift"],
+            (ModifierKey::Alt, Self::Apple) => ["Option", "L Option", "R Option", "Any Option"],
+            (ModifierKey::Alt, _) => ["Alt", "L Alt", "R Alt", "Any Alt"],
+            (ModifierKey::Gui, Self::Apple) => ["Cmd", "L Cmd", "R Cmd", "Any Cmd"],
+            (ModifierKey::Gui, Self::Windows) => ["Win", "L Win", "R Win", "Any Win"],
+            (ModifierKey::Gui, Self::Other) => ["Super", "L Super", "R Super", "Any Super"],
+        }
+    }
+
+    /// The name of `family`'s keys: `Ctrl`, `Option`, `Win`...
+    pub const fn modifier_name(self, family: ModifierKey) -> &'static str {
+        self.names(family)[0]
+    }
+
+    /// The icon of `family`'s keys, where they have one.
+    const fn modifier_icon(self, family: ModifierKey) -> Option<Icon> {
+        match (family, self) {
+            (ModifierKey::Shift, _) => Some(Icon::Shift),
+            (ModifierKey::Gui, Self::Apple) => Some(Icon::Command),
+            (ModifierKey::Gui, Self::Windows) => Some(Icon::Windows),
+            _ => None,
+        }
+    }
+}
+
 /// The punctuation keys and the sign they show as, by key name.
 pub const KEY_SIGNS: [(&str, &str); 11] = [
     ("Comma", ","),
@@ -146,8 +205,8 @@ impl ShortcutCaps {
     /// Room for every modifier, a held key and the trigger.
     const CAPACITY: usize = 6;
 
-    /// The caps of `shortcut`, as the platform names its keys.
-    pub fn of(shortcut: &Shortcut) -> Self {
+    /// The caps of `shortcut`, as `keyboard` names its keys.
+    pub fn of(shortcut: &Shortcut, keyboard: Keyboard) -> Self {
         let mut caps = Self::default();
         let rule = shortcut.modifiers;
         let families = ModifierKey::ALL.map(|family| (family, rule.get(family)));
@@ -158,7 +217,7 @@ impl ShortcutCaps {
             caps.push(Cap::text("Any"));
         } else {
             for (family, state) in families {
-                if let Some(cap) = modifier_cap(family, state) {
+                if let Some(cap) = modifier_cap(keyboard, family, state) {
                     caps.push(cap);
                 }
             }
@@ -185,20 +244,9 @@ impl ShortcutCaps {
     }
 }
 
-/// The cap of a modifier family in `state`, if it shows one.
-fn modifier_cap(family: ModifierKey, state: ModifierState) -> Option<Cap> {
-    let apple = cfg!(any(target_os = "macos", target_os = "ios"));
-    let windows = cfg!(target_os = "windows");
-    // Its names: either key, the left one, the right one, either or none.
-    let names: [&'static str; 4] = match family {
-        ModifierKey::Ctrl => ["Ctrl", "L Ctrl", "R Ctrl", "Any Ctrl"],
-        ModifierKey::Shift => ["Shift", "L Shift", "R Shift", "Any Shift"],
-        ModifierKey::Alt if apple => ["Option", "L Option", "R Option", "Any Option"],
-        ModifierKey::Alt => ["Alt", "L Alt", "R Alt", "Any Alt"],
-        ModifierKey::Gui if apple => ["Cmd", "L Cmd", "R Cmd", "Any Cmd"],
-        ModifierKey::Gui if windows => ["Win", "L Win", "R Win", "Any Win"],
-        ModifierKey::Gui => ["Super", "L Super", "R Super", "Any Super"],
-    };
+/// The cap of a modifier family in `state`, as `keyboard` names it, if it shows one.
+fn modifier_cap(keyboard: Keyboard, family: ModifierKey, state: ModifierState) -> Option<Cap> {
+    let names = keyboard.names(family);
     let name = match state {
         ModifierState::Up => return None,
         ModifierState::Down(Side::Either) => names[0],
@@ -206,13 +254,7 @@ fn modifier_cap(family: ModifierKey, state: ModifierState) -> Option<Cap> {
         ModifierState::Down(Side::Right) => names[2],
         ModifierState::Any => names[3],
     };
-    let icon = match family {
-        ModifierKey::Shift => Some(Icon::Shift),
-        ModifierKey::Gui if apple => Some(Icon::Command),
-        ModifierKey::Gui if windows => Some(Icon::Windows),
-        ModifierKey::Ctrl | ModifierKey::Alt | ModifierKey::Gui => None,
-    };
-    Some(match icon {
+    Some(match keyboard.modifier_icon(family) {
         Some(icon) => Cap::icon(icon, Some(name)),
         None => Cap::text(name),
     })
@@ -373,14 +415,14 @@ impl core::fmt::Write for LabelBuffer {
 impl Ui<'_> {
     /// The width of `shortcut` as key caps ([`Ui::key_caps`]).
     pub fn key_caps_width(&mut self, shortcut: &Shortcut) -> f32 {
-        let caps = ShortcutCaps::of(shortcut);
+        let caps = ShortcutCaps::of(shortcut, self.state.keyboard());
         self.caps_layout(&caps, None)
     }
 
     /// Draws `shortcut` as key caps in `rect`, placed by `align`, the caps a little lower than
     /// the row. Returns the width they take.
     pub fn key_caps(&mut self, rect: Rect, shortcut: &Shortcut, align: Align) -> f32 {
-        let caps = ShortcutCaps::of(shortcut);
+        let caps = ShortcutCaps::of(shortcut, self.state.keyboard());
         let width = self.caps_layout(&caps, None);
         let x = match align {
             Align::Start => rect.min.x,
@@ -479,7 +521,11 @@ mod tests {
     use crate::{Input, UiState};
 
     fn labels(shortcut: &Shortcut) -> Vec<String> {
-        let caps = ShortcutCaps::of(shortcut);
+        labels_on(shortcut, Keyboard::Windows)
+    }
+
+    fn labels_on(shortcut: &Shortcut, keyboard: Keyboard) -> Vec<String> {
+        let caps = ShortcutCaps::of(shortcut, keyboard);
         let mut buffer = LabelBuffer::new();
         caps.caps()
             .iter()
@@ -498,7 +544,21 @@ mod tests {
             .with(ModifierKey::Shift)
             .holding(Key::Space);
         assert_eq!(labels(&shortcut), ["Ctrl", "Shift Shift", "Space", "G"]);
-        assert_eq!(ShortcutCaps::of(&shortcut).phase, None);
+        assert_eq!(ShortcutCaps::of(&shortcut, Keyboard::Windows).phase, None);
+        // Each keyboard names its keys.
+        let gui = Shortcut::key(Key::Q)
+            .with(ModifierKey::Gui)
+            .with(ModifierKey::Alt);
+        assert_eq!(
+            labels_on(&gui, Keyboard::Apple),
+            ["Option", "Command Cmd", "Q"]
+        );
+        assert_eq!(
+            labels_on(&gui, Keyboard::Windows),
+            ["Alt", "Windows Win", "Q"]
+        );
+        assert_eq!(labels_on(&gui, Keyboard::Other), ["Alt", "Super", "Q"]);
+        assert_eq!(Keyboard::Apple.modifier_name(ModifierKey::Alt), "Option");
         // Sides, any modifiers, punctuation, codes.
         let left = Shortcut::key(Key::Comma)
             .modifiers(ModifierRule::NONE.with(ModifierKey::Ctrl, ModifierState::Down(Side::Left)));
@@ -516,7 +576,10 @@ mod tests {
             when: KeyTrigger::Release,
             repeat: false,
         });
-        assert_eq!(ShortcutCaps::of(&release).phase, Some("release"));
+        assert_eq!(
+            ShortcutCaps::of(&release, Keyboard::Other).phase,
+            Some("release")
+        );
         let drag = Shortcut::button(
             MouseButton::Middle,
             ButtonTrigger::Drag(Drag {
@@ -525,10 +588,16 @@ mod tests {
             }),
         );
         assert_eq!(labels(&drag), ["MouseMiddle"]);
-        assert_eq!(ShortcutCaps::of(&drag).phase, Some("drag up"));
+        assert_eq!(
+            ShortcutCaps::of(&drag, Keyboard::Other).phase,
+            Some("drag up")
+        );
         let back = Shortcut::button(MouseButton::Back, ButtonTrigger::DoubleClick);
         assert_eq!(labels(&back), ["Mouse 4"]);
-        assert_eq!(ShortcutCaps::of(&back).phase, Some("double click"));
+        assert_eq!(
+            ShortcutCaps::of(&back, Keyboard::Other).phase,
+            Some("double click")
+        );
         let wheel = Shortcut::new(Trigger::Wheel(WheelDirection::Down));
         assert_eq!(labels(&wheel), ["Wheel down"]);
     }

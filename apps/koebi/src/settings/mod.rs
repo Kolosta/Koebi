@@ -404,19 +404,20 @@ mod tests {
         };
         let mut harness = Harness::new();
         harness.settings.page = Page::Keymaps;
-        // Fullscreen with a second shortcut, Quit's, off for the conflict; its panel open.
-        let quit = harness.keymap.shortcuts(crate::actions::QUIT.id).unwrap()[0];
-        let fullscreen = harness
-            .keymap
-            .shortcuts(crate::actions::FULLSCREEN.id)
-            .unwrap()[0];
+        // Keys named the same on every platform, shortcuts without the primary modifier.
+        harness.state.set_keyboard(koebi_ui::Keyboard::Windows);
+        // Fullscreen with a second shortcut, the frame times', off for the conflict; its panel
+        // open, and the search showing the two actions.
+        let shortcut = |keymap: &Keymap, id: &str| keymap.shortcuts(id).unwrap()[0];
+        let frame_times = shortcut(&harness.keymap, crate::actions::FRAME_TIMES.id);
+        let fullscreen = shortcut(&harness.keymap, crate::actions::FULLSCREEN.id);
         harness
             .keymap
             .set_bindings(
                 crate::actions::FULLSCREEN.id,
                 &[
                     koebi_input::Binding::on(fullscreen),
-                    koebi_input::Binding::off(quit),
+                    koebi_input::Binding::off(frame_times),
                 ],
             )
             .unwrap();
@@ -424,6 +425,7 @@ mod tests {
             .settings
             .keymaps
             .open_action(crate::actions::FULLSCREEN.id, &[1]);
+        harness.settings.keymaps.search_for(frame_times);
         let image = page_image(&gpu, &mut harness);
         assert_page(&image, "settings_keymaps");
         gpu.assert_no_validation_errors();
