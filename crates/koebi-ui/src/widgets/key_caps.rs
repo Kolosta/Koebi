@@ -12,8 +12,8 @@ use koebi_core::input::{Key, KeyName, ModifierKey, MouseButton};
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
 use koebi_input::{
-    ButtonTrigger, DragDirection, KeyTrigger, ModifierState, PinchDirection, Shortcut, Side,
-    Trigger, WheelDirection,
+    ButtonTrigger, DragDirection, KeyTrigger, ModifierRule, ModifierState, PinchDirection,
+    Shortcut, Side, Trigger, WheelDirection,
 };
 use koebi_render::RectPrimitive;
 use koebi_tokens::component;
@@ -238,6 +238,18 @@ impl ShortcutCaps {
         }
     }
 
+    /// The caps of the modifiers of `rule` alone, as `keyboard` names them: what a field
+    /// recording a shortcut shows while they are held.
+    pub fn of_modifiers(rule: ModifierRule, keyboard: Keyboard) -> Self {
+        let mut caps = Self::default();
+        for family in ModifierKey::ALL {
+            if let Some(cap) = modifier_cap(keyboard, family, rule.get(family)) {
+                caps.push(cap);
+            }
+        }
+        caps
+    }
+
     /// The caps, in order.
     pub fn caps(&self) -> &[Cap] {
         &self.caps[..self.len]
@@ -273,6 +285,27 @@ pub fn key_cap(key: Key) -> Cap {
         Key::RightCtrl => Some("R Ctrl"),
         Key::LeftAlt => Some("L Alt"),
         Key::RightAlt => Some("R Alt"),
+        // The keypad, as its keys are printed, with what tells them from the others.
+        Key::Keypad0 => Some("Num 0"),
+        Key::Keypad1 => Some("Num 1"),
+        Key::Keypad2 => Some("Num 2"),
+        Key::Keypad3 => Some("Num 3"),
+        Key::Keypad4 => Some("Num 4"),
+        Key::Keypad5 => Some("Num 5"),
+        Key::Keypad6 => Some("Num 6"),
+        Key::Keypad7 => Some("Num 7"),
+        Key::Keypad8 => Some("Num 8"),
+        Key::Keypad9 => Some("Num 9"),
+        Key::KeypadPlus => Some("Num +"),
+        Key::KeypadMinus => Some("Num -"),
+        Key::KeypadMultiply => Some("Num *"),
+        Key::KeypadDivide => Some("Num /"),
+        Key::KeypadPeriod => Some("Num ."),
+        Key::KeypadEnter => Some("Num Enter"),
+        Key::NumLock => Some("Num Lock"),
+        Key::CapsLock => Some("Caps Lock"),
+        Key::ScrollLock => Some("Scroll Lock"),
+        Key::PrintScreen => Some("Print Screen"),
         _ => None,
     };
     if let Some(text) = friendly {
@@ -321,7 +354,7 @@ fn trigger_cap(trigger: Trigger) -> (Cap, Option<&'static str>) {
                 ButtonTrigger::Press => None,
                 ButtonTrigger::Release => Some("release"),
                 ButtonTrigger::Click => Some("click"),
-                ButtonTrigger::DoubleClick => Some("double click"),
+                ButtonTrigger::DoubleClick(_) => Some("double click"),
                 ButtonTrigger::Drag(drag) => Some(drag_phase(drag.direction)),
             };
             (cap, phase)
@@ -423,15 +456,24 @@ impl Ui<'_> {
     /// the row. Returns the width they take.
     pub fn key_caps(&mut self, rect: Rect, shortcut: &Shortcut, align: Align) -> f32 {
         let caps = ShortcutCaps::of(shortcut, self.state.keyboard());
-        let width = self.caps_layout(&caps, None);
+        self.draw_caps(rect, &caps, align)
+    }
+
+    /// Draws `caps` in `rect`, placed by `align`. Returns the width they take.
+    pub fn draw_caps(&mut self, rect: Rect, caps: &ShortcutCaps, align: Align) -> f32 {
+        let width = self.caps_layout(caps, None);
         let x = match align {
             Align::Start => rect.min.x,
             Align::Center => rect.center().x - width * 0.5,
             Align::End => rect.max.x - width,
-        }
-        .round();
-        self.caps_layout(&caps, Some((rect, x)));
+        };
+        self.caps_layout(caps, Some((rect, x)));
         width
+    }
+
+    /// The width of `caps` ([`Ui::draw_caps`]).
+    pub fn caps_width(&mut self, caps: &ShortcutCaps) -> f32 {
+        self.caps_layout(caps, None)
     }
 
     /// Measures the caps, and draws them from `x` in `rect` when given. Returns their width.
@@ -462,10 +504,11 @@ impl Ui<'_> {
             };
             let width = (2.0 * style.padding + icon_width + between + text_width).ceil();
             if let Some((rect, _)) = draw {
+                // The row's inset above and below: whole pixels, as the row.
                 let height = (rect.height() - 2.0 * style.inset).max(0.0);
                 let bounds = Rect::from_origin_size(
-                    Vec2::new(x, (rect.center().y - height * 0.5).round()),
-                    Vec2::new(width, height.round()),
+                    Vec2::new(x, rect.min.y + style.inset.min(rect.height() * 0.5)),
+                    Vec2::new(width, height),
                 );
                 self.scene.push_rect(
                     &RectPrimitive::new(bounds, style.background)
@@ -545,6 +588,9 @@ mod tests {
             .holding(Key::Space);
         assert_eq!(labels(&shortcut), ["Ctrl", "Shift Shift", "Space", "G"]);
         assert_eq!(ShortcutCaps::of(&shortcut, Keyboard::Windows).phase, None);
+        // The keypad says it is the keypad's.
+        assert_eq!(labels(&Shortcut::key(Key::KeypadPlus)), ["Num +"]);
+        assert_eq!(labels(&Shortcut::key(Key::Keypad7)), ["Num 7"]);
         // Each keyboard names its keys.
         let gui = Shortcut::key(Key::Q)
             .with(ModifierKey::Gui)
@@ -592,7 +638,7 @@ mod tests {
             ShortcutCaps::of(&drag, Keyboard::Other).phase,
             Some("drag up")
         );
-        let back = Shortcut::button(MouseButton::Back, ButtonTrigger::DoubleClick);
+        let back = Shortcut::button(MouseButton::Back, ButtonTrigger::DOUBLE_CLICK);
         assert_eq!(labels(&back), ["Mouse 4"]);
         assert_eq!(
             ShortcutCaps::of(&back, Keyboard::Other).phase,

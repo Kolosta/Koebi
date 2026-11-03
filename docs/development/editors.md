@@ -42,8 +42,9 @@ data directory ([Gallery](../design-system/gallery.md#saved-state)). The workspa
 second after the last change (one write per pause while a gutter drags), the shortcuts as soon
 as the shortcut editor changes them; both files are saved when the application goes to the
 background or quits, only when they changed. A shortcut turned off keeps a `!` before it
-(`app.quit = Ctrl+Q, !Ctrl+W`), and a key held as a modifier comes after the modifiers
-(`Ctrl+Space+G`). Each
+(`app.quit = Ctrl+Q, !Ctrl+W`), a key held as a modifier comes after the modifiers
+(`Ctrl+Space+G`), and a double click with a time of its own carries it
+(`LeftMouse double 300ms`). Each
 write goes to a temporary file, flushed, then renamed over the file, whose previous version
 stays as `.bak`; a damaged or missing file falls back to its backup.
 
@@ -52,6 +53,43 @@ Both files are text keyed by stable names: kinds (`gallery`, `viewport`, `outlin
 not know are skipped with a warning, so files survive code changes; a layout that does not
 tile the window is refused and the default workspace opens. Editors' views (scrolling, folds,
 zoom) are not saved yet.
+
+## Shortcut rules
+
+The keymap (`koebi-input`) and the shortcut editor apply these rules, the same for the
+defaults and for what users make; nothing else decides whether two shortcuts get along.
+
+- **One zone, one input**: two actions of one context never share a shortcut that is on (same
+  key or button, same event, modifiers some keys satisfy at once). The keymap refuses it; the
+  editor keeps the newcomer off, in red, until one of them changes.
+- **Unless they never apply at once**: an action may declare the condition it applies under
+  (`ActionDef::when`, a `Condition` on a subject): conditions on one subject exclude each
+  other. Two actions whose conditions exclude each other may share a shortcut in one context:
+  it triggers both, and each acts only when its condition holds (Fold all when a group is
+  unfolded, Unfold all when every group is folded: one key folds, then unfolds). The editor
+  says so, as information, not as a conflict. Similar shortcuts of such actions stay
+  conflicts: the first may change what the second reads.
+- **Zones inside zones** (soft, orange): a shortcut of a zone lying inside another's wins
+  there; the editor tells both actions.
+- **Similar shortcuts** (soft, orange): the same key or button on another event (press and
+  release, click and double click, press and drag) in one zone or zones inside each other: one
+  movement triggers both, or one instead of the other.
+- **Zones apart never conflict**: two editors, a menu and a text field being edited.
+- **Defaults**: they follow the same rules, checked when the keymap is built (a default
+  taking another's input is a programming error, as a default repeating for an action that
+  does not repeat). Soft conflicts between two defaults are not shown: the application
+  designed them together.
+- **Repeats**: only actions that repeat (`ActionDef::repeats`: moving through a list,
+  zooming) take shortcuts repeating while their key is held; the keymap drops the repeat of
+  the others' (folding, quitting), and the editor offers it to those actions only, on a key
+  press.
+- **Events by device**: a key is pressed or released; a mouse button is also clicked, double
+  clicked or dragged; the wheel, a pinch and a pointer move only happen.
+- **Double clicks**: a second press of a button near the first (within the drag threshold),
+  within the double-click time: the application's (`semantic.input.double-click.time`) or
+  the shortcut's own. A third press starts again.
+- **Shortcuts being added** have no key yet: they trigger nothing and conflict with nothing
+  until they get one.
 
 ## Messages
 

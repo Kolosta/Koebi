@@ -60,6 +60,8 @@ pub static MENU_CLOSE: ActionDef = ActionDef {
     description: "Closes the innermost open menu without choosing anything.",
     context: MENU,
     defaults: &[Shortcut::key(Key::Escape)],
+    repeats: false,
+    when: None,
 };
 
 /// Highlights the next item.
@@ -69,6 +71,8 @@ pub static MENU_NEXT: ActionDef = ActionDef {
     description: "Highlights the next item of the innermost open menu.",
     context: MENU,
     defaults: &[repeating(Key::Down)],
+    repeats: true,
+    when: None,
 };
 
 /// Highlights the previous item.
@@ -78,6 +82,8 @@ pub static MENU_PREVIOUS: ActionDef = ActionDef {
     description: "Highlights the previous item of the innermost open menu.",
     context: MENU,
     defaults: &[repeating(Key::Up)],
+    repeats: true,
+    when: None,
 };
 
 /// Opens the submenu of the highlighted item.
@@ -87,6 +93,8 @@ pub static MENU_OPEN_SUBMENU: ActionDef = ActionDef {
     description: "Opens the submenu of the highlighted item and highlights its first item.",
     context: MENU,
     defaults: &[Shortcut::key(Key::Right)],
+    repeats: false,
+    when: None,
 };
 
 /// Closes the innermost submenu.
@@ -96,6 +104,8 @@ pub static MENU_CLOSE_SUBMENU: ActionDef = ActionDef {
     description: "Closes the innermost submenu and goes back to its item.",
     context: MENU,
     defaults: &[Shortcut::key(Key::Left)],
+    repeats: false,
+    when: None,
 };
 
 /// Chooses the highlighted item, or opens its submenu.
@@ -109,6 +119,8 @@ pub static MENU_CHOOSE: ActionDef = ActionDef {
         Shortcut::key(Key::KeypadEnter),
         Shortcut::key(Key::Space),
     ],
+    repeats: false,
+    when: None,
 };
 
 /// The actions of menus, for the keymap.

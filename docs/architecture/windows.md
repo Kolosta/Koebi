@@ -76,13 +76,16 @@ The Keymaps page shows the shortcuts of every action by zone, as nested panels: 
 holds the workspace, which holds the editors; lists lie in any zone; menus, fields being edited
 and operations take the input while they last (`actions::CONTEXTS`, `koebi_input::Zones`). An
 action's panel holds each of its shortcuts: on or off, its device and the field recording it in
-the header; its conflicts, its key, its event and what depends on it (repeat, drag direction
-and distance, the double click time), its modifiers with their sides, and a key held as a
-modifier below. Conflicts are checked as soon as a shortcut changes: the same shortcut in one
-zone is hard (the newcomer stays off until one of them changes), a zone inside another taking
-the shortcut or a similar shortcut is soft; the shortcut's header takes the conflict's color
-and every panel holding it shows the warning. A search finds actions by name or by the
-shortcut pressed.
+the header (modifiers show as they are held; the first other key, button or wheel turn ends the
+recording; only Escape cancels); its conflicts, its key or button (chosen by section, each
+with its caps), its event and what depends on it (repeat for actions that repeat, drag
+direction and distance, the double-click time, each distance and time the application's
+unless the shortcut has its own), its modifiers (a group per family, its sides below, and Any,
+which keeps them for when it goes off), and a key held as a modifier below. A button adds an
+empty shortcut, which waits for its key without a color. Conflicts are checked as soon as a
+shortcut changes, by the [shortcut rules](../development/editors.md#shortcut-rules); the
+shortcut's header takes the conflict's color and every panel holding it shows the warning. A
+search finds actions by name or by the shortcut pressed.
 
 The Accessibility page holds the color vision modes in one panel, a group per kind. Each mode's
 card paints, with the current theme's styles as that mode shows them (`View::seen_as`), real

@@ -432,6 +432,35 @@ mod tests {
     }
 
     #[test]
+    fn the_keymaps_page_with_a_shared_shortcut_and_a_draft_matches_golden() {
+        let Some(gpu) = koebi_testkit::gpu_or_skip("the_keymaps_page_with_a_draft") else {
+            return;
+        };
+        let mut harness = Harness::new();
+        harness.settings.page = Page::Keymaps;
+        harness.state.set_keyboard(koebi_ui::Keyboard::Windows);
+        // Fold all also on Unfold all's key: they never apply at once, so they share it.
+        let fold = crate::editors::outliner::FOLD_ALL.id;
+        let unfold = crate::editors::outliner::UNFOLD_ALL.id;
+        let shortcut = |keymap: &Keymap, id: &str| keymap.shortcuts(id).unwrap()[0];
+        let (minus, plus) = (
+            shortcut(&harness.keymap, fold),
+            shortcut(&harness.keymap, unfold),
+        );
+        harness
+            .keymap
+            .set_shortcuts(fold, &[minus, plus])
+            .expect("shared, not taken");
+        // Its shared shortcut open, and a shortcut being added.
+        harness.settings.keymaps.open_action(fold, &[1]);
+        harness.settings.keymaps.add_draft(fold);
+        harness.settings.keymaps.search_for(plus);
+        let image = page_image(&gpu, &mut harness);
+        assert_page(&image, "settings_keymaps_shared");
+        gpu.assert_no_validation_errors();
+    }
+
+    #[test]
     fn the_inputs_page_with_an_option_open_matches_golden() {
         let Some(gpu) = koebi_testkit::gpu_or_skip("the_inputs_page_matches_golden") else {
             return;

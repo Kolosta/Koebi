@@ -62,6 +62,8 @@ pub static NUMBER_CANCEL: ActionDef = ActionDef {
     description: "Cancels the drag of a number field and restores its value.",
     context: NUMBER,
     defaults: &[Shortcut::key(Key::Escape), Shortcut::key(Key::Delete)],
+    repeats: false,
+    when: None,
 };
 
 /// Ends the drag of a number field, keeping the value.
@@ -71,6 +73,8 @@ pub static NUMBER_CONFIRM: ActionDef = ActionDef {
     description: "Ends the drag of a number field and keeps its value.",
     context: NUMBER,
     defaults: &[Shortcut::key(Key::Enter), Shortcut::key(Key::KeypadEnter)],
+    repeats: false,
+    when: None,
 };
 
 /// The actions of number fields, for the keymap.

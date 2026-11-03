@@ -30,6 +30,8 @@ pub(crate) static NEXT_FRAME: ActionDef = ActionDef {
     description: "Makes the next frame current.",
     context: TIMELINE,
     defaults: &[repeating(Key::Right)],
+    repeats: true,
+    when: None,
 };
 
 /// Goes to the previous frame.
@@ -39,6 +41,8 @@ pub(crate) static PREVIOUS_FRAME: ActionDef = ActionDef {
     description: "Makes the previous frame current.",
     context: TIMELINE,
     defaults: &[repeating(Key::Left)],
+    repeats: true,
+    when: None,
 };
 
 /// Goes to the first frame of the scene.
@@ -48,6 +52,8 @@ pub(crate) static FIRST_FRAME: ActionDef = ActionDef {
     description: "Makes the first frame of the scene current.",
     context: TIMELINE,
     defaults: &[Shortcut::key(Key::Left).with(ModifierKey::Shift)],
+    repeats: false,
+    when: None,
 };
 
 /// Goes to the last frame of the scene.
@@ -57,6 +63,8 @@ pub(crate) static LAST_FRAME: ActionDef = ActionDef {
     description: "Makes the last frame of the scene current.",
     context: TIMELINE,
     defaults: &[Shortcut::key(Key::Right).with(ModifierKey::Shift)],
+    repeats: false,
+    when: None,
 };
 
 /// Widens the frames.
@@ -66,6 +74,8 @@ pub(crate) static ZOOM_IN: ActionDef = ActionDef {
     description: "Widens the frames, around the current one.",
     context: TIMELINE,
     defaults: &[Shortcut::key(Key::KeypadPlus)],
+    repeats: true,
+    when: None,
 };
 
 /// Narrows the frames.
@@ -75,6 +85,8 @@ pub(crate) static ZOOM_OUT: ActionDef = ActionDef {
     description: "Narrows the frames, around the current one.",
     context: TIMELINE,
     defaults: &[Shortcut::key(Key::KeypadMinus)],
+    repeats: true,
+    when: None,
 };
 
 /// Shows the whole scene.
@@ -84,6 +96,8 @@ pub(crate) static VIEW_ALL: ActionDef = ActionDef {
     description: "Zooms so that every frame of the scene shows.",
     context: TIMELINE,
     defaults: &[Shortcut::key(Key::Home)],
+    repeats: false,
+    when: None,
 };
 
 /// The timeline's actions, for the keymap.

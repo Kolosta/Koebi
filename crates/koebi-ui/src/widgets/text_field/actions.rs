@@ -29,18 +29,36 @@ const fn deleting(key: Key) -> Shortcut {
     repeating(key).modifiers(ModifierRule::NONE.with(ModifierKey::Shift, ModifierState::Any))
 }
 
+/// `true` when one of `defaults` repeats while its key is held.
+const fn repeats_by_default(defaults: &[Shortcut]) -> bool {
+    let mut index = 0;
+    while index < defaults.len() {
+        if defaults[index].repeats() {
+            return true;
+        }
+        index += 1;
+    }
+    false
+}
+
 /// Declares the text actions: `NAME, "id", "label", "description", [defaults];`.
 macro_rules! text_actions {
     ($($(#[$doc:meta])* $name:ident, $id:literal, $label:literal, $description:literal,
         $defaults:expr;)*) => {
         $(
             $(#[$doc])*
-            pub static $name: ActionDef = ActionDef {
-                id: $id,
-                label: $label,
-                description: $description,
-                context: TEXT,
-                defaults: $defaults,
+            pub static $name: ActionDef = {
+                const DEFAULTS: &[Shortcut] = $defaults;
+                ActionDef {
+                    id: $id,
+                    label: $label,
+                    description: $description,
+                    context: TEXT,
+                    defaults: DEFAULTS,
+                    // Moving and deleting repeat while their key is held, as their defaults do.
+                    repeats: repeats_by_default(DEFAULTS),
+                    when: None,
+                }
             };
         )*
 
