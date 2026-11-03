@@ -6,7 +6,11 @@
 //!   shortcut wins. A button or key held keeps the chain of its press: a drag that starts on
 //!   a gutter stays the gutter's, wherever it goes.
 //! - **Conflicts**: two actions of one context never share a shortcut that one input could
-//!   trigger twice ([`Shortcut::overlaps`]); every change is checked.
+//!   trigger twice ([`Shortcut::overlaps`]); every change is checked. A shortcut turned off
+//!   ([`Binding`]) triggers nothing and conflicts with nothing: an editor keeps there what
+//!   conflicts until the user changes it. [`crate::Zones`] tells the conflicts across contexts.
+//! - **Keys held as modifiers**: a shortcut holding a key (`Space+G`) triggers only while it is
+//!   down, and wins over the same shortcut without it in its context.
 //! - **Overrides**: the shortcuts of an action can be replaced; an action is *modified* when
 //!   its shortcuts differ from its defaults, whatever the edits that led there.
 
@@ -20,7 +24,8 @@ use koebi_core::input::{Key, Modifiers, MouseButton};
 use crate::action::{ActionDef, ActionGroup, Context};
 use crate::gesture::{Gesture, GestureKind, InputEvent, InputSettings};
 use crate::shortcut::{
-    ButtonTrigger, Drag, DragDirection, KeyTrigger, PinchDirection, Shortcut, WheelDirection,
+    Binding, ButtonTrigger, Drag, DragDirection, KeyTrigger, PinchDirection, Shortcut,
+    WheelDirection,
 };
 
 /// A keymap error.
@@ -102,16 +107,45 @@ impl Triggers {
 #[derive(Debug)]
 struct Entry {
     action: &'static ActionDef,
+    /// Its shortcuts on and off, in the order the user sees them.
+    bindings: Vec<Binding>,
+    /// Those that are on: what triggers the action.
     shortcuts: Vec<Shortcut>,
 }
 
 impl Entry {
     fn is_modified(&self) -> bool {
-        self.shortcuts.len() != self.action.defaults.len()
-            || self
-                .shortcuts
+        self.bindings.len() != self.action.defaults.len()
+            || self.bindings.iter().any(|binding| {
+                !binding.enabled || !self.action.defaults.contains(&binding.shortcut)
+            })
+    }
+
+    /// Replaces the bindings, keeping the first of each shortcut.
+    fn set(&mut self, bindings: impl IntoIterator<Item = Binding>) {
+        self.bindings.clear();
+        for binding in bindings {
+            if !self
+                .bindings
                 .iter()
-                .any(|shortcut| !self.action.defaults.contains(shortcut))
+                .any(|kept| kept.shortcut == binding.shortcut)
+            {
+                self.bindings.push(binding);
+            }
+        }
+        self.shortcuts.clear();
+        self.shortcuts.extend(
+            self.bindings
+                .iter()
+                .filter(|binding| binding.enabled)
+                .map(|binding| binding.shortcut),
+        );
+    }
+
+    /// Back to the defaults, all on.
+    fn restore(&mut self) {
+        let defaults = self.action.defaults;
+        self.set(defaults.iter().copied().map(Binding::on));
     }
 }
 
@@ -121,6 +155,8 @@ struct ButtonPress {
     button: MouseButton,
     origin: Vec2,
     modifiers: Modifiers,
+    /// The key held as a modifier when it went down.
+    held: Option<Key>,
     /// Moved beyond the drag threshold: its release is not a click.
     moved: bool,
     /// Started a drag shortcut: no other drag starts until it is released.
@@ -146,6 +182,8 @@ pub struct Keymap {
     keys: Vec<KeyPress>,
     last_key_press: Option<(Key, Instant)>,
     pointer: Vec2,
+    /// Counts the changes of shortcuts: what an editor compares to know it is up to date.
+    revision: u64,
 }
 
 impl Keymap {
@@ -165,6 +203,7 @@ impl Keymap {
             keys: Vec::new(),
             last_key_press: None,
             pointer: Vec2::ZERO,
+            revision: 0,
         };
         for action in groups
             .iter()
@@ -181,14 +220,20 @@ impl Keymap {
                 .push(index);
             keymap.entries.push(Entry {
                 action,
+                bindings: Vec::new(),
                 shortcuts: Vec::new(),
             });
         }
         for index in 0..keymap.entries.len() {
             let action = keymap.entries[index].action;
-            keymap.assign(index, action.defaults)?;
+            keymap.assign(index, &on(action.defaults))?;
         }
         Ok(keymap)
+    }
+
+    /// How many times shortcuts changed: what an editor compares to know it is up to date.
+    pub fn revision(&self) -> u64 {
+        self.revision
     }
 
     // --- Actions and their shortcuts -------------------------------------------------------
@@ -210,11 +255,25 @@ impl Keymap {
             .ok_or_else(|| KeymapError::UnknownAction(id.to_owned()))
     }
 
-    /// The current shortcuts of the action `id`.
+    /// The shortcuts of the action `id` that are on.
     pub fn shortcuts(&self, id: &str) -> Option<&[Shortcut]> {
         self.by_id
             .get(id)
             .map(|&index| self.entries[index].shortcuts.as_slice())
+    }
+
+    /// The shortcuts of the action `id`, on and off, in order.
+    pub fn bindings(&self, id: &str) -> Option<&[Binding]> {
+        self.by_id
+            .get(id)
+            .map(|&index| self.entries[index].bindings.as_slice())
+    }
+
+    /// Every action and its bindings, in registration order.
+    pub fn actions(&self) -> impl Iterator<Item = (&'static ActionDef, &[Binding])> {
+        self.entries
+            .iter()
+            .map(|entry| (entry.action, entry.bindings.as_slice()))
     }
 
     /// The other actions of `id`'s context that `shortcut` would conflict with.
@@ -242,35 +301,32 @@ impl Keymap {
             .collect())
     }
 
-    /// Checks `shortcuts` for the action at `index` against the other actions of its
-    /// context, then assigns them, without duplicates.
-    fn assign(&mut self, index: usize, shortcuts: &[Shortcut]) -> Result<(), KeymapError> {
+    /// Checks the bindings that are on for the action at `index` against the other actions
+    /// of its context, then assigns them all, without duplicates.
+    fn assign(&mut self, index: usize, bindings: &[Binding]) -> Result<(), KeymapError> {
         let action = self.entries[index].action;
-        let mut unique: Vec<Shortcut> = Vec::with_capacity(shortcuts.len());
-        for shortcut in shortcuts {
-            if unique.contains(shortcut) {
-                continue;
-            }
+        for binding in bindings.iter().filter(|binding| binding.enabled) {
+            let shortcut = binding.shortcut;
             if let Some(&other) = self.by_context[&action.context].iter().find(|&&other| {
                 other != index
                     && self.entries[other]
                         .shortcuts
                         .iter()
-                        .any(|existing| existing.overlaps(*shortcut))
+                        .any(|existing| existing.overlaps(shortcut))
             }) {
                 return Err(KeymapError::Conflict {
                     action: action.id,
-                    shortcut: *shortcut,
+                    shortcut,
                     with: self.entries[other].action.id,
                 });
             }
-            unique.push(*shortcut);
         }
-        self.entries[index].shortcuts = unique;
+        self.entries[index].set(bindings.iter().copied());
+        self.revision += 1;
         Ok(())
     }
 
-    /// Replaces the shortcuts of the action `id`.
+    /// Replaces the shortcuts of the action `id`, all on.
     ///
     /// # Errors
     ///
@@ -278,32 +334,53 @@ impl Keymap {
     /// by another action of the same context; nothing changes then.
     pub fn set_shortcuts(&mut self, id: &str, shortcuts: &[Shortcut]) -> Result<(), KeymapError> {
         let index = self.index(id)?;
-        self.assign(index, shortcuts)
+        self.assign(index, &on(shortcuts))
     }
 
-    /// Adds a shortcut to the action `id`.
+    /// Replaces the shortcuts of the action `id`, each on or off: only those on are checked
+    /// against the other actions of its context.
+    ///
+    /// # Errors
+    ///
+    /// See [`Self::set_shortcuts`].
+    pub fn set_bindings(&mut self, id: &str, bindings: &[Binding]) -> Result<(), KeymapError> {
+        let index = self.index(id)?;
+        self.assign(index, bindings)
+    }
+
+    /// Adds a shortcut to the action `id`, on.
     ///
     /// # Errors
     ///
     /// See [`Self::set_shortcuts`].
     pub fn add_shortcut(&mut self, id: &str, shortcut: Shortcut) -> Result<(), KeymapError> {
         let index = self.index(id)?;
-        let mut shortcuts = self.entries[index].shortcuts.clone();
-        shortcuts.push(shortcut);
-        self.assign(index, &shortcuts)
+        let mut bindings = self.entries[index].bindings.clone();
+        bindings.push(Binding::on(shortcut));
+        self.assign(index, &bindings)
     }
 
-    /// Removes a shortcut from the action `id`. Returns whether it had it.
+    /// Removes a shortcut from the action `id`, on or off. Returns whether it had it.
     ///
     /// # Errors
     ///
     /// [`KeymapError::UnknownAction`].
     pub fn remove_shortcut(&mut self, id: &str, shortcut: Shortcut) -> Result<bool, KeymapError> {
         let index = self.index(id)?;
-        let shortcuts = &mut self.entries[index].shortcuts;
-        let before = shortcuts.len();
-        shortcuts.retain(|existing| *existing != shortcut);
-        Ok(shortcuts.len() != before)
+        let entry = &mut self.entries[index];
+        let before = entry.bindings.len();
+        let kept: Vec<Binding> = entry
+            .bindings
+            .iter()
+            .copied()
+            .filter(|binding| binding.shortcut != shortcut)
+            .collect();
+        entry.set(kept);
+        let removed = entry.bindings.len() != before;
+        if removed {
+            self.revision += 1;
+        }
+        Ok(removed)
     }
 
     /// `true` when the shortcuts of the action `id` differ from its defaults.
@@ -323,15 +400,19 @@ impl Keymap {
 
     /// Restores the default shortcuts of the actions at `indices`, all or none.
     fn reset_indices(&mut self, indices: &[usize]) -> Result<(), KeymapError> {
-        let saved: Vec<Vec<Shortcut>> = indices
+        let saved: Vec<Vec<Binding>> = indices
             .iter()
-            .map(|&index| core::mem::take(&mut self.entries[index].shortcuts))
+            .map(|&index| {
+                let bindings = self.entries[index].bindings.clone();
+                self.entries[index].set([]);
+                bindings
+            })
             .collect();
         for &index in indices {
-            let defaults = self.entries[index].action.defaults;
-            if let Err(error) = self.assign(index, defaults) {
-                for (&index, shortcuts) in indices.iter().zip(saved) {
-                    self.entries[index].shortcuts = shortcuts;
+            let defaults = on(self.entries[index].action.defaults);
+            if let Err(error) = self.assign(index, &defaults) {
+                for (&index, bindings) in indices.iter().zip(saved) {
+                    self.entries[index].set(bindings);
                 }
                 return Err(error);
             }
@@ -373,8 +454,9 @@ impl Keymap {
     /// Restores every default shortcut.
     pub fn reset_all(&mut self) {
         for entry in &mut self.entries {
-            entry.shortcuts = entry.action.defaults.to_vec();
+            entry.restore();
         }
+        self.revision += 1;
     }
 
     // --- Input ----------------------------------------------------------------------------
@@ -438,10 +520,12 @@ impl Keymap {
             } => {
                 self.pointer = position;
                 self.buttons.retain(|press| press.button != button);
+                let held = self.held_key(None);
                 self.buttons.push(ButtonPress {
                     button,
                     origin: position,
                     modifiers,
+                    held,
                     moved: false,
                     dragged: false,
                     chain: chain.to_vec(),
@@ -468,10 +552,10 @@ impl Keymap {
                     .iter()
                     .position(|press| press.button == button)
                     .map(|index| self.buttons.swap_remove(index));
-                let (origin, held, moved) = pressed
+                let (origin, held, key, moved) = pressed
                     .as_ref()
-                    .map_or((position, modifiers, true), |press| {
-                        (press.origin, press.modifiers, press.moved)
+                    .map_or((position, modifiers, self.held_key(None), true), |press| {
+                        (press.origin, press.modifiers, press.held, press.moved)
                     });
                 let chain = pressed
                     .as_ref()
@@ -485,6 +569,7 @@ impl Keymap {
                         position,
                         origin,
                         modifiers: held,
+                        held: key,
                     };
                     self.resolve(gesture, chain, &mut triggers);
                 }
@@ -615,6 +700,7 @@ impl Keymap {
                             shortcut.matches_drag(
                                 press.button,
                                 press.modifiers,
+                                press.held,
                                 delta,
                                 settings.drag_threshold,
                             )
@@ -638,6 +724,7 @@ impl Keymap {
                         position,
                         origin: press.origin,
                         modifiers: press.modifiers,
+                        held: press.held,
                     },
                 });
             }
@@ -645,24 +732,44 @@ impl Keymap {
     }
 
     fn gesture(&self, kind: GestureKind, modifiers: Modifiers) -> Gesture {
+        let own = match kind {
+            GestureKind::Key { key, .. } => Some(key),
+            _ => None,
+        };
         Gesture {
             kind,
             position: self.pointer,
             origin: self.pointer,
             modifiers,
+            held: self.held_key(own),
         }
     }
 
-    /// Triggers the first action of the chain with a shortcut matching `gesture`.
+    /// The last key pressed and still held that is not a modifier, other than `except`.
+    fn held_key(&self, except: Option<Key>) -> Option<Key> {
+        self.keys
+            .iter()
+            .rev()
+            .map(|press| press.key)
+            .find(|&key| !key.is_modifier() && Some(key) != except)
+    }
+
+    /// Triggers the first action of the chain with a shortcut matching `gesture`; in each
+    /// context, a shortcut holding a key comes before those that do not.
     fn resolve(&self, gesture: Gesture, chain: &[Context], triggers: &mut Triggers) {
         let found = chain.iter().find_map(|context| {
-            self.by_context.get(context)?.iter().find_map(|&index| {
-                let entry = &self.entries[index];
-                entry
-                    .shortcuts
-                    .iter()
-                    .any(|shortcut| shortcut.matches(&gesture))
-                    .then_some(entry.action)
+            let indices = self.by_context.get(context)?;
+            [true, false].into_iter().find_map(|holding| {
+                indices.iter().find_map(|&index| {
+                    let entry = &self.entries[index];
+                    entry
+                        .shortcuts
+                        .iter()
+                        .any(|shortcut| {
+                            shortcut.held.is_some() == holding && shortcut.matches(&gesture)
+                        })
+                        .then_some(entry.action)
+                })
             })
         });
         if let Some(action) = found {
@@ -672,22 +779,11 @@ impl Keymap {
 
     // --- Saving ---------------------------------------------------------------------------
 
-    pub(crate) fn entries(&self) -> impl Iterator<Item = (&'static ActionDef, &[Shortcut])> {
-        self.entries
-            .iter()
-            .map(|entry| (entry.action, entry.shortcuts.as_slice()))
-    }
-
-    /// Assigns shortcuts without checking conflicts (loading), returning the index.
-    pub(crate) fn assign_unchecked(&mut self, id: &str, shortcuts: Vec<Shortcut>) -> Option<usize> {
+    /// Assigns bindings without checking conflicts (loading), returning the index.
+    pub(crate) fn assign_unchecked(&mut self, id: &str, bindings: Vec<Binding>) -> Option<usize> {
         let index = *self.by_id.get(id)?;
-        let mut unique = Vec::with_capacity(shortcuts.len());
-        for shortcut in shortcuts {
-            if !unique.contains(&shortcut) {
-                unique.push(shortcut);
-            }
-        }
-        self.entries[index].shortcuts = unique;
+        self.entries[index].set(bindings);
+        self.revision += 1;
         Some(index)
     }
 
@@ -710,11 +806,17 @@ impl Keymap {
 
     /// Restores the defaults of the action at `index`, without checks (loading).
     pub(crate) fn restore_unchecked(&mut self, index: usize) {
-        self.entries[index].shortcuts = self.entries[index].action.defaults.to_vec();
+        self.entries[index].restore();
+        self.revision += 1;
     }
 
     /// The action at `index`.
     pub(crate) fn action_at(&self, index: usize) -> &'static ActionDef {
         self.entries[index].action
     }
+}
+
+/// `shortcuts`, all on.
+fn on(shortcuts: &[Shortcut]) -> Vec<Binding> {
+    shortcuts.iter().copied().map(Binding::on).collect()
 }

@@ -166,6 +166,7 @@ impl AppWindow {
         }
         // Thresholds and delays are tokens: a theme or the user may change them.
         interface.update_input_settings();
+        interface.refresh_labels();
         if self.input.triggered(&actions::QUIT) {
             self.command = Some(AppCommand::Quit);
         }
@@ -210,6 +211,7 @@ impl AppWindow {
             overlay,
             fonts,
             labels,
+            keymap,
             ..
         } = interface;
         scene.clear();
@@ -224,7 +226,7 @@ impl AppWindow {
             }
             match (settings_in_place.as_mut(), content) {
                 (Some(settings), _) | (None, WindowContent::Settings(settings)) => {
-                    settings.show(ui, rest, design);
+                    settings.show(ui, rest, design, keymap);
                 }
                 (
                     None,
@@ -289,7 +291,19 @@ impl AppWindow {
                 self.input.scrolled(delta);
                 self.input.set_modifiers(modifiers);
             }
-            Event::Key { modifiers, .. } => self.input.set_modifiers(modifiers),
+            Event::Key {
+                modifiers,
+                key,
+                down,
+                repeat,
+                ..
+            } => {
+                self.input.set_modifiers(modifiers);
+                // What records shortcuts reads the keys themselves; repeats are no presses.
+                if !repeat {
+                    self.input.key(key, down);
+                }
+            }
             Event::Window {
                 event: WindowEvent::PointerLeft,
                 ..

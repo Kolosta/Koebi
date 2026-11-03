@@ -37,6 +37,8 @@ pub(crate) struct Interface {
     pub(crate) fonts: Fonts,
     /// The text of the shortcuts the menus show.
     pub(crate) labels: ShortcutLabels,
+    /// The keymap's revision the labels were read from.
+    labels_revision: u64,
     /// Turns input events into actions, through the contexts under the pointer.
     pub(crate) keymap: Keymap,
     pub(crate) input_settings: InputSettings,
@@ -93,6 +95,7 @@ impl Interface {
             overlay: options.shows_frame_times().then(Overlay::new),
             fonts,
             labels,
+            labels_revision: keymap.revision(),
             keymap,
             input_settings: InputSettings::default(),
             chain: Vec::new(),
@@ -107,6 +110,15 @@ impl Interface {
             drag_threshold: self.design.get(semantic::INPUT_DRAG_THRESHOLD),
             double_click_time: self.design.get(semantic::INPUT_DOUBLE_CLICK_TIME),
         };
+    }
+
+    /// Reads the menus' shortcut labels again once the keymap changed: the shortcut editor
+    /// changes it.
+    pub(crate) fn refresh_labels(&mut self) {
+        if self.labels_revision != self.keymap.revision() {
+            self.labels = ShortcutLabels::read(&self.keymap);
+            self.labels_revision = self.keymap.revision();
+        }
     }
 
     /// Shows or hides the frame-time overlay.
@@ -127,10 +139,10 @@ impl Interface {
         self.store
             .as_ref()
             .is_some_and(|store| store.is_dirty(&self.design))
-            || self
-                .preferences
-                .as_ref()
-                .is_some_and(|preferences| preferences.is_dirty(workspace, editors))
+            || self.preferences.as_ref().is_some_and(|preferences| {
+                preferences.is_dirty(workspace, editors)
+                    || preferences.shortcuts_changed(&self.keymap)
+            })
     }
 
     /// Saves the design state once changes have settled: one write per pause while a field
@@ -142,6 +154,7 @@ impl Interface {
         }
         if let Some(preferences) = &mut self.preferences {
             preferences.save_if_due(workspace, editors, Instant::now());
+            preferences.save_shortcuts_if_changed(&self.keymap);
         }
     }
 

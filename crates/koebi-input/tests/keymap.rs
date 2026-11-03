@@ -694,3 +694,91 @@ fn loading_skips_and_reports_what_it_cannot_apply() {
     let report = keymap.load_overrides("not a keymap");
     assert!(!report.is_complete());
 }
+
+#[test]
+fn a_key_held_as_a_modifier_wins_over_the_same_shortcut_without_it() {
+    let mut driver = Driver::new();
+    let select = Shortcut::key(Key::G);
+    let grab = Shortcut::key(Key::G).holding(Key::Space);
+    driver
+        .keymap
+        .set_shortcuts(UNBOUND.id, &[grab])
+        .expect("free");
+    driver
+        .keymap
+        .set_shortcuts(FRAME.id, &[select])
+        .expect("free");
+    assert!(!grab.overlaps(select));
+    // G alone frames.
+    assert_eq!(
+        driver.key(Key::G, true, Modifiers::NONE, ON_CANVAS),
+        [FRAME.id]
+    );
+    driver.key(Key::G, false, Modifiers::NONE, ON_CANVAS);
+    // With Space held, the shortcut holding it wins.
+    driver.key(Key::Space, true, Modifiers::NONE, ON_CANVAS);
+    assert_eq!(
+        driver.key(Key::G, true, Modifiers::NONE, ON_CANVAS),
+        [UNBOUND.id]
+    );
+    driver.key(Key::G, false, Modifiers::NONE, ON_CANVAS);
+    driver.key(Key::Space, false, Modifiers::NONE, ON_CANVAS);
+    // Released, G frames again; and the held key alone triggers nothing of it.
+    assert_eq!(
+        driver.key(Key::G, true, Modifiers::NONE, ON_CANVAS),
+        [FRAME.id]
+    );
+    // Its text form puts the held key after the modifiers.
+    let text = grab.with(ModifierKey::Ctrl).to_string();
+    assert_eq!(text, "Ctrl+Space+G");
+    assert_eq!(text.parse::<Shortcut>(), Ok(grab.with(ModifierKey::Ctrl)));
+    assert!("Space+Tab+G".parse::<Shortcut>().is_err());
+}
+
+#[test]
+fn shortcuts_turned_off_trigger_nothing_take_nothing_and_are_saved() {
+    let mut keymap = keymap();
+    let undo = Shortcut::key(Key::Z).with(ModifierKey::Ctrl);
+    // On, it conflicts with the application's undo; off, the keymap keeps it.
+    assert!(
+        keymap
+            .set_bindings(QUIT.id, &[koebi_input::Binding::on(undo)])
+            .is_err()
+    );
+    let bindings = [
+        koebi_input::Binding::on(Shortcut::key(Key::Q).with(ModifierKey::Ctrl)),
+        koebi_input::Binding::off(undo),
+    ];
+    let revision = keymap.revision();
+    keymap
+        .set_bindings(QUIT.id, &bindings)
+        .expect("off: no conflict");
+    assert!(keymap.revision() > revision);
+    assert_eq!(keymap.bindings(QUIT.id), Some(&bindings[..]));
+    // Only those on trigger.
+    assert_eq!(keymap.shortcuts(QUIT.id), Some(&[bindings[0].shortcut][..]));
+    assert!(keymap.is_modified(QUIT.id));
+    // Off, it triggers nothing: Ctrl+Z is still the application's undo.
+    let event = InputEvent::Key {
+        key: Key::Z,
+        down: true,
+        repeat: false,
+        modifiers: Modifiers::LEFT_CTRL,
+    };
+    let triggered = ids(keymap.handle(event, &[APP], &InputSettings::default(), Instant::now()));
+    assert_eq!(triggered, [UNDO.id]);
+    // Saved with a `!`, and restored off.
+    let text = keymap.overrides_text();
+    assert!(text.contains("app.quit = Ctrl+Q, !Ctrl+Z"), "{text}");
+    let mut restored = self::keymap();
+    assert!(restored.load_overrides(&text).is_complete());
+    assert_eq!(restored.bindings(QUIT.id), Some(&bindings[..]));
+    // A default turned off counts as a change.
+    let off = [koebi_input::Binding::off(
+        Shortcut::key(Key::Q).with(ModifierKey::Ctrl),
+    )];
+    keymap.set_bindings(QUIT.id, &off).expect("off");
+    assert!(keymap.is_modified(QUIT.id));
+    keymap.reset(QUIT.id).expect("free");
+    assert!(!keymap.is_modified(QUIT.id));
+}

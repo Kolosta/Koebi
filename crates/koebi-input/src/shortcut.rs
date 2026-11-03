@@ -348,13 +348,16 @@ impl Default for ModifierRule {
     }
 }
 
-/// A trigger and the modifier keys it needs.
+/// A trigger, the modifier keys it needs, and a key held as a modifier.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Shortcut {
     /// What the user does.
     pub trigger: Trigger,
     /// Which modifiers must be held, by side.
     pub modifiers: ModifierRule,
+    /// A key that is not a modifier, held as one: the shortcut triggers only while it is down
+    /// (`Space+G`), and wins over the same shortcut without it.
+    pub held: Option<Key>,
 }
 
 impl Shortcut {
@@ -363,7 +366,15 @@ impl Shortcut {
         Self {
             trigger,
             modifiers: ModifierRule::NONE,
+            held: None,
         }
+    }
+
+    /// The same shortcut, triggering only while `key` is held.
+    #[must_use]
+    pub const fn holding(mut self, key: Key) -> Self {
+        self.held = Some(key);
+        self
     }
 
     /// The press of `key` with no modifier.
@@ -397,9 +408,55 @@ impl Shortcut {
         self
     }
 
-    /// `true` when one input could trigger both shortcuts.
+    /// `true` when one input could trigger both shortcuts. A shortcut holding a key wins over
+    /// the same one without it: they do not overlap.
     pub fn overlaps(self, other: Self) -> bool {
-        self.trigger.overlaps(other.trigger) && self.modifiers.overlaps(other.modifiers)
+        self.held == other.held
+            && self.trigger.overlaps(other.trigger)
+            && self.modifiers.overlaps(other.modifiers)
+    }
+
+    /// `true` when one movement of the user triggers both shortcuts one after the other, or one
+    /// instead of the other: the same key or button in another phase (a press and a release, a
+    /// click and a double click, a press and a drag), or the same shortcut with a key held.
+    pub fn is_similar(self, other: Self) -> bool {
+        if self.overlaps(other) || !self.modifiers.overlaps(other.modifiers) {
+            return false;
+        }
+        let same_input = match (self.trigger, other.trigger) {
+            (Trigger::Key { key: a, .. }, Trigger::Key { key: b, .. }) => a == b,
+            (Trigger::Button { button: a, .. }, Trigger::Button { button: b, .. }) => a == b,
+            (a, b) => a == b,
+        };
+        same_input && (self.held == other.held || self.held.is_none() || other.held.is_none())
+    }
+}
+
+/// A shortcut of an action, on or off: an action keeps a shortcut that is turned off (one that
+/// conflicts, until it changes) without it triggering anything or taking it from another.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Binding {
+    /// The shortcut.
+    pub shortcut: Shortcut,
+    /// Whether it triggers its action.
+    pub enabled: bool,
+}
+
+impl Binding {
+    /// `shortcut`, on.
+    pub const fn on(shortcut: Shortcut) -> Self {
+        Self {
+            shortcut,
+            enabled: true,
+        }
+    }
+
+    /// `shortcut`, off.
+    pub const fn off(shortcut: Shortcut) -> Self {
+        Self {
+            shortcut,
+            enabled: false,
+        }
     }
 }
 

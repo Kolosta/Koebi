@@ -39,8 +39,11 @@ outliner). The ctrl shortcuts use Command on Apple platforms.
 The areas, the editors of each area and each editor's kind are saved in `workspace.txt`, and
 the shortcuts that differ from their defaults in `shortcuts.txt`, next to `design.kds` in the
 data directory ([Gallery](../design-system/gallery.md#saved-state)). The workspace is saved a
-second after the last change (one write per pause while a gutter drags); both files are
-saved when the application goes to the background or quits, only when they changed. Each
+second after the last change (one write per pause while a gutter drags), the shortcuts as soon
+as the shortcut editor changes them; both files are saved when the application goes to the
+background or quits, only when they changed. A shortcut turned off keeps a `!` before it
+(`app.quit = Ctrl+Q, !Ctrl+W`), and a key held as a modifier comes after the modifiers
+(`Ctrl+Space+G`). Each
 write goes to a temporary file, flushed, then renamed over the file, whose previous version
 stays as `.bak`; a damaged or missing file falls back to its backup.
 

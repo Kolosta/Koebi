@@ -277,6 +277,12 @@ Application bar: `component.title-bar.button.pressed-lightness`,
 Reset dots (#175): `component.panel.override-badge.size.default` (6 px) and `.size.hover`
 (9 px), the dot of a changed value, which brings it back.
 
+Shortcut editor (#177): `component.key-cap.border.width.default` (→ `semantic.border.width.thin`),
+`component.key-cap.separator.color.default` (→ `semantic.text.color.secondary.default`),
+`component.key-cap.gap.default` (3 px) and `component.key-cap.icon.size.default` (12 px).
+`component.key-cap.padding.vertical.default` aliases `semantic.spacing.control-inset` instead
+of holding 4 px: it is the space above and below a cap in its row.
+
 Insets, chevrons and disabled states (#174): `semantic.spacing.control-inset` (2 pixels, the
 inset around controls one interface unit high), which `component.editor-top-bar.padding.default`,
 `component.zone-tab.padding.vertical.default` and `component.title-bar.padding.default` now
