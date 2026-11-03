@@ -88,6 +88,20 @@ impl Sides {
     }
 }
 
+/// How far below a half pixel a position still rounds up to the next pixel edge, in physical
+/// pixels. Interfaces add lengths such as `3 / 1.75` that floating point cannot hold exactly,
+/// so an edge meant to lie exactly half way between two pixels lands a hair below or above it:
+/// without this margin, two edges meant to be 3 pixels apart could come out 2 or 4. The
+/// rectangle shader uses the same value.
+pub const TIE_TOLERANCE: f32 = 1.0 / 256.0;
+
+/// The physical pixel edge nearest `physical` (a position in physical pixels), ties and
+/// positions within [`TIE_TOLERANCE`] below them going up: where the renderer puts a snapped
+/// rectangle's edge or a clip's.
+pub fn pixel_edge(physical: f32) -> f32 {
+    (physical + 0.5 + TIE_TOLERANCE).floor()
+}
+
 /// How the straight edges of a rectangle meet the pixel grid.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Edges {

@@ -64,8 +64,9 @@ impl TextField<'_> {
             self.color(ui, BACKGROUND, state),
             self.color(ui, BORDER, state),
         );
+        let snapped = snap(rect, ui.scale_factor());
         ui.scene().push_rect(
-            &RectPrimitive::new(snap(rect), background)
+            &RectPrimitive::new(snapped, background)
                 .with_corner_radii(radii)
                 .with_border(border_width, border),
         );

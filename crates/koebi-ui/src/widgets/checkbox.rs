@@ -110,18 +110,18 @@ impl CheckboxStyle {
     }
 
     /// The box of a checkbox whose first line is `line`: at its left edge, centered
-    /// vertically, on whole pixels.
-    pub fn box_rect(&self, line: Rect) -> Rect {
-        box_rect(self.box_size, line)
+    /// vertically, on whole physical pixels at `scale`.
+    pub fn box_rect(&self, line: Rect, scale: f32) -> Rect {
+        box_rect(self.box_size, line, scale)
     }
 }
 
 /// A box of side `side` (at most the line's height and width) at the left edge of `line`,
-/// centered vertically, on whole pixels.
-fn box_rect(side: f32, line: Rect) -> Rect {
+/// centered vertically, on whole physical pixels at `scale`.
+fn box_rect(side: f32, line: Rect, scale: f32) -> Rect {
     let side = side.min(line.width()).min(line.height()).max(0.0);
     let min = Vec2::new(line.min.x, line.center().y - side * 0.5);
-    snap(Rect::from_origin_size(min, Vec2::splat(side)))
+    snap(Rect::from_origin_size(min, Vec2::splat(side)), scale)
 }
 
 /// Color overrides of a call: per part (background, border), unchecked or checked, per state.
@@ -356,7 +356,7 @@ impl<'a> Checkbox<'a> {
             rect.min,
             Vec2::new(rect.max.x, rect.min.y + first.min(rect.height())),
         );
-        let bounds = box_rect(self.side(ui), line);
+        let bounds = box_rect(self.side(ui), line, ui.scale_factor());
         let radius = Self::prop(ui, self.corner_radius.as_ref(), style.corner_radius);
         let border = Self::prop(ui, self.border_width.as_ref(), style.border_width);
         let background = self.box_color(ui, BACKGROUND, marked, state);
@@ -508,7 +508,7 @@ mod tests {
     fn the_box_is_centered_on_the_first_line_on_whole_pixels() {
         let style = crate::test_styles().checkbox;
         let line = Rect::from_origin_size(Vec2::new(10.0, 10.0), Vec2::new(100.0, 25.0));
-        let bounds = style.box_rect(line);
+        let bounds = style.box_rect(line, 1.0);
         assert_eq!(bounds.size(), Vec2::splat(16.0));
         assert_eq!(bounds.min, Vec2::new(10.0, 15.0));
     }

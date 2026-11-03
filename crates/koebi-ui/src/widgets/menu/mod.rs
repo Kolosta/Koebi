@@ -48,7 +48,7 @@ use crate::id::WidgetId;
 use crate::routing::Layer;
 use crate::ui::Ui;
 use crate::widgets::parts::Side;
-use crate::widgets::{repeating, snap};
+use crate::widgets::repeating;
 
 /// An open menu: its keys apply wherever the pointer is.
 pub const MENU: Context = Context::new("menu");
@@ -140,13 +140,13 @@ fn item_key(level: usize, item: usize) -> u64 {
 /// The panel of `size` at `origin`, moved as little as it takes to stay inside `bounds`.
 fn around_pointer(origin: Vec2, size: Vec2, bounds: Rect) -> Rect {
     let keep = |start: f32, length: f32, low: f32, high: f32| start.min(high - length).max(low);
-    snap(Rect::from_origin_size(
+    Rect::from_origin_size(
         Vec2::new(
             keep(origin.x, size.x, bounds.min.x, bounds.max.x),
             keep(origin.y, size.y, bounds.min.y, bounds.max.y),
         ),
         size,
-    ))
+    )
 }
 
 /// The rectangle of a context menu of `size` opened at `point`: right and down from it when
@@ -163,13 +163,13 @@ fn at_point(point: Vec2, size: Vec2, bounds: Rect) -> Rect {
         point.y - size.y
     };
     let keep = |start: f32, length: f32, low: f32, high: f32| start.min(high - length).max(low);
-    snap(Rect::from_origin_size(
+    Rect::from_origin_size(
         Vec2::new(
             keep(x, size.x, bounds.min.x, bounds.max.x),
             keep(y, size.y, bounds.min.y, bounds.max.y),
         ),
         size,
-    ))
+    )
 }
 
 impl Ui<'_> {

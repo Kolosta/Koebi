@@ -81,8 +81,8 @@ pub use theme_card::{CardResponse, ThemeCardStyle, ThemePreview};
 pub(crate) use tooltip::TooltipState;
 pub use tooltip::TooltipStyle;
 
+use koebi_core::Rect;
 use koebi_core::input::Key;
-use koebi_core::{Rect, Vec2};
 use koebi_input::{KeyTrigger, Shortcut, Trigger};
 
 /// The press of `key`, repeating while it is held: moving through items.
@@ -94,9 +94,9 @@ pub(crate) const fn repeating(key: Key) -> Shortcut {
     })
 }
 
-/// `rect` with its origin and size rounded to whole logical pixels, so that its edges stay
-/// crisp and its size does not depend on where it lands.
-pub(crate) fn snap(rect: Rect) -> Rect {
-    let round = |v: Vec2| Vec2::new(v.x.round(), v.y.round());
-    Rect::from_origin_size(round(rect.min), round(rect.size()))
+/// `rect` with its origin on physical pixel edges and its size whole physical pixels at
+/// `scale`, so that its edges lie where they are drawn and its size does not depend on where it
+/// lands.
+pub(crate) fn snap(rect: Rect, scale: f32) -> Rect {
+    crate::pixel::snap_rect(rect, scale)
 }

@@ -1,21 +1,23 @@
 //! The pixel grid: what must line up or stay centered does so on whole physical pixels, at
 //! every scale factor (fold arrows and the tree lines below them, panel chevrons, icons in
-//! buttons too small for their paddings).
+//! buttons too small for their paddings); the space around a header's controls and between
+//! panels is the same number of pixels wherever they lie; a bar's fill stays inside its
+//! field's rounded corners.
 
 mod common;
 
 use std::ops::Range;
 
 use common::{over, render, render_scaled};
-use koebi_core::{Extent, Rect, Vec2};
+use koebi_core::{Color, Extent, Rect, Vec2};
 use koebi_design::DesignSystem;
-use koebi_render::Scene;
+use koebi_render::{RectPrimitive, Scene};
 use koebi_testkit::gpu_or_skip;
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    Button, CollapsiblePanel, CollapsiblePanelState, Icon, Input, ListItem, ListOptions, ListState,
-    Styles, Tone, Ui, UiState, WidgetId,
+    BarMapping, Button, CollapsiblePanel, CollapsiblePanelState, Icon, Input, ListItem,
+    ListOptions, ListState, NumberField, Styles, Tone, Ui, UiState, WidgetId,
 };
 
 /// The size of the sheet of icon buttons.
@@ -229,6 +231,133 @@ fn an_icon_is_centered_in_a_button_too_narrow_for_its_paddings() {
                 "{icon:?} in {cell:?} touches its sides"
             );
         }
+    }
+    gpu.assert_no_validation_errors();
+}
+
+/// The rows of column `x` whose color is not `background`, as runs: (first row, end row).
+fn runs(image: &koebi_testkit::Image, x: u32, background: [u8; 4]) -> Vec<(u32, u32)> {
+    let mut runs: Vec<(u32, u32)> = Vec::new();
+    for y in 0..image.height() {
+        if image.pixel(x, y) == background {
+            continue;
+        }
+        match runs.last_mut() {
+            Some(run) if run.1 == y => run.1 = y + 1,
+            _ => runs.push((y, y + 1)),
+        }
+    }
+    runs
+}
+
+#[test]
+fn header_controls_and_stacked_panels_keep_the_same_space_wherever_they_lie() {
+    let Some(gpu) =
+        gpu_or_skip("header_controls_and_stacked_panels_keep_the_same_space_wherever_they_lie")
+    else {
+        return;
+    };
+    let design = design();
+    let mark = Color::from_hex(0xFF_00_FF);
+    for scale in SCALES {
+        let styles = Styles::resolve_at(&design, scale);
+        let background = styles.background.to_rgba8();
+        let mut seen = None;
+        // Offsets that put the panels' edges at many fractions of a physical pixel.
+        for step in 0..9_u8 {
+            let top = 10.0 + f32::from(step) * 0.137;
+            let mut scene = Scene::new();
+            scene.set_clear_color(styles.background);
+            let (mut state, input) = (UiState::new(), Input::new());
+            state.set_scale_factor(scale);
+            let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+            let mut y = top;
+            for index in 0..2_u64 {
+                let mut panel = CollapsiblePanelState::new(false);
+                let id = WidgetId::new("panel").with(index);
+                let response = CollapsiblePanel::new(id, &mut panel, "")
+                    .trailing(30.0)
+                    .show(&mut ui, rect(10.0, y, 120.0, 200.0), |_, _| 0.0);
+                let control = response.trailing.expect("room for a control");
+                ui.scene().push_rect(&RectPrimitive::new(control, mark));
+                y += response.height + styles.collapsible_panel.gap;
+            }
+            drop(ui);
+            let image = render_scaled(
+                &gpu,
+                Extent::new(physical(140.0, scale), physical(100.0, scale)),
+                &scene,
+                scale,
+            );
+            // Down the middle of the controls: the panels, and the control inside each.
+            let x = physical(115.0, scale);
+            let panels = runs(&image, x, background);
+            assert_eq!(panels.len(), 2, "at {scale}, from {top}: {panels:?}");
+            let mut spaces = Vec::new();
+            for panel in &panels {
+                let marked: Vec<u32> = (panel.0..panel.1)
+                    .filter(|&y| image.pixel(x, y) == mark.to_rgba8())
+                    .collect();
+                let (first, end) = (marked[0], marked[marked.len() - 1] + 1);
+                assert_eq!(marked.len(), (end - first) as usize, "one run of control");
+                spaces.push((first - panel.0, panel.1 - end));
+            }
+            let measured = (spaces[0], panels[1].0 - panels[0].1);
+            // As much above a control as below; the same in both panels and wherever they lie.
+            assert_eq!(spaces[0].0, spaces[0].1, "at {scale}, from {top}");
+            assert_eq!(spaces[0], spaces[1], "at {scale}, from {top}");
+            assert_eq!(
+                *seen.get_or_insert(measured),
+                measured,
+                "at {scale}, from {top}"
+            );
+        }
+    }
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn a_bar_s_fill_stays_inside_the_field_s_rounded_corners_near_either_end() {
+    let Some(gpu) =
+        gpu_or_skip("a_bar_s_fill_stays_inside_the_field_s_rounded_corners_near_either_end")
+    else {
+        return;
+    };
+    let styles = Styles::resolve(&design());
+    let field = |index: u8| rect(10.0, 10.0 + 40.0 * f32::from(index), 200.0, 24.0);
+    // Nearly empty and nearly full, the fill's end within the corners' radius; then empty.
+    let sheet = |values: [f64; 2]| {
+        let mut scene = Scene::new();
+        scene.set_clear_color(styles.background);
+        let (mut state, input) = (UiState::new(), Input::new());
+        state.set_fonts(Fonts::with_embedded());
+        let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+        for (index, mut value) in (0_u8..).zip(values) {
+            NumberField::new(WidgetId::new("bar").with(u64::from(index)), &mut value)
+                .range(0.0, 1.0)
+                .bar(BarMapping::Linear)
+                .corner_radius(10.0)
+                .show(&mut ui, field(index));
+        }
+        drop(ui);
+        render(&gpu, Extent::new(240, 90), &scene)
+    };
+    let filled = sheet([0.01, 0.995]);
+    let empty = sheet([0.0, 0.0]);
+    let border = styles.number_field.border_width;
+    for (index, x) in [
+        (0, field(0).min.x + border),
+        (1, field(1).max.x - border - 2.0),
+    ] {
+        // A pixel in the corner, the fill reaching it but outside the rounded shape: as if
+        // there were no fill.
+        let (x, y) = (px(x), px(field(index).min.y + border));
+        let (shown, expected) = (filled.pixel(x, y), empty.pixel(x, y));
+        let difference = (0..4).map(|c| shown[c].abs_diff(expected[c])).max();
+        assert!(
+            difference <= Some(2),
+            "the fill shows in the corner of field {index}: {shown:?} instead of {expected:?}"
+        );
     }
     gpu.assert_no_validation_errors();
 }

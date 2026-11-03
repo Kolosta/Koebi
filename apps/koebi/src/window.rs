@@ -215,7 +215,7 @@ impl AppWindow {
             ..
         } = interface;
         scene.clear();
-        let styles = styles.update(design);
+        let styles = styles.update(design, state.scale_factor());
         scene.set_clear_color(styles.background);
         let mut ui = Ui::new(scene, styles, input, state);
         shown.messages.collect();

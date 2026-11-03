@@ -30,6 +30,10 @@ layout(location = 6) flat out float v_inverted;
 const float AA_MARGIN = 1.0;
 // Below this size (physical pixels), a rectangle is a line: it keeps its thickness.
 const float THIN = 2.0;
+// How far below a half pixel a position still rounds up (TIE_TOLERANCE in scene.rs): lengths
+// such as 3 / 1.75 are not exact in floating point, and edges meant to lie on a tie must round
+// the same way.
+const float TIE = 1.0 / 256.0;
 
 void main() {
     // Strip order (0,0) (1,0) (0,1) (1,1) covers the quad with two triangles.
@@ -42,12 +46,12 @@ void main() {
         // Each edge goes to the nearest pixel edge, the way scissors round: rectangles sharing
         // an edge stay joined at every scale, and straight edges cover whole pixels.
         vec2 size = high - low;
-        low = floor(low + 0.5);
+        low = floor(low + 0.5 + TIE);
         high = mix(
-            floor(high + 0.5),
-            low + max(floor(size + 0.5), vec2(1.0)),
+            floor(high + 0.5 + TIE),
+            low + max(floor(size + 0.5 + TIE), vec2(1.0)),
             lessThan(size, vec2(THIN)));
-        borders = mix(vec4(0.0), max(floor(borders + 0.5), vec4(1.0)), greaterThan(borders, vec4(0.0)));
+        borders = mix(vec4(0.0), max(floor(borders + 0.5 + TIE), vec4(1.0)), greaterThan(borders, vec4(0.0)));
     }
     vec2 half_size = 0.5 * (high - low);
     vec2 center = low + half_size;

@@ -41,6 +41,30 @@ A box may still be one pixel wider or narrower depending on where it lies, since
 round separately: that is the price of staying joined to its neighbours, and it cannot be seen
 as a defect, only measured.
 
+Positions meant to lie exactly half way between two pixels are common (an integer logical
+position at 1.25 or 1.75), and floating point cannot hold lengths such as `3 / 1.75` exactly:
+such an edge lands a hair below or above the half. Edges therefore round up from
+[`TIE_TOLERANCE`](../../crates/koebi-render/src/scene.rs) (1/256 of a pixel) below the half, in
+the shader, the scissors and [`koebi_render::pixel_edge`](../../crates/koebi-render/src/scene.rs)
+alike, so that edges meant to be a whole number of pixels apart always are.
+
+## Lengths on whole pixels
+
+Edges snap one by one, so a length that is not a whole number of physical pixels comes out a
+pixel longer or shorter depending on where it falls: at 1.25, an inset of 2 logical pixels is
+2.5 physical pixels, and the controls of a panel header got 3 pixels above and 2 below, or the
+reverse; two stacked panels lay 2 or 3 pixels apart. A whole length, on the other hand, keeps
+its value wherever it lies: `floor(a + n + 0.5) = floor(a + 0.5) + n`.
+
+So every length that lays components out is a whole number of physical pixels:
+[`Styles::resolve_at`](../../crates/koebi-ui/src/style.rs) rounds the heights, insets, gaps,
+paddings and indents of every style at the window's scale factor
+([`whole_pixels`](../../crates/koebi-ui/src/pixel.rs): the nearest number, ties going down so
+that spacing never grows past what the token asks, at least one pixel when the length is not
+zero). Strokes, borders, radii and font sizes keep their values. `StyleCache` keeps styles for
+each scale factor windows draw at; layouts adding lengths of their own round them with
+`Ui::whole_pixels`. Positions may be anything: only the lengths between edges count.
+
 ## Exact edges
 
 [`Edges::Exact`](../../crates/koebi-render/src/scene.rs) keeps edges at their sub-pixel position

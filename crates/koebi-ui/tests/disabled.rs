@@ -76,7 +76,7 @@ fn control_row(ui: &mut Ui<'_>, top: f32, enabled: bool) -> [(u32, u32); 5] {
     let pixel = |x: f32, y: f32| (px(x), px(y));
     let mut places = cells.map(|cell| pixel(cell.min.x + 4.0, cell.center().y));
     // The checkbox's box, at its start.
-    let checkbox = ui.styles().checkbox.box_rect(cells[4]);
+    let checkbox = ui.styles().checkbox.box_rect(cells[4], ui.scale_factor());
     places[4] = pixel(checkbox.min.x + 3.0, checkbox.min.y + 3.0);
     places
 }
@@ -194,7 +194,7 @@ fn a_checked_box_then_disabled_shows_it_is_checked() {
     let style = &styles.checkbox;
     // A corner of each box, clear of the mark.
     let corner = |cell: Rect| {
-        let bounds = style.box_rect(cell);
+        let bounds = style.box_rect(cell, 1.0);
         (px(bounds.min.x + 3.0), px(bounds.min.y + 3.0))
     };
     let checked = over(style.background_checked.disabled, styles.background).to_rgba8();
