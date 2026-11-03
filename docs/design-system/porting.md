@@ -296,6 +296,24 @@ Both chevron sizes grow by a quarter, at the maintainer's request:
 `component.dropdown.chevron.size` from 8 to 10 pixels, `component.panel.chevron.size` and
 `component.list-row.fold.size.default` from 10 to 12.5 pixels.
 
+States and panels (#183): `semantic.background.app.active` (→ `semantic.background.app.control`)
+and `semantic.border.color.active` (→ `semantic.border.color.focus.default`), the colors of a
+control holding the input, which `component.text-field.*.editing`,
+`component.number-field.*.drag` and `component.capture-field.*.recording` now alias;
+`component.button.background.color.selected-pressed` and
+`component.toggle.background.color.selected-pressed` (→ `semantic.accent.color.800`);
+`component.button.background.color.active`, `.border.color.active` and `.label.color.active`
+(a button's open menu, aliasing the selected colors' semantic tokens);
+`component.capture-field.border.color.hover`, `.background.color.disabled` and
+`.border.color.disabled`. At the maintainer's request, the capture field looks like a field:
+`component.capture-field.background.color.default`, `.hover` and `.pressed` alias
+`semantic.background.app.frame`, `.frame-hover` and `.child` instead of the raised and sunken
+backgrounds (black under the pointer), and its recording border the active border instead of
+the negative color; `component.toggle.background.color.hover` aliases
+`semantic.background.app.frame-hover` instead of `semantic.background.sunken.default` (black);
+`component.panel.body.background.color.level-3` aliases `semantic.background.app.control`
+instead of `semantic.background.base.default`, the color of the window and menus.
+
 Docking: `component.zone-tab.reveal.delay` (350 ms) and `component.zone-tab.reveal.grace`
 (250 ms), which were constants in the source.
 

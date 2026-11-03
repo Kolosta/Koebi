@@ -12,9 +12,9 @@ use crate::widgets::parts::States;
 /// Colors and metrics of text fields, from the `component.text-field.*` tokens.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TextFieldStyle {
-    /// Background per state; selected is editing.
+    /// Background per state; active is editing.
     pub background: States<Color>,
-    /// Border color per state; selected is editing.
+    /// Border color per state; active is editing.
     pub border: States<Color>,
     /// Text color.
     pub text: Color,
@@ -58,7 +58,7 @@ impl TextFieldStyle {
         let editing = get(c::TEXT_FIELD_BACKGROUND_COLOR_EDITING);
         let border_hover = get(c::TEXT_FIELD_BORDER_COLOR_HOVER);
         let border_editing = get(c::TEXT_FIELD_BORDER_COLOR_EDITING);
-        // A disabled field cannot be edited: selected or not, it looks disabled.
+        // A field is never selected; edited, it is active. Disabled, it cannot be edited.
         let disabled = get(c::TEXT_FIELD_BACKGROUND_COLOR_DISABLED);
         let border_disabled = get(c::TEXT_FIELD_BORDER_COLOR_DISABLED);
         Self {
@@ -66,8 +66,10 @@ impl TextFieldStyle {
                 normal: get(c::TEXT_FIELD_BACKGROUND_COLOR_DEFAULT),
                 hovered: get(c::TEXT_FIELD_BACKGROUND_COLOR_HOVER),
                 pressed: get(c::TEXT_FIELD_BACKGROUND_COLOR_HOVER),
-                selected: editing,
-                selected_hovered: editing,
+                selected: get(c::TEXT_FIELD_BACKGROUND_COLOR_DEFAULT),
+                selected_hovered: get(c::TEXT_FIELD_BACKGROUND_COLOR_HOVER),
+                selected_pressed: get(c::TEXT_FIELD_BACKGROUND_COLOR_HOVER),
+                active: editing,
                 disabled,
                 selected_disabled: disabled,
             },
@@ -75,8 +77,10 @@ impl TextFieldStyle {
                 normal: get(c::TEXT_FIELD_BORDER_COLOR_DEFAULT),
                 hovered: border_hover,
                 pressed: border_hover,
-                selected: border_editing,
-                selected_hovered: border_editing,
+                selected: get(c::TEXT_FIELD_BORDER_COLOR_DEFAULT),
+                selected_hovered: border_hover,
+                selected_pressed: border_hover,
+                active: border_editing,
                 disabled: border_disabled,
                 selected_disabled: border_disabled,
             },

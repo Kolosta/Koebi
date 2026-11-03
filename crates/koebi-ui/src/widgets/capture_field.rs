@@ -18,6 +18,7 @@ use crate::id::WidgetId;
 use crate::input::{Input, PointerButton};
 use crate::text::Align;
 use crate::ui::{Response, Ui};
+use crate::widgets::parts::{ControlState, States};
 
 /// What a recording field holds: no shortcut applies while it records.
 pub const CAPTURE: Context = Context::new("capture");
@@ -47,18 +48,10 @@ impl Capture {
 /// Colors and metrics of capture fields, from the `component.capture-field.*` tokens.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CaptureFieldStyle {
-    /// Background at rest.
-    pub background: Color,
-    /// Background under the pointer.
-    pub background_hovered: Color,
-    /// Background held down.
-    pub background_pressed: Color,
-    /// Background while recording.
-    pub background_recording: Color,
-    /// Border at rest.
-    pub border: Color,
-    /// Border while recording.
-    pub border_recording: Color,
+    /// Background per state, as a field's; active while recording.
+    pub background: States<Color>,
+    /// Border per state; active while recording.
+    pub border: States<Color>,
     /// Border width.
     pub border_width: f32,
     /// Color of the hint shown without a shortcut, and while recording.
@@ -75,13 +68,36 @@ impl CaptureFieldStyle {
     /// Reads the style from `tokens`.
     pub fn resolve(tokens: &impl Resolve) -> Self {
         use component as c;
+        let get = |token| tokens.get(token);
+        let (normal, hovered, pressed) = (
+            get(c::CAPTURE_FIELD_BACKGROUND_COLOR_DEFAULT),
+            get(c::CAPTURE_FIELD_BACKGROUND_COLOR_HOVER),
+            get(c::CAPTURE_FIELD_BACKGROUND_COLOR_PRESSED),
+        );
+        let border_hover = get(c::CAPTURE_FIELD_BORDER_COLOR_HOVER);
         Self {
-            background: tokens.get(c::CAPTURE_FIELD_BACKGROUND_COLOR_DEFAULT),
-            background_hovered: tokens.get(c::CAPTURE_FIELD_BACKGROUND_COLOR_HOVER),
-            background_pressed: tokens.get(c::CAPTURE_FIELD_BACKGROUND_COLOR_PRESSED),
-            background_recording: tokens.get(c::CAPTURE_FIELD_BACKGROUND_COLOR_RECORDING),
-            border: tokens.get(c::CAPTURE_FIELD_BORDER_COLOR_DEFAULT),
-            border_recording: tokens.get(c::CAPTURE_FIELD_BORDER_COLOR_RECORDING),
+            // A field is never selected; recording, it is active.
+            background: States {
+                normal,
+                hovered,
+                pressed,
+                selected: normal,
+                selected_hovered: hovered,
+                selected_pressed: pressed,
+                active: get(c::CAPTURE_FIELD_BACKGROUND_COLOR_RECORDING),
+                disabled: get(c::CAPTURE_FIELD_BACKGROUND_COLOR_DISABLED),
+                selected_disabled: get(c::CAPTURE_FIELD_BACKGROUND_COLOR_DISABLED),
+            },
+            border: States {
+                hovered: border_hover,
+                pressed: border_hover,
+                selected_hovered: border_hover,
+                selected_pressed: border_hover,
+                active: get(c::CAPTURE_FIELD_BORDER_COLOR_RECORDING),
+                disabled: get(c::CAPTURE_FIELD_BORDER_COLOR_DISABLED),
+                selected_disabled: get(c::CAPTURE_FIELD_BORDER_COLOR_DISABLED),
+                ..States::all(get(c::CAPTURE_FIELD_BORDER_COLOR_DEFAULT))
+            },
             border_width: tokens.get(c::KEY_CAP_BORDER_WIDTH_DEFAULT),
             hint: tokens.get(c::CAPTURE_FIELD_LABEL_COLOR_HINT),
             corner_radius: tokens.get(c::CAPTURE_FIELD_CORNER_RADIUS_DEFAULT),
@@ -206,15 +222,8 @@ impl<'a> CaptureField<'a> {
     fn draw(&self, ui: &mut Ui<'_>, rect: Rect, response: Response) {
         let style = ui.styles().capture_field;
         let recording = self.state.recording;
-        let (background, border) = if recording {
-            (style.background_recording, style.border_recording)
-        } else if response.held && response.hovered {
-            (style.background_pressed, style.border)
-        } else if response.hovered && self.enabled {
-            (style.background_hovered, style.border)
-        } else {
-            (style.background, style.border)
-        };
+        let state = ControlState::of(&response, false, self.enabled).activated(recording);
+        let (background, border) = (style.background.get(state), style.border.get(state));
         ui.scene().push_rect(
             &RectPrimitive::new(rect, background)
                 .with_corner_radius(style.corner_radius)
@@ -347,6 +356,18 @@ mod tests {
             self.frame(capture);
             assert!(self.capture.is_recording());
         }
+    }
+
+    #[test]
+    fn capture_fields_look_like_fields_and_are_active_while_recording() {
+        let styles = crate::test_styles();
+        let (capture, field) = (styles.capture_field, styles.text_field);
+        // At rest and hovered as a field; recording as a field being edited.
+        assert_eq!(capture.background.normal, field.background.normal);
+        assert_eq!(capture.background.hovered, field.background.hovered);
+        assert_eq!(capture.background.active, field.background.active);
+        assert_eq!(capture.border.active, field.border.active);
+        assert_ne!(capture.background.hovered, Color::BLACK);
     }
 
     #[test]

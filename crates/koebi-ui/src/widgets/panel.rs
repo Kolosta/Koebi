@@ -29,6 +29,26 @@ impl PanelLevel {
             _ => Self::Third,
         }
     }
+
+    /// How many panels a panel of this level lies in.
+    pub const fn depth(self) -> u8 {
+        match self {
+            Self::First => 0,
+            Self::Second => 1,
+            Self::Third => 2,
+        }
+    }
+}
+
+/// The index in [`PanelStyle::backgrounds`] of the content of a panel inside `depth` others:
+/// the three levels, then the second and the third alternating, so that every panel's content
+/// differs from the one holding it however deep it lies.
+pub(crate) const fn content_level(depth: u8) -> usize {
+    if depth == 0 {
+        0
+    } else {
+        1 + (depth as usize - 1) % 2
+    }
 }
 
 /// Colors and metrics of [`Ui::panel`], from the `component.panel.*` tokens.
@@ -94,6 +114,20 @@ impl Ui<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn content_levels_alternate_below_the_third_and_never_match_their_parent() {
+        assert_eq!(
+            (0..7).map(content_level).collect::<Vec<_>>(),
+            [0, 1, 2, 1, 2, 1, 2]
+        );
+        for depth in 1..40 {
+            assert_ne!(content_level(depth), content_level(depth - 1));
+        }
+        for level in [PanelLevel::First, PanelLevel::Second, PanelLevel::Third] {
+            assert_eq!(PanelLevel::at_depth(level.depth()), level);
+        }
+    }
 
     #[test]
     fn content_sits_inside_the_border_and_padding() {

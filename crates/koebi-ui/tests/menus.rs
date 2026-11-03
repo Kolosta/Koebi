@@ -181,7 +181,7 @@ fn a_dropdown_and_its_menu_square_the_corners_where_they_meet() {
     let image = render(&gpu, Extent::new(160, 160), &scene);
     let placed = menu.placed().expect("open below");
     assert_eq!(placed.rect.min.y, control.max.y);
-    let border = styles.dropdown.colors.border.selected.to_rgba8();
+    let border = styles.dropdown.colors.border.active.to_rgba8();
     let clear = styles.background.to_rgba8();
     // The control: rounded on top, square at the bottom where the menu starts.
     assert_pixel(&image, 20, 20, clear);

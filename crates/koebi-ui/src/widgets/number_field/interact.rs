@@ -66,7 +66,7 @@ impl<N: Numeric> NumberField<'_, N> {
         let state = if !self.enabled {
             ControlState::Disabled
         } else if out.dragging {
-            ControlState::Selected
+            ControlState::Active
         } else if out.response.held {
             ControlState::Pressed
         } else if hovered {
@@ -315,7 +315,7 @@ impl<N: Numeric> NumberField<'_, N> {
         if edit.error {
             field = field
                 .border_color(ControlState::Normal, error)
-                .border_color(ControlState::Selected, error);
+                .border_color(ControlState::Active, error);
         }
         let typed = field.show(ui, self.edit_rect(ui, rect));
         let mut out = NumberFieldResponse {

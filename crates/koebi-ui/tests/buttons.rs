@@ -14,15 +14,15 @@ use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    Align, Button, ButtonGroup, Checkbox, ControlState, GroupCell, Hue, Icon, Input, Styles,
-    TextField, Tone, Ui, UiState, Variant, WidgetId,
+    Align, Button, ButtonGroup, Checkbox, ControlState, GroupCell, Hue, Icon, Input, MenuState,
+    Placement, Styles, TextField, Tone, Ui, UiState, Variant, WidgetId,
 };
 
 /// Anti-aliased edges may differ by a few units between drivers.
 const CROSS_DRIVER: Tolerance = Tolerance::new(3, 8);
 
 /// The size of the button sheet.
-const SHEET: Extent = Extent::new(320, 240);
+const SHEET: Extent = Extent::new(400, 240);
 
 /// The rows of the color families: filled variants, then the default variant.
 const FILLED_ROW: f32 = 168.0;
@@ -80,7 +80,7 @@ fn subtle_state(hue: Hue) -> ControlState {
 
 /// Shows the button `build` makes in `rect`, in `state`, into `scene`: a frame lays it out
 /// on its own UI state, then a frame draws it with the pointer placed (and pressed) as the
-/// state needs.
+/// state needs; active, it is a menu button with its menu open.
 fn show_in_state(
     scene: &mut Scene,
     styles: &Styles,
@@ -90,30 +90,53 @@ fn show_in_state(
     build: impl Fn() -> Button<'static>,
 ) {
     let pointer = match state {
-        ControlState::Hovered | ControlState::Pressed | ControlState::SelectedHovered => {
-            rect.center()
-        }
+        ControlState::Hovered
+        | ControlState::Pressed
+        | ControlState::SelectedHovered
+        | ControlState::SelectedPressed => rect.center(),
         _ => Vec2::new(-100.0, -100.0),
     };
     let selected = state.is_selected();
     let enabled = !state.is_disabled();
+    let mut menu = MenuState::new();
+    let active = state == ControlState::Active;
+    if active {
+        menu.open_below(rect);
+    }
     let mut input = Input::new();
     input.pointer_moved(pointer);
     let mut ui_state = UiState::new();
     ui_state.set_fonts(fonts.clone());
     let mut layout = Scene::new();
-    build().selected(selected).enabled(enabled).show(
+    show_with_menu(
+        build().selected(selected).enabled(enabled),
+        active.then_some(&mut menu),
         &mut Ui::new(&mut layout, styles, &input, &mut ui_state),
         rect,
     );
     input.end_frame();
-    if state == ControlState::Pressed {
+    if state.is_pressed() {
         input.primary_button(true, pointer);
     }
-    build()
-        .selected(selected)
-        .enabled(enabled)
-        .show(&mut Ui::new(scene, styles, &input, &mut ui_state), rect);
+    show_with_menu(
+        build().selected(selected).enabled(enabled),
+        active.then_some(&mut menu),
+        &mut Ui::new(scene, styles, &input, &mut ui_state),
+        rect,
+    );
+}
+
+/// Shows `button` in `rect`, opening `menu` when it has one.
+fn show_with_menu<'a>(
+    button: Button<'a>,
+    menu: Option<&'a mut MenuState>,
+    ui: &mut Ui<'_>,
+    rect: Rect,
+) {
+    match menu {
+        Some(menu) => button.menu(menu, Placement::BELOW).show(ui, rect),
+        None => button.show(ui, rect),
+    };
 }
 
 /// Every variant in every state, the color families, groups and content, styled by the
@@ -172,7 +195,7 @@ fn button_sheet(design: &DesignSystem) -> Scene {
         GroupCell::new(Button::new(id("check")).icon(Icon::Check).selected(true)),
         GroupCell::new(Button::new(id("down")).icon(Icon::ChevronDown)),
     ];
-    ButtonGroup::vertical().show(&mut ui, rect(252.0, 8.0, 60.0, 60.0), &mut stack);
+    ButtonGroup::vertical().show(&mut ui, rect(324.0, 8.0, 60.0, 60.0), &mut stack);
     let mut modifiers = [
         GroupCell::new(Button::new(id("ctrl")).label("Ctrl"))
             .at(0, 0)
@@ -180,7 +203,7 @@ fn button_sheet(design: &DesignSystem) -> Scene {
         GroupCell::new(Button::new(id("left")).label("L").selected(true)).at(0, 1),
         GroupCell::new(Button::new(id("right")).label("R")).at(1, 1),
     ];
-    ButtonGroup::horizontal().show(&mut ui, rect(252.0, 76.0, 60.0, 40.0), &mut modifiers);
+    ButtonGroup::horizontal().show(&mut ui, rect(324.0, 76.0, 60.0, 40.0), &mut modifiers);
     let mut grid = [
         GroupCell::new(Button::new(id("plus")).icon(Icon::Plus)).at(0, 0),
         GroupCell::new(Button::new(id("minus")).icon(Icon::Minus)).at(1, 0),
@@ -192,7 +215,7 @@ fn button_sheet(design: &DesignSystem) -> Scene {
         )
         .at(1, 1),
     ];
-    ButtonGroup::horizontal().show(&mut ui, rect(252.0, 124.0, 60.0, 40.0), &mut grid);
+    ButtonGroup::horizontal().show(&mut ui, rect(324.0, 124.0, 60.0, 40.0), &mut grid);
 
     let mut x = 8.0;
     let mut place = |ui: &mut Ui<'_>, button: Button<'_>| {

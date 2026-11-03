@@ -6,9 +6,10 @@
 //!   ([`CollapsiblePanelState`]). While a nested panel folds, its parent shows it as it was on
 //!   the frame before: nested levels follow one frame apart.
 //! - **Nesting**: first-level panels lie on the window, framed and rounded. A panel shown in
-//!   another's content is one level deeper on its own and indented: its chevron lies below
-//!   its parent's title, and it spans the rest of the width. Its header takes its parent's
-//!   content color, its content the next color.
+//!   another's content is one level deeper on its own. Its backgrounds span its parent's
+//!   whole content; only what it holds is indented: its chevron lies below its parent's title,
+//!   and its content one indent further. Its header always takes its parent's content color;
+//!   its content the next level's, the second and third levels alternating below the third.
 //! - **Folding**: a press on the header opens or closes the panel; the content is revealed in
 //!   place along `panel.expand.*` or `panel.collapse.*` (duration and curve), clipped to the
 //!   share shown.
@@ -29,7 +30,7 @@ use crate::id::WidgetId;
 use crate::style::Prop;
 use crate::text::Align;
 use crate::ui::{Response, Ui};
-use crate::widgets::panel::PanelLevel;
+use crate::widgets::panel::{PanelLevel, content_level};
 use crate::widgets::parts::{Tween, shade};
 
 /// Metrics, colors and motion of collapsible panels, from the `component.panel.*` tokens.
@@ -146,6 +147,8 @@ impl Default for CollapsiblePanelState {
 pub struct CollapsiblePanelResponse {
     /// The pointer's interaction with the header.
     pub header: Response,
+    /// The header's rectangle: as wide as the panel's backgrounds.
+    pub header_rect: Rect,
     /// The header was pressed: the panel opens or closes.
     pub toggled: bool,
     /// The height the panel took: its header and the share of its content shown.
@@ -164,6 +167,8 @@ pub struct CollapsiblePanel<'a> {
     icon: Option<Icon>,
     /// The level asked for; `None` follows the nesting.
     level: Option<PanelLevel>,
+    /// How deep the panel looks: the level asked for, or its nesting once shown.
+    depth: u8,
     trailing: Option<Prop<kind::Dimension>>,
     /// An icon at the end of the title, in its color: what needs attention inside.
     status: Option<(Icon, Color)>,
@@ -181,6 +186,7 @@ impl<'a> CollapsiblePanel<'a> {
             title,
             icon: None,
             level: None,
+            depth: 0,
             trailing: None,
             status: None,
             tint: None,
@@ -199,12 +205,13 @@ impl<'a> CollapsiblePanel<'a> {
     #[must_use]
     pub fn level(mut self, level: PanelLevel) -> Self {
         self.level = Some(level);
+        self.depth = level.depth();
         self
     }
 
-    /// The level the panel shows: the one asked for, or the one of its nesting once shown.
-    fn shown_level(&self) -> PanelLevel {
-        self.level.unwrap_or_default()
+    /// `true` for a panel that looks first-level: framed and rounded.
+    fn is_first(&self) -> bool {
+        self.depth == 0
     }
 
     /// Shows `icon` in `color` at the end of the title: what needs attention inside, such as a
@@ -232,15 +239,15 @@ impl<'a> CollapsiblePanel<'a> {
         self
     }
 
-    /// The backgrounds of the header and of the content at the panel's level.
+    /// The backgrounds of the header and of the content at the panel's depth: a nested
+    /// header in its parent's content color.
     fn colors(&self, ui: &Ui<'_>) -> (Color, Color) {
         let panel = &ui.styles().panel;
-        let style = &ui.styles().collapsible_panel;
-        match self.shown_level() {
-            PanelLevel::First => (style.header_background, panel.backgrounds[0]),
-            PanelLevel::Second => (panel.backgrounds[0], panel.backgrounds[1]),
-            PanelLevel::Third => (panel.backgrounds[1], panel.backgrounds[2]),
-        }
+        let header = match self.depth {
+            0 => ui.styles().collapsible_panel.header_background,
+            depth => panel.backgrounds[content_level(depth - 1)],
+        };
+        (header, panel.backgrounds[content_level(self.depth)])
     }
 
     /// The height of the content shown, with its padding, at the current openness.
@@ -255,10 +262,11 @@ impl<'a> CollapsiblePanel<'a> {
         ui.whole_pixels(full * self.state.openness())
     }
 
-    /// Shows the panel at the top of `area`, its full width, or indented by
-    /// `CollapsiblePanelStyle::indent` inside another panel's content. `add` draws the content
-    /// in the rectangle it gets (inside the frame, from the top of the content down to the
-    /// bottom of `area`: the room there is; nested panels take it, indented, rows inset it by
+    /// Shows the panel at the top of `area`, its full width. Inside another panel's content,
+    /// its backgrounds span that content whole and what it holds is indented by
+    /// `CollapsiblePanelStyle::indent`. `add` draws the content in the rectangle it gets
+    /// (inside the frame, indented as the panel's header, from the top of the content down to
+    /// the bottom of `area`: the room there is; nested panels take it, rows inset it by
     /// `panel.padding`) and returns the height it used.
     pub fn show(
         mut self,
@@ -267,16 +275,24 @@ impl<'a> CollapsiblePanel<'a> {
         add: impl FnOnce(&mut Ui<'_>, Rect) -> f32,
     ) -> CollapsiblePanelResponse {
         let depth = ui.panel_depth;
-        self.level.get_or_insert(PanelLevel::at_depth(depth));
+        self.depth = self.level.map_or(depth, PanelLevel::depth);
         let style = &ui.styles().collapsible_panel;
-        let indent = if depth > 0 { style.indent } else { 0.0 };
+        // Nested: the backgrounds span the parent's content, what the panel holds is indented.
+        let (indent, span) = match ui.panel_span.filter(|_| depth > 0) {
+            Some(span) => (style.indent, span),
+            None => (0.0, (area.min.x, area.max.x)),
+        };
+        let back = Rect::from_min_max(
+            Vec2::new(span.0.min(area.min.x), area.min.y),
+            Vec2::new(span.1.max(area.max.x), area.max.y),
+        );
         let area = Rect::from_min_max(
             Vec2::new((area.min.x + indent).min(area.max.x), area.min.y),
             area.max,
         );
         let header = Rect::from_min_max(
-            area.min,
-            Vec2::new(area.max.x, area.min.y + style.header_height),
+            back.min,
+            Vec2::new(back.max.x, back.min.y + style.header_height),
         );
         let response = ui.interact(self.id, header);
         if response.pressed {
@@ -294,16 +310,16 @@ impl<'a> CollapsiblePanel<'a> {
         let shown = self.shown_content(ui);
         let height = style.header_height + shown;
         let body = Rect::from_min_max(
-            Vec2::new(area.min.x, header.max.y),
-            Vec2::new(area.max.x, header.max.y + shown),
+            Vec2::new(back.min.x, header.max.y),
+            Vec2::new(back.max.x, header.max.y + shown),
         );
         self.draw_box(ui, header, body, response.hovered || response.held);
-        let trailing = self.draw_header(ui, header);
+        let trailing = self.draw_header(ui, header, area.min.x);
         // Open or opening: the content draws, clipped to the share shown, and measures itself
         // (a panel never measured shows its content from the next frame, asked for at once).
         if self.state.open || self.state.openness() > 0.0 {
             // A first-level panel's frame stays clear of its content.
-            let inset = if self.shown_level() == PanelLevel::First {
+            let inset = if self.is_first() {
                 ui.styles().panel.border_width
             } else {
                 0.0
@@ -319,10 +335,13 @@ impl<'a> CollapsiblePanel<'a> {
                 Vec2::new(area.min.x, top),
                 Vec2::new(area.max.x, area.max.y.max(top)),
             ));
-            // What the content shows lies one panel deeper.
+            // What the content shows lies one panel deeper, its backgrounds spanning this one's.
+            let clip = inner(body);
+            let outer = ui.panel_span.replace((clip.min.x, clip.max.x));
             ui.panel_depth = depth.saturating_add(1);
-            let used = ui.clipped(inner(body), |ui| add(ui, content));
+            let used = ui.clipped(clip, |ui| add(ui, content));
             ui.panel_depth = depth;
+            ui.panel_span = outer;
             let used = if used.is_finite() { used.max(0.0) } else { 0.0 };
             if (used - self.state.content_height).abs() > 0.01 {
                 // The panel takes another height: the next frame shows it at once.
@@ -334,6 +353,7 @@ impl<'a> CollapsiblePanel<'a> {
         self.draw_frame(ui, header, body);
         CollapsiblePanelResponse {
             header: response,
+            header_rect: header,
             toggled: response.pressed,
             height,
             trailing,
@@ -350,8 +370,11 @@ impl<'a> CollapsiblePanel<'a> {
         } else {
             header_color
         };
-        let first = self.shown_level() == PanelLevel::First;
-        let radius = if first { panel.corner_radius } else { 0.0 };
+        let radius = if self.is_first() {
+            panel.corner_radius
+        } else {
+            0.0
+        };
         let open = body.height() > 0.0;
         let header_radii = Corners {
             top_left: radius,
@@ -380,7 +403,7 @@ impl<'a> CollapsiblePanel<'a> {
     /// The frame of a first-level panel, around its header and the content shown.
     fn draw_frame(&self, ui: &mut Ui<'_>, header: Rect, body: Rect) {
         let panel = &ui.styles().panel;
-        if self.shown_level() != PanelLevel::First || panel.border_width <= 0.0 {
+        if !self.is_first() || panel.border_width <= 0.0 {
             return;
         }
         let frame = Rect::from_min_max(
@@ -394,11 +417,12 @@ impl<'a> CollapsiblePanel<'a> {
         );
     }
 
-    /// The chevron, the icon and the title; returns the room kept for the caller's buttons.
-    fn draw_header(&self, ui: &mut Ui<'_>, header: Rect) -> Option<Rect> {
+    /// The chevron (from `start`, the indented edge of what the panel holds), the icon and the
+    /// title; returns the room kept for the caller's buttons.
+    fn draw_header(&self, ui: &mut Ui<'_>, header: Rect, start: f32) -> Option<Rect> {
         let style = &ui.styles().collapsible_panel;
         let icons = ui.styles().icon;
-        let mut x = header.min.x + style.header_padding;
+        let mut x = start + style.header_padding;
         let slot = |x: f32, side: f32| {
             Rect::from_origin_size(Vec2::new(x, header.min.y), Vec2::new(side, header.height()))
         };
@@ -584,6 +608,23 @@ mod tests {
             colors(PanelLevel::Third),
             (panel.backgrounds[1], panel.backgrounds[2])
         );
+        // Deeper, the second and third levels alternate, each header in the color of the
+        // content holding it.
+        let mut harness = Harness::new();
+        let mut parent = panel.backgrounds[2];
+        for depth in 3..8 {
+            let (header, content) = harness
+                .frame(|ui| {
+                    let mut deep = CollapsiblePanel::new(ID, &mut state, "Deep");
+                    deep.depth = depth;
+                    deep.colors(ui)
+                })
+                .0;
+            assert_eq!(header, parent, "at depth {depth}");
+            assert_ne!(content, header, "at depth {depth}");
+            assert_eq!(content, panel.backgrounds[1 + usize::from(depth - 1) % 2]);
+            parent = content;
+        }
     }
 
     #[test]
@@ -600,22 +641,31 @@ mod tests {
         let [outer, middle, inner] = &mut states;
         // Where each panel's content starts, and how deep it lies.
         let mut seen = [(0.0, 0_u8); 3];
+        // Where each nested header starts and ends.
+        let mut headers = [(0.0, 0.0); 2];
         let ids = [ID, WidgetId::new("delta"), WidgetId::new("epsilon")];
         for _ in 0..3 {
             harness.frame(|ui| {
                 CollapsiblePanel::new(ids[0], outer, "Transform").show(ui, area(), |ui, rect| {
                     seen[0] = (rect.min.x, ui.panel_depth);
-                    CollapsiblePanel::new(ids[1], middle, "Delta")
-                        .show(ui, rect, |ui, rect| {
-                            seen[1] = (rect.min.x, ui.panel_depth);
-                            CollapsiblePanel::new(ids[2], inner, "Epsilon")
-                                .show(ui, rect, |ui, rect| {
-                                    seen[2] = (rect.min.x, ui.panel_depth);
-                                    20.0
-                                })
-                                .height
-                        })
-                        .height
+                    let response =
+                        CollapsiblePanel::new(ids[1], middle, "Delta").show(
+                            ui,
+                            rect,
+                            |ui, rect| {
+                                seen[1] = (rect.min.x, ui.panel_depth);
+                                let response = CollapsiblePanel::new(ids[2], inner, "Epsilon")
+                                    .show(ui, rect, |ui, rect| {
+                                        seen[2] = (rect.min.x, ui.panel_depth);
+                                        20.0
+                                    });
+                                let header = response.header_rect;
+                                headers[1] = (header.min.x, header.max.x);
+                                response.height
+                            },
+                        );
+                    headers[0] = (response.header_rect.min.x, response.header_rect.max.x);
+                    response.height
                 });
             });
         }
@@ -623,6 +673,9 @@ mod tests {
         assert_eq!(seen[0], (start, 1));
         assert_eq!(seen[1], (start + style.indent, 2));
         assert_eq!(seen[2], (start + 2.0 * style.indent, 3));
+        // Only what they hold is indented: their backgrounds span the first panel's content.
+        let end = area().max.x - border;
+        assert_eq!(headers, [(start, end); 2]);
         // Drawn on its own, a panel asked to look nested is not indented.
         let (content, _) = harness.frame(|ui| {
             let mut content = 0.0;

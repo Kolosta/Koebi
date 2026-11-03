@@ -1,4 +1,9 @@
 //! [`ControlState`] and [`States`]: the visual states of controls, and a value for each.
+//!
+//! **Selected** and **active** are distinct: a selected control is switched on or chosen (a
+//! toggle, the current choice) and stays so between frames; an active control holds the input
+//! for a while (a field being edited or dragged, a shortcut being recorded, a menu open). Each
+//! has its own colors.
 
 use koebi_core::Color;
 
@@ -19,6 +24,11 @@ pub enum ControlState {
     Selected,
     /// Selected, under the pointer.
     SelectedHovered,
+    /// Selected, held down under the pointer: a toggle switched on, being pressed.
+    SelectedPressed,
+    /// Holding the input: a field being edited or dragged, a shortcut being recorded, the
+    /// menu of a control open. The pointer changes nothing meanwhile.
+    Active,
     /// Not available: no interaction, whatever the pointer does.
     Disabled,
     /// Selected but not available: a toggle switched on, then disabled. It shows it is on,
@@ -28,12 +38,14 @@ pub enum ControlState {
 
 impl ControlState {
     /// Every state, in declaration order.
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 9] = [
         Self::Normal,
         Self::Hovered,
         Self::Pressed,
         Self::Selected,
         Self::SelectedHovered,
+        Self::SelectedPressed,
+        Self::Active,
         Self::Disabled,
         Self::SelectedDisabled,
     ];
@@ -52,8 +64,13 @@ impl ControlState {
     pub const fn is_selected(self) -> bool {
         matches!(
             self,
-            Self::Selected | Self::SelectedHovered | Self::SelectedDisabled
+            Self::Selected | Self::SelectedHovered | Self::SelectedPressed | Self::SelectedDisabled
         )
+    }
+
+    /// `true` for the states of a control held down under the pointer.
+    pub const fn is_pressed(self) -> bool {
+        matches!(self, Self::Pressed | Self::SelectedPressed)
     }
 
     /// The state of a control that got `response`: disabled first (selected or not, the
@@ -68,7 +85,8 @@ impl ControlState {
         ) {
             (false, .., true) => Self::SelectedDisabled,
             (false, ..) => Self::Disabled,
-            (true, true, ..) => Self::Pressed,
+            (true, true, _, true) => Self::SelectedPressed,
+            (true, true, _, false) => Self::Pressed,
             (true, false, true, true) => Self::SelectedHovered,
             (true, false, true, false) => Self::Hovered,
             (true, false, false, true) => Self::Selected,
@@ -76,12 +94,24 @@ impl ControlState {
         }
     }
 
+    /// The state once `active` is known: [`ControlState::Active`] while the control holds the
+    /// input, unless it is disabled; the state as it was otherwise.
+    #[must_use]
+    pub const fn activated(self, active: bool) -> Self {
+        if active && !self.is_disabled() {
+            Self::Active
+        } else {
+            self
+        }
+    }
+
     /// How a state ranks where two controls share an edge (grouped buttons): the shared
-    /// border takes the colors of the higher one. Pressed ranks first, then hovered, then
-    /// selected, then rest, then selected and disabled, then disabled.
+    /// border takes the colors of the higher one. Active ranks first, then pressed, then
+    /// hovered, then selected, then rest, then selected and disabled, then disabled.
     pub const fn priority(self) -> u8 {
         match self {
-            Self::Pressed => 6,
+            Self::Active => 7,
+            Self::Pressed | Self::SelectedPressed => 6,
             Self::Hovered | Self::SelectedHovered => 5,
             Self::Selected => 4,
             Self::Normal => 3,
@@ -104,6 +134,10 @@ pub struct States<T> {
     pub selected: T,
     /// Selected and under the pointer.
     pub selected_hovered: T,
+    /// Selected and held down.
+    pub selected_pressed: T,
+    /// Holding the input.
+    pub active: T,
     /// Disabled.
     pub disabled: T,
     /// Selected and disabled.
@@ -119,6 +153,8 @@ impl<T: Copy> States<T> {
             pressed: value,
             selected: value,
             selected_hovered: value,
+            selected_pressed: value,
+            active: value,
             disabled: value,
             selected_disabled: value,
         }
@@ -132,6 +168,8 @@ impl<T: Copy> States<T> {
             ControlState::Pressed => self.pressed,
             ControlState::Selected => self.selected,
             ControlState::SelectedHovered => self.selected_hovered,
+            ControlState::SelectedPressed => self.selected_pressed,
+            ControlState::Active => self.active,
             ControlState::Disabled => self.disabled,
             ControlState::SelectedDisabled => self.selected_disabled,
         }
@@ -145,6 +183,8 @@ impl<T: Copy> States<T> {
             ControlState::Pressed => &mut self.pressed,
             ControlState::Selected => &mut self.selected,
             ControlState::SelectedHovered => &mut self.selected_hovered,
+            ControlState::SelectedPressed => &mut self.selected_pressed,
+            ControlState::Active => &mut self.active,
             ControlState::Disabled => &mut self.disabled,
             ControlState::SelectedDisabled => &mut self.selected_disabled,
         } = value;
@@ -159,6 +199,8 @@ impl<T: Copy> States<T> {
             pressed: map(self.pressed),
             selected: map(self.selected),
             selected_hovered: map(self.selected_hovered),
+            selected_pressed: map(self.selected_pressed),
+            active: map(self.active),
             disabled: map(self.disabled),
             selected_disabled: map(self.selected_disabled),
         }
@@ -201,8 +243,13 @@ mod tests {
             ControlState::Hovered
         );
         assert_eq!(
-            ControlState::of(&response(true, true), true, true),
+            ControlState::of(&response(true, true), false, true),
             ControlState::Pressed
+        );
+        // A selected control pressed keeps showing it is selected.
+        assert_eq!(
+            ControlState::of(&response(true, true), true, true),
+            ControlState::SelectedPressed
         );
         // Held but away from the control: no longer pressed.
         assert_eq!(
@@ -230,6 +277,14 @@ mod tests {
             ControlState::of(&response(false, false), true, false),
             ControlState::SelectedDisabled
         );
+        // Holding the input wins over the pointer, never over disabled.
+        let pressed = ControlState::of(&response(true, true), true, true);
+        assert_eq!(pressed.activated(true), ControlState::Active);
+        assert_eq!(pressed.activated(false), pressed);
+        assert_eq!(
+            ControlState::Disabled.activated(true),
+            ControlState::Disabled
+        );
     }
 
     #[test]
@@ -239,9 +294,12 @@ mod tests {
                 state,
                 ControlState::Selected
                     | ControlState::SelectedHovered
+                    | ControlState::SelectedPressed
                     | ControlState::SelectedDisabled
             );
             assert_eq!(state.is_selected(), selected, "{state:?}");
+            let pressed = matches!(state, ControlState::Pressed | ControlState::SelectedPressed);
+            assert_eq!(state.is_pressed(), pressed, "{state:?}");
             let disabled = matches!(
                 state,
                 ControlState::Disabled | ControlState::SelectedDisabled
@@ -251,12 +309,17 @@ mod tests {
     }
 
     #[test]
-    fn pressed_ranks_first_and_disabled_last() {
+    fn active_ranks_first_then_pressed_and_disabled_last() {
         let mut ranked = ControlState::ALL;
         ranked.sort_by_key(|state| core::cmp::Reverse(state.priority()));
-        assert_eq!(ranked[0], ControlState::Pressed);
-        assert_eq!(ranked[5], ControlState::SelectedDisabled);
-        assert_eq!(ranked[6], ControlState::Disabled);
+        assert_eq!(ranked[0], ControlState::Active);
+        assert!(ranked[1].is_pressed() && ranked[2].is_pressed());
+        assert_eq!(ranked[7], ControlState::SelectedDisabled);
+        assert_eq!(ranked[8], ControlState::Disabled);
+        // Every state has its own place in `ALL`.
+        for (index, state) in ControlState::ALL.into_iter().enumerate() {
+            assert_eq!(state.index(), index);
+        }
     }
 
     #[test]
@@ -268,6 +331,10 @@ mod tests {
         assert_eq!(values.map(|value| value * 2).selected_hovered, 8);
         values.set(ControlState::SelectedDisabled, 6);
         assert_eq!(values.get(ControlState::SelectedDisabled), 6);
+        values.set(ControlState::SelectedPressed, 7);
+        values.set(ControlState::Active, 8);
+        assert_eq!(values.get(ControlState::SelectedPressed), 7);
+        assert_eq!(values.map(|value| value + 1).active, 9);
         assert_eq!(values.get(ControlState::Disabled), 0);
     }
 

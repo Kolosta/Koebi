@@ -27,7 +27,7 @@ koebi_design::tokens! {
         semantic::BACKGROUND_APP_FRAME_HOVER;
     /// Text field: background color, while editing.
     TEXT_FIELD_BACKGROUND_COLOR_EDITING = "text-field.background.color.editing": Color ->
-        semantic::BACKGROUND_APP_CONTROL;
+        semantic::BACKGROUND_APP_ACTIVE;
     /// Text field: background color, disabled.
     TEXT_FIELD_BACKGROUND_COLOR_DISABLED = "text-field.background.color.disabled": Color ->
         semantic::BACKGROUND_APP_DISABLED;
@@ -39,7 +39,7 @@ koebi_design::tokens! {
         semantic::NEUTRAL_COLOR_600;
     /// Text field: border color, while editing.
     TEXT_FIELD_BORDER_COLOR_EDITING = "text-field.border.color.editing": Color ->
-        semantic::BORDER_COLOR_FOCUS_DEFAULT;
+        semantic::BORDER_COLOR_ACTIVE;
     /// Text field: border color, disabled.
     TEXT_FIELD_BORDER_COLOR_DISABLED = "text-field.border.color.disabled": Color ->
         semantic::BORDER_COLOR_DISABLED_DEFAULT;

@@ -204,6 +204,8 @@ pub(crate) fn hued(
         pressed: shade(color, shades.pressed),
         selected,
         selected_hovered: shade(selected, shades.hover),
+        selected_pressed: shade(selected, shades.pressed),
+        active: selected,
         disabled: color,
         // Derived with the rest of the style's colors.
         selected_disabled: color,
@@ -222,6 +224,8 @@ pub(crate) fn hued(
             States {
                 selected: base.content.selected,
                 selected_hovered: base.content.selected_hovered,
+                selected_pressed: base.content.selected_pressed,
+                active: base.content.active,
                 ..States::all(hue.text)
             },
         )

@@ -16,9 +16,10 @@ koebi_design::tokens! {
     /// Panel: body background color level 2.
     PANEL_BODY_BACKGROUND_COLOR_LEVEL_2 = "panel.body.background.color.level-2": Color ->
         semantic::BACKGROUND_SURFACE_CANVAS;
-    /// Panel: body background color level 3.
+    /// Panel: body background color level 3, and every second level deeper (levels 2 and 3
+    /// alternate below it). Lighter than the window and menus, which show over it.
     PANEL_BODY_BACKGROUND_COLOR_LEVEL_3 = "panel.body.background.color.level-3": Color ->
-        semantic::BACKGROUND_BASE_DEFAULT;
+        semantic::BACKGROUND_APP_CONTROL;
     /// Panel: border color.
     PANEL_BORDER_COLOR_DEFAULT = "panel.border.color.default": Color ->
         semantic::BORDER_COLOR_DEFAULT;

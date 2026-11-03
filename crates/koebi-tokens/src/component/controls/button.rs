@@ -46,6 +46,19 @@ koebi_design::tokens! {
     /// Button: background color, selected and hovered.
     BUTTON_BACKGROUND_COLOR_SELECTED_HOVER = "button.background.color.selected-hover": Color ->
         semantic::BACKGROUND_ACCENT_HOVER;
+    /// Button: background color, selected and pressed: darker than selected, as pressed is
+    /// darker than at rest.
+    BUTTON_BACKGROUND_COLOR_SELECTED_PRESSED = "button.background.color.selected-pressed":
+        Color -> semantic::ACCENT_COLOR_800;
+    /// Button: background color, active (its menu open).
+    BUTTON_BACKGROUND_COLOR_ACTIVE = "button.background.color.active": Color ->
+        semantic::BACKGROUND_ACCENT_DEFAULT;
+    /// Button: border color, active (its menu open).
+    BUTTON_BORDER_COLOR_ACTIVE = "button.border.color.active": Color ->
+        semantic::BORDER_COLOR_ACCENT_DEFAULT;
+    /// Button: label color, active (its menu open).
+    BUTTON_LABEL_COLOR_ACTIVE = "button.label.color.active": Color ->
+        semantic::STATIC_TEXT_COLOR_WHITE;
     /// Button: label color, selected.
     BUTTON_LABEL_COLOR_SELECTED = "button.label.color.selected": Color ->
         semantic::STATIC_TEXT_COLOR_WHITE;

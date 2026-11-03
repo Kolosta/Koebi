@@ -47,7 +47,7 @@ impl TextField<'_> {
         let state = if !self.enabled {
             ControlState::Disabled
         } else if session.is_some() {
-            ControlState::Selected
+            ControlState::Active
         } else if out.response.hovered || out.response.held {
             ControlState::Hovered
         } else {

@@ -7,24 +7,33 @@ use koebi_design::define::*;
 koebi_design::tokens! {
     group CAPTURE_FIELD: Component, start = FRAME::END;
 
-    /// Capture field: background color.
+    /// Capture field: background color, as a field's.
     CAPTURE_FIELD_BACKGROUND_COLOR_DEFAULT = "capture-field.background.color.default": Color ->
-        semantic::BACKGROUND_RAISED_DEFAULT;
-    /// Capture field: background color, while recording a shortcut.
+        semantic::BACKGROUND_APP_FRAME;
+    /// Capture field: background color, while recording a shortcut (its active state).
     CAPTURE_FIELD_BACKGROUND_COLOR_RECORDING = "capture-field.background.color.recording": Color ->
-        semantic::BACKGROUND_SUNKEN_DEFAULT;
+        semantic::BACKGROUND_APP_ACTIVE;
     /// Capture field: background color, hovered.
     CAPTURE_FIELD_BACKGROUND_COLOR_HOVER = "capture-field.background.color.hover": Color ->
-        semantic::BACKGROUND_SUNKEN_DEFAULT;
+        semantic::BACKGROUND_APP_FRAME_HOVER;
     /// Capture field: background color, pressed.
     CAPTURE_FIELD_BACKGROUND_COLOR_PRESSED = "capture-field.background.color.pressed": Color ->
-        semantic::BACKGROUND_RAISED_DEFAULT;
+        semantic::BACKGROUND_APP_CHILD;
+    /// Capture field: background color, disabled.
+    CAPTURE_FIELD_BACKGROUND_COLOR_DISABLED = "capture-field.background.color.disabled": Color ->
+        semantic::BACKGROUND_APP_DISABLED;
+    /// Capture field: border color, disabled.
+    CAPTURE_FIELD_BORDER_COLOR_DISABLED = "capture-field.border.color.disabled": Color ->
+        semantic::BORDER_COLOR_DISABLED_DEFAULT;
     /// Capture field: border color.
     CAPTURE_FIELD_BORDER_COLOR_DEFAULT = "capture-field.border.color.default": Color ->
         semantic::BORDER_COLOR_DEFAULT;
-    /// Capture field: border color, while recording a shortcut.
+    /// Capture field: border color, hovered or pressed.
+    CAPTURE_FIELD_BORDER_COLOR_HOVER = "capture-field.border.color.hover": Color ->
+        semantic::BORDER_COLOR_STRONG_DEFAULT;
+    /// Capture field: border color, while recording a shortcut (its active state).
     CAPTURE_FIELD_BORDER_COLOR_RECORDING = "capture-field.border.color.recording": Color ->
-        semantic::BACKGROUND_NEGATIVE_DEFAULT;
+        semantic::BORDER_COLOR_ACTIVE;
     /// Capture field: label color.
     CAPTURE_FIELD_LABEL_COLOR_DEFAULT = "capture-field.label.color.default": Color ->
         semantic::TEXT_COLOR_PRIMARY_DEFAULT;

@@ -25,7 +25,7 @@ use crate::widgets::parts::{ControlState, Placement, Side, States, Tone, ToneCol
 /// Colors and metrics of dropdowns, from the `component.dropdown.*` tokens.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DropdownStyle {
-    /// Colors in every state; selected is open.
+    /// Colors in every state; active is open.
     pub colors: ToneColors,
     /// Height.
     pub height: f32,
@@ -55,7 +55,7 @@ impl DropdownStyle {
         let open = get(c::DROPDOWN_BACKGROUND_COLOR_OPEN);
         let border_open = get(c::DROPDOWN_BORDER_COLOR_OPEN);
         let border_hover = get(c::DROPDOWN_BORDER_COLOR_HOVER);
-        // A disabled dropdown cannot be open: selected or not, it looks disabled.
+        // A dropdown is never selected; open, it is active. Disabled, it cannot be open.
         let disabled = get(c::DROPDOWN_BACKGROUND_COLOR_DISABLED);
         let border_disabled = get(c::DROPDOWN_BORDER_COLOR_DISABLED);
         Self {
@@ -64,8 +64,10 @@ impl DropdownStyle {
                     normal: get(c::DROPDOWN_BACKGROUND_COLOR_DEFAULT),
                     hovered: get(c::DROPDOWN_BACKGROUND_COLOR_HOVER),
                     pressed: get(c::DROPDOWN_BACKGROUND_COLOR_PRESSED),
-                    selected: open,
-                    selected_hovered: open,
+                    selected: get(c::DROPDOWN_BACKGROUND_COLOR_DEFAULT),
+                    selected_hovered: get(c::DROPDOWN_BACKGROUND_COLOR_HOVER),
+                    selected_pressed: get(c::DROPDOWN_BACKGROUND_COLOR_PRESSED),
+                    active: open,
                     disabled,
                     selected_disabled: disabled,
                 },
@@ -73,8 +75,10 @@ impl DropdownStyle {
                     normal: get(c::DROPDOWN_BORDER_COLOR_DEFAULT),
                     hovered: border_hover,
                     pressed: border_hover,
-                    selected: border_open,
-                    selected_hovered: border_open,
+                    selected: get(c::DROPDOWN_BORDER_COLOR_DEFAULT),
+                    selected_hovered: border_hover,
+                    selected_pressed: border_hover,
+                    active: border_open,
                     disabled: border_disabled,
                     selected_disabled: border_disabled,
                 },
@@ -254,13 +258,13 @@ impl<'a> Dropdown<'a> {
         self.with(|button| button.border_width(width))
     }
 
-    /// The background in `state` (selected: open).
+    /// The background in `state` (active: open).
     #[must_use]
     pub fn background(self, state: ControlState, color: impl Into<Prop<kind::Color>>) -> Self {
         self.with(|button| button.background(state, color))
     }
 
-    /// The border color in `state` (selected: open).
+    /// The border color in `state` (active: open).
     #[must_use]
     pub fn border_color(self, state: ControlState, color: impl Into<Prop<kind::Color>>) -> Self {
         self.with(|button| button.border_color(state, color))
@@ -452,7 +456,7 @@ mod tests {
     fn open_dropdowns_show_their_open_colors() {
         let colors = crate::test_styles().dropdown.colors;
         assert_ne!(
-            colors.background.get(ControlState::Selected),
+            colors.background.get(ControlState::Active),
             colors.background.get(ControlState::Normal)
         );
     }
