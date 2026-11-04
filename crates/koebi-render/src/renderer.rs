@@ -10,6 +10,7 @@ use koebi_gpu::{
 use koebi_text::Fonts;
 
 use crate::atlas::{GlyphAtlas, GlyphInstance, GlyphKey, Lookup};
+use crate::fill::FillInstance;
 use crate::scene::{Corners, LineInstance, PrimitiveKind, RectInstance, Scene};
 use crate::shaders;
 
@@ -248,6 +249,7 @@ pub struct Renderer2D {
     device: Device,
     rects: PrimitivePipeline,
     lines: PrimitivePipeline,
+    fills: PrimitivePipeline,
     glyphs: PrimitivePipeline,
     atlas: GlyphAtlas,
     /// This frame's glyph quads, rebuilt by every `prepare`.
@@ -276,6 +278,13 @@ impl Renderer2D {
             stride: LineInstance::STRIDE,
             bind_group_layouts: &[],
         };
+        let fills = PipelineDesc {
+            label: "fill",
+            vertex: ("fill.vert", shaders::FILL_VERT),
+            fragment: ("fill.frag", shaders::FILL_FRAG),
+            stride: FillInstance::STRIDE,
+            bind_group_layouts: &[],
+        };
         let atlas = GlyphAtlas::new(device)?;
         let glyphs = PipelineDesc {
             label: "glyph",
@@ -288,6 +297,7 @@ impl Renderer2D {
             device: device.clone(),
             rects: PrimitivePipeline::new(device, &rects, target_format)?,
             lines: PrimitivePipeline::new(device, &lines, target_format)?,
+            fills: PrimitivePipeline::new(device, &fills, target_format)?,
             glyphs: PrimitivePipeline::new(device, &glyphs, target_format)?,
             atlas,
             glyph_instances: Vec::new(),
@@ -328,6 +338,8 @@ impl Renderer2D {
             .upload(&self.device, scene.rect_instances(), frame_index)?;
         self.lines
             .upload(&self.device, scene.line_instances(), frame_index)?;
+        self.fills
+            .upload(&self.device, scene.fill_instances(), frame_index)?;
         if scene.glyph_count() == 0 {
             return Ok(());
         }
@@ -402,6 +414,9 @@ impl Renderer2D {
         let lines = (scene.line_count() > 0)
             .then(|| self.lines.prepared(frame_index, scene.line_count()))
             .transpose()?;
+        let fills = (scene.fill_count() > 0)
+            .then(|| self.fills.prepared(frame_index, scene.fill_count()))
+            .transpose()?;
         let glyphs = (scene.glyph_count() > 0)
             .then(|| self.glyphs.prepared(frame_index, scene.glyph_count()))
             .transpose()?;
@@ -422,6 +437,7 @@ impl Renderer2D {
                 PrimitiveKind::Rect => (&self.rects, rects),
                 PrimitiveKind::Line => (&self.lines, lines),
                 PrimitiveKind::Glyph => (&self.glyphs, glyphs),
+                PrimitiveKind::Fill => (&self.fills, fills),
             };
             // A batch exists only for a type with instances, whose buffer was checked above.
             let Some(buffer) = buffer else { continue };

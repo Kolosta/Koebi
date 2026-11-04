@@ -55,6 +55,8 @@ pub enum Icon {
     Warning,
     /// A circle holding an i: something to know, which needs nothing done.
     Info,
+    /// A pipette: pick a color from the screen.
+    Eyedropper,
     /// The Command key of Apple keyboards.
     Command,
     /// The Windows key.
@@ -73,7 +75,7 @@ pub enum Icon {
 
 impl Icon {
     /// Every icon, for galleries and tests.
-    pub const ALL: [Self; 19] = [
+    pub const ALL: [Self; 20] = [
         Self::Check,
         Self::Plus,
         Self::Minus,
@@ -86,6 +88,7 @@ impl Icon {
         Self::Reset,
         Self::Warning,
         Self::Info,
+        Self::Eyedropper,
         Self::Command,
         Self::Windows,
         Self::Shift,
@@ -154,6 +157,19 @@ impl Icon {
                 &[[8.0, 11.75], [8.0, 11.75]],
             ],
             // A circle, the dot of the i and its stroke.
+            // Its tube toward the lower left, the collar across it, the bulb at the top right.
+            Self::Eyedropper => &[
+                &[
+                    [2.5, 13.5],
+                    [2.5, 11.5],
+                    [8.0, 6.0],
+                    [10.0, 8.0],
+                    [4.5, 13.5],
+                    [2.5, 13.5],
+                ],
+                &[[6.5, 4.5], [11.5, 9.5]],
+                &[[9.0, 5.0], [11.5, 2.5], [13.5, 4.5], [11.0, 7.0]],
+            ],
             Self::Info => &[
                 &[
                     [14.00, 8.00],

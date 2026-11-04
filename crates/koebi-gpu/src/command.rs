@@ -195,22 +195,50 @@ impl<'a> CommandEncoder<'a> {
     ///
     /// Returns [`Error::InvalidArgument`] if usages are missing or the buffer is too small.
     pub fn copy_texture_to_buffer(&mut self, texture: &Texture, buffer: &Buffer) -> Result<()> {
-        let extent = texture.extent();
-        let needed = extent.area() * u64::from(texture.format().bytes_per_pixel());
-        if buffer.size() < needed {
+        self.copy_texture_region_to_buffer(texture, TextureRegion::whole(texture.extent()), buffer)
+    }
+
+    /// Copies the texels of `texture` in `region` into `buffer`, tightly packed row by row, and makes them visible to the host once the
+    /// submission completes: a part of a frame read back, for an eyedropper.
+    ///
+    /// The texture must be in [`TextureState::TransferSrc`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidArgument`] if usages are missing, the rectangle is empty or
+    /// lies outside the texture, or the buffer is too small.
+    pub fn copy_texture_region_to_buffer(
+        &mut self,
+        texture: &Texture,
+        region: TextureRegion,
+        buffer: &Buffer,
+    ) -> Result<()> {
+        if !texture.usage().contains(TextureUsage::TRANSFER_SRC) {
+            return Err(Error::InvalidArgument("copy requires TRANSFER_SRC".into()));
+        }
+        let size = texture.extent();
+        if !region.fits_in(size) {
             return Err(Error::InvalidArgument(format!(
-                "readback buffer holds {} bytes, texture needs {needed}",
-                buffer.size()
+                "region {region:?} lies outside the {size:?} texture"
             )));
         }
-        if !texture.usage().contains(TextureUsage::TRANSFER_SRC)
-            || !buffer.usage().contains(BufferUsage::TRANSFER_DST)
-        {
-            return Err(Error::InvalidArgument(
-                "copy requires TRANSFER_SRC/TRANSFER_DST".into(),
-            ));
-        }
-        let region = vk::BufferImageCopy {
+        check_image_copy(texture.format(), region, buffer)?;
+        self.copy_image_region(texture.handle(), region, buffer);
+        Ok(())
+    }
+
+    /// Records the copy of `region` of `image` (in `TRANSFER_SRC_OPTIMAL`) into `buffer`, then
+    /// the barrier making it visible to the host. The caller checked the copy
+    /// ([`check_image_copy`]) and keeps the region inside the image: recording cannot fail.
+    pub(crate) fn copy_image_region(
+        &mut self,
+        image: vk::Image,
+        region: TextureRegion,
+        buffer: &Buffer,
+    ) {
+        // `check_image_copy` keeps the origin within `i32`.
+        let offset = |value: u32| i32::try_from(value).unwrap_or(i32::MAX);
+        let copy = vk::BufferImageCopy {
             buffer_offset: 0,
             buffer_row_length: 0,
             buffer_image_height: 0,
@@ -220,21 +248,27 @@ impl<'a> CommandEncoder<'a> {
                 base_array_layer: 0,
                 layer_count: 1,
             },
-            image_offset: vk::Offset3D::default(),
+            image_offset: vk::Offset3D {
+                x: offset(region.x),
+                y: offset(region.y),
+                z: 0,
+            },
             image_extent: vk::Extent3D {
-                width: extent.width,
-                height: extent.height,
+                width: region.width,
+                height: region.height,
                 depth: 1,
             },
         };
-        // SAFETY: recording command buffer; objects belong to this device; sizes checked.
+        // SAFETY: recording command buffer; objects belong to this device; the caller keeps
+        // the region inside the image, and `check_image_copy` checked the buffer's size and
+        // usage.
         unsafe {
             self.device.raw.cmd_copy_image_to_buffer(
                 self.raw,
-                texture.handle(),
+                image,
                 vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
                 buffer.handle(),
-                &[region],
+                &[copy],
             );
         }
         // A fence wait alone does not make device writes visible to the host.
@@ -246,7 +280,6 @@ impl<'a> CommandEncoder<'a> {
         let dependency = vk::DependencyInfo::default().memory_barriers(&barriers);
         // SAFETY: recording command buffer.
         unsafe { self.device.cmd_pipeline_barrier2(self.raw, &dependency) };
-        Ok(())
     }
 
     /// Copies texels from `buffer` into `region` of `texture`, leaving the rest of the texture
@@ -529,6 +562,40 @@ impl Drop for RenderPass<'_> {
         // SAFETY: `begin_render_pass` began exactly one rendering scope on this buffer.
         unsafe { self.device.cmd_end_rendering(self.raw) };
     }
+}
+
+/// Checks a copy of `region` of an image of `format` into `buffer`, tightly packed: the region
+/// holds texels, its origin fits Vulkan's signed offsets, and the buffer can receive it and is
+/// large enough. Whether the region lies inside the image is the caller's to check.
+///
+/// # Errors
+///
+/// Returns [`Error::InvalidArgument`] naming what does not hold.
+pub(crate) fn check_image_copy(
+    format: TextureFormat,
+    region: TextureRegion,
+    buffer: &Buffer,
+) -> Result<()> {
+    if region.is_empty() {
+        return Err(Error::InvalidArgument("empty copy region".into()));
+    }
+    if i32::try_from(region.x).is_err() || i32::try_from(region.y).is_err() {
+        return Err(Error::InvalidArgument(format!(
+            "copy origin {region:?} too large"
+        )));
+    }
+    let needed =
+        u64::from(region.width) * u64::from(region.height) * u64::from(format.bytes_per_pixel());
+    if buffer.size() < needed {
+        return Err(Error::InvalidArgument(format!(
+            "readback buffer holds {} bytes, the region needs {needed}",
+            buffer.size()
+        )));
+    }
+    if !buffer.usage().contains(BufferUsage::TRANSFER_DST) {
+        return Err(Error::InvalidArgument("copy requires TRANSFER_DST".into()));
+    }
+    Ok(())
 }
 
 /// Validates a copy between `buffer` and `region` of `texture`, and describes it.

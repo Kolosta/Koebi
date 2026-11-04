@@ -523,3 +523,67 @@ fn linear_samplers_blend_neighbouring_texels() {
     }
     gpu.assert_no_validation_errors();
 }
+
+#[test]
+fn a_region_of_a_texture_reads_back_row_by_row() {
+    let Some(gpu) = gpu_or_skip("a_region_of_a_texture_reads_back_row_by_row") else {
+        return;
+    };
+    // A 4×4 texture whose texel (x, y) holds x and y.
+    let extent = Extent::new(4, 4);
+    let texture = texture(&gpu.device, extent, TextureFormat::Rgba8Unorm);
+    let bytes: Vec<u8> = (0..4_u8)
+        .flat_map(|y| (0..4_u8).flat_map(move |x| [x, y, 7, 255]))
+        .collect();
+    upload_whole(&gpu, &texture, &bytes);
+    let readback = gpu
+        .device
+        .create_buffer(&BufferDesc {
+            label: "region readback",
+            size: 2 * 3 * 4,
+            usage: BufferUsage::TRANSFER_DST,
+            location: MemoryLocation::GpuToCpu,
+        })
+        .unwrap();
+    gpu.device
+        .submit_and_wait(|encoder| {
+            encoder.texture_barrier(
+                &texture,
+                TextureState::ShaderRead,
+                TextureState::TransferSrc,
+            );
+            // Outside the texture or empty: refused before reaching Vulkan.
+            for region in [
+                TextureRegion::new(3, 0, 2, 1),
+                TextureRegion::new(0, 0, 0, 1),
+            ] {
+                let copy = encoder.copy_texture_region_to_buffer(&texture, region, &readback);
+                assert!(matches!(copy, Err(Error::InvalidArgument(_))), "{region:?}");
+            }
+            encoder.copy_texture_region_to_buffer(
+                &texture,
+                TextureRegion::new(1, 2, 2, 2),
+                &readback,
+            )?;
+            encoder.texture_barrier(
+                &texture,
+                TextureState::TransferSrc,
+                TextureState::ShaderRead,
+            );
+            Ok::<_, Error>(())
+        })
+        .expect("the readback submission completes")
+        .expect("the region copy is valid");
+    let mut texels = [[0_u8; 4]; 4];
+    readback.read(0, &mut texels).unwrap();
+    assert_eq!(
+        texels,
+        [
+            [1, 2, 7, 255],
+            [2, 2, 7, 255],
+            [1, 3, 7, 255],
+            [2, 3, 7, 255]
+        ]
+    );
+    gpu.assert_no_validation_errors();
+}

@@ -4,7 +4,7 @@ use crate::semantic;
 use koebi_design::define::*;
 
 koebi_design::tokens! {
-    group WINDOW: Component, start = crate::component::THEME_CARD::END;
+    group WINDOW: Component, start = crate::component::COLOR_PICKER::END;
 
     /// Window: background color.
     WINDOW_BACKGROUND_COLOR_DEFAULT = "window.background.color.default": Color ->

@@ -78,6 +78,8 @@ const SCHEMA: Schema = Schema::new(
         component::RESIZE_GRIP::GROUP,
         component::COLOR_SWATCH::GROUP,
         component::THEME_CARD::GROUP,
+        component::COLOR_FIELD::GROUP,
+        component::COLOR_PICKER::GROUP,
         // component::surfaces
         component::WINDOW::GROUP,
         component::TITLE_BAR::GROUP,

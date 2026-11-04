@@ -285,6 +285,15 @@ fn icons_that_do_not_fit_take_the_paddings_as_much_on_each_side() {
 }
 
 #[test]
+fn paddings_give_way_before_a_label_is_cut() {
+    // The label's width and a little: the paddings shrink, as much on each side.
+    assert_eq!(fitted_padding(8.0, 50.0, 42.0), 4.0);
+    assert_eq!(fitted_padding(8.0, 42.0, 42.0), 0.0);
+    // Room enough: the whole padding.
+    assert_eq!(fitted_padding(8.0, 80.0, 42.0), 8.0);
+}
+
+#[test]
 fn the_last_radius_call_applies() {
     let corners = Corners {
         top_left: 1.0,

@@ -498,10 +498,11 @@ impl<'a> Button<'a> {
     ) {
         let content = self.shown_content();
         let metrics = self.metrics(ui);
+        // The paddings give way before the label is cut, then before an icon would be.
         let padding = fitted_padding(
             Self::dimension(ui, self.padding.as_ref(), self.defaults(ui).padding),
             rect.width() - sides.0 - sides.1,
-            content.fixed_width(ui, &metrics),
+            content.width(ui, &metrics),
         );
         let left = rect.min.x + sides.0 + padding;
         let inner = Rect::from_min_max(

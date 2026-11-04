@@ -10,6 +10,15 @@
 //! 4. submit, signalling `render_finished[image]` and the slot's fence;
 //! 5. present, waiting on `render_finished[image]`.
 //!
+//! **Reading frames back** ([`Presenter::request_pixels`], for an eyedropper): when a square
+//! of the frame is asked for, step 3 copies it into the slot's readback buffer between the
+//! user commands and the barrier to `Present` (`ColorAttachment → TransferSrc → Present`).
+//! The copy is read when the slot comes around again, after its fence: [`FRAMES_IN_FLIGHT`]
+//! frames later, never waiting. Everything that can fail (the buffer's allocation, the checks
+//! of the copy) happens before the fence is reset: a failure drops the request and the frame
+//! goes on. Swapchains whose images cannot be copied, or whose format is not four 8-bit
+//! channels, read nothing back ([`Presenter::can_read_pixels`]).
+//!
 //! `render_finished` is indexed by swapchain image (not frame slot): a semaphore is reused
 //! only when its image is acquired again, which guarantees the previous present consumed it.
 //!
@@ -22,10 +31,12 @@ use std::time::Duration;
 use ash::vk;
 use koebi_core::Extent;
 
-use crate::command::{CommandEncoder, RenderTarget, TextureState};
+use crate::buffer::{Buffer, BufferDesc, BufferUsage};
+use crate::command::{CommandEncoder, RenderTarget, TextureRegion, TextureState, check_image_copy};
 use crate::device::Device;
 use crate::error::VkResultExt as _;
 use crate::format::TextureFormat;
+use crate::memory::MemoryLocation;
 use crate::surface::Surface;
 use crate::swapchain::{PresentMode, Swapchain};
 use crate::{Error, FRAMES_IN_FLIGHT, Result};
@@ -68,6 +79,49 @@ pub enum RenderOutcome {
     Skipped,
 }
 
+/// Pixels of a presented frame, read back: what an eyedropper picks from. Gamma-encoded RGBA,
+/// as the frame showed them, row by row from the top left.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct FramePixels {
+    /// The top left pixel's place in the frame, in physical pixels.
+    pub origin: (u32, u32),
+    /// Width and height, in pixels.
+    pub extent: Extent,
+    /// The pixels.
+    pub pixels: Vec<[u8; 4]>,
+}
+
+impl FramePixels {
+    /// The pixel at `(x, y)` of the frame, if the read-back square holds it.
+    pub fn at(&self, x: u32, y: u32) -> Option<[u8; 4]> {
+        let column = x.checked_sub(self.origin.0)?;
+        let row = y.checked_sub(self.origin.1)?;
+        if column >= self.extent.width || row >= self.extent.height {
+            return None;
+        }
+        let index =
+            usize::try_from(u64::from(row) * u64::from(self.extent.width) + u64::from(column))
+                .ok()?;
+        self.pixels.get(index).copied()
+    }
+}
+
+/// What a frame slot's submission copied of its frame.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Copied {
+    region: TextureRegion,
+    /// The swapchain's format when it copied: a recreation may change it before the read.
+    format: TextureFormat,
+}
+
+/// What a frame slot copies of its frame: a buffer, and what its last submission copied into
+/// it, read once the submission completed.
+#[derive(Default)]
+struct Readback {
+    buffer: Option<Buffer>,
+    copied: Option<Copied>,
+}
+
 struct FrameSync {
     pool: vk::CommandPool,
     command_buffer: vk::CommandBuffer,
@@ -85,6 +139,14 @@ pub struct Presenter {
     swapchain: Option<Swapchain>,
     render_finished: Vec<vk::Semaphore>,
     frames: Vec<FrameSync>,
+    /// One per frame slot.
+    readbacks: Vec<Readback>,
+    /// The square the next frame copies: its center and side, in physical pixels.
+    requested: Option<((u32, u32), u32)>,
+    /// The pixels last read back, their vector reused from one read to the next, and whether
+    /// they were read since last taken.
+    pixels: FramePixels,
+    fresh: bool,
     frame_index: usize,
     desired_extent: Extent,
     present_mode: PresentMode,
@@ -107,6 +169,10 @@ impl Presenter {
             swapchain: None,
             render_finished: Vec::new(),
             frames: Vec::with_capacity(FRAMES_IN_FLIGHT),
+            readbacks: (0..FRAMES_IN_FLIGHT).map(|_| Readback::default()).collect(),
+            requested: None,
+            pixels: FramePixels::default(),
+            fresh: false,
             frame_index: 0,
             desired_extent: desc.extent,
             present_mode: desc.present_mode,
@@ -167,6 +233,32 @@ impl Presenter {
         self.gpu_frame_time
     }
 
+    /// Whether frames can be read back ([`Self::request_pixels`]): the swapchain's images can
+    /// be copied and hold four 8-bit channels. `false` before the first swapchain.
+    pub fn can_read_pixels(&self) -> bool {
+        self.swapchain.as_ref().is_some_and(readable)
+    }
+
+    /// Asks the next frame to copy the square of `side` physical pixels centered on `center`,
+    /// kept inside the frame: it is read once the GPU finished that frame, frames later and
+    /// without waiting ([`Self::take_pixels_into`]). Nothing comes back when frames cannot be
+    /// read ([`Self::can_read_pixels`]), or when the copy cannot be prepared (it is logged).
+    pub fn request_pixels(&mut self, center: (u32, u32), side: u32) {
+        self.requested = Some((center, side.max(1)));
+    }
+
+    /// The pixels read back since the last call, swapped into `into`: the presenter reuses the
+    /// vector it gets back for the next read, so that reading back allocates nothing once both
+    /// have grown. Returns `false`, leaving `into` as it was, when nothing new was read.
+    pub fn take_pixels_into(&mut self, into: &mut FramePixels) -> bool {
+        if !self.fresh {
+            return false;
+        }
+        self.fresh = false;
+        core::mem::swap(&mut self.pixels, into);
+        true
+    }
+
     /// Records and presents one frame. `record` receives an encoder whose target is already
     /// in [`TextureState::ColorAttachment`]; it must leave it there.
     ///
@@ -200,6 +292,14 @@ impl Presenter {
         .ctx("vkWaitForFences")?;
         device.mark_completed(frame.submission);
         device.collect_garbage();
+        // The slot's submission completed: what it copied can be read.
+        let readback = &mut self.readbacks[self.frame_index];
+        if let (Some(copied), Some(buffer)) = (readback.copied.take(), &readback.buffer) {
+            match read_pixels(buffer, copied, &mut self.pixels) {
+                Ok(()) => self.fresh = true,
+                Err(error) => koebi_core::warn!("cannot read the frame's pixels back: {error}"),
+            }
+        }
         if frame.timed {
             frame.timed = false;
             if let Some(timestamps) = device.adapter.timestamps {
@@ -222,6 +322,21 @@ impl Presenter {
                 }
             }
         }
+
+        // The square asked for, prepared before the fence is reset: a failure (no memory for
+        // the buffer) only drops the request, and recording the copy cannot fail.
+        let copy = self
+            .requested
+            .take()
+            .filter(|_| readable(swapchain))
+            .and_then(|(center, side)| square(center, side, swapchain.extent))
+            .and_then(|region| {
+                prepare_readback(&self.device, readback, swapchain.format, region)
+                    .inspect_err(|error| {
+                        koebi_core::warn!("cannot read the frame's pixels back: {error}");
+                    })
+                    .ok()
+            });
 
         // SAFETY: valid swapchain; the semaphore is unsignaled (its last wait completed).
         let acquired = unsafe {
@@ -308,7 +423,25 @@ impl Presenter {
         stamp(0);
         record(&mut encoder, &target);
         stamp(1);
-        encoder.image_barrier(image, TextureState::ColorAttachment, TextureState::Present);
+        // The square asked for, copied before presenting: prepared and checked above.
+        match copy.zip(readback.buffer.as_ref()) {
+            Some((region, buffer)) => {
+                encoder.image_barrier(
+                    image,
+                    TextureState::ColorAttachment,
+                    TextureState::TransferSrc,
+                );
+                encoder.copy_image_region(image, region, buffer);
+                encoder.image_barrier(image, TextureState::TransferSrc, TextureState::Present);
+                readback.copied = Some(Copied {
+                    region,
+                    format: swapchain.format,
+                });
+            }
+            None => {
+                encoder.image_barrier(image, TextureState::ColorAttachment, TextureState::Present);
+            }
+        }
 
         // SAFETY: recording started above.
         unsafe { device.raw.end_command_buffer(frame.command_buffer) }.ctx("vkEndCommandBuffer")?;
@@ -421,6 +554,100 @@ impl Drop for Presenter {
     }
 }
 
+/// Whether the frames of `swapchain` can be read back: its images can be copied, and their
+/// format has four 8-bit channels, which [`read_pixels`] decodes.
+fn readable(swapchain: &Swapchain) -> bool {
+    swapchain.readable && four_bytes(swapchain.format)
+}
+
+/// Whether `format` has four 8-bit channels, in RGBA or BGRA order.
+const fn four_bytes(format: TextureFormat) -> bool {
+    matches!(
+        format,
+        TextureFormat::Rgba8Unorm
+            | TextureFormat::Rgba8Srgb
+            | TextureFormat::Bgra8Unorm
+            | TextureFormat::Bgra8Srgb
+    )
+}
+
+/// Makes sure `readback`'s buffer holds `region` of a frame of `format`, then checks the copy,
+/// so that recording it cannot fail. Returns the region.
+fn prepare_readback(
+    device: &Device,
+    readback: &mut Readback,
+    format: TextureFormat,
+    region: TextureRegion,
+) -> Result<TextureRegion> {
+    let needed =
+        u64::from(region.width) * u64::from(region.height) * u64::from(format.bytes_per_pixel());
+    if readback
+        .buffer
+        .as_ref()
+        .is_none_or(|buffer| buffer.size() < needed)
+    {
+        // The slot's fence was waited: its last submission no longer uses the old buffer, which
+        // goes through the deferred-deletion queue anyway.
+        readback.buffer = Some(device.create_buffer(&BufferDesc {
+            label: "frame readback",
+            size: needed,
+            usage: BufferUsage::TRANSFER_DST,
+            location: MemoryLocation::GpuToCpu,
+        })?);
+    }
+    let buffer = readback
+        .buffer
+        .as_ref()
+        .ok_or_else(|| Error::InvalidArgument("no readback buffer".into()))?;
+    check_image_copy(format, region, buffer)?;
+    Ok(region)
+}
+
+/// Reads what a frame slot copied from `buffer` into `into`, reusing its vector, in RGBA order.
+fn read_pixels(buffer: &Buffer, copied: Copied, into: &mut FramePixels) -> Result<()> {
+    if !four_bytes(copied.format) {
+        return Err(Error::InvalidArgument(format!(
+            "frames in {:?} are not read back",
+            copied.format
+        )));
+    }
+    let region = copied.region;
+    let count = usize::try_from(u64::from(region.width) * u64::from(region.height))
+        .map_err(|_| Error::InvalidArgument(format!("region {region:?} too large")))?;
+    into.pixels.clear();
+    into.pixels.resize(count, [0; 4]);
+    buffer.read(0, &mut into.pixels)?;
+    if matches!(
+        copied.format,
+        TextureFormat::Bgra8Unorm | TextureFormat::Bgra8Srgb
+    ) {
+        for pixel in &mut into.pixels {
+            pixel.swap(0, 2);
+        }
+    }
+    into.origin = (region.x, region.y);
+    into.extent = Extent::new(region.width, region.height);
+    Ok(())
+}
+
+/// The square of `side` pixels centered on `center`, moved inside a frame of `extent` (and no
+/// larger). `None` for an empty frame.
+fn square(center: (u32, u32), side: u32, extent: Extent) -> Option<TextureRegion> {
+    let width = side.min(extent.width);
+    let height = side.min(extent.height);
+    if width == 0 || height == 0 {
+        return None;
+    }
+    let start =
+        |center: u32, length: u32, room: u32| center.saturating_sub(length / 2).min(room - length);
+    Some(TextureRegion::new(
+        start(center.0, width, extent.width),
+        start(center.1, height, extent.height),
+        width,
+        height,
+    ))
+}
+
 impl FrameSync {
     fn new(device: &Device) -> Result<Self> {
         let raw = &device.shared.raw;
@@ -476,5 +703,67 @@ impl FrameSync {
             return Err(error);
         }
         Ok(frame)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn squares_stay_inside_the_frame() {
+        let frame = Extent::new(100, 80);
+        assert_eq!(
+            square((50, 40), 9, frame),
+            Some(TextureRegion::new(46, 36, 9, 9))
+        );
+        // At a corner: moved inside.
+        assert_eq!(
+            square((0, 0), 9, frame),
+            Some(TextureRegion::new(0, 0, 9, 9))
+        );
+        assert_eq!(
+            square((99, 79), 9, frame),
+            Some(TextureRegion::new(91, 71, 9, 9))
+        );
+        // Larger than the frame: the frame.
+        assert_eq!(
+            square((10, 10), 500, frame),
+            Some(TextureRegion::whole(frame))
+        );
+        assert_eq!(square((0, 0), 9, Extent::new(0, 10)), None);
+    }
+
+    #[test]
+    fn only_formats_of_four_bytes_are_read_back() {
+        for format in [
+            TextureFormat::Rgba8Unorm,
+            TextureFormat::Rgba8Srgb,
+            TextureFormat::Bgra8Unorm,
+            TextureFormat::Bgra8Srgb,
+        ] {
+            assert!(four_bytes(format), "{format:?}");
+            assert_eq!(format.bytes_per_pixel(), 4);
+        }
+        assert!(!four_bytes(TextureFormat::Rgba16Float));
+        assert!(!four_bytes(TextureFormat::R8Unorm));
+    }
+
+    #[test]
+    fn read_back_pixels_answer_for_their_place_in_the_frame() {
+        let pixels = FramePixels {
+            origin: (10, 20),
+            extent: Extent::new(2, 2),
+            pixels: vec![
+                [1, 0, 0, 255],
+                [2, 0, 0, 255],
+                [3, 0, 0, 255],
+                [4, 0, 0, 255],
+            ],
+        };
+        assert_eq!(pixels.at(11, 21), Some([4, 0, 0, 255]));
+        assert_eq!(pixels.at(10, 20), Some([1, 0, 0, 255]));
+        assert_eq!(pixels.at(12, 20), None);
+        assert_eq!(pixels.at(9, 20), None);
     }
 }

@@ -24,10 +24,12 @@
 //!   `cargo xtask shaders` and embedded in the binary.
 
 mod atlas;
+mod fill;
 mod renderer;
 mod scene;
 mod shaders;
 
+pub use fill::{Fill, FillPrimitive, HueModel, Pointing};
 pub use renderer::{Renderer2D, Viewport};
 pub use scene::{
     Corners, Edges, GlyphPrimitive, LinePrimitive, RectPrimitive, Scene, Sides, TIE_TOLERANCE,

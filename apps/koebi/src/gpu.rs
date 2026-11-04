@@ -82,6 +82,9 @@ pub(crate) struct WindowGpu {
     renderer: Option<Renderer2D>,
     /// `None` while the window surface is gone (mobile background).
     presenter: Option<Presenter>,
+    /// The pixels read back last, their vector going round between the presenter and the
+    /// interface so that reading back never allocates once it has grown.
+    pixels: koebi_gpu::FramePixels,
 }
 
 impl WindowGpu {
@@ -89,6 +92,11 @@ impl WindowGpu {
         Self {
             renderer: None,
             presenter: None,
+            pixels: koebi_gpu::FramePixels {
+                origin: (0, 0),
+                extent: Extent::new(0, 0),
+                pixels: Vec::new(),
+            },
         }
     }
 
@@ -135,6 +143,7 @@ impl WindowGpu {
         let Self {
             renderer,
             presenter,
+            ..
         } = self;
         let Some(presenter) = presenter.as_mut() else {
             return Ok((RenderOutcome::Skipped, Duration::ZERO));
@@ -166,6 +175,37 @@ impl WindowGpu {
             recording = started.elapsed();
         })?;
         recorded.map(|()| (outcome, recording))
+    }
+
+    /// Asks the next frame to copy the square of `side` physical pixels around `center` (an
+    /// eyedropper), read frames later without waiting ([`Self::deliver_pixels`]).
+    pub(crate) fn request_pixels(&mut self, center: (u32, u32), side: u32) {
+        if let Some(presenter) = self.presenter.as_mut() {
+            presenter.request_pixels(center, side);
+        }
+    }
+
+    /// Whether the window's frames can be read back (see [`Presenter::can_read_pixels`]).
+    pub(crate) fn can_read_pixels(&self) -> bool {
+        self.presenter
+            .as_ref()
+            .is_some_and(Presenter::can_read_pixels)
+    }
+
+    /// Gives `state` the pixels read back from a presented frame since the last call, if any,
+    /// swapping vectors rather than copying them.
+    pub(crate) fn deliver_pixels(&mut self, state: &mut koebi_ui::UiState) {
+        let Some(presenter) = self.presenter.as_mut() else {
+            return;
+        };
+        if !presenter.take_pixels_into(&mut self.pixels) {
+            return;
+        }
+        let into = state.screen_pixels_to_fill();
+        into.origin = self.pixels.origin;
+        into.width = self.pixels.extent.width;
+        into.height = self.pixels.extent.height;
+        core::mem::swap(&mut into.pixels, &mut self.pixels.pixels);
     }
 
     /// GPU time of the latest measured frame (see [`Presenter::gpu_frame_time`]).

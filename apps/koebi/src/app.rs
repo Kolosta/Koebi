@@ -375,11 +375,26 @@ impl KoebiApp {
         let logical_size = shown.window.size_in_pixels().to_logical(scale_factor);
         let started = Instant::now();
         shown.state.set_scale_factor(scale_factor);
+        // What an eyedropper read back from a frame shown earlier, then what it wants next.
+        shown.state.set_screen_readable(shown.gpu.can_read_pixels());
+        shown.gpu.deliver_pixels(&mut shown.state);
         shown.build(
             interface,
             Rect::from_origin_size(Vec2::ZERO, logical_size),
             frame_times,
         );
+        if let Some(center) = shown.state.take_pixels_wanted() {
+            #[allow(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                reason = "a pointer inside the window, in physical pixels"
+            )]
+            let at = (
+                (center.x * scale_factor).max(0.0) as u32,
+                (center.y * scale_factor).max(0.0) as u32,
+            );
+            shown.gpu.request_pixels(at, koebi_ui::EYEDROPPER_PIXELS);
+        }
         shown.chrome.update_regions(&shown.state, &mut shown.window);
         let built = started.elapsed();
         match shown.gpu.render(gpu, &shown.scene, scale_factor) {
