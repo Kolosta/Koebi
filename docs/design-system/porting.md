@@ -314,6 +314,13 @@ the negative color; `component.toggle.background.color.hover` aliases
 `component.panel.body.background.color.level-3` aliases `semantic.background.app.control`
 instead of `semantic.background.base.default`, the color of the window and menus.
 
+Color fields and pickers (#187): `component.color-field.*` (an outline of its own, its color
+→ `semantic.neutral.color.500` and `.300` under the pointer, its width a value of 1 px so that it
+stays when the interface's borders go; the corner radius and height of controls; a
+checkerboard of 4 px aliasing the swatches' colors) and `component.color-picker.*` (the area of
+192 px, strips of 16 px, swatches of 40 px, a gap of 6 px; white marks outlined in black 1 px
+wide, triangles 7 px deep passing the strips by 2 px; the share of a drag with Shift, 0.1).
+
 Status bar (#186): `component.status-bar.size.height` aliases `semantic.size.control-height`
 instead of holding 22 px, the height of what the bar holds, and
 `component.status-bar.padding.vertical.default` aliases `semantic.spacing.control-inset`

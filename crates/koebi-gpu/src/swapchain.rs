@@ -29,6 +29,8 @@ pub(crate) struct Swapchain {
     pub(crate) views: Vec<vk::ImageView>,
     pub(crate) format: TextureFormat,
     pub(crate) extent: Extent,
+    /// Its images can be copied from: frames can be read back.
+    pub(crate) readable: bool,
 }
 
 impl Swapchain {
@@ -110,6 +112,7 @@ impl Swapchain {
             views: Vec::new(),
             format,
             extent,
+            readable: usage.contains(vk::ImageUsageFlags::TRANSFER_SRC),
         };
 
         // SAFETY: `raw` is a live swapchain of this device.

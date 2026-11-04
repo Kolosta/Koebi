@@ -77,9 +77,71 @@ pub struct UiState {
     pub(crate) text: TextState,
     /// The number field being dragged or typed.
     pub(crate) number: NumberState,
+    /// Where the frame being built wants the pixels of the screen read back (an eyedropper),
+    /// in logical pixels, and the pixels read back last.
+    pixels_wanted: Option<Vec2>,
+    screen_pixels: Option<ScreenPixels>,
+    /// The application cannot read its frames back: eyedroppers do not show.
+    screen_unreadable: bool,
 }
 
+/// Pixels of a frame the window showed, read back for an eyedropper: gamma-encoded RGBA, row by
+/// row from the top left, positions in physical pixels.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ScreenPixels {
+    /// The top left pixel's place in the window.
+    pub origin: (u32, u32),
+    /// Width and height, in pixels.
+    pub width: u32,
+    /// Height, in pixels.
+    pub height: u32,
+    /// The pixels.
+    pub pixels: Vec<[u8; 4]>,
+}
+
+impl ScreenPixels {
+    /// The pixel at `(x, y)` of the window, if the square read back holds it.
+    pub fn at(&self, x: u32, y: u32) -> Option<[u8; 4]> {
+        let column = x.checked_sub(self.origin.0)?;
+        let row = y.checked_sub(self.origin.1)?;
+        if column >= self.width || row >= self.height {
+            return None;
+        }
+        let index =
+            usize::try_from(u64::from(row) * u64::from(self.width) + u64::from(column)).ok()?;
+        self.pixels.get(index).copied()
+    }
+}
+
+/// The side, in physical pixels, of the square of the screen an eyedropper reads around the
+/// pointer: what its magnifier shows.
+pub const EYEDROPPER_PIXELS: u32 = 11;
+
 impl UiState {
+    /// Where the last frame wanted the screen read back (logical pixels), once: the
+    /// application copies [`EYEDROPPER_PIXELS`] around it from the frame it presents, and
+    /// gives them back with [`UiState::set_screen_pixels`].
+    pub fn take_pixels_wanted(&mut self) -> Option<Vec2> {
+        self.pixels_wanted.take()
+    }
+
+    /// The pixels the application read back from a frame the window showed.
+    pub fn set_screen_pixels(&mut self, pixels: ScreenPixels) {
+        self.screen_pixels = Some(pixels);
+    }
+
+    /// Where the application writes the pixels it read back, in place: they count as read
+    /// from now on, and their vector is reused from one read to the next.
+    pub fn screen_pixels_to_fill(&mut self) -> &mut ScreenPixels {
+        self.screen_pixels.get_or_insert_with(ScreenPixels::default)
+    }
+
+    /// Whether the application can read its frames back; eyedroppers show only when it can.
+    /// Assumed until told otherwise.
+    pub fn set_screen_readable(&mut self, readable: bool) {
+        self.screen_unreadable = !readable;
+    }
+
     /// Nothing holds the pointer.
     pub fn new() -> Self {
         Self::default()
@@ -604,6 +666,28 @@ impl<'a> Ui<'a> {
                 .input
                 .pointer()
                 .is_some_and(|point| self.state.previous.is_within(point, id))
+    }
+
+    /// Asks the application to read back the screen around `center` (logical pixels) from
+    /// the frame it presents: an eyedropper. Ask every frame while it picks.
+    pub fn want_screen_pixels(&mut self, center: Vec2) {
+        self.state.pixels_wanted = Some(center);
+    }
+
+    /// The pixels the application read back last, if any.
+    pub fn screen_pixels(&self) -> Option<&ScreenPixels> {
+        self.state.screen_pixels.as_ref()
+    }
+
+    /// Forgets the pixels read back: an eyedropper starting or ending, so that the next one
+    /// never shows the pixels of another time.
+    pub fn forget_screen_pixels(&mut self) {
+        self.state.screen_pixels = None;
+    }
+
+    /// Whether the application can read its frames back ([`UiState::set_screen_readable`]).
+    pub fn can_read_screen(&self) -> bool {
+        !self.state.screen_unreadable
     }
 
     /// Asks for a locked pointer during this frame: the cursor disappears and stays put, and the

@@ -15,6 +15,7 @@
 //! unit-testable on every target, including the Android emulator and the iOS simulator.
 
 pub mod color;
+pub mod color_model;
 pub mod color_vision;
 pub mod expr;
 pub mod input;
@@ -22,5 +23,6 @@ pub mod log;
 pub mod math;
 
 pub use color::{Color, LinearRgba, Oklab, Oklch, ParseColorError};
+pub use color_model::{Cmyk, Hsl, Hsv};
 pub use color_vision::{ColorMatrix, Deficiency};
 pub use math::{Extent, Rect, Vec2};

@@ -150,20 +150,6 @@ impl<'a> Content<'a> {
         width + metrics.gap * f32::from(count.saturating_sub(1))
     }
 
-    /// The width of what cannot shrink: the content without its label, gaps included.
-    pub(crate) fn fixed_width(&self, ui: &mut Ui<'_>, metrics: &ContentMetrics<'_>) -> f32 {
-        let label = Content {
-            label: None,
-            ..*self
-        };
-        let gap = if self.label.is_some() && !label.is_empty() {
-            metrics.gap
-        } else {
-            0.0
-        };
-        label.width(ui, metrics) + gap
-    }
-
     /// The height of the content: its tallest part, a label counting the line box of its font
     /// ([`Ui::line_height`]).
     pub(crate) fn height(&self, ui: &mut Ui<'_>, metrics: &ContentMetrics<'_>) -> f32 {
@@ -336,40 +322,6 @@ mod tests {
         // The check mark and the chevron, each one stroke of two joined segments.
         assert_eq!(scene.line_count(), 2);
         assert_eq!(scene.rect_count(), 1);
-    }
-
-    #[test]
-    fn the_fixed_width_leaves_out_the_label_but_its_gaps() {
-        let styles = crate::test_styles();
-        let (mut scene, mut state, input) = (Scene::new(), UiState::new(), Input::new());
-        state.set_fonts(Fonts::with_embedded());
-        let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
-        let metrics = ContentMetrics {
-            gap: 4.0,
-            icon_size: 16.0,
-            trailing_size: 12.0,
-            stroke_width: 1.5,
-            trailing_stroke_width: 1.25,
-            dot_size: 6.0,
-            font: &styles.text.label,
-        };
-        assert_eq!(Content::label("Save").fixed_width(&mut ui, &metrics), 0.0);
-        assert_eq!(
-            Content::icon(Icon::Plus).fixed_width(&mut ui, &metrics),
-            16.0
-        );
-        let icons = Content {
-            leading: Some(Icon::Check),
-            ..Content::icon(Icon::Plus)
-        };
-        assert_eq!(icons.fixed_width(&mut ui, &metrics), 16.0 + 4.0 + 16.0);
-        // Both icons and the gaps around the label.
-        let full = Content {
-            leading: Some(Icon::Check),
-            trailing: Some(Icon::ChevronDown),
-            ..Content::label("Save")
-        };
-        assert_eq!(full.fixed_width(&mut ui, &metrics), 16.0 + 12.0 + 2.0 * 4.0);
     }
 
     #[test]

@@ -11,7 +11,9 @@ mod button;
 mod capture_field;
 mod checkbox;
 mod collapsible;
+mod color;
 mod dropdown;
+mod field_group;
 mod key_caps;
 mod list;
 mod menu;
@@ -39,7 +41,13 @@ pub use checkbox::{Checkbox, CheckboxStyle};
 pub use collapsible::{
     CollapsiblePanel, CollapsiblePanelResponse, CollapsiblePanelState, CollapsiblePanelStyle,
 };
+pub use color::{
+    ColorField, ColorFieldResponse, ColorFieldState, ColorFieldStyle, ColorMode, ColorPicker,
+    ColorPickerState, ColorPickerStyle, ColorStrip, ColorStripState, OKLCH_CHROMA, PICKER_SECTIONS,
+    PickerSection, PickerShape, RING_INNER, StripFill, StripResponse, Transparency,
+};
 pub use dropdown::{Dropdown, DropdownStyle};
+pub use field_group::FieldGroup;
 pub use key_caps::{Cap, CapLabel, KEY_SIGNS, KeyCapStyle, Keyboard, ShortcutCaps, key_cap};
 pub use list::{
     DropPlace, ItemMark, LIST, LIST_ACTIONS, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT,

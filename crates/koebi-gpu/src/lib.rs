@@ -69,7 +69,7 @@ pub use pipeline::{
     VertexStepMode,
 };
 pub use pod::{Pod, bytes_of, cast_slice, cast_slice_mut};
-pub use presenter::{FrameTarget, Presenter, PresenterDesc, RenderOutcome};
+pub use presenter::{FramePixels, FrameTarget, Presenter, PresenterDesc, RenderOutcome};
 pub use sampler::{AddressMode, FilterMode, Sampler, SamplerDesc};
 #[doc(hidden)]
 pub use shader::__spirv_from_aligned;

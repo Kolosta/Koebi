@@ -7,6 +7,8 @@
 mod button;
 mod capture_field;
 mod checkbox;
+mod color_field;
+mod color_picker;
 mod color_swatch;
 mod combo;
 mod dropdown;
@@ -27,6 +29,8 @@ mod toggle;
 pub use button::*;
 pub use capture_field::*;
 pub use checkbox::*;
+pub use color_field::*;
+pub use color_picker::*;
 pub use color_swatch::*;
 pub use combo::*;
 pub use dropdown::*;

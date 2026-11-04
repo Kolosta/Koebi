@@ -112,6 +112,13 @@ multiply.
 - Swapchain: `image_available` (per slot) is waited at `COLOR_ATTACHMENT_OUTPUT`; the first
   barrier's source stage is the same stage, so the layout transition cannot start early.
 - Readback: a `COPY → HOST` memory barrier makes copied data visible to the CPU after the fence.
+- Frame readback (`Presenter::request_pixels`, the eyedropper): a square of the swapchain image
+  is copied between the frame's commands and its present (`ColorAttachment → TransferSrc →
+  Present`) into the slot's buffer, and read when the slot comes around again, after its fence:
+  two frames late, never waiting. The buffer is allocated and the copy checked before the
+  fence is reset, so a failure only drops the request. Only swapchains whose images allow
+  `TRANSFER_SRC` and hold four 8-bit channels are read (`Presenter::can_read_pixels`); the
+  format is kept with each copy, since a recreation may change it before the read.
 - Queue access is serialized by a mutex (`vkQueueSubmit2`, `vkQueuePresentKHR`).
 
 ## Deferred destruction

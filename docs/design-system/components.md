@@ -40,6 +40,10 @@ what shows.
 | Panel | `Ui::panel(rect, level)` returns the content area | `component.panel.*` |
 | Collapsible panel | `CollapsiblePanel::new(id, &mut state, title)` + options, then `.show(ui, area, add)` returns a `CollapsiblePanelResponse` | `component.panel.*` |
 | Separator | `Ui::separator(rect)`; `Ui::section_title(rect, title)` heads a section of a container that never folds: the title, then a line to the end of the row | `component.separator.*` |
+| Color field | `ColorField::new(id, &mut color, &mut state).show(ui, rect, bounds)`: the color one unit high, outlined in its own gray, each half showing transparency its way (`.halves(left, right)`), opening its picker as a dropdown (`.dropdown(true)`, the default) or a panel; `.shape`, `.title`, `.palette`, `.original`, `.sections`, `.eyedropper` set up the picker ([Color pickers](color-picker.md)) | `component.color-field.*` |
+| Color picker | `ColorPicker::new(id, &mut state, &mut color).show(ui, rect)`, in place or opened by a field: an area, strips, swatches, an eyedropper, the switch of models and their fields, a palette | `component.color-picker.*` |
+| Color strip | `ColorStrip::new(id, &mut state, &mut value, fill)`, vertical or horizontal (`.vertical(false)`), over a checkerboard (`.checker(true)`): one component, marked by two triangles | `component.color-picker.*` |
+| Field group | `FieldGroup::horizontal(rect, count, radius, border)` or `::vertical`: fields sharing their borders, only the group's outer corners rounded (`.cell(index)` gives each field's rectangle and corners) | the fields' |
 | Color swatch | `Ui::swatch(id, rect, color, selected)` | `component.color-swatch.*` |
 | Theme card | `Ui::theme_card(id, rect, &preview, selected)`: a miniature of shapes painted from a `ThemePreview` (surfaces, text, accent, the colors of states and of a chart), resolved from a theme's view or a color vision mode's | `component.theme-card.*` |
 | Card | `Ui::card(id, rect, selected)` returns a `CardResponse` with the room inside its frame | `component.theme-card.*` |

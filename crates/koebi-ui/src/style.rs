@@ -21,9 +21,9 @@ use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
     AppBarStyle, ButtonStyle, CaptureFieldStyle, CheckboxStyle, CollapsiblePanelStyle,
-    DropdownStyle, KeyCapStyle, ListStyle, MenuStyle, NumberFieldStyle, PanelStyle,
-    PropertyGroupStyle, ResetDotStyle, ScrollStyle, SeparatorStyle, StatusBarStyle, SwatchStyle,
-    TextFieldStyle, ThemeCardStyle, TooltipStyle,
+    ColorFieldStyle, ColorPickerStyle, DropdownStyle, KeyCapStyle, ListStyle, MenuStyle,
+    NumberFieldStyle, PanelStyle, PropertyGroupStyle, ResetDotStyle, ScrollStyle, SeparatorStyle,
+    StatusBarStyle, SwatchStyle, TextFieldStyle, ThemeCardStyle, TooltipStyle,
 };
 use crate::workspace::WorkspaceStyle;
 
@@ -323,6 +323,10 @@ pub struct Styles {
     pub tooltip: TooltipStyle,
     /// [`Ui::status_bar`](crate::Ui::status_bar).
     pub status_bar: StatusBarStyle,
+    /// [`ColorField`](crate::ColorField).
+    pub color_field: ColorFieldStyle,
+    /// [`ColorPicker`](crate::ColorPicker).
+    pub color_picker: ColorPickerStyle,
 }
 
 impl Styles {
@@ -457,6 +461,14 @@ impl Styles {
         let control = whole_pixels(bar.height - 2.0 * bar.inset, scale);
         snap(&mut [&mut bar.inset, &mut bar.padding, &mut bar.gap]);
         bar.height = control + 2.0 * bar.inset;
+        snap(&mut [&mut self.color_field.height]);
+        let picker = &mut self.color_picker;
+        snap(&mut [
+            &mut picker.area_size,
+            &mut picker.strip_width,
+            &mut picker.swatch_width,
+            &mut picker.gap,
+        ]);
         let workspace = &mut self.workspace;
         snap(&mut [
             &mut workspace.gap,
@@ -502,6 +514,8 @@ impl Styles {
             list: ListStyle::resolve(tokens),
             tooltip: TooltipStyle::resolve(tokens),
             status_bar: StatusBarStyle::resolve(tokens),
+            color_field: ColorFieldStyle::resolve(tokens),
+            color_picker: ColorPickerStyle::resolve(tokens),
         }
     }
 }
