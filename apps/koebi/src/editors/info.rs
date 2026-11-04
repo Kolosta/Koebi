@@ -6,7 +6,7 @@ use koebi_core::input::{Key, ModifierKey};
 use koebi_core::log::Level;
 use koebi_core::{Color, Rect};
 use koebi_design::DesignSystem;
-use koebi_input::{ActionDef, ActionGroup, Context, Shortcut};
+use koebi_input::{ActionDef, ActionGroup, ActionKind, Context, Hint, Shortcut};
 use koebi_tokens::semantic;
 use koebi_ui::{ListItem, ListOptions, ListSelection, ListState, Ui, WidgetId};
 
@@ -24,6 +24,7 @@ pub(crate) static DELETE: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::X), Shortcut::key(Key::Delete)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Edit, 6)),
 };
 
 /// Deletes every message.
@@ -35,6 +36,7 @@ pub(crate) static CLEAR: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Delete).with(ModifierKey::Shift)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Edit, 5)),
 };
 
 /// The Info editor's actions, for the keymap.

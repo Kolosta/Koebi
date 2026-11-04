@@ -41,6 +41,7 @@
 //!     defaults: &[Shortcut::key(Key::Z).primary()],
 //!     repeats: true,
 //!     when: None,
+//!     hint: None,
 //! };
 //! static EDIT: ActionGroup = ActionGroup { name: "Edit", actions: &[&UNDO] };
 //!
@@ -64,7 +65,7 @@ mod shortcut;
 mod text;
 mod zones;
 
-pub use action::{ActionDef, ActionGroup, Condition, Context};
+pub use action::{ActionDef, ActionGroup, ActionKind, Condition, Context, Hint};
 pub use gesture::{Gesture, GestureKind, InputEvent, InputSettings};
 pub use keymap::{Keymap, KeymapError, Triggered, Triggers};
 pub use saved::{HEADER, LoadReport};

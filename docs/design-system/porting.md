@@ -314,6 +314,11 @@ the negative color; `component.toggle.background.color.hover` aliases
 `component.panel.body.background.color.level-3` aliases `semantic.background.app.control`
 instead of `semantic.background.base.default`, the color of the window and menus.
 
+Status bar (#186): `component.status-bar.size.height` aliases `semantic.size.control-height`
+instead of holding 22 px, the height of what the bar holds, and
+`component.status-bar.padding.vertical.default` aliases `semantic.spacing.control-inset`
+instead of holding 2 px: the bar is one interface unit and its inset above and below.
+
 Docking: `component.zone-tab.reveal.delay` (350 ms) and `component.zone-tab.reveal.grace`
 (250 ms), which were constants in the source.
 

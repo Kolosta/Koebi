@@ -28,6 +28,7 @@ macro_rules! action {
             // The tests' actions may all repeat: the keymap keeps what their shortcuts say.
             repeats: true,
             when: None,
+            hint: None,
         };
     };
 }
@@ -436,6 +437,7 @@ fn mouse_double_clicks_follow_the_settings_time_or_their_own() {
         )],
         repeats: false,
         when: None,
+        hint: None,
     };
     static LIST: ActionGroup = ActionGroup {
         name: "List",
@@ -522,6 +524,7 @@ fn defaults_must_not_conflict() {
         defaults: &[Shortcut::key(Key::A).with(ModifierKey::Ctrl)],
         repeats: false,
         when: None,
+        hint: None,
     };
     static SECOND: ActionDef = ActionDef {
         id: "a.second",
@@ -533,6 +536,7 @@ fn defaults_must_not_conflict() {
         )],
         repeats: false,
         when: None,
+        hint: None,
     };
     static GROUP: ActionGroup = ActionGroup {
         name: "A",
@@ -830,6 +834,7 @@ fn actions_whose_conditions_exclude_each_other_share_a_shortcut_and_both_trigger
         defaults: &[Shortcut::key(Key::KeypadMinus)],
         repeats: false,
         when: Some(Condition::new(FOLDS, "when a group is unfolded")),
+        hint: None,
     };
     static UNFOLD_ALL: ActionDef = ActionDef {
         id: "outliner.unfold-all",
@@ -839,6 +844,7 @@ fn actions_whose_conditions_exclude_each_other_share_a_shortcut_and_both_trigger
         defaults: &[Shortcut::key(Key::KeypadPlus)],
         repeats: false,
         when: Some(Condition::new(FOLDS, "when every group is folded")),
+        hint: None,
     };
     static DELETE: ActionDef = ActionDef {
         id: "outliner.delete",
@@ -848,6 +854,7 @@ fn actions_whose_conditions_exclude_each_other_share_a_shortcut_and_both_trigger
         defaults: &[Shortcut::key(Key::Delete)],
         repeats: false,
         when: None,
+        hint: None,
     };
     static OUTLINER: ActionGroup = ActionGroup {
         name: "Outliner",
@@ -906,6 +913,7 @@ fn actions_that_do_not_repeat_keep_no_shortcut_that_repeats() {
         defaults: &[Shortcut::key(Key::Q)],
         repeats: false,
         when: None,
+        hint: None,
     };
     static APP: ActionGroup = ActionGroup {
         name: "Application",
@@ -923,6 +931,7 @@ fn actions_that_do_not_repeat_keep_no_shortcut_that_repeats() {
         })],
         repeats: false,
         when: None,
+        hint: None,
     };
     static BROKEN: ActionGroup = ActionGroup {
         name: "Broken",

@@ -394,6 +394,7 @@ mod tests {
         defaults: &[Shortcut::key(Key::Home)],
         repeats: false,
         when: None,
+        hint: None,
     };
     static LINE_START: ActionDef = ActionDef {
         id: "text.line-start",
@@ -403,6 +404,7 @@ mod tests {
         defaults: &[Shortcut::key(Key::Home)],
         repeats: false,
         when: None,
+        hint: None,
     };
     static FRAME: ActionDef = ActionDef {
         id: "viewport.frame",
@@ -412,6 +414,7 @@ mod tests {
         defaults: &[],
         repeats: false,
         when: None,
+        hint: None,
     };
     static GROUP: ActionGroup = ActionGroup {
         name: "Test",

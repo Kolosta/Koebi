@@ -23,6 +23,7 @@
 //!     defaults: &[Shortcut::key(Key::Home)],
 //!     repeats: false,
 //!     when: None,
+//!     hint: None,
 //! };
 //!
 //! /// Pans the view while the middle button drags.
@@ -34,6 +35,7 @@
 //!     defaults: &[Shortcut::button(MouseButton::Middle, ButtonTrigger::Press)],
 //!     repeats: false,
 //!     when: None,
+//!     hint: None,
 //! };
 //!
 //! /// The viewport's actions, as the shortcut editor shows them.
@@ -75,6 +77,43 @@ impl fmt::Debug for Context {
 impl fmt::Display for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.0)
+    }
+}
+
+/// What an action does, which places its shortcut among the others in the status bar: actions
+/// of one kind stay together, kinds in this order, wherever the pointer is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ActionKind {
+    /// Ends what is in progress: confirms or cancels a menu, a field, an operation.
+    Confirm,
+    /// Moves through items, fields or frames.
+    Navigate,
+    /// Folds and unfolds.
+    Fold,
+    /// Chooses what the next actions apply to.
+    Select,
+    /// Changes the document: deletes, groups, copies, undoes.
+    Edit,
+    /// Changes the view: zooms, frames, shows guides.
+    View,
+    /// The application and its windows.
+    Window,
+}
+
+/// How an action shows in the status bar: its kind, which places it, and how much it matters,
+/// which keeps it there when room is short (the highest first).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Hint {
+    /// What it does.
+    pub kind: ActionKind,
+    /// How much it matters, from 1 (the first to go) up.
+    pub priority: u8,
+}
+
+impl Hint {
+    /// An action of `kind` mattering `priority`.
+    pub const fn new(kind: ActionKind, priority: u8) -> Self {
+        Self { kind, priority }
     }
 }
 
@@ -124,6 +163,9 @@ pub struct ActionDef {
     /// The condition it applies under, when another action of its context applies under one
     /// excluding it: the two may share a shortcut.
     pub when: Option<Condition>,
+    /// How the status bar shows its first shortcut, with its label, while it applies where the
+    /// pointer is; `None` keeps it out of the bar.
+    pub hint: Option<Hint>,
 }
 
 impl ActionDef {

@@ -51,6 +51,7 @@ what shows.
 | Popup | `Ui::popup(id, &mut state, size, bounds, add)` draws custom content | `component.menu.*` |
 | Dropdown | `Dropdown::new(id, &mut state, &items)` + options, then `.show(ui, rect, bounds)` | `component.dropdown.*`, then the menu's |
 | Tooltip | `Ui::tooltip(id, text, bounds)` after the widget | `component.tooltip.*` |
+| Status bar | `Ui::status_bar(rect, &entries, end)`: items one interface unit high, the bar's inset above and below; `StatusEntry`s (key caps and a label) from the left, thin lines between them, as many as fit, the highest priorities kept and the order given kept; `end` on the right | `component.status-bar.*` |
 | Label | `Ui::label(text, rect, &font, color, align)`, `Ui::text_width(text, &font)` | `semantic.font.*`, `semantic.text.*` |
 | Scroll area | `Ui::scroll_area(id, rect, &mut state, content_size, axes, add)` | `component.scrollbar.*` |
 | Scrollbar | `Scrollbar::new(id, &mut state, axis, &mut offset, visible, content)`, then `.show(ui, area)` | `component.scrollbar.*` |

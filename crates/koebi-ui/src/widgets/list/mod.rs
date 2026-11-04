@@ -34,7 +34,9 @@ use koebi_core::input::{Key, ModifierKey, Modifiers, MouseButton};
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
 use koebi_design::value::Curve;
-use koebi_input::{ActionDef, ActionGroup, ButtonTrigger, Context, ModifierRule, Shortcut};
+use koebi_input::{
+    ActionDef, ActionGroup, ActionKind, ButtonTrigger, Context, Hint, ModifierRule, Shortcut,
+};
 use koebi_tokens::{component, semantic};
 
 use crate::icon::Icon;
@@ -59,6 +61,7 @@ pub static LIST_NEXT: ActionDef = ActionDef {
     defaults: &[repeating(Key::Down)],
     repeats: true,
     when: None,
+    hint: Some(Hint::new(ActionKind::Navigate, 6)),
 };
 
 /// Selects the row above the active one.
@@ -70,6 +73,7 @@ pub static LIST_PREVIOUS: ActionDef = ActionDef {
     defaults: &[repeating(Key::Up)],
     repeats: true,
     when: None,
+    hint: Some(Hint::new(ActionKind::Navigate, 5)),
 };
 
 /// Extends the selection to the row below the active one.
@@ -81,6 +85,7 @@ pub static LIST_EXTEND_NEXT: ActionDef = ActionDef {
     defaults: &[repeating(Key::Down).with(ModifierKey::Shift)],
     repeats: true,
     when: None,
+    hint: Some(Hint::new(ActionKind::Select, 3)),
 };
 
 /// Extends the selection to the row above the active one.
@@ -92,6 +97,7 @@ pub static LIST_EXTEND_PREVIOUS: ActionDef = ActionDef {
     defaults: &[repeating(Key::Up).with(ModifierKey::Shift)],
     repeats: true,
     when: None,
+    hint: Some(Hint::new(ActionKind::Select, 2)),
 };
 
 /// Unfolds the active row, or goes to its first child.
@@ -103,6 +109,7 @@ pub static LIST_UNFOLD: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Right)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Fold, 5)),
 };
 
 /// Folds the active row, or goes to its parent.
@@ -115,6 +122,7 @@ pub static LIST_FOLD: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Left)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Fold, 5)),
 };
 
 /// Selects every row.
@@ -126,6 +134,7 @@ pub static LIST_SELECT_ALL: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::A).primary()],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Select, 6)),
 };
 
 /// Cancels the drag in progress.
@@ -141,6 +150,7 @@ pub static LIST_DRAG_CANCEL: ActionDef = ActionDef {
     ],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Confirm, 8)),
 };
 
 /// The actions of lists, for the keymap.

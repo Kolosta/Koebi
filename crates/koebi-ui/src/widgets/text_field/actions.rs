@@ -7,7 +7,9 @@
 //! elsewhere to move and delete by word.
 
 use koebi_core::input::{Key, ModifierKey};
-use koebi_input::{ActionDef, ActionGroup, Context, ModifierRule, ModifierState, Shortcut};
+use koebi_input::{
+    ActionDef, ActionGroup, ActionKind, Context, Hint, ModifierRule, ModifierState, Shortcut,
+};
 
 use crate::widgets::repeating;
 
@@ -41,10 +43,21 @@ const fn repeats_by_default(defaults: &[Shortcut]) -> bool {
     false
 }
 
-/// Declares the text actions: `NAME, "id", "label", "description", [defaults];`.
+/// The hint of a text action: none, or the one given.
+macro_rules! hint {
+    () => {
+        None
+    };
+    ($hint:expr) => {
+        Some($hint)
+    };
+}
+
+/// Declares the text actions: `NAME, "id", "label", "description", [defaults]` and, for those
+/// the status bar shows, `, hint`; then `;`.
 macro_rules! text_actions {
     ($($(#[$doc:meta])* $name:ident, $id:literal, $label:literal, $description:literal,
-        $defaults:expr;)*) => {
+        $defaults:expr $(, $hint:expr)?;)*) => {
         $(
             $(#[$doc])*
             pub static $name: ActionDef = {
@@ -58,6 +71,7 @@ macro_rules! text_actions {
                     // Moving and deleting repeat while their key is held, as their defaults do.
                     repeats: repeats_by_default(DEFAULTS),
                     when: None,
+                    hint: hint!($($hint)?),
                 }
             };
         )*
@@ -73,17 +87,21 @@ macro_rules! text_actions {
 text_actions! {
     /// Ends the edit, keeping the text.
     TEXT_CONFIRM, "text.confirm", "Confirm", "Ends the edit and keeps the text.",
-        &[Shortcut::key(Key::Enter), Shortcut::key(Key::KeypadEnter)];
+        &[Shortcut::key(Key::Enter), Shortcut::key(Key::KeypadEnter)],
+        Hint::new(ActionKind::Confirm, 9);
     /// Ends the edit, restoring the text it started with.
     TEXT_CANCEL, "text.cancel", "Cancel", "Ends the edit and restores the text it started with.",
-        &[Shortcut::key(Key::Escape)];
+        &[Shortcut::key(Key::Escape)],
+        Hint::new(ActionKind::Confirm, 8);
     /// Keeps the text and edits the next field.
     TEXT_NEXT_FIELD, "text.next-field", "Next field",
-        "Keeps the text and edits the next field.", &[Shortcut::key(Key::Tab)];
+        "Keeps the text and edits the next field.", &[Shortcut::key(Key::Tab)],
+        Hint::new(ActionKind::Navigate, 4);
     /// Keeps the text and edits the previous field.
     TEXT_PREVIOUS_FIELD, "text.previous-field", "Previous field",
         "Keeps the text and edits the previous field.",
-        &[Shortcut::key(Key::Tab).with(ModifierKey::Shift)];
+        &[Shortcut::key(Key::Tab).with(ModifierKey::Shift)],
+        Hint::new(ActionKind::Navigate, 3);
     /// Moves the caret one character left.
     TEXT_LEFT, "text.left", "Left", "Moves the caret one character left.",
         &[repeating(Key::Left)];
@@ -152,7 +170,8 @@ text_actions! {
         };
     /// Selects the whole text.
     TEXT_SELECT_ALL, "text.select-all", "Select all", "Selects the whole text.",
-        &[Shortcut::key(Key::A).primary()];
+        &[Shortcut::key(Key::A).primary()],
+        Hint::new(ActionKind::Select, 5);
     /// Deletes the selection or the character before the caret.
     TEXT_DELETE_BACKWARD, "text.delete-backward", "Delete backward",
         "Deletes the selection, or the character before the caret.",
@@ -171,16 +190,20 @@ text_actions! {
         &[repeating(Key::Delete).with(WORD)];
     /// Copies the selection to the clipboard.
     TEXT_COPY, "text.copy", "Copy", "Copies the selected text to the clipboard.",
-        &[Shortcut::key(Key::C).primary()];
+        &[Shortcut::key(Key::C).primary()],
+        Hint::new(ActionKind::Edit, 6);
     /// Copies the selection to the clipboard and deletes it.
     TEXT_CUT, "text.cut", "Cut", "Copies the selected text to the clipboard and deletes it.",
-        &[Shortcut::key(Key::X).primary()];
+        &[Shortcut::key(Key::X).primary()],
+        Hint::new(ActionKind::Edit, 5);
     /// Replaces the selection with the clipboard's text.
     TEXT_PASTE, "text.paste", "Paste", "Replaces the selection with the clipboard's text.",
-        &[Shortcut::key(Key::V).primary()];
+        &[Shortcut::key(Key::V).primary()],
+        Hint::new(ActionKind::Edit, 6);
     /// Undoes the last edit of the field.
     TEXT_UNDO, "text.undo", "Undo", "Undoes the last change to the text being edited.",
-        &[repeating(Key::Z).primary()];
+        &[repeating(Key::Z).primary()],
+        Hint::new(ActionKind::Edit, 7);
     /// Redoes the last undone edit of the field.
     TEXT_REDO, "text.redo", "Redo", "Redoes the last change undone in the text being edited.",
         if APPLE {
@@ -190,5 +213,6 @@ text_actions! {
                 repeating(Key::Z).primary().with(ModifierKey::Shift),
                 repeating(Key::Y).primary(),
             ]
-        };
+        },
+        Hint::new(ActionKind::Edit, 4);
 }

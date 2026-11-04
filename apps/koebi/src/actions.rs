@@ -3,7 +3,8 @@
 use koebi_core::Vec2;
 use koebi_core::input::Key;
 use koebi_input::{
-    ActionDef, ActionGroup, Context, ContextInfo, InputEvent, Shortcut, Within, Zones,
+    ActionDef, ActionGroup, ActionKind, Context, ContextInfo, Hint, InputEvent, Shortcut, Within,
+    Zones,
 };
 use koebi_platform::{Event, GesturePhase, MouseButton, WindowEvent};
 use koebi_ui::PointerButton;
@@ -20,6 +21,7 @@ pub(crate) static FRAME_TIMES: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::F12)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Window, 1)),
 };
 
 /// Quits the application.
@@ -31,6 +33,7 @@ pub(crate) static QUIT: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Q).primary()],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Window, 2)),
 };
 
 /// Enters or leaves fullscreen.
@@ -42,6 +45,7 @@ pub(crate) static FULLSCREEN: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::F11)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Window, 2)),
 };
 
 /// Opens the settings.
@@ -53,6 +57,7 @@ pub(crate) static SETTINGS: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Comma).primary()],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Window, 3)),
 };
 
 /// The application's actions.

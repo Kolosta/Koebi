@@ -7,7 +7,7 @@
 use koebi_core::input::Key;
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::DesignSystem;
-use koebi_input::{ActionDef, ActionGroup, Context, Shortcut};
+use koebi_input::{ActionDef, ActionGroup, ActionKind, Context, Hint, Shortcut};
 use koebi_render::RectPrimitive;
 use koebi_tokens::component;
 use koebi_ui::{Align, BarLayout, Button, Icon, PointerButton, Ui, WidgetId};
@@ -24,6 +24,7 @@ pub(crate) static VIEW_ALL: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Home)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::View, 7)),
 };
 
 /// Zooms in on the middle of the view.
@@ -35,6 +36,7 @@ pub(crate) static ZOOM_IN: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::KeypadPlus)],
     repeats: true,
     when: None,
+    hint: Some(Hint::new(ActionKind::View, 6)),
 };
 
 /// Zooms out from the middle of the view.
@@ -46,6 +48,7 @@ pub(crate) static ZOOM_OUT: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::KeypadMinus)],
     repeats: true,
     when: None,
+    hint: Some(Hint::new(ActionKind::View, 6)),
 };
 
 /// Shows the canvas at its real size.
@@ -57,6 +60,7 @@ pub(crate) static ACTUAL_SIZE: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::Keypad1)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::View, 4)),
 };
 
 /// Shows or hides the rulers.
@@ -68,6 +72,7 @@ pub(crate) static TOGGLE_RULERS: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::R).primary()],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::View, 3)),
 };
 
 /// The viewport's actions, for the keymap.

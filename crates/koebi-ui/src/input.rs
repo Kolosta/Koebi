@@ -450,6 +450,7 @@ mod tests {
         defaults: &[Shortcut::key(Key::Escape)],
         repeats: false,
         when: None,
+        hint: None,
     };
 
     #[test]

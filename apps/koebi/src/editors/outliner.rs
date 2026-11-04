@@ -7,7 +7,7 @@
 
 use koebi_core::input::Key;
 use koebi_core::{Color, Rect};
-use koebi_input::{ActionDef, ActionGroup, Condition, Context, Shortcut};
+use koebi_input::{ActionDef, ActionGroup, ActionKind, Condition, Context, Hint, Shortcut};
 use koebi_ui::{
     DropPlace, ListDelegate, ListItem, ListOptions, ListState, TreeGuide, Ui, WidgetId,
 };
@@ -24,6 +24,7 @@ pub(crate) static DELETE: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::X), Shortcut::key(Key::Delete)],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Edit, 7)),
 };
 
 /// Puts the selected rows in a new group.
@@ -35,6 +36,7 @@ pub(crate) static GROUP: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::G).primary()],
     repeats: false,
     when: None,
+    hint: Some(Hint::new(ActionKind::Edit, 6)),
 };
 
 /// What folding every group and unfolding them depend on: whether one is unfolded.
@@ -49,6 +51,7 @@ pub(crate) static UNFOLD_ALL: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::KeypadPlus)],
     repeats: false,
     when: Some(Condition::new(FOLDS, "when every group is folded")),
+    hint: Some(Hint::new(ActionKind::Fold, 4)),
 };
 
 /// Folds every group, when one is unfolded.
@@ -60,6 +63,7 @@ pub(crate) static FOLD_ALL: ActionDef = ActionDef {
     defaults: &[Shortcut::key(Key::KeypadMinus)],
     repeats: false,
     when: Some(Condition::new(FOLDS, "when a group is unfolded")),
+    hint: Some(Hint::new(ActionKind::Fold, 4)),
 };
 
 /// The outliner's actions, for the keymap.

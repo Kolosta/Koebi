@@ -24,6 +24,17 @@ The hit test answers from `WindowRegions`, updated after each frame. It lies in
 `apps/koebi/tests/window_chrome.rs` asks the real window manager what each part of the window is,
 without simulating any input.
 
+## The status bar
+
+Windows showing a workspace end with a status bar (`status.rs`): on the right, the version; on
+the left, as Blender does, the shortcuts that apply where the pointer is. They are the
+shortcuts of the zones under the pointer (an action in progress's alone), each action by its
+first shortcut that is on, an outer zone's left out where an inner zone takes the same input.
+Actions say how they show (`ActionDef::hint`): a kind, which places them (confirm, navigate,
+fold, select, edit, view, window, in this order, so that similar shortcuts keep their
+places), and a priority, which keeps them when room is short. Each shows as key caps and its
+label.
+
 ## Several windows
 
 | Shared, in `Interface` and `Gpu` | Per window, in `AppWindow` |
