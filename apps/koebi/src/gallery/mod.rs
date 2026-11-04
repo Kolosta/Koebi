@@ -11,6 +11,8 @@
 //! - **Fields** ([`fields`]): text fields in their variants and states.
 //! - **Colors** ([`colors`]): color fields opening their picker as a dropdown and as a panel,
 //!   a horizontal strip, a picker in place, and the settings to try on them.
+//! - **Curves** ([`curves`]): the curve editor, temporary, with presets and where something
+//!   moving by the curve lies at equal times.
 //! - **Color vision** ([`editor`]): the simulation and correction modes, each previewed on
 //!   four chart colors.
 //! - **Grid**: hundreds of components, to show that styling costs nothing per component.
@@ -19,6 +21,7 @@
 
 mod buttons;
 mod colors;
+mod curves;
 mod editor;
 mod fields;
 mod menus;
@@ -161,6 +164,8 @@ pub(crate) struct Gallery {
     fields: fields::Fields,
     /// The colors and settings of the colors panel.
     colors: colors::Colors,
+    /// The curve of the curves panel.
+    curves: curves::Curves,
     /// The color vision dropdown's menu.
     vision_menu: MenuState,
     /// How far the gallery is scrolled when its area is too small for it.
@@ -179,6 +184,7 @@ impl Gallery {
             menus: menus::Menus::new(),
             fields: fields::Fields::new(),
             colors: colors::Colors::new(),
+            curves: curves::Curves::new(),
             vision_menu: MenuState::new(),
             scroll: ScrollState::new(),
         }
@@ -228,6 +234,7 @@ impl Gallery {
         let menus = metrics.panel_height(ui, menus::ROWS);
         let fields = metrics.panel_height(ui, fields::ROWS);
         let colors = self.colors.height(ui, metrics);
+        let curves = curves::Curves::height(ui, metrics);
         let vision = metrics.panel_height(ui, 1);
         let grid = metrics.panel_height(ui, 6);
         2.0 * gap
@@ -242,6 +249,8 @@ impl Gallery {
             + fields
             + gap
             + colors
+            + gap
+            + curves
             + gap
             + vision
             + gap
@@ -299,6 +308,8 @@ impl Gallery {
         self.fields.show(ui, fields, metrics);
         let colors = cut_top(&mut rest, self.colors.height(ui, metrics), metrics.gap);
         self.colors.show(ui, colors, window, metrics);
+        let curves = cut_top(&mut rest, curves::Curves::height(ui, metrics), metrics.gap);
+        self.curves.show(ui, curves, metrics);
         let vision = cut_top(&mut rest, vision_height, metrics.gap);
         editor::color_vision(ui, design, vision, metrics, &mut self.vision_menu, window);
         self.grid(ui, design, rest, metrics);

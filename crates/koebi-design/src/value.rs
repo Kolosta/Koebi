@@ -111,7 +111,7 @@ pub(crate) const CURVE_RULE: &str = "a curve goes from (0, 0) to (1, 1) through 
 
 /// How far curves may overshoot: values and easing control points stay within this, so that
 /// every curve eases to finite values.
-const CURVE_LIMIT: f32 = 4.0;
+const CURVE_LIMIT: f32 = Curve::LIMIT;
 
 /// `true` when `value` lies within the curves' limit (false for NaN).
 const fn bounded(value: f32) -> bool {
@@ -151,6 +151,10 @@ pub struct Curve {
 impl Curve {
     /// The most keys a curve holds.
     pub const MAX_KEYS: usize = 8;
+
+    /// How far from zero the values of keys and the y of easings' control points go, both
+    /// ways: a curve overshoots, never runs away.
+    pub const LIMIT: f32 = 4.0;
 
     /// Constant speed.
     pub const LINEAR: Self = Self::from_bezier(CubicBezier::LINEAR);

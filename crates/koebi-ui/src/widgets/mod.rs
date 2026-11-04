@@ -12,6 +12,7 @@ mod capture_field;
 mod checkbox;
 mod collapsible;
 mod color;
+mod curve_editor;
 mod dropdown;
 mod field_group;
 mod key_caps;
@@ -46,6 +47,7 @@ pub use color::{
     ColorPickerState, ColorPickerStyle, ColorStrip, ColorStripState, OKLCH_CHROMA, PICKER_SECTIONS,
     PickerSection, PickerShape, RING_INNER, StripFill, StripResponse, Transparency,
 };
+pub use curve_editor::{CurveEditor, CurveEditorState, CurveEditorStyle};
 pub use dropdown::{Dropdown, DropdownStyle};
 pub use field_group::FieldGroup;
 pub use key_caps::{Cap, CapLabel, KEY_SIGNS, KeyCapStyle, Keyboard, ShortcutCaps, key_cap};
