@@ -21,9 +21,9 @@ use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
     AppBarStyle, ButtonStyle, CaptureFieldStyle, CheckboxStyle, CollapsiblePanelStyle,
-    ColorFieldStyle, ColorPickerStyle, DropdownStyle, KeyCapStyle, ListStyle, MenuStyle,
-    NumberFieldStyle, PanelStyle, PropertyGroupStyle, ResetDotStyle, ScrollStyle, SeparatorStyle,
-    StatusBarStyle, SwatchStyle, TextFieldStyle, ThemeCardStyle, TooltipStyle,
+    ColorFieldStyle, ColorPickerStyle, CurveEditorStyle, DropdownStyle, KeyCapStyle, ListStyle,
+    MenuStyle, NumberFieldStyle, PanelStyle, PropertyGroupStyle, ResetDotStyle, ScrollStyle,
+    SeparatorStyle, StatusBarStyle, SwatchStyle, TextFieldStyle, ThemeCardStyle, TooltipStyle,
 };
 use crate::workspace::WorkspaceStyle;
 
@@ -327,6 +327,8 @@ pub struct Styles {
     pub color_field: ColorFieldStyle,
     /// [`ColorPicker`](crate::ColorPicker).
     pub color_picker: ColorPickerStyle,
+    /// [`CurveEditor`](crate::CurveEditor).
+    pub curve_editor: CurveEditorStyle,
 }
 
 impl Styles {
@@ -469,6 +471,8 @@ impl Styles {
             &mut picker.swatch_width,
             &mut picker.gap,
         ]);
+        let curves = &mut self.curve_editor;
+        snap(&mut [&mut curves.graph_height, &mut curves.padding]);
         let workspace = &mut self.workspace;
         snap(&mut [
             &mut workspace.gap,
@@ -516,6 +520,7 @@ impl Styles {
             status_bar: StatusBarStyle::resolve(tokens),
             color_field: ColorFieldStyle::resolve(tokens),
             color_picker: ColorPickerStyle::resolve(tokens),
+            curve_editor: CurveEditorStyle::resolve(tokens),
         }
     }
 }

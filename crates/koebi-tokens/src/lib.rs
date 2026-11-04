@@ -80,6 +80,7 @@ const SCHEMA: Schema = Schema::new(
         component::THEME_CARD::GROUP,
         component::COLOR_FIELD::GROUP,
         component::COLOR_PICKER::GROUP,
+        component::CURVE_EDITOR::GROUP,
         // component::surfaces
         component::WINDOW::GROUP,
         component::TITLE_BAR::GROUP,

@@ -321,6 +321,13 @@ checkerboard of 4 px aliasing the swatches' colors) and `component.color-picker.
 192 px, strips of 16 px, swatches of 40 px, a gap of 6 px; white marks outlined in black 1 px
 wide, triangles 7 px deep passing the strips by 2 px; the share of a drag with Shift, 0.1).
 
+Curve editor (#188, temporary): `component.curve-editor.*`, new: the graph 160 px high with a
+padding of 10 px, the background, border and border width of number fields, the corner radius
+of controls, grid lines in `semantic.border.color.default`, the curve in
+`semantic.border.color.accent.default` 2 px wide, keys of 8 px (10 px selected or under the
+pointer), white, the accent when selected and `semantic.neutral.color.500` for the fixed ends,
+outlined in black 1 px wide, taken by a press within 8 px.
+
 Status bar (#186): `component.status-bar.size.height` aliases `semantic.size.control-height`
 instead of holding 22 px, the height of what the bar holds, and
 `component.status-bar.padding.vertical.default` aliases `semantic.spacing.control-inset`

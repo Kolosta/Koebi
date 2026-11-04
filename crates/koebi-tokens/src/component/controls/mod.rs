@@ -1,5 +1,6 @@
 //! Controls: buttons, icons, toggles, checkboxes, value fields, dropdowns, frames,
-//! separators, scrollbars, tabs, headers, color swatches and theme cards.
+//! separators, scrollbars, tabs, headers, color swatches, color fields and pickers, curve
+//! editors and theme cards.
 //!
 //! One module per component, each holding the component's token group. Each group starts
 //! where the previous one ends; `lib.rs` lists the groups in schema order.
@@ -11,6 +12,7 @@ mod color_field;
 mod color_picker;
 mod color_swatch;
 mod combo;
+mod curve_editor;
 mod dropdown;
 mod frame;
 mod header;
@@ -33,6 +35,7 @@ pub use color_field::*;
 pub use color_picker::*;
 pub use color_swatch::*;
 pub use combo::*;
+pub use curve_editor::*;
 pub use dropdown::*;
 pub use frame::*;
 pub use header::*;
