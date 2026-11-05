@@ -25,4 +25,14 @@ koebi_design::tokens! {
         semantic::SPACING_CONTROL_INSET;
     /// Status bar: gap.
     STATUS_BAR_GAP_DEFAULT = "status-bar.gap.default": Dimension = px(12.0), range(0.0, 48.0);
+    /// Frame times, above the status bar: background color, standing out as tooltips do.
+    STATUS_BAR_FRAME_TIMES_BACKGROUND_COLOR_DEFAULT =
+        "status-bar.frame-times.background.color.default": Color ->
+        TOOLTIP_BACKGROUND_COLOR_DEFAULT;
+    /// Frame times: opacity of the background, letting what lies below show a little.
+    STATUS_BAR_FRAME_TIMES_OPACITY_DEFAULT = "status-bar.frame-times.opacity.default": Number =
+        0.82, range(0.1, 1.0);
+    /// Frame times: space from the left edge and from the status bar.
+    STATUS_BAR_FRAME_TIMES_MARGIN_DEFAULT = "status-bar.frame-times.margin.default": Dimension ->
+        semantic::SPACING_EDITOR_INSET;
 }

@@ -18,6 +18,7 @@ use crate::editors::{Editors, Host};
 use crate::frame_times::FrameTimes;
 use crate::gpu::WindowGpu;
 use crate::interface::Interface;
+use crate::overlay::Overlay;
 use crate::settings::SettingsView;
 use crate::status::{StatusShortcuts, VERSION};
 
@@ -226,6 +227,9 @@ impl AppWindow {
         let entries = status.refresh(state, input.pointer(), keymap);
         let mut ui = Ui::new(scene, styles, input, state);
         shown.messages.collect();
+        // The frame times lie above the status bar, where there is one.
+        let mut above_bar = area;
+        let mut frame_times = overlay.is_some();
         ui.zone(area, actions::APP, |ui| {
             let (rest, asked) = chrome.show(ui, area, view, labels);
             if asked.is_some() {
@@ -233,7 +237,7 @@ impl AppWindow {
             }
             match (settings_in_place.as_mut(), content) {
                 (Some(settings), _) | (None, WindowContent::Settings(settings)) => {
-                    settings.show(ui, rest, design, keymap);
+                    settings.show(ui, rest, design, keymap, &mut frame_times);
                 }
                 (
                     None,
@@ -257,12 +261,17 @@ impl AppWindow {
                     ui.workspace(view, workspace, work, &mut host);
                     let bar = Rect::from_min_max(Vec2::new(rest.min.x, split), rest.max);
                     ui.status_bar(bar, entries, VERSION);
+                    above_bar = Rect::from_min_max(area.min, Vec2::new(area.max.x, split));
                 }
             }
         });
         drop(ui);
+        // Shown or hidden from the Dev page of the settings.
+        if frame_times != overlay.is_some() {
+            *overlay = frame_times.then(Overlay::new);
+        }
         if is_main && let Some(overlay) = overlay {
-            overlay.draw(scene, design, fonts, times, area);
+            overlay.draw(scene, design, fonts, times, above_bar);
         }
     }
 
