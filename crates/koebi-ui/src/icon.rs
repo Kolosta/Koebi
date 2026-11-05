@@ -1,7 +1,77 @@
-//! [`Icon`]: small line icons drawn with round-capped strokes.
+//! Icons: vector icons of `koebi-icons` painted with their zones recolored ([`paint_icon`]),
+//! and [`Icon`], small line icons drawn with round-capped strokes.
 
 use koebi_core::{Color, Rect, Vec2};
-use koebi_render::{LinePrimitive, Scene};
+use koebi_icons::IconId;
+use koebi_icons::Role;
+use koebi_render::{ICON_ZONES, IconColors, IconPrimitive, LinePrimitive, Scene};
+
+/// The color of each role of a vector icon's zones.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct IconInk {
+    /// Zones of the main color: most of an icon.
+    pub primary: Color,
+    /// Zones of a second color.
+    pub secondary: Color,
+    /// Zones of a third color.
+    pub tertiary: Color,
+    /// Accent zones.
+    pub accent: Color,
+}
+
+impl IconInk {
+    /// Every zone in `color`: a disabled icon, an icon on an accent background.
+    pub const fn uniform(color: Color) -> Self {
+        Self {
+            primary: color,
+            secondary: color,
+            tertiary: color,
+            accent: color,
+        }
+    }
+
+    /// The color of the zones of `role`.
+    pub fn of(self, role: Role) -> Color {
+        match role {
+            Role::Primary => self.primary,
+            Role::Secondary => self.secondary,
+            Role::Tertiary => self.tertiary,
+            Role::Accent => self.accent,
+        }
+    }
+}
+
+/// How a vector icon is painted.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum IconPaint {
+    /// The colors of its SVG file: logos, illustrations, symbols whose colors mean something.
+    Original,
+    /// Each zone in the color of its role: an interface icon following its component's state
+    /// ([`IconStyle::ink`](crate::IconStyle::ink)).
+    Ink(IconInk),
+}
+
+/// Paints `icon` in the square `bounds` (use [`Icon::centered`] to place one), turned
+/// clockwise by `rotation` radians about its center.
+pub fn paint_icon(scene: &mut Scene, bounds: Rect, icon: IconId, paint: IconPaint, rotation: f32) {
+    let colors = match paint {
+        IconPaint::Original => IconColors::Original,
+        IconPaint::Ink(ink) => {
+            let mut zones = [None; ICON_ZONES];
+            for (zone, &role) in zones.iter_mut().zip(icon.roles()) {
+                *zone = Some(ink.of(role));
+            }
+            IconColors::Zones(zones)
+        }
+    };
+    scene.push_icon(&IconPrimitive {
+        rect: bounds,
+        icon: icon.index(),
+        colors,
+        opacity: 1.0,
+        rotation,
+    });
+}
 
 /// Icons are designed on a 16 x 16 grid, then scaled to the box they are drawn in.
 const GRID: f32 = 16.0;

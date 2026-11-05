@@ -14,6 +14,10 @@ pub(crate) static FILL_VERT: &[u32] =
     koebi_gpu::include_spirv!(include_bytes!("../shaders/spirv/fill.vert.spv"));
 pub(crate) static FILL_FRAG: &[u32] =
     koebi_gpu::include_spirv!(include_bytes!("../shaders/spirv/fill.frag.spv"));
+pub(crate) static ICON_VERT: &[u32] =
+    koebi_gpu::include_spirv!(include_bytes!("../shaders/spirv/icon.vert.spv"));
+pub(crate) static ICON_FRAG: &[u32] =
+    koebi_gpu::include_spirv!(include_bytes!("../shaders/spirv/icon.frag.spv"));
 pub(crate) static GLYPH_VERT: &[u32] =
     koebi_gpu::include_spirv!(include_bytes!("../shaders/spirv/glyph.vert.spv"));
 pub(crate) static GLYPH_FRAG: &[u32] =
@@ -26,8 +30,8 @@ mod tests {
     #[test]
     fn embedded_modules_are_spirv() {
         for module in [
-            RECT_VERT, RECT_FRAG, LINE_VERT, LINE_FRAG, FILL_VERT, FILL_FRAG, GLYPH_VERT,
-            GLYPH_FRAG,
+            RECT_VERT, RECT_FRAG, LINE_VERT, LINE_FRAG, FILL_VERT, FILL_FRAG, ICON_VERT, ICON_FRAG,
+            GLYPH_VERT, GLYPH_FRAG,
         ] {
             assert_eq!(module.first(), Some(&koebi_gpu::SPIRV_MAGIC));
         }

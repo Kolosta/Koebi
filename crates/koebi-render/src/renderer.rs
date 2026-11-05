@@ -7,10 +7,12 @@ use koebi_gpu::{
     RenderPipeline, RenderPipelineDesc, RenderTarget, Result, ShaderStage, TextureFormat,
     VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode,
 };
+use koebi_svg::pack::Packed;
 use koebi_text::Fonts;
 
 use crate::atlas::{GlyphAtlas, GlyphInstance, GlyphKey, Lookup};
 use crate::fill::FillInstance;
+use crate::icon::{IconInstance, IconStore};
 use crate::scene::{Corners, LineInstance, PrimitiveKind, RectInstance, Scene};
 use crate::shaders;
 
@@ -250,6 +252,8 @@ pub struct Renderer2D {
     rects: PrimitivePipeline,
     lines: PrimitivePipeline,
     fills: PrimitivePipeline,
+    icons: PrimitivePipeline,
+    icon_store: IconStore,
     glyphs: PrimitivePipeline,
     atlas: GlyphAtlas,
     /// This frame's glyph quads, rebuilt by every `prepare`.
@@ -285,6 +289,14 @@ impl Renderer2D {
             stride: FillInstance::STRIDE,
             bind_group_layouts: &[],
         };
+        let icon_store = IconStore::new(device)?;
+        let icons = PipelineDesc {
+            label: "icon",
+            vertex: ("icon.vert", shaders::ICON_VERT),
+            fragment: ("icon.frag", shaders::ICON_FRAG),
+            stride: IconInstance::STRIDE,
+            bind_group_layouts: &[icon_store.layout()],
+        };
         let atlas = GlyphAtlas::new(device)?;
         let glyphs = PipelineDesc {
             label: "glyph",
@@ -298,6 +310,8 @@ impl Renderer2D {
             rects: PrimitivePipeline::new(device, &rects, target_format)?,
             lines: PrimitivePipeline::new(device, &lines, target_format)?,
             fills: PrimitivePipeline::new(device, &fills, target_format)?,
+            icons: PrimitivePipeline::new(device, &icons, target_format)?,
+            icon_store,
             glyphs: PrimitivePipeline::new(device, &glyphs, target_format)?,
             atlas,
             glyph_instances: Vec::new(),
@@ -309,6 +323,18 @@ impl Renderer2D {
     /// [`koebi_text::FontId`]s refer to. Cached glyphs are forgotten.
     pub fn set_fonts(&mut self, fonts: Fonts) {
         self.atlas.set_fonts(fonts);
+    }
+
+    /// Sets the icons [`crate::IconPrimitive::icon`] numbers refer to: `koebi_svg` icons packed
+    /// in order. They are uploaded by the next [`Renderer2D::prepare`]; until then, and without
+    /// a set, icons draw nothing.
+    pub fn set_icons(&mut self, icons: &Packed) {
+        self.icon_store.set(icons);
+    }
+
+    /// How many icons the set given to [`Renderer2D::set_icons`] holds.
+    pub fn icon_count(&self) -> usize {
+        self.icon_store.len()
     }
 
     /// The target format the pipelines were built for.
@@ -340,6 +366,9 @@ impl Renderer2D {
             .upload(&self.device, scene.line_instances(), frame_index)?;
         self.fills
             .upload(&self.device, scene.fill_instances(), frame_index)?;
+        self.icons
+            .upload(&self.device, scene.icon_instances(), frame_index)?;
+        self.icon_store.record_upload(&self.device, encoder)?;
         if scene.glyph_count() == 0 {
             return Ok(());
         }
@@ -420,6 +449,9 @@ impl Renderer2D {
         let glyphs = (scene.glyph_count() > 0)
             .then(|| self.glyphs.prepared(frame_index, scene.glyph_count()))
             .transpose()?;
+        let icons = (scene.icon_count() > 0)
+            .then(|| self.icons.prepared(frame_index, scene.icon_count()))
+            .transpose()?;
         let constants = ViewportConstants::new(viewport);
         let full = Scissor::full(viewport.extent);
         let mut current = full;
@@ -438,6 +470,7 @@ impl Renderer2D {
                 PrimitiveKind::Line => (&self.lines, lines),
                 PrimitiveKind::Glyph => (&self.glyphs, glyphs),
                 PrimitiveKind::Fill => (&self.fills, fills),
+                PrimitiveKind::Icon => (&self.icons, icons),
             };
             // A batch exists only for a type with instances, whose buffer was checked above.
             let Some(buffer) = buffer else { continue };
@@ -450,6 +483,13 @@ impl Renderer2D {
                     continue;
                 };
                 pass.set_bind_group(&primitives.pipeline, 0, atlas)?;
+            }
+            if batch.kind == PrimitiveKind::Icon {
+                // Without a set, icons draw nothing.
+                let Some(set) = self.icon_store.bind_group() else {
+                    continue;
+                };
+                pass.set_bind_group(&primitives.pipeline, 0, set)?;
             }
             // From instance zero, at the run's offset: some drivers have no base instance.
             let (offset, count) = batch.window(primitives.stride);

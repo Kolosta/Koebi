@@ -1,0 +1,13 @@
+[package]
+name = "koebi-svg"
+description = "Koebi's icon compiler: a checked SVG subset compiled to quadratic curves per color zone, packed for the GPU, and a CPU rasterizer of the same coverage. Dependency-free."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

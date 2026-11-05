@@ -161,6 +161,7 @@ impl WindowGpu {
                 match Renderer2D::new(&gpu.device, target.format()) {
                     Ok(mut created) => {
                         created.set_fonts(gpu.fonts.clone());
+                        created.set_icons(koebi_icons::packed());
                         *renderer = Some(created);
                     }
                     Err(error) => {
