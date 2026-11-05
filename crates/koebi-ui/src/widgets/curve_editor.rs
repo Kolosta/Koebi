@@ -24,6 +24,14 @@ use crate::widgets::button::{Button, ButtonGroup, GroupCell};
 use crate::widgets::field_group::FieldGroup;
 use crate::widgets::number_field::NumberField;
 
+/// What the easing's fields set: the control points of the segment leaving the selected key.
+const EASING_TIPS: [&str; 4] = [
+    "The easing's first control point: its time",
+    "The easing's first control point: its value",
+    "The easing's second control point: its time",
+    "The easing's second control point: its value",
+];
+
 /// How many segments draw the curve.
 const SAMPLES: usize = 48;
 
@@ -558,11 +566,8 @@ fn key_fields(
         .enabled(editable.is_some())
         .show(ui, cell)
         .changed;
-    ui.tooltip(
-        id.with(14),
-        "The selected key: its time (X) and its value (Y)",
-        fields,
-    );
+    ui.tooltip(id.with(12), "The selected key's time", fields);
+    ui.tooltip(id.with(13), "The selected key's value", fields);
     if (moved_x || moved_y)
         && let Some(index) = editable
     {
@@ -595,7 +600,8 @@ fn easing_fields(
         } else {
             (-Curve::LIMIT, Curve::LIMIT)
         };
-        changed |= NumberField::new(id.with(20 + part as u64), value)
+        let key = id.with(20 + part as u64);
+        changed |= NumberField::new(key, value)
             .label(labels[part])
             .range(low, high)
             .decimals(2)
@@ -604,12 +610,8 @@ fn easing_fields(
             .enabled(index.is_some())
             .show(ui, cell)
             .changed;
+        ui.tooltip(key, EASING_TIPS[part], cell);
     }
-    ui.tooltip(
-        id.with(24),
-        "The easing from the selected key to the next one",
-        rect,
-    );
     let Some(index) = index.filter(|_| changed) else {
         return false;
     };

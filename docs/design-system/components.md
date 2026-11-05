@@ -59,7 +59,7 @@ for documentation and previews (Settings > Customisation, by component).
 | Menu | `Ui::menu(id, &mut state, &items, bounds)` returns the chosen item (`MenuChoice`) | `component.menu.*`, `component.separator.*` |
 | Popup | `Ui::popup(id, &mut state, size, bounds, add)` draws custom content | `component.menu.*` |
 | Dropdown | `Dropdown::new(id, &mut state, &items)` + options, then `.show(ui, rect, bounds)` | `component.dropdown.*`, then the menu's |
-| Tooltip | `Ui::tooltip(id, text, bounds)` after the widget | `component.tooltip.*` |
+| Tooltip | `Ui::tooltip(id, text, anchor)` after the widget, `anchor` its rectangle; the window comes from `UiState::set_window` | `component.tooltip.*` |
 | Status bar | `Ui::status_bar(rect, &entries, end)`: items one interface unit high, the bar's inset above and below; `StatusEntry`s (key caps and a label) from the left, thin lines between them, as many as fit, the highest priorities kept and the order given kept; `end` on the right | `component.status-bar.*` |
 | Label | `Ui::label(text, rect, &font, color, align)`, `Ui::text_width(text, &font)` | `semantic.font.*`, `semantic.text.*` |
 | Paragraph | `Ui::paragraph(text, rect, &font, color)` wraps between words and returns the height used, `Ui::paragraph_height(text, width, &font)` measures it; a line break starts a paragraph | `semantic.font.*`, `semantic.text.*` |
@@ -464,11 +464,23 @@ One component draws every list of the application (outliner, layers, color usage
 
 ## Tooltips
 
-`Ui::tooltip(id, text, bounds)`, called after the widget `id`, shows `text` near the pointer
-(`tooltip.offset`, flipping above near the bottom of the window) on the overlay layer once the
-pointer has rested on the widget for `semantic.input.tooltip.delay`, or for
-`semantic.input.tooltip.delay-short` right after another tooltip. A press hides it until the
-pointer moves to another widget; tooltips never take the pointer.
+`Ui::tooltip(id, text, anchor)`, called after the widget `id` with its rectangle, follows
+Blender's rules:
+
+- **When**: once the pointer has rested on the widget for `semantic.input.tooltip.delay`
+  (500 ms, Blender's `UI_TOOLTIP_DELAY`); a move past the drag threshold before then starts the
+  wait again. Right after another tooltip closed (along a row of controls), the next comes after
+  `semantic.input.tooltip.delay-short`.
+- **Where**: below the control, `tooltip.offset` (6 px, Blender's half popup margin) from it,
+  never over it, its text starting at the pointer; kept inside the window (`tooltip.margin`
+  from its edges, `UiState::set_window`): shifted left near the right edge, above the control
+  near the bottom. Placed once when it appears, it never moves while it shows.
+- **Until**: the pointer leaves the widget, a press or the wheel; then hidden until another
+  widget.
+- **Look**: `semantic.background.inverse` and `semantic.text.color.inverse` (light where the
+  theme is dark, dark where it is light), so that it stands out on every surface and on menus,
+  outlined in `semantic.border.color.shadow`; its text wraps past `tooltip.max-width` (360 px),
+  never wider than the window. Tooltips never take the pointer.
 
 [`crates/koebi-ui/tests/golden/`](../../crates/koebi-ui/tests/golden/) shows every component
 in the dark and light themes, and the application shows them all in its

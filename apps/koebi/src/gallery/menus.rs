@@ -58,10 +58,11 @@ impl Menus {
         let shading = Dropdown::new(ID.with(0), &mut self.shading_menu, &shadings)
             .label(SHADINGS[self.shading]);
         let width = shading.size(ui).x.max(6.0 * row);
-        if let Some(choice) = shading.show(ui, cut_left(&mut line, width, gap), window) {
+        let at = cut_left(&mut line, width, gap);
+        if let Some(choice) = shading.show(ui, at, window) {
             self.shading = choice.index();
         }
-        ui.tooltip(ID.with(0), "How the viewport draws the scene", window);
+        ui.tooltip(ID.with(0), "How the viewport draws the scene", at);
 
         // A vertical dropdown: its menu opens beside it.
         let side = Dropdown::new(ID.with(1), &mut self.side_menu, &shadings)
@@ -87,11 +88,10 @@ impl Menus {
         ];
         let group = ButtonGroup::horizontal();
         let width = group.size(ui, &cells).x.max(7.0 * row);
-        let stepped = group
-            .show(ui, cut_left(&mut line, width, gap), &mut cells)
-            .clicked;
-        ui.tooltip(ID.with(2), "Previous mode", window);
-        ui.tooltip(ID.with(4), "Next mode", window);
+        let at = cut_left(&mut line, width, gap);
+        let stepped = group.show(ui, at, &mut cells).clicked;
+        ui.tooltip(ID.with(2), "Previous mode", at);
+        ui.tooltip(ID.with(4), "Next mode", at);
         match stepped {
             Some(0) => self.mode = (self.mode + MODES.len() - 1) % MODES.len(),
             Some(2) => self.mode = (self.mode + 1) % MODES.len(),

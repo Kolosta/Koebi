@@ -38,6 +38,8 @@ koebi_design::tokens! {
 
     /// Primary text color.
     TEXT_COLOR_PRIMARY_DEFAULT = "text.color.primary.default": Color -> primitive::COLOR_GRAY_100;
+    /// Text on `background.inverse`: dark where the theme is dark, light where it is light.
+    TEXT_COLOR_INVERSE_DEFAULT = "text.color.inverse.default": Color -> primitive::COLOR_GRAY_900;
 
     /// Secondary text color, for supporting content.
     TEXT_COLOR_SECONDARY_DEFAULT = "text.color.secondary.default": Color ->

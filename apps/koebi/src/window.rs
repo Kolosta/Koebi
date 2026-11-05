@@ -225,6 +225,7 @@ impl AppWindow {
         scene.set_clear_color(styles.background);
         // The shortcuts where the pointer is, from the zones of the last frame.
         let entries = status.refresh(state, input.pointer(), keymap);
+        state.set_window(area);
         let mut ui = Ui::new(scene, styles, input, state);
         shown.messages.collect();
         // The frame times lie above the status bar, where there is one.
