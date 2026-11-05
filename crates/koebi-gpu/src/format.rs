@@ -19,7 +19,8 @@ pub enum TextureFormat {
     Bgra8Srgb,
     /// 16-bit float RGBA (HDR intermediate targets).
     Rgba16Float,
-    /// 32-bit float RGBA: data textures read texel by texel (`texelFetch`), never filtered.
+    /// 32-bit float RGBA: data textures read texel by texel (`texelFetch`), never filtered,
+    /// and never rendered to (Vulkan does not require blending it): sampled and copied to only.
     Rgba32Float,
     /// Single 8-bit channel (masks, glyph coverage).
     R8Unorm,
@@ -71,6 +72,12 @@ impl TextureFormat {
     /// `true` when bytes are stored in B, G, R, A order.
     pub const fn is_bgra(self) -> bool {
         matches!(self, Self::Bgra8Unorm | Self::Bgra8Srgb)
+    }
+
+    /// `true` when every Vulkan implementation can render to the format and blend it: what a
+    /// color attachment or a pipeline's color target may be.
+    pub const fn is_renderable(self) -> bool {
+        !matches!(self, Self::Rgba32Float)
     }
 }
 
@@ -128,6 +135,7 @@ mod tests {
             TextureFormat::Rgba8Srgb,
             TextureFormat::Bgra8Srgb,
             TextureFormat::Rgba16Float,
+            TextureFormat::Rgba32Float,
             TextureFormat::R8Unorm,
         ] {
             assert_eq!(TextureFormat::from_vk(format.to_vk()), Some(format));
@@ -140,6 +148,9 @@ mod tests {
         assert!(TextureFormat::Bgra8Srgb.is_srgb() && TextureFormat::Bgra8Srgb.is_bgra());
         assert!(!TextureFormat::Rgba8Unorm.is_srgb() && !TextureFormat::Rgba8Unorm.is_bgra());
         assert_eq!(TextureFormat::Rgba16Float.bytes_per_pixel(), 8);
+        assert_eq!(TextureFormat::Rgba32Float.bytes_per_pixel(), 16);
+        assert!(TextureFormat::Rgba16Float.is_renderable());
+        assert!(!TextureFormat::Rgba32Float.is_renderable());
     }
 
     #[test]

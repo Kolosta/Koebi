@@ -568,7 +568,9 @@ impl Scene {
         let finite = [rect.min.x, rect.min.y, rect.max.x, rect.max.y]
             .iter()
             .all(|v| v.is_finite());
-        if !finite || rect.is_empty() || primitive.opacity <= 0.0 || !self.visible(rect) {
+        // A NaN opacity is culled too: it would blank the icon's whole square.
+        let visible = primitive.opacity.partial_cmp(&0.0) == Some(core::cmp::Ordering::Greater);
+        if !finite || rect.is_empty() || !visible || !self.visible(rect) {
             return;
         }
         self.icons.push(IconInstance::from_primitive(primitive));
@@ -771,6 +773,24 @@ mod tests {
         let joined = LineInstance::from_primitive(&line().then(Vec2::new(5.0, 2.0)));
         assert_eq!(joined.points, [1.0, 2.0, 3.0, 4.0]);
         assert_eq!(joined.params, [1.0, 5.0, 2.0, 1.0]);
+    }
+
+    #[test]
+    fn icons_without_size_or_opacity_are_culled() {
+        let mut scene = Scene::new();
+        let icon = |rect: Rect, opacity: f32| IconPrimitive {
+            opacity,
+            ..IconPrimitive::tinted(rect, 0, Color::WHITE)
+        };
+        scene.push_icon(&icon(Rect::ZERO, 1.0));
+        scene.push_icon(&icon(rect(), 0.0));
+        // A NaN opacity would blank the whole square.
+        scene.push_icon(&icon(rect(), f32::NAN));
+        let far = Rect::from_origin_size(Vec2::new(f32::INFINITY, 0.0), Vec2::new(1.0, 1.0));
+        scene.push_icon(&icon(far, 1.0));
+        assert!(scene.is_empty());
+        scene.push_icon(&icon(rect(), 0.5));
+        assert_eq!(scene.icon_count(), 1);
     }
 
     #[test]

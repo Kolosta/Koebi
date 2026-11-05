@@ -328,8 +328,13 @@ impl Renderer2D {
     /// Sets the icons [`crate::IconPrimitive::icon`] numbers refer to: `koebi_svg` icons packed
     /// in order. They are uploaded by the next [`Renderer2D::prepare`]; until then, and without
     /// a set, icons draw nothing.
-    pub fn set_icons(&mut self, icons: &Packed) {
-        self.icon_store.set(icons);
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidArgument`], keeping the current set, for a set whose offsets or
+    /// counts leave it ([`Packed::validate`]): the shader could otherwise read past the data.
+    pub fn set_icons(&mut self, icons: &Packed) -> Result<()> {
+        self.icon_store.set(icons)
     }
 
     /// How many icons the set given to [`Renderer2D::set_icons`] holds.
@@ -368,7 +373,7 @@ impl Renderer2D {
             .upload(&self.device, scene.fill_instances(), frame_index)?;
         self.icons
             .upload(&self.device, scene.icon_instances(), frame_index)?;
-        self.icon_store.record_upload(&self.device, encoder)?;
+        self.icon_store.record_upload(&self.device, encoder);
         if scene.glyph_count() == 0 {
             return Ok(());
         }

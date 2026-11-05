@@ -418,7 +418,9 @@ mod tests {
         let mut renderer =
             koebi_render::Renderer2D::new(&gpu.device, format).expect("renderer creation");
         renderer.set_fonts(Fonts::with_embedded());
-        renderer.set_icons(koebi_icons::packed());
+        renderer
+            .set_icons(koebi_icons::packed())
+            .expect("a valid icon set");
         gpu.render_offscreen(
             koebi_core::Extent::new(960, 680),
             format,

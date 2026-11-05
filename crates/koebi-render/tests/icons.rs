@@ -268,3 +268,47 @@ fn icons_turn_clockwise_about_their_center() {
     assert_matches(&image, 4, 4, 24, &turned, "a quarter turn");
     gpu.assert_no_validation_errors();
 }
+
+#[test]
+fn a_renderer_draws_the_set_it_was_given_last_and_refuses_corrupt_ones() {
+    let Some(gpu) =
+        gpu_or_skip("a_renderer_draws_the_set_it_was_given_last_and_refuses_corrupt_ones")
+    else {
+        return;
+    };
+    let icons = icons();
+    // Icon 0 is the cross (its center covered), then the bars (their left third empty).
+    let first = pack(&[&icons[0]]);
+    let second = pack(&[&icons[6]]);
+    let format = koebi_gpu::TextureFormat::Rgba8Unorm;
+    let mut renderer = koebi_render::Renderer2D::new(&gpu.device, format).expect("renderer");
+    let mut scene = Scene::new();
+    scene.push_icon(&IconPrimitive::tinted(
+        square(0.0, 0.0, 24.0),
+        0,
+        Color::WHITE,
+    ));
+    let frame = |renderer: &mut koebi_render::Renderer2D, index: usize| {
+        gpu.render_offscreen(Extent::new(24, 24), format, |encoder, target| {
+            renderer
+                .render(encoder, target, &scene, index, 1.0)
+                .expect("render");
+        })
+        .expect("offscreen rendering")
+    };
+    renderer.set_icons(&first).expect("a valid set");
+    assert_pixel(&frame(&mut renderer, 0), 12, 12, [255, 255, 255, 255], 0);
+    // Drawn again from the uploaded set, in the other frame slot.
+    assert_pixel(&frame(&mut renderer, 1), 12, 12, [255, 255, 255, 255], 0);
+    // Replaced: the bars, whose middle is empty.
+    renderer.set_icons(&second).expect("a valid set");
+    let replaced = frame(&mut renderer, 0);
+    assert_pixel(&replaced, 3, 12, [0, 0, 0, 0], 0);
+    assert_pixel(&replaced, 21, 12, [255, 255, 255, 255], 0);
+    // A set whose records leave it is refused, and the last one stays.
+    let mut corrupt = first.clone();
+    corrupt.data[1][1] = 1e6;
+    assert!(renderer.set_icons(&corrupt).is_err());
+    assert_pixel(&frame(&mut renderer, 1), 21, 12, [255, 255, 255, 255], 0);
+    gpu.assert_no_validation_errors();
+}

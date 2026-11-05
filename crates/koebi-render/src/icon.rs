@@ -11,9 +11,9 @@
 use koebi_core::{Color, Extent, Rect};
 use koebi_gpu::{
     AddressMode, BindGroup, BindGroupDesc, BindGroupLayout, BindGroupLayoutDesc, BindingResource,
-    BindingType, Buffer, BufferDesc, BufferTexels, BufferUsage, CommandEncoder, Device,
-    FRAMES_IN_FLIGHT, FilterMode, MemoryLocation, Pod, Result, Sampler, SamplerDesc, Texture,
-    TextureDesc, TextureFormat, TextureRegion, TextureState, TextureUsage,
+    BindingType, BufferDesc, BufferTexels, BufferUsage, CommandEncoder, Device, Error, FilterMode,
+    MemoryLocation, Pod, Result, Sampler, SamplerDesc, Texture, TextureDesc, TextureFormat,
+    TextureRegion, TextureState, TextureUsage,
 };
 use koebi_svg::pack::Packed;
 
@@ -139,9 +139,6 @@ pub(crate) struct IconStore {
     bind_group: Option<BindGroup>,
     /// The set waiting to be uploaded, padded to whole rows.
     pending: Vec<[f32; 4]>,
-    /// The buffer of the last upload, and the frames it must still live: frames in flight may
-    /// not have copied it yet.
-    staging: Option<(Buffer, usize)>,
     icons: usize,
 }
 
@@ -161,7 +158,6 @@ impl IconStore {
             texture: None,
             bind_group: None,
             pending: Vec::new(),
-            staging: None,
             icons: 0,
         })
     }
@@ -181,9 +177,13 @@ impl IconStore {
         self.icons
     }
 
-    /// Replaces the set; it is uploaded by the next [`IconStore::record_upload`]. Frames in
-    /// flight keep the previous texture alive through their bind group.
-    pub(crate) fn set(&mut self, packed: &Packed) {
+    /// Replaces the set, once checked; it is uploaded by the next
+    /// [`IconStore::record_upload`]. The device destroys the previous texture and bind group
+    /// once the frames in flight that use them complete.
+    pub(crate) fn set(&mut self, packed: &Packed) -> Result<()> {
+        packed
+            .validate()
+            .map_err(|problem| Error::InvalidArgument(format!("icon set: {problem}")))?;
         self.pending.clear();
         self.pending.extend_from_slice(&packed.data);
         let width = DATA_WIDTH as usize;
@@ -192,34 +192,27 @@ impl IconStore {
         self.icons = packed.icons;
         self.texture = None;
         self.bind_group = None;
+        Ok(())
     }
 
-    /// Records the upload of a new set before the render pass, with the frame slot being
-    /// prepared. Does nothing once the set is uploaded, except release the staging buffer when
-    /// no frame in flight can still read it.
-    pub(crate) fn record_upload(
-        &mut self,
-        device: &Device,
-        encoder: &mut CommandEncoder<'_>,
-    ) -> Result<()> {
-        if let Some((_, frames)) = self.staging.as_mut() {
-            // Each prepare reuses a slot the GPU finished with: after a full round, the copy
-            // has completed.
-            *frames = frames.saturating_sub(1);
-            if *frames == 0 {
-                self.staging = None;
-            }
-        }
+    /// Records the upload of a new set before the render pass. Does nothing once the set is
+    /// uploaded. A set the device cannot hold is dropped with a warning, and icons draw nothing:
+    /// the rest of the frame still draws.
+    pub(crate) fn record_upload(&mut self, device: &Device, encoder: &mut CommandEncoder<'_>) {
         if self.pending.is_empty() {
-            return Ok(());
+            return;
         }
+        if let Err(error) = self.upload(device, encoder) {
+            koebi_core::warn!("the icon set cannot be uploaded, icons are not drawn: {error}");
+        }
+        // Uploaded or dropped: the copy is not kept.
+        self.pending = Vec::new();
+    }
+
+    fn upload(&mut self, device: &Device, encoder: &mut CommandEncoder<'_>) -> Result<()> {
+        // `set` checked the size: at most 2^24 texels, 4096 rows.
         let rows = u32::try_from(self.pending.len() / DATA_WIDTH as usize)
-            .map_err(|_| koebi_gpu::Error::InvalidArgument("icon set too large".into()))?;
-        if rows > DATA_WIDTH {
-            return Err(koebi_gpu::Error::InvalidArgument(format!(
-                "icon set too large: {rows} rows of {DATA_WIDTH} texels"
-            )));
-        }
+            .map_err(|_| Error::InvalidArgument("icon set too large".into()))?;
         let texture = device.create_texture(&TextureDesc {
             label: "icons",
             extent: Extent::new(DATA_WIDTH, rows),
@@ -258,8 +251,8 @@ impl IconStore {
         );
         self.texture = Some(texture);
         self.bind_group = Some(bind_group);
-        self.staging = Some((staging, FRAMES_IN_FLIGHT + 1));
-        self.pending.clear();
+        // Dropped now, destroyed by the device once the submission copying it completes.
+        drop(staging);
         Ok(())
     }
 }

@@ -64,8 +64,11 @@ curves and gradient stops, as `vec4`) are uploaded once into an RGBA32F texture 
 read with `texelFetch` through the bind group layout the glyph atlas already uses. A storage
 buffer would read the same data, but a bind group would have to keep a buffer alive while frames
 in flight use it, which `koebi-gpu` only does for textures today; the texture costs nothing more.
-The shader draws nothing for an icon number past the set and bounds every loop, so a scene can
-never make it read outside the data.
+`Renderer2D::set_icons` validates a set before taking it (`Packed::validate`: every offset and
+count inside the data, at most 2²⁴ texels and 65 536 curves per icon), the shader guards every read
+against the length in the header and draws nothing for an icon number past the set: neither a set
+built by hand nor a scene can make it read outside the data. The format is a data format only:
+`koebi-gpu` refuses it as a render target, which Vulkan does not require it to be.
 
 **Recoloring.** An instance gives a color per zone, or none to keep the file's. The interface
 maps roles to colors (`IconStyle::ink`): primary zones take the component's icon color for its

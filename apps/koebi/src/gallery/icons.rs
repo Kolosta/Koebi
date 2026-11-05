@@ -170,7 +170,9 @@ mod tests {
             let format = koebi_gpu::TextureFormat::Rgba8Unorm;
             let mut renderer = Renderer2D::new(&gpu.device, format).expect("renderer creation");
             renderer.set_fonts(Fonts::with_embedded());
-            renderer.set_icons(koebi_icons::packed());
+            renderer
+                .set_icons(koebi_icons::packed())
+                .expect("a valid icon set");
             gpu.render_offscreen(Extent::new(720, 600), format, |encoder, target| {
                 renderer
                     .render(encoder, target, &scene, 0, 1.0)

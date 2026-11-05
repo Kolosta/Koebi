@@ -46,7 +46,7 @@ pub(crate) fn render_with_icons(
 ) -> Image {
     let format = TextureFormat::Rgba8Unorm;
     let mut renderer = Renderer2D::new(&gpu.device, format).expect("renderer creation");
-    renderer.set_icons(icons);
+    renderer.set_icons(icons).expect("a valid icon set");
     gpu.render_offscreen(extent, format, |encoder, target| {
         renderer
             .render(encoder, target, scene, 0, scale_factor)

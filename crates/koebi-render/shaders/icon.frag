@@ -29,15 +29,22 @@ layout(location = 10) flat in vec4 v_color7;
 
 layout(location = 0) out vec4 out_color;
 
-// Texels per row of the data texture (DATA_WIDTH in icon.rs).
-const int WIDTH = 4096;
+// Texels per row of the data texture (DATA_WIDTH in icon.rs): a power of two.
+const int WIDTH_SHIFT = 12;
 // Bounds on what one icon may read, against a corrupt set: far above what icons hold.
 const int MAX_LAYERS = 1024;
 const int MAX_CURVES = 65536;
 const int MAX_STOPS = 256;
 
+// How many texels the set holds, from its header: no read goes past them.
+int g_length = 1;
+
 vec4 fetch(int index) {
-    return texelFetch(icons, ivec2(index % WIDTH, index / WIDTH), 0);
+    // The renderer validates the set (`Packed::validate`); this guards against the rest.
+    if (uint(index) >= uint(g_length)) {
+        return vec4(0.0);
+    }
+    return texelFetch(icons, ivec2(index & ((1 << WIDTH_SHIFT) - 1), index >> WIDTH_SHIFT), 0);
 }
 
 vec4 zone_color(int zone) {
@@ -53,11 +60,10 @@ vec4 zone_color(int zone) {
     }
 }
 
-// A stop's color, its zone recolored when the instance says so: the given color, its alpha
-// multiplied by the stop's own.
-vec4 stop_color(int stop, int mask) {
-    vec4 color = fetch(stop);
-    int zone = int(fetch(stop + 1).y);
+// A stop's color (its texels `color` and `meta`), its zone recolored when the instance says so:
+// the given color, its alpha multiplied by the stop's own.
+vec4 stop_color(vec4 color, vec4 meta, int mask) {
+    int zone = int(meta.y);
     if (zone >= 0 && zone < 8 && ((mask >> zone) & 1) != 0) {
         vec4 given = zone_color(zone);
         color = vec4(given.rgb, given.a * color.a);
@@ -134,23 +140,25 @@ float coverage(int first, int count, bool even_odd, vec2 p, float scale) {
 vec4 paint(int kind, vec4 transform_x, vec4 transform_y, vec2 p, int mask) {
     int first = int(transform_x.w);
     int count = min(int(transform_y.w), MAX_STOPS);
+    vec4 first_meta = fetch(first + 1);
+    vec4 previous = stop_color(fetch(first), first_meta, mask);
     if (kind == 0 || count <= 0) {
-        return stop_color(first, mask);
+        return previous;
     }
     vec2 q = vec2(
         transform_x.x * p.x + transform_x.y * p.y + transform_x.z,
         transform_y.x * p.x + transform_y.y * p.y + transform_y.z
     );
     float t = clamp(kind == 2 ? length(q) : q.x, 0.0, 1.0);
-    vec4 previous = stop_color(first, mask);
-    float previous_offset = fetch(first + 1).x;
+    float previous_offset = first_meta.x;
     if (t <= previous_offset) {
         return previous;
     }
     for (int s = 1; s < count; ++s) {
         int stop = first + 2 * s;
-        vec4 next = stop_color(stop, mask);
-        float offset = fetch(stop + 1).x;
+        vec4 meta = fetch(stop + 1);
+        vec4 next = stop_color(fetch(stop), meta, mask);
+        float offset = meta.x;
         if (t <= offset) {
             float share = clamp((t - previous_offset) / max(offset - previous_offset, 1e-6), 0.0, 1.0);
             return mix(previous, next, share);
@@ -162,10 +170,13 @@ vec4 paint(int kind, vec4 transform_x, vec4 transform_y, vec2 p, int mask) {
 }
 
 void main() {
-    vec4 header = fetch(0);
+    vec4 header = texelFetch(icons, ivec2(0, 0), 0);
+    g_length = int(header.y);
     int icon = int(v_params.x);
+    // Past the set: nothing (no discard, which slows tiled GPUs down).
     if (float(icon) >= header.x) {
-        discard;
+        out_color = vec4(0.0);
+        return;
     }
     vec4 record = fetch(1 + icon);
     int first_layer = int(record.x);
