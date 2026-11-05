@@ -13,8 +13,9 @@ use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    ColorField, ColorFieldState, ColorPicker, ColorPickerState, Input, MENU_CLOSE, PickerShape,
-    ScreenPixels, Styles, Transparency, Ui, UiState, WidgetId,
+    ColorField, ColorFieldState, ColorPicker, ColorPickerState, Input, MENU_CLOSE,
+    OPERATION_CANCEL, OPERATION_CONFIRM, PickerShape, ScreenPixels, Styles, Transparency, Ui,
+    UiState, WidgetId,
 };
 
 /// Anti-aliased edges may differ by a few units between drivers.
@@ -173,7 +174,7 @@ fn a_press_in_the_square_sets_saturation_and_value_and_a_drag_follows_hidden() {
 }
 
 #[test]
-fn escape_during_a_drag_brings_the_color_back() {
+fn the_operation_s_cancel_during_a_drag_brings_the_color_back() {
     let mut harness = Harness::new(PickerShape::SquareSv);
     let before = harness.color;
     harness.frame();
@@ -184,11 +185,46 @@ fn escape_during_a_drag_brings_the_color_back() {
     harness.input.primary_button(true, at);
     harness.frame();
     assert_ne!(harness.color, before);
-    harness.input.trigger(&MENU_CLOSE);
+    // Escape, Delete or the secondary button: the keymap turns them into the cancel.
+    harness.input.trigger(&OPERATION_CANCEL);
     let (changed, _) = harness.frame();
     assert!(changed);
     let back = harness.color.to_rgba8();
     assert_eq!(back, before.to_rgba8());
+}
+
+#[test]
+fn strips_cancel_and_confirm_with_the_operation_s_keys() {
+    let mut harness = Harness::new(PickerShape::SquareSv);
+    harness.frame();
+    let style = harness.styles.color_picker;
+    let strip = Rect::from_origin_size(
+        Vec2::new(harness.area().max.x + style.gap, harness.area().min.y),
+        Vec2::new(style.strip_width, style.area_size),
+    );
+    let before = harness.hsv().h;
+    // A drag of the hue strip, cancelled: the hue comes back.
+    let at = Vec2::new(strip.center().x, strip.min.y + strip.height() * 0.25);
+    harness.input.pointer_moved(at);
+    harness.frame();
+    harness.input.primary_button(true, at);
+    harness.frame();
+    assert!(close(harness.hsv().h, 0.25));
+    harness.input.trigger(&OPERATION_CANCEL);
+    harness.frame();
+    assert!(close(harness.hsv().h, before), "{:?}", harness.hsv());
+    harness.input.primary_button(false, at);
+    harness.frame();
+    // Another drag, confirmed: the hue stays, and moving no longer changes it.
+    harness.input.primary_button(true, at);
+    harness.frame();
+    harness.input.trigger(&OPERATION_CONFIRM);
+    harness.frame();
+    harness.input.pointer_moved_by(Vec2::new(0.0, 40.0));
+    harness.frame();
+    assert!(close(harness.hsv().h, 0.25), "{:?}", harness.hsv());
+    harness.input.primary_button(false, at);
+    harness.frame();
 }
 
 #[test]

@@ -18,10 +18,10 @@ use koebi_render::{LinePrimitive, RectPrimitive};
 use koebi_tokens::component;
 
 use crate::id::WidgetId;
+use crate::operation::OperationEnd;
 use crate::ui::Ui;
 use crate::widgets::button::{Button, ButtonGroup, GroupCell};
 use crate::widgets::field_group::FieldGroup;
-use crate::widgets::menu::MENU_CLOSE;
 use crate::widgets::number_field::NumberField;
 
 /// How many segments draw the curve.
@@ -402,6 +402,7 @@ fn show_graph(
                 range,
             });
     } else if response.secondary_pressed
+        && state.drag.is_none()
         && let Some(index) = near
         && keys.remove(index)
     {
@@ -409,9 +410,12 @@ fn show_graph(
         changed = true;
     }
     if let Some(drag) = state.drag {
-        if ui.triggered(&MENU_CLOSE) {
-            ui.consume(&MENU_CLOSE);
+        // The operation's keys: its cancel brings the key back, its confirm keeps it.
+        let end = ui.operation();
+        if end == Some(OperationEnd::Cancelled) {
             changed |= keys.move_to(drag.index, drag.from.x, drag.from.y);
+            state.drag = None;
+        } else if end == Some(OperationEnd::Confirmed) {
             state.drag = None;
         } else if response.held
             && let Some(pointer) = pointer

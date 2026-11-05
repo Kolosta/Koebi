@@ -5,6 +5,7 @@ use koebi_core::{Rect, Vec2};
 
 use super::*;
 use crate::PointerButton;
+use crate::operation::OPERATION_CANCEL;
 use crate::widgets::text_field::TEXT_CONFIRM;
 
 /// One frame of a 0..10 field with a bar, drawn twice like the application's frames after a
@@ -33,7 +34,7 @@ fn the_pointer_comes_back_right_when_a_frame_is_drawn_twice() {
         bar_twice(&mut harness, &mut value);
         let dragged = harness.state.pointer_lock().expect("locked");
         if cancel {
-            harness.input.trigger(&NUMBER_CANCEL);
+            harness.input.trigger(&OPERATION_CANCEL);
             bar_twice(&mut harness, &mut value);
             assert_eq!(harness.state.pointer_lock(), Some(press));
         } else {
@@ -216,7 +217,7 @@ fn escape_before_the_threshold_types_nothing_and_right_clicks_open_no_menu() {
     harness.show(&mut value);
     harness.input.primary_button(true, field().center());
     harness.show(&mut value);
-    harness.input.trigger(&NUMBER_CANCEL);
+    harness.input.trigger(&OPERATION_CANCEL);
     harness.show(&mut value);
     harness.input.primary_button(false, field().center());
     assert!(!harness.show(&mut value).editing);
@@ -227,6 +228,8 @@ fn escape_before_the_threshold_types_nothing_and_right_clicks_open_no_menu() {
     harness
         .input
         .button(PointerButton::Secondary, true, field().center());
+    // The keymap turns the right click into the operation's cancel.
+    harness.input.trigger(&OPERATION_CANCEL);
     let cancelled = harness.show(&mut value);
     assert!(cancelled.cancelled() && !cancelled.response.secondary_pressed);
 }

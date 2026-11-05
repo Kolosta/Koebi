@@ -30,13 +30,11 @@ mod tests;
 
 use core::time::Duration;
 
-use koebi_core::input::{Key, ModifierKey, Modifiers, MouseButton};
+use koebi_core::input::{Key, ModifierKey, Modifiers};
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
 use koebi_design::value::Curve;
-use koebi_input::{
-    ActionDef, ActionGroup, ActionKind, ButtonTrigger, Context, Hint, ModifierRule, Shortcut,
-};
+use koebi_input::{ActionDef, ActionGroup, ActionKind, Context, Hint, ModifierRule, Shortcut};
 use koebi_tokens::{component, semantic};
 
 use crate::icon::Icon;
@@ -48,9 +46,6 @@ pub use state::ListState;
 
 /// A list: its keys apply where the pointer is over it.
 pub const LIST: Context = Context::new("list");
-
-/// Rows being dragged: their keys apply wherever the pointer is.
-pub const LIST_DRAG: Context = Context::new("list.drag");
 
 /// Selects the row below the active one.
 pub static LIST_NEXT: ActionDef = ActionDef {
@@ -137,22 +132,6 @@ pub static LIST_SELECT_ALL: ActionDef = ActionDef {
     hint: Some(Hint::new(ActionKind::Select, 6)),
 };
 
-/// Cancels the drag in progress.
-pub static LIST_DRAG_CANCEL: ActionDef = ActionDef {
-    id: "list.cancel-drag",
-    label: "Cancel drag",
-    description: "Cancels the drag in progress: nothing moves.",
-    context: LIST_DRAG,
-    defaults: &[
-        Shortcut::key(Key::Escape),
-        Shortcut::key(Key::Delete),
-        Shortcut::button(MouseButton::Right, ButtonTrigger::Press),
-    ],
-    repeats: false,
-    when: None,
-    hint: Some(Hint::new(ActionKind::Confirm, 8)),
-};
-
 /// The actions of lists, for the keymap.
 pub static LIST_ACTIONS: ActionGroup = ActionGroup {
     name: "Lists",
@@ -164,7 +143,6 @@ pub static LIST_ACTIONS: ActionGroup = ActionGroup {
         &LIST_UNFOLD,
         &LIST_FOLD,
         &LIST_SELECT_ALL,
-        &LIST_DRAG_CANCEL,
     ],
 };
 

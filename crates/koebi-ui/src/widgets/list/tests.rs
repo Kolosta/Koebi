@@ -684,7 +684,7 @@ fn dragging_a_row_drops_it_where_the_preview_shows() {
     // The drop line or frame, and the label near the pointer, are drawn.
     let mut chain = Vec::new();
     harness.state.chain_at(None, &mut chain);
-    assert_eq!(chain, [LIST_DRAG]);
+    assert_eq!(chain, [crate::OPERATION]);
     harness.input.primary_button(false, into_lights);
     let response = harness.frame();
     assert_eq!(response.dropped, Some(DropPlace::Into(3)));
@@ -700,7 +700,7 @@ fn escape_cancels_a_drag_and_the_release_moves_nothing() {
     let mut harness = Harness::new(ListOptions::TREE);
     let into_lights = Vec2::new(150.0, 50.0);
     harness.drag_to(Harness::row(1), into_lights);
-    harness.input.trigger(&LIST_DRAG_CANCEL);
+    harness.input.trigger(&crate::OPERATION_CANCEL);
     harness.frame();
     assert!(!harness.list.is_dragging());
     harness.input.primary_button(false, into_lights);

@@ -67,12 +67,11 @@ pub(crate) static GROUP: ActionGroup = ActionGroup {
 };
 
 /// Every action group of the application, for the keymap.
-pub(crate) static GROUPS: [&ActionGroup; 10] = [
+pub(crate) static GROUPS: [&ActionGroup; 9] = [
     &GROUP,
     &koebi_ui::MENU_ACTIONS,
     &koebi_ui::TEXT_ACTIONS,
-    &koebi_ui::NUMBER_ACTIONS,
-    &koebi_ui::WORKSPACE_ACTIONS,
+    &koebi_ui::OPERATION_ACTIONS,
     &koebi_ui::LIST_ACTIONS,
     &crate::editors::viewport::ACTIONS,
     &crate::editors::outliner::ACTIONS,
@@ -83,7 +82,7 @@ pub(crate) static GROUPS: [&ActionGroup; 10] = [
 /// Where the contexts of the shortcuts lie, for the shortcut editor and its conflicts: the
 /// window holds the workspace, which holds the editors; lists lie in any zone. Menus, fields
 /// being edited and operations take the whole input while they last: they never meet a zone.
-pub(crate) static CONTEXTS: [ContextInfo; 12] = [
+pub(crate) static CONTEXTS: [ContextInfo; 10] = [
     ContextInfo {
         context: APP,
         label: "Application",
@@ -130,18 +129,8 @@ pub(crate) static CONTEXTS: [ContextInfo; 12] = [
         within: Within::Root,
     },
     ContextInfo {
-        context: koebi_ui::NUMBER,
-        label: "Editing a number",
-        within: Within::Root,
-    },
-    ContextInfo {
-        context: koebi_ui::LIST_DRAG,
-        label: "Dragging rows",
-        within: Within::Root,
-    },
-    ContextInfo {
-        context: koebi_ui::WORKSPACE_OPERATION,
-        label: "Workspace operations",
+        context: koebi_ui::OPERATION,
+        label: "Operations in progress (drags, resizes, picks)",
         within: Within::Root,
     },
 ];
@@ -319,11 +308,12 @@ mod tests {
             actions(Key::Down, Modifiers::NONE, &[APP]),
             Vec::<&str>::new()
         );
-        // A drag takes the keyboard: Escape cancels it wherever the pointer is.
-        let dragging = [koebi_ui::LIST_DRAG];
+        // An operation takes the keyboard: Escape cancels it wherever the pointer is, whatever
+        // drags or resizes.
+        let operating = [koebi_ui::OPERATION];
         assert_eq!(
-            actions(Key::Escape, Modifiers::NONE, &dragging),
-            ["list.cancel-drag"]
+            actions(Key::Escape, Modifiers::NONE, &operating),
+            ["operation.cancel"]
         );
     }
 

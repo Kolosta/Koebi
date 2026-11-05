@@ -33,7 +33,11 @@ koebi_design::tokens! {
         Color -> semantic::STATIC_TEXT_COLOR_BLACK;
     /// Color picker: width of the outline around the marks.
     COLOR_PICKER_MARKER_OUTLINE_WIDTH_DEFAULT = "color-picker.marker.outline.width.default":
-        Dimension = px(1.0), range(0.5, 3.0);
+        Dimension = px(0.75), range(0.25, 3.0);
+    /// Color picker: width of the white ring marking the color on the area, between its two
+    /// outlines.
+    COLOR_PICKER_MARKER_RING_WIDTH_DEFAULT = "color-picker.marker.ring.width.default":
+        Dimension = px(1.5), range(0.5, 6.0);
     /// Color picker: depth of the triangles marking a strip, pointing inward.
     COLOR_PICKER_ARROW_SIZE_DEFAULT = "color-picker.arrow.size.default": Dimension = px(7.0),
         range(3.0, 16.0);

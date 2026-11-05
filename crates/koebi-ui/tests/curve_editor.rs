@@ -1,5 +1,5 @@
 //! The curve editor: keys added by a double click and the button, dragged and brought back by
-//! Escape, removed by the secondary button and the button, the ends kept; and its golden image.
+//! the operation's cancel, removed by the secondary button and the button, the ends kept; and its golden image.
 
 mod common;
 
@@ -12,7 +12,8 @@ use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    CurveEditor, CurveEditorState, Input, MENU_CLOSE, PointerButton, Styles, Ui, UiState, WidgetId,
+    CurveEditor, CurveEditorState, Input, OPERATION_CANCEL, PointerButton, Styles, Ui, UiState,
+    WidgetId,
 };
 
 /// Anti-aliased edges may differ by a few units between drivers.
@@ -140,7 +141,7 @@ fn a_double_click_adds_a_key_that_drags_and_escape_brings_back() {
     assert!(harness.key(1).0 < 1.0);
     assert!(harness.curve.is_valid());
     // Escape brings it back where the drag started.
-    harness.input.trigger(&MENU_CLOSE);
+    harness.input.trigger(&OPERATION_CANCEL);
     let (changed, _) = harness.frame();
     assert!(changed);
     assert!(close(harness.key(1), (0.3, 0.7)), "{:?}", harness.key(1));

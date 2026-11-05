@@ -20,15 +20,17 @@ mod preview;
 
 use core::time::Duration;
 
-use koebi_core::input::{CursorShape, Key, MouseButton};
+use koebi_core::input::CursorShape;
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
-use koebi_input::{ActionDef, ActionGroup, ActionKind, ButtonTrigger, Context, Hint, Shortcut};
+use koebi_input::Context;
 use koebi_tokens::{component, semantic};
 use koebi_workspace::{AreaId, EditorId, Layout, Line, Orientation, Workspace};
 
 use crate::bar::BarLayout;
 use crate::id::WidgetId;
+pub(crate) use crate::operation::OPERATION_CONFIRM;
+use crate::operation::{OPERATION, OPERATION_CANCEL};
 use crate::ui::Ui;
 use crate::widgets::{MenuItem, MenuState};
 use area::{AreaParts, TabPart};
@@ -37,43 +39,6 @@ use geometry::{Frame, Segment, segments};
 
 /// The workspace: its gutters and areas.
 pub const WORKSPACE: Context = Context::new("workspace");
-
-/// A resize, split or join in progress: its keys apply wherever the pointer is.
-pub const WORKSPACE_OPERATION: Context = Context::new("workspace.operation");
-
-/// Cancels the operation in progress.
-pub static OPERATION_CANCEL: ActionDef = ActionDef {
-    id: "workspace.cancel",
-    label: "Cancel",
-    description: "Cancels the resize, split or join in progress and restores the areas.",
-    context: WORKSPACE_OPERATION,
-    defaults: &[
-        Shortcut::key(Key::Escape),
-        Shortcut::key(Key::Delete),
-        Shortcut::button(MouseButton::Right, ButtonTrigger::Press),
-    ],
-    repeats: false,
-    when: None,
-    hint: Some(Hint::new(ActionKind::Confirm, 8)),
-};
-
-/// Applies the split or join previewed under the pointer.
-pub static OPERATION_CONFIRM: ActionDef = ActionDef {
-    id: "workspace.confirm",
-    label: "Confirm",
-    description: "Applies the split or join previewed under the pointer.",
-    context: WORKSPACE_OPERATION,
-    defaults: &[Shortcut::key(Key::Enter), Shortcut::key(Key::KeypadEnter)],
-    repeats: false,
-    when: None,
-    hint: Some(Hint::new(ActionKind::Confirm, 9)),
-};
-
-/// The actions of the workspace, for the keymap.
-pub static WORKSPACE_ACTIONS: ActionGroup = ActionGroup {
-    name: "Workspace",
-    actions: &[&OPERATION_CANCEL, &OPERATION_CONFIRM],
-};
 
 const AREA_MENU: WidgetId = WidgetId::new("workspace-area-menu");
 
@@ -397,8 +362,9 @@ impl Ui<'_> {
         let frame = Frame::new(area, style.gap);
         view.refresh(workspace.layout());
         view.tick(self.input().time());
+        // The operation's keys while it lasts; its confirm applies what is previewed, below.
         if view.operation.is_some() {
-            self.grab(WORKSPACE_OPERATION);
+            self.grab(OPERATION);
             if self.triggered(&OPERATION_CANCEL) {
                 view.cancel(workspace);
             }
