@@ -34,7 +34,7 @@ koebi_design::tokens! {
         px(3.0), range(0.0, 20.0);
     /// Scrollbar: overlay width, hovered.
     SCROLLBAR_OVERLAY_WIDTH_HOVER = "scrollbar.overlay.width.hover": Dimension =
-        px(5.0), range(0.0, 20.0);
+        px(5.0), range(1.0, 20.0);
     /// Scrollbar: overlay proximity.
     SCROLLBAR_OVERLAY_PROXIMITY_DEFAULT = "scrollbar.overlay.proximity.default": Dimension =
         px(48.0), range(0.0, 200.0);

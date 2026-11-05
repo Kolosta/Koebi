@@ -18,7 +18,7 @@ koebi_design::tokens! {
     /// Text field: space between the icon and the text.
     TEXT_FIELD_GAP_DEFAULT = "text-field.gap.default": Dimension = px(4.0), range(0.0, 24.0);
     /// Text field: icon size.
-    TEXT_FIELD_ICON_SIZE = "text-field.icon.size": Dimension = px(14.0), range(0.0, 64.0);
+    TEXT_FIELD_ICON_SIZE = "text-field.icon.size": Dimension = px(14.0), range(4.0, 64.0);
     /// Text field: background color.
     TEXT_FIELD_BACKGROUND_COLOR_DEFAULT = "text-field.background.color.default": Color ->
         semantic::BACKGROUND_APP_FRAME;
@@ -71,7 +71,7 @@ koebi_design::tokens! {
     TEXT_FIELD_CARET_COLOR_DEFAULT = "text-field.caret.color.default": Color ->
         semantic::TEXT_COLOR_PRIMARY_DEFAULT;
     /// Text field: caret width.
-    TEXT_FIELD_CARET_WIDTH = "text-field.caret.width": Dimension = px(1.0), range(0.0, 8.0);
+    TEXT_FIELD_CARET_WIDTH = "text-field.caret.width": Dimension = px(1.0), range(0.5, 8.0);
     /// Text field: time the caret stays shown, then hidden, while blinking; below 50 ms (0 by
     /// default) the caret stays shown.
     TEXT_FIELD_CARET_BLINK_INTERVAL = "text-field.caret.blink-interval": Duration = ms(0),

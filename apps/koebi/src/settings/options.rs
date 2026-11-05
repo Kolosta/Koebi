@@ -1,8 +1,9 @@
-//! Options of the settings: expandable panels editing a numeric token.
+//! Options of the settings: expandable panels editing a token, whatever its kind
+//! ([`super::values`]: numbers, colors, curves, cubic Béziers, font families).
 //!
-//! The header shows the option's name and, at its end, its value for the whole application. The
-//! panel opens on the value for the application and for the current theme, side by side, then on
-//! how the token gets its value. Beside every input lies a place for the dot bringing the value
+//! The header shows the option's name and, at its end, its value for the whole application (a
+//! picture of it for a curve). The panel opens on the value for the application and for the
+//! current theme, side by side, then on how the token gets its value. Beside every input lies a place for the dot bringing the value
 //! back ([`Ui::reset_dot`]): it stays empty until the value is changed, and takes no other room
 //! then.
 //!
@@ -11,21 +12,21 @@
 //! and the current theme; the secondary button opens a menu bringing back those of one scope.
 
 use core::fmt::Write as _;
-use core::time::Duration;
 
-use koebi_core::expr::Unit;
+use koebi_core::expr::{MILLISECOND, PIXEL, Unit};
 use koebi_core::{Color, Rect, Vec2};
-use koebi_design::value::Definition;
+use koebi_design::kind::KindId;
 use koebi_design::value::Value;
 use koebi_design::{ChainRole, ChainStep, DesignSystem, Layers, Origin, Scope, TokenId};
 use koebi_render::RectPrimitive;
 use koebi_tokens::semantic;
 use koebi_ui::{
-    Align, BarMapping, CollapsiblePanel, CollapsiblePanelState, MenuItem, MenuState, NumberField,
-    PointerButton, Ui, WidgetId,
+    Align, CollapsiblePanel, CollapsiblePanelState, MenuItem, MenuState, PointerButton, Ui,
+    WidgetId,
 };
 
 use super::Stack;
+use super::values::{self, Editors, Shape, Slot};
 
 /// The width of an input in the header of an option.
 const HEADER_INPUT: f32 = 140.0;
@@ -46,6 +47,28 @@ pub(super) struct OptionDesc {
     pub(super) decimals: usize,
 }
 
+impl OptionDesc {
+    /// `token`, named `label`, its unit and decimals those of its kind: pixels with one decimal,
+    /// milliseconds, numbers with two decimals, integers and weights without.
+    pub(super) fn of(design: &DesignSystem, token: TokenId, label: &'static str) -> Self {
+        let kind = design
+            .info(token)
+            .map(koebi_design::schema::TokenInfo::kind);
+        let (unit, decimals) = match kind {
+            Some(KindId::Dimension) => (Some(&PIXEL), 1),
+            Some(KindId::Duration) => (Some(&MILLISECOND), 0),
+            Some(KindId::Number) => (None, 2),
+            _ => (None, 0),
+        };
+        Self {
+            token,
+            label,
+            unit,
+            decimals,
+        }
+    }
+}
+
 /// An option and what it keeps between frames.
 #[derive(Debug)]
 pub(super) struct OptionRow {
@@ -57,10 +80,12 @@ pub(super) struct OptionRow {
     /// The steps of the resolution chain, and the text of a value: reused from frame to frame.
     steps: Vec<ChainStep>,
     text: String,
+    /// What its editors keep, made the first time it shows.
+    editors: Option<Box<Editors>>,
 }
 
 impl OptionRow {
-    fn new(desc: OptionDesc) -> Self {
+    pub(super) fn new(desc: OptionDesc) -> Self {
         Self {
             desc,
             panel: CollapsiblePanelState::new(false),
@@ -68,7 +93,21 @@ impl OptionRow {
             menu: MenuState::new(),
             steps: Vec::new(),
             text: String::new(),
+            editors: None,
         }
+    }
+
+    /// What the option edits.
+    #[cfg(test)]
+    pub(super) fn desc(&self) -> OptionDesc {
+        self.desc
+    }
+
+    /// Opens or closes the option, and its resolution chain.
+    #[cfg(test)]
+    pub(super) fn set_open(&mut self, open: bool, chain: bool) {
+        self.panel.set_open(open);
+        self.chain.set_open(chain);
     }
 }
 
@@ -147,7 +186,7 @@ impl OptionGroup {
 }
 
 /// The side of the place for the dot bringing a value back.
-fn reset_slot(design: &DesignSystem) -> f32 {
+pub(super) fn reset_slot(design: &DesignSystem) -> f32 {
     design.get(semantic::SIZE_CONTROL_HEIGHT)
 }
 
@@ -193,7 +232,7 @@ const fn reset_items(application: bool, theme: bool) -> [MenuItem<'static>; 4] {
 }
 
 /// Which of `tokens` hold a change: for the application, for the current theme.
-fn changes(design: &DesignSystem, tokens: &[TokenId]) -> (bool, bool) {
+pub(super) fn changes(design: &DesignSystem, tokens: &[TokenId]) -> (bool, bool) {
     let changed = |scope| {
         tokens
             .iter()
@@ -218,7 +257,7 @@ fn reset_tokens(design: &mut DesignSystem, tokens: &[TokenId], reset: Reset) {
 /// The dot at the end of a header whose options edit `tokens`, shown in `area` while any of
 /// them holds a change: a click brings back every change, the secondary button opens `menu`,
 /// which brings back those of one scope or of both. Menus lie within `bounds`.
-fn header_dot(
+pub(super) fn header_dot(
     ui: &mut Ui<'_>,
     area: Rect,
     id: WidgetId,
@@ -251,7 +290,7 @@ fn header_dot(
 }
 
 /// Shows an option at the top of `area`, its menus within `bounds`. Returns the height it took.
-fn show_option(
+pub(super) fn show_option(
     ui: &mut Ui<'_>,
     area: Rect,
     id: WidgetId,
@@ -268,21 +307,49 @@ fn show_option(
         menu,
         steps,
         text,
+        editors,
         ..
     } = row;
+    let editors = editors.get_or_insert_with(Box::default);
     let shown = CollapsiblePanel::new(id, panel, desc.label)
         .trailing(HEADER_INPUT + gap + slot)
         .show(ui, area, |ui, rect| {
-            option_body(ui, rect, id, design, desc, chain, steps, text)
+            let mut parts = Parts {
+                chain,
+                steps,
+                text,
+                editors,
+            };
+            option_body(ui, rect, id, design, desc, &mut parts, bounds)
         });
     // Over the header, which would take the press otherwise: the application's value, then
     // the dot bringing back the option's changes.
     if let Some(trailing) = shown.trailing {
         let (field, dot) = field_and_dot(trailing, slot, gap);
-        scoped_field(ui, field, id.with(10), design, desc, Scope::Global);
+        let key = id.with(10);
+        values::editor(
+            ui,
+            field,
+            key,
+            design,
+            desc,
+            Slot::Header,
+            editors,
+            text,
+            bounds,
+        );
         header_dot(ui, dot, id.with(11), design, &[desc.token], menu, bounds);
     }
     shown.height
+}
+
+/// What an option's panel keeps: its resolution chain's panel and steps, a text reused from
+/// frame to frame, and the state of its editors.
+struct Parts<'a> {
+    chain: &'a mut CollapsiblePanelState,
+    steps: &'a mut Vec<ChainStep>,
+    text: &'a mut String,
+    editors: &'a mut Editors,
 }
 
 /// `rect` cut into the room of a field and, at its end, the place of a dot `slot` wide, `gap`
@@ -300,17 +367,21 @@ fn field_and_dot(rect: Rect, slot: f32, gap: f32) -> (Rect, Rect) {
 }
 
 /// The two columns of an option, and how its token gets its value. Returns the height used.
-#[allow(clippy::too_many_arguments, reason = "the parts of one option")]
 fn option_body(
     ui: &mut Ui<'_>,
     rect: Rect,
     id: WidgetId,
     design: &mut DesignSystem,
     desc: OptionDesc,
-    chain: &mut CollapsiblePanelState,
-    steps: &mut Vec<ChainStep>,
-    text: &mut String,
+    parts: &mut Parts<'_>,
+    bounds: Rect,
 ) -> f32 {
+    let Parts {
+        chain,
+        steps,
+        text,
+        editors,
+    } = parts;
     let padding = ui.styles().panel.padding;
     let row = design.get(semantic::SIZE_CONTROL_HEIGHT);
     let slot = reset_slot(design);
@@ -324,6 +395,7 @@ fn option_body(
         (left + width + COLUMN_GAP, Scope::ActiveTheme, Some(())),
     ];
     let top = rect.min.y;
+    let height = values::column_height(ui, design, Shape::of(design, desc.token));
     for (index, (x, scope, theme)) in columns.into_iter().enumerate() {
         let title = Rect::from_origin_size(Vec2::new(x, top), Vec2::new(width, row));
         text.clear();
@@ -337,14 +409,16 @@ fn option_body(
             text.push_str("Application");
         }
         ui.label(text, title, &font, secondary, Align::Start);
-        let input = Rect::from_origin_size(Vec2::new(x, top + row), Vec2::new(width, row));
+        let input = Rect::from_origin_size(Vec2::new(x, top + row), Vec2::new(width, height));
         let (field, dot) = field_and_dot(input, slot, inset);
+        let dot = Rect::from_min_max(dot.min, Vec2::new(dot.max.x, dot.min.y + row));
         let key = id.with(20 + index as u64);
-        scoped_field(ui, field, key, design, desc, scope);
+        let slot = Slot::Column(scope);
+        values::editor(ui, field, key, design, desc, slot, editors, text, bounds);
         scope_dot(ui, dot, key.with(1), design, desc, scope);
     }
     let gap = ui.styles().collapsible_panel.gap;
-    let below = top + 2.0 * row + gap;
+    let below = top + row + height + gap;
     let panel = Rect::from_min_max(Vec2::new(rect.min.x, below), rect.max);
     let shown = CollapsiblePanel::new(id.with(30), chain, "Resolution chain").show(
         ui,
@@ -357,77 +431,6 @@ fn option_body(
         },
     );
     below + shown.height - top
-}
-
-/// The value of `token`, as far as `scope` sees it, as a number.
-fn value_in(design: &DesignSystem, token: TokenId, scope: Scope) -> Option<f64> {
-    let layers = match scope {
-        Scope::Global => Layers::ALL,
-        Scope::ActiveTheme | Scope::Theme(_) => Layers::THEME.union(Layers::THEME_OVERRIDES),
-    };
-    let view = design.view(design.active_theme(), layers)?;
-    number_of(&view.value(token)?)
-}
-
-/// A value as a number: pixels, milliseconds or a plain number.
-fn number_of(value: &Value) -> Option<f64> {
-    match value {
-        Value::Dimension(number) | Value::Number(number) => Some(f64::from(*number)),
-        Value::Duration(duration) => Some(duration.as_secs_f64() * 1000.0),
-        Value::Integer(number) => Some(f64::from(*number)),
-        _ => None,
-    }
-}
-
-/// `number` as a value of the kind of `like`.
-fn value_like(like: &Value, number: f64) -> Option<Value> {
-    #[allow(
-        clippy::cast_possible_truncation,
-        reason = "token values, which their ranges keep inside f32 and i32"
-    )]
-    match like {
-        Value::Dimension(_) => Some(Value::Dimension(number as f32)),
-        Value::Number(_) => Some(Value::Number(number as f32)),
-        Value::Duration(_) => Some(Value::Duration(Duration::from_secs_f64(
-            number.max(0.0) / 1000.0,
-        ))),
-        Value::Integer(_) => Some(Value::Integer(number.round() as i32)),
-        _ => None,
-    }
-}
-
-/// The field of the option's value for `scope` in `rect`: a number field, on a bar when the
-/// token has a range.
-fn scoped_field(
-    ui: &mut Ui<'_>,
-    rect: Rect,
-    id: WidgetId,
-    design: &mut DesignSystem,
-    desc: OptionDesc,
-    scope: Scope,
-) {
-    let Some(mut number) = value_in(design, desc.token, scope) else {
-        return;
-    };
-    let mut field = NumberField::new(id, &mut number).decimals(desc.decimals);
-    if let Some(unit) = desc.unit {
-        field = field.unit(unit);
-    }
-    if let Some(range) = design.range(desc.token) {
-        field = field
-            .range(range.min(), range.max())
-            .bar(BarMapping::Linear);
-    }
-    if field.show(ui, rect).changed {
-        let like = design
-            .view(design.active_theme(), Layers::ALL)
-            .and_then(|view| view.value(desc.token));
-        if let Some(value) = like.and_then(|like| value_like(&like, number))
-            && let Err(error) = design.set_override(scope, desc.token, Definition::Value(value))
-        {
-            koebi_core::warn!("cannot change {}: {error}", desc.label);
-        }
-    }
 }
 
 /// The dot bringing back the option's value for `scope`, in `area` once `scope` changes it.
@@ -456,7 +459,13 @@ fn scope_dot(
 /// `value` as the option shows it.
 fn write_value(text: &mut String, value: Option<&Value>, desc: OptionDesc) {
     text.clear();
-    let Some(number) = value.and_then(number_of) else {
+    let Some(value) = value else {
+        return;
+    };
+    let Some(number) = values::number_of(value) else {
+        // Colors in hex, easings and curves as their definition, families by name.
+        // Writing into a `String` cannot fail.
+        let _infallible = write!(text, "{value}");
         return;
     };
     let decimals = desc.decimals;
@@ -580,28 +589,13 @@ mod tests {
     }
 
     #[test]
-    fn values_turn_into_numbers_and_back_by_kind() {
-        let cases = [
-            (Value::Dimension(4.0), 4.0),
-            (Value::Number(0.5), 0.5),
-            (Value::Duration(Duration::from_millis(350)), 350.0),
-            (Value::Integer(3), 3.0),
-        ];
-        for (value, number) in cases {
-            assert!((number_of(&value).unwrap() - number).abs() < 1e-3);
-            assert_eq!(value_like(&value, number), Some(value));
-        }
-        assert_eq!(number_of(&Value::Color(Color::WHITE)), None);
-        assert_eq!(value_like(&Value::Color(Color::WHITE), 1.0), None);
-    }
-
-    #[test]
     fn scopes_read_what_they_see() {
         let mut design = design();
         let token = semantic::INPUT_DRAG_THRESHOLD;
         let base = design.get(token);
         let read = |design: &DesignSystem, scope| {
-            value_in(design, token.id(), scope).unwrap() - f64::from(base)
+            let value = values::value_in(design, token.id(), scope).unwrap();
+            values::number_of(&value).unwrap() - f64::from(base)
         };
         // The application's value goes over the theme's, which keeps its own.
         design.set_value(Scope::Global, token, base + 3.0).unwrap();
@@ -621,13 +615,13 @@ mod tests {
         let desc = OptionDesc {
             token: primitive::DURATION_FAST.id(),
             label: "Fast",
-            unit: Some(&koebi_core::expr::MILLISECOND),
+            unit: Some(&MILLISECOND),
             decimals: 0,
         };
         let mut text = String::new();
         write_value(
             &mut text,
-            Some(&Value::Duration(Duration::from_millis(100))),
+            Some(&Value::Duration(core::time::Duration::from_millis(100))),
             desc,
         );
         assert_eq!(text, "100 ms");

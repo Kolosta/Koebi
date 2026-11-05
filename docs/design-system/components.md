@@ -29,6 +29,10 @@ what shows.
 
 ## The components
 
+Buttons, checkboxes and number fields take `.forced(state)`: they show that `ControlState`
+whatever the pointer does and react to nothing, exactly as they look in that state for real,
+for documentation and previews (Settings > Customisation, by component).
+
 | Component | Call | Tokens |
 |---|---|---|
 | Button, toggle button | `Button::new(id)` + options, then `.show(ui, rect)` | `component.button.*` |
@@ -58,6 +62,7 @@ what shows.
 | Tooltip | `Ui::tooltip(id, text, bounds)` after the widget | `component.tooltip.*` |
 | Status bar | `Ui::status_bar(rect, &entries, end)`: items one interface unit high, the bar's inset above and below; `StatusEntry`s (key caps and a label) from the left, thin lines between them, as many as fit, the highest priorities kept and the order given kept; `end` on the right | `component.status-bar.*` |
 | Label | `Ui::label(text, rect, &font, color, align)`, `Ui::text_width(text, &font)` | `semantic.font.*`, `semantic.text.*` |
+| Paragraph | `Ui::paragraph(text, rect, &font, color)` wraps between words and returns the height used, `Ui::paragraph_height(text, width, &font)` measures it; a line break starts a paragraph | `semantic.font.*`, `semantic.text.*` |
 | Scroll area | `Ui::scroll_area(id, rect, &mut state, content_size, axes, add)` | `component.scrollbar.*` |
 | Scrollbar | `Scrollbar::new(id, &mut state, axis, &mut offset, visible, content)`, then `.show(ui, area)` | `component.scrollbar.*` |
 | List and tree | `Ui::list(id, rect, &mut state, &items, &options, &mut delegate)` returns a `ListResponse` | `component.list-row.*`, `component.outliner.*`, `component.table.row.*`, `component.drop-target.*` |

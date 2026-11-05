@@ -62,7 +62,7 @@ koebi_design::tokens! {
     PANEL_HEADER_HOVER_LIGHTNESS = "panel.header.hover.lightness": Number = 0.04,
         range(-0.5, 0.5);
     /// Collapsible panel: side of a header's chevron.
-    PANEL_CHEVRON_SIZE = "panel.chevron.size": Dimension = px(12.5), range(0.0, 32.0);
+    PANEL_CHEVRON_SIZE = "panel.chevron.size": Dimension = px(12.5), range(4.0, 32.0);
     /// Collapsible panel: chevron color.
     PANEL_CHEVRON_COLOR_DEFAULT = "panel.chevron.color.default": Color ->
         semantic::TEXT_COLOR_SECONDARY_DEFAULT;

@@ -98,6 +98,29 @@ shortcut changes, by the [shortcut rules](../development/editors.md#shortcut-rul
 shortcut's header takes the conflict's color and every panel holding it shows the warning. A
 search finds actions by name or by the shortcut pressed.
 
+The Customisation page edits every token, through two views chosen at the top
+(`settings::customisation`):
+
+- **By feature**: nested panels from the parts of the interface (`koebi_tokens::FEATURES`:
+  controls, surfaces, editors, intents, palettes and scales) to their groups (a component, an
+  intent, a palette), then to the parts of the paths several of a group's tokens share
+  (`background.accent`), then to the tokens, each an option as above. The dots carry up to every
+  header holding a change.
+- **By component**: each component as its documentation for users: what it does and how it
+  behaves, a picture of each of its states (`Button::forced`, `Checkbox::forced`,
+  `NumberField::forced`: drawn as for real, reacting to nothing), one to try, its shortcuts as
+  key caps, what it does that a picture cannot show (motion, delays, distances, factors), then
+  every token.
+- A third view, the graph of how tokens alias each other, waits for graph and node components.
+
+Options edit any kind of token (`settings::values`): numbers in number fields bounded by the
+token's range (on a bar when the range is closed, snapping to its step), colors in color fields
+opening their picker as a dropdown (the token's original value offered, the opacity kept within
+the token's range), curves in the curve editor (a picture of the curve in the header), cubic
+Béziers in four grouped fields, font families shown as they are (Koebi ships one). A value the
+token refuses is logged and changes nothing; sizes that would draw nothing at zero have a range
+starting above it.
+
 The Theme and Accessibility pages are containers that never fold, split into sections
 (`Ui::section_title`); their cards are all the same size, as many as fit a row, a name below
 each (`settings::cards`). The Theme page shows a card per theme; the Accessibility page the

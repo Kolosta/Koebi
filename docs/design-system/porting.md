@@ -321,6 +321,13 @@ checkerboard of 4 px aliasing the swatches' colors) and `component.color-picker.
 192 px, strips of 16 px, swatches of 40 px, a gap of 6 px; white marks outlined in black 1 px
 wide, triangles 7 px deep passing the strips by 2 px; the share of a drag with Shift, 0.1).
 
+Ranges (#189): sizes that draw nothing at zero no longer accept it: `primitive.size.*` (and so
+`semantic.size.*`) from 1 px, `component.checkbox.box-size.default` from 6 px, the chevrons and
+icons of dropdowns, text fields, number fields and panels from 4 px, a number field's step
+buttons from 4 px, `component.scrollbar.overlay.width.hover` from 1 px, the text caret and node
+cables from 0.5 px, node ports from 2 px. Stroke and border widths keep accepting zero (no
+border), as do margins, gaps and the overlay scrollbar at rest.
+
 Curve editor (#188, temporary): `component.curve-editor.*`, new: the graph 160 px high with a
 padding of 10 px, the background, border and border width of number fields, the corner radius
 of controls, grid lines in `semantic.border.color.default`, the curve in
