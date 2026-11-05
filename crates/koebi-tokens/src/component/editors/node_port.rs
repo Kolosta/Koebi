@@ -23,5 +23,5 @@ koebi_design::tokens! {
     NODE_PORT_BORDER_COLOR_DEFAULT = "node-port.border.color.default": Color ->
         semantic::BORDER_COLOR_DEFAULT;
     /// Node port: size.
-    NODE_PORT_SIZE_DEFAULT = "node-port.size.default": Dimension = px(8.0), range(0.0, 32.0);
+    NODE_PORT_SIZE_DEFAULT = "node-port.size.default": Dimension = px(8.0), range(2.0, 32.0);
 }

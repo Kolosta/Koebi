@@ -35,7 +35,7 @@ koebi_design::tokens! {
     CHECKBOX_BORDER_COLOR_SELECTED = "checkbox.border.color.selected": Color ->
         semantic::BACKGROUND_ACCENT_DEFAULT;
     /// Checkbox: box size.
-    CHECKBOX_BOX_SIZE_DEFAULT = "checkbox.box-size.default": Dimension = px(16.0), range(0.0, 40.0);
+    CHECKBOX_BOX_SIZE_DEFAULT = "checkbox.box-size.default": Dimension = px(16.0), range(6.0, 40.0);
     /// Checkbox: corner radius.
     CHECKBOX_CORNER_RADIUS_DEFAULT = "checkbox.corner-radius.default": Dimension ->
         semantic::RADIUS_S;

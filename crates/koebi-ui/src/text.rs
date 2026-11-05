@@ -1,4 +1,4 @@
-//! Labels: one line of text drawn with the typography tokens.
+//! Labels and paragraphs: text drawn with the typography tokens, on one line or wrapped.
 
 use std::sync::Arc;
 
@@ -68,6 +68,9 @@ impl TextStyles {
         }
     }
 }
+
+/// The distance between the lines of a paragraph, in line heights.
+const LEADING: f32 = 1.3;
 
 /// Where a label sits along its rectangle.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -154,6 +157,86 @@ impl Ui<'_> {
         self.scene.push_text(line, Vec2::new(x, baseline), color);
         width
     }
+
+    /// Draws `text` wrapped to the width of `rect`, line under line from its top, breaking
+    /// between words; a line break starts a new paragraph, an empty line leaves one blank. A
+    /// word wider than the rectangle is cut with an ellipsis. Returns the height used, as
+    /// [`Ui::paragraph_height`] measures it; without fonts, nothing.
+    pub fn paragraph(&mut self, text: &str, rect: Rect, font: &FontStyle, color: Color) -> f32 {
+        self.wrap(text, rect.width(), font, Some((rect, color)))
+    }
+
+    /// The height `text` takes wrapped to `width` in `font` ([`Ui::paragraph`]).
+    pub fn paragraph_height(&mut self, text: &str, width: f32, font: &FontStyle) -> f32 {
+        self.wrap(text, width, font, None)
+    }
+
+    /// Lays `text` out in lines of `width` at most, drawing them in `draw`'s rectangle and
+    /// color when given. Returns the height of the lines. Each word is measured once, and a
+    /// line is the words that fit with a space between them.
+    fn wrap(
+        &mut self,
+        text: &str,
+        width: f32,
+        font: &FontStyle,
+        draw: Option<(Rect, Color)>,
+    ) -> f32 {
+        let line = self.line_height(font);
+        if line <= 0.0 {
+            return 0.0;
+        }
+        let pitch = (line * LEADING).round();
+        let space = self.text_width(" ", font);
+        let mut y = 0.0;
+        for paragraph in text.split('\n') {
+            let words = paragraph
+                .split(' ')
+                .scan(0_usize, |offset, word| {
+                    let start = *offset;
+                    *offset += word.len() + 1;
+                    Some((start, word))
+                })
+                .filter(|(_, word)| !word.is_empty());
+            // The current line: from `start` to `end` of the paragraph, `used` wide.
+            let mut current: Option<(usize, usize, f32)> = None;
+            for (begin, word) in words {
+                let measured = self.text_width(word, font);
+                let end = begin + word.len();
+                current = match current {
+                    Some((start, last, used)) if used + space + measured > width => {
+                        self.wrapped_line(&paragraph[start..last], y, pitch, font, draw);
+                        y += pitch;
+                        Some((begin, end, measured))
+                    }
+                    Some((start, _, used)) => Some((start, end, used + space + measured)),
+                    None => Some((begin, end, measured)),
+                };
+            }
+            if let Some((start, end, _)) = current {
+                self.wrapped_line(&paragraph[start..end], y, pitch, font, draw);
+            }
+            y += pitch;
+        }
+        y
+    }
+
+    /// One line of [`Ui::wrap`], `y` below the top of `draw`'s rectangle.
+    fn wrapped_line(
+        &mut self,
+        line: &str,
+        y: f32,
+        pitch: f32,
+        font: &FontStyle,
+        draw: Option<(Rect, Color)>,
+    ) {
+        if let Some((rect, color)) = draw {
+            let at = Rect::from_min_max(
+                Vec2::new(rect.min.x, rect.min.y + y),
+                Vec2::new(rect.max.x, rect.min.y + y + pitch),
+            );
+            self.label(line, at, font, color, Align::Start);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -221,5 +304,38 @@ mod tests {
         );
         drop(ui);
         assert!(scene.is_empty());
+    }
+
+    #[test]
+    fn paragraphs_wrap_between_words_and_measure_what_they_draw() {
+        let styles = crate::test_styles();
+        let (mut scene, mut state, input) = (Scene::new(), UiState::new(), Input::new());
+        state.set_fonts(Fonts::with_embedded());
+        let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+        let font = styles.text.body.clone();
+        let text = "Buttons run an action when they are clicked.";
+        let one = ui.paragraph_height(text, 1000.0, &font);
+        let word = ui.text_width("Buttons", &font);
+        // As wide as its longest word or two: several lines, each a whole line high.
+        let narrow = ui.paragraph_height(text, word * 2.2, &font);
+        assert!(narrow >= 3.0 * one, "{narrow} for lines of {one}");
+        assert!((narrow / one - (narrow / one).round()).abs() < 1e-4);
+        // A line break starts a paragraph; an empty line leaves one blank.
+        let two = ui.paragraph_height("First.\n\nSecond.", 1000.0, &font);
+        assert!((two - 3.0 * one).abs() < 1e-4, "{two}");
+        let drawn = ui.paragraph(text, rect(0.0, 0.0, word * 2.2, 400.0), &font, Color::WHITE);
+        assert!((drawn - narrow).abs() < 1e-4);
+        drop(ui);
+        // Every letter drawn once, and the spaces between the words of a line: wrapping cuts
+        // nothing and drops the spaces where lines break.
+        let letters = text.chars().filter(|c| !c.is_whitespace()).count();
+        let spaces = text.matches(' ').count();
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "a few lines"
+        )]
+        let lines = (narrow / one).round() as usize;
+        assert_eq!(scene.glyph_count(), letters + spaces - (lines - 1));
     }
 }

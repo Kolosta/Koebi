@@ -150,6 +150,8 @@ pub struct Checkbox<'a> {
     colors: BoxColors,
     mark: Option<Prop<kind::Color>>,
     label_color: Option<Prop<kind::Color>>,
+    /// The state it shows whatever the pointer does, without reacting: a preview.
+    forced: Option<ControlState>,
 }
 
 impl<'a> Checkbox<'a> {
@@ -162,6 +164,7 @@ impl<'a> Checkbox<'a> {
             description: None,
             mixed: false,
             enabled: true,
+            forced: None,
             box_size: None,
             corner_radius: None,
             border_width: None,
@@ -196,6 +199,14 @@ impl<'a> Checkbox<'a> {
     #[must_use]
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
+        self
+    }
+
+    /// Shows the checkbox in `state` (the pointer's states and disabled; checked or not is
+    /// its value's) whatever the pointer does, reacting to nothing: a picture of one state.
+    #[must_use]
+    pub fn forced(mut self, state: ControlState) -> Self {
+        self.forced = Some(state);
         self
     }
 
@@ -342,7 +353,11 @@ impl<'a> Checkbox<'a> {
     /// Shows the checkbox in `rect`: a click anywhere in it flips the value (a mixed box
     /// becomes checked) and reports `changed`.
     pub fn show(self, ui: &mut Ui<'_>, rect: Rect) -> Response {
-        let mut response = ui.interact(self.id, rect);
+        let mut response = if self.forced.is_some() {
+            Response::default()
+        } else {
+            ui.interact(self.id, rect)
+        };
         if !self.enabled {
             response = Response::default();
         }
@@ -354,7 +369,10 @@ impl<'a> Checkbox<'a> {
         let style = &styles.checkbox;
         let marked = *self.checked || (self.mixed && !response.changed);
         // Checked or not picks the colors; the state is the pointer's.
-        let state = ControlState::of(&response, false, self.enabled);
+        let state = self
+            .forced
+            .unwrap_or_else(|| ControlState::of(&response, false, self.enabled));
+        let enabled = !state.is_disabled();
         let (first, second) = self.lines(ui);
         let line = Rect::from_min_max(
             rect.min,
@@ -371,7 +389,7 @@ impl<'a> Checkbox<'a> {
                 .with_border(border, border_color),
         );
         if marked {
-            let mark = if self.enabled {
+            let mark = if enabled {
                 Self::prop(ui, self.mark.as_ref(), style.mark)
             } else {
                 style.mark_disabled
@@ -385,7 +403,7 @@ impl<'a> Checkbox<'a> {
         }
         let text_left = bounds.max.x + style.gap;
         if let Some(label) = self.label {
-            let color = if self.enabled {
+            let color = if enabled {
                 Self::prop(ui, self.label_color.as_ref(), style.label)
             } else {
                 style.label_disabled
@@ -405,7 +423,7 @@ impl<'a> Checkbox<'a> {
                 description,
                 slot,
                 &styles.text.detail,
-                if self.enabled {
+                if enabled {
                     style.description
                 } else {
                     style.description_disabled

@@ -23,5 +23,5 @@ koebi_design::tokens! {
     NODE_CABLE_COLOR_TYPE_LAYER_OUTPUT = "node-cable.color.type-layer-output": Color ->
         semantic::ACCENT_COLOR_VISUAL_BRAND;
     /// Node cable: width.
-    NODE_CABLE_WIDTH_DEFAULT = "node-cable.width.default": Dimension = px(2.0), range(0.0, 12.0);
+    NODE_CABLE_WIDTH_DEFAULT = "node-cable.width.default": Dimension = px(2.0), range(0.5, 12.0);
 }

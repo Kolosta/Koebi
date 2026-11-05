@@ -2,6 +2,7 @@
 //!
 //! - **Theme** ([`theme`]) and **Accessibility** ([`accessibility`]) choose among what the design
 //!   system offers.
+//! - **Customisation** ([`customisation`]) edits every token, by feature or by component.
 //! - **Inputs** ([`inputs`]) edits the distances and delays of interaction, which are tokens.
 //! - The others wait for what they will hold. **Dev** shows only in development builds.
 //!
@@ -11,10 +12,12 @@
 
 mod accessibility;
 mod cards;
+mod customisation;
 mod inputs;
 mod keymaps;
 mod options;
 mod theme;
+mod values;
 
 use koebi_core::{Rect, Vec2};
 use koebi_design::DesignSystem;
@@ -151,6 +154,7 @@ impl Stack {
 pub(crate) struct SettingsView {
     page: Page,
     theme: theme::ThemePage,
+    customisation: customisation::CustomisationPage,
     accessibility: accessibility::AccessibilityPage,
     keymaps: keymaps::KeymapsPage,
     inputs: inputs::InputsPage,
@@ -165,6 +169,7 @@ impl SettingsView {
         Self {
             page: Page::Theme,
             theme: theme::ThemePage::new(),
+            customisation: customisation::CustomisationPage::new(),
             accessibility: accessibility::AccessibilityPage::new(),
             keymaps: keymaps::KeymapsPage::new(),
             inputs: inputs::InputsPage::new(),
@@ -260,6 +265,9 @@ impl SettingsView {
                 };
                 match self.page {
                     Page::Theme => self.theme.show(ui, &mut stack, design),
+                    Page::Customisation => {
+                        self.customisation.show(ui, &mut stack, design, keymap);
+                    }
                     Page::Accessibility => self.accessibility.show(ui, &mut stack, design),
                     Page::Inputs => self.inputs.show(ui, &mut stack, design),
                     Page::Keymaps => self.keymaps.show(ui, &mut stack, design, keymap),
@@ -372,7 +380,10 @@ mod tests {
     }
 
     /// The page as it shows, rendered offscreen.
-    fn page_image(gpu: &koebi_testkit::HeadlessGpu, harness: &mut Harness) -> koebi_testkit::Image {
+    pub(super) fn page_image(
+        gpu: &koebi_testkit::HeadlessGpu,
+        harness: &mut Harness,
+    ) -> koebi_testkit::Image {
         harness.settle();
         let mut scene = harness.frame();
         let background = harness
@@ -397,7 +408,7 @@ mod tests {
 
     /// Compares `image` with `tests/golden/<name>.png` of the application.
     #[track_caller]
-    fn assert_page(image: &koebi_testkit::Image, name: &str) {
+    pub(super) fn assert_page(image: &koebi_testkit::Image, name: &str) {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
         koebi_testkit::assert_golden_at(
             &root.join("tests").join("golden"),

@@ -94,13 +94,13 @@ koebi_design::tokens! {
     STROKE_WIDTH_400 = "stroke.width.400": Dimension = px(4.0), range(0.0, 4.0);
 
     /// Size scale, step 75.
-    SIZE_75 = "size.75": Dimension = px(12.0), range(0.0, 2048.0);
+    SIZE_75 = "size.75": Dimension = px(12.0), range(1.0, 2048.0);
     /// Size scale, step 100.
-    SIZE_100 = "size.100": Dimension = px(22.0), range(0.0, 2048.0);
+    SIZE_100 = "size.100": Dimension = px(22.0), range(1.0, 2048.0);
     /// Size scale, step 200.
-    SIZE_200 = "size.200": Dimension = px(32.0), range(0.0, 2048.0);
+    SIZE_200 = "size.200": Dimension = px(32.0), range(1.0, 2048.0);
     /// Size scale, step 400.
-    SIZE_400 = "size.400": Dimension = px(80.0), range(0.0, 2048.0);
+    SIZE_400 = "size.400": Dimension = px(80.0), range(1.0, 2048.0);
     /// Size scale, step 800.
-    SIZE_800 = "size.800": Dimension = px(180.0), range(0.0, 2048.0);
+    SIZE_800 = "size.800": Dimension = px(180.0), range(1.0, 2048.0);
 }

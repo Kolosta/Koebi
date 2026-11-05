@@ -3,7 +3,7 @@
 use core::time::Duration;
 
 use koebi_core::Color;
-use koebi_design::value::{FontWeight, Value};
+use koebi_design::value::{Definition, FontWeight, Value};
 use koebi_design::{ChainRole, DesignSystem, Layers, Origin, Scope, ThemeId};
 use koebi_tokens::{KOEBI, component, primitive, semantic, themes};
 
@@ -26,6 +26,73 @@ fn schema_passes_the_run_time_validation() {
     assert_eq!(KOEBI.composites().count(), 21);
     let keys: Vec<_> = design().themes().map(|(_, t)| t.key().to_owned()).collect();
     assert_eq!(keys, ["dark", "light", "muted-green", "high-contrast"]);
+}
+
+#[test]
+fn sizes_that_vanish_at_zero_refuse_it() {
+    let mut design = design();
+    // At zero, each of these draws nothing or leaves controls without room.
+    let sizes = [
+        primitive::SIZE_75.id(),
+        primitive::SIZE_800.id(),
+        semantic::SIZE_M.id(),
+        semantic::SIZE_CONTROL_HEIGHT.id(),
+        component::CHECKBOX_BOX_SIZE_DEFAULT.id(),
+        component::DROPDOWN_CHEVRON_SIZE.id(),
+        component::DROPDOWN_ICON_SIZE.id(),
+        component::NUMBER_FIELD_STEP_BUTTON_WIDTH.id(),
+        component::NUMBER_FIELD_STEP_BUTTON_ICON_SIZE.id(),
+        component::TEXT_FIELD_ICON_SIZE.id(),
+        component::TEXT_FIELD_CARET_WIDTH.id(),
+        component::SCROLLBAR_OVERLAY_WIDTH_HOVER.id(),
+        component::PANEL_CHEVRON_SIZE.id(),
+        component::NODE_PORT_SIZE_DEFAULT.id(),
+        component::NODE_CABLE_WIDTH_DEFAULT.id(),
+        component::CURVE_EDITOR_GRAPH_HEIGHT_DEFAULT.id(),
+        component::COLOR_PICKER_AREA_SIZE_DEFAULT.id(),
+    ];
+    for token in sizes {
+        let path = design
+            .info(token)
+            .expect("a token of the schema")
+            .qualified();
+        let range = design.range(token).expect("numeric tokens have bounds");
+        assert!(range.min() > 0.0, "{path} accepts {}", range.min());
+        // Refused with an error, the value kept.
+        let before = design.value(token).cloned();
+        let zero = Definition::Value(Value::Dimension(0.0));
+        assert!(
+            design.set_override(Scope::Global, token, zero).is_err(),
+            "{path}"
+        );
+        assert_eq!(design.value(token).cloned(), before, "{path}");
+    }
+}
+
+#[test]
+fn features_hold_every_group_once_in_schema_order() {
+    // Groups by where they start: names repeat across tiers (`SCALE`, `MOTION`).
+    let features: Vec<u16> = koebi_tokens::FEATURES
+        .iter()
+        .flat_map(|feature| {
+            feature
+                .groups
+                .iter()
+                .map(koebi_design::schema::Group::start)
+        })
+        .collect();
+    // Components first, then intents, then primitives, each tier in schema order.
+    let mut schema: Vec<_> = KOEBI.groups().iter().collect();
+    schema.sort_by_key(|group| {
+        core::cmp::Reverse(
+            group
+                .tokens()
+                .first()
+                .map(koebi_design::schema::TokenInfo::tier),
+        )
+    });
+    let schema: Vec<u16> = schema.iter().map(|group| group.start()).collect();
+    assert_eq!(features, schema);
 }
 
 #[test]
@@ -57,8 +124,8 @@ fn built_in_themes_stay_inside_every_range() {
             let mut current = token;
             let raw = loop {
                 match view.definition(current) {
-                    Some(koebi_design::value::Definition::Alias(target)) => current = *target,
-                    Some(koebi_design::value::Definition::Value(value)) => break value.clone(),
+                    Some(Definition::Alias(target)) => current = *target,
+                    Some(Definition::Value(value)) => break value.clone(),
                     None => unreachable!("every token has a definition"),
                 }
             };

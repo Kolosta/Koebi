@@ -18,10 +18,10 @@ koebi_design::tokens! {
         Dimension = px(4.0), range(0.0, 32.0);
     /// Number field: width of a step button (height in vertical fields).
     NUMBER_FIELD_STEP_BUTTON_WIDTH = "number-field.step-button.width": Dimension = px(16.0),
-        range(0.0, 64.0);
+        range(4.0, 64.0);
     /// Number field: side of a step button's chevron.
     NUMBER_FIELD_STEP_BUTTON_ICON_SIZE = "number-field.step-button.icon.size": Dimension =
-        px(10.0), range(0.0, 32.0);
+        px(10.0), range(4.0, 32.0);
     /// Number field: background color.
     NUMBER_FIELD_BACKGROUND_COLOR_DEFAULT = "number-field.background.color.default": Color ->
         semantic::BACKGROUND_APP_FRAME;

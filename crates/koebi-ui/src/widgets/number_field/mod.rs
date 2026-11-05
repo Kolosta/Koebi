@@ -223,6 +223,8 @@ pub struct NumberField<'a, N: Numeric> {
     radii: Option<CornerRadii>,
     border_width: Option<Prop<kind::Dimension>>,
     colors: FieldColors,
+    /// The state it shows whatever the pointer does, without reacting: a preview.
+    forced: Option<ControlState>,
 }
 
 impl<'a, N: Numeric> NumberField<'a, N> {
@@ -248,6 +250,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
             radii: None,
             border_width: None,
             colors: FieldColors::default(),
+            forced: None,
         }
     }
 
@@ -329,6 +332,14 @@ impl<'a, N: Numeric> NumberField<'a, N> {
     #[must_use]
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
+        self
+    }
+
+    /// Shows the field in `state` whatever the pointer does, reacting to nothing: a picture of
+    /// one state. Hovered and pressed show the step buttons, active the colors of a drag.
+    #[must_use]
+    pub fn forced(mut self, state: ControlState) -> Self {
+        self.forced = Some(state);
         self
     }
 
@@ -567,6 +578,14 @@ impl<'a, N: Numeric> NumberField<'a, N> {
 
     /// Shows the field in `rect`: dragged, stepped or typed when it should be.
     pub fn show(self, ui: &mut Ui<'_>, rect: Rect) -> NumberFieldResponse {
+        if let Some(state) = self.forced {
+            let (body, steps) = self.parts(ui, rect);
+            let shown =
+                steps.filter(|_| matches!(state, ControlState::Hovered | ControlState::Pressed));
+            let none = [Response::default(); 2];
+            self.draw(ui, rect, body, state, steps.is_some(), shown, &none);
+            return NumberFieldResponse::default();
+        }
         let number = &mut ui.state.number;
         let typed = number.edit.as_ref().is_some_and(|edit| edit.id == self.id);
         if typed && self.enabled {

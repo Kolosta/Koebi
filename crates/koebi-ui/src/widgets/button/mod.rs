@@ -103,6 +103,8 @@ pub struct Button<'a> {
     menu: Option<(&'a mut MenuState, Placement)>,
     /// The look a component built on the button asks for (a dropdown's).
     look: Option<Look>,
+    /// The state it shows whatever the pointer does, without reacting: a preview.
+    forced: Option<ControlState>,
 }
 
 impl<'a> Button<'a> {
@@ -114,6 +116,7 @@ impl<'a> Button<'a> {
             tone: Tone::DEFAULT,
             enabled: true,
             selected: false,
+            forced: None,
             toggle: None,
             activation: Activation::Release,
             repeat: false,
@@ -199,6 +202,14 @@ impl<'a> Button<'a> {
     #[must_use]
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
+        self
+    }
+
+    /// Shows the button in `state` whatever the pointer does, reacting to nothing and leaving
+    /// the pointer to what lies below: a picture of one state, as documentation shows.
+    #[must_use]
+    pub fn forced(mut self, state: ControlState) -> Self {
+        self.forced = Some(state);
         self
     }
 
@@ -415,6 +426,10 @@ impl<'a> Button<'a> {
         ui: &mut Ui<'_>,
         rect: Rect,
     ) -> (Response, Option<&'a mut MenuState>) {
+        if let Some(state) = self.forced {
+            self.draw(ui, rect, state);
+            return (Response::default(), self.menu.take().map(|(menu, _)| menu));
+        }
         // A disabled button still keeps the pointer from what lies under it.
         let raw = ui.interact(self.id, rect);
         let response = self.react(ui, raw, rect);
@@ -525,6 +540,9 @@ impl<'a> Button<'a> {
     /// The state the button shows after `response`: selected or not, active while its menu
     /// is open.
     pub(crate) fn state_of(&self, response: &Response) -> ControlState {
+        if let Some(state) = self.forced {
+            return state;
+        }
         ControlState::of(response, self.is_selected(), self.enabled).activated(self.is_active())
     }
 }
