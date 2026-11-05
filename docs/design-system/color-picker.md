@@ -79,14 +79,27 @@ saturation reaches zero, so that raising it again comes back to the same hue.
 
 ## The eyedropper
 
-It picks inside Koebi's windows: the picker asks for the pixels around the pointer
-(`Ui::want_screen_pixels`), and the application copies them from the frame it presents
-(`Presenter::request_pixels`): an 11 × 11 square, read back once the GPU finished that frame,
-frames later and without waiting. The magnifier shows them; a press picks the pixel under
-the pointer, or, when the pointer moved faster than the pixels came back, the nearest one read
-(the one the magnifier outlines). A press always ends picking. Pixels are forgotten when
-picking starts and ends, and the eyedropper does not show where the window's frames cannot be
-read back (`Presenter::can_read_pixels`, `UiState::set_screen_readable`).
+Its button starts a session for the whole application (`Ui::start_screen_pick`, the
+`screen_pick` module): every window of Koebi picks until it ends, title bars included. The
+application draws each window's layer last (`Ui::screen_pick_layer`), tells the other windows a
+session is going on (`UiState::set_pick_elsewhere`), and routes what one of them picks to the
+window that started it (`UiState::take_foreign_pick`, `UiState::deliver_pick`).
+
+- **An operation, as an open menu**: the layer covers the whole window, so nothing below is
+  hovered, the press that picks and its release reach nothing, and title bars stop moving the
+  window. The operation's keys apply (`OPERATION`): its cancel (Escape, Delete, the secondary
+  button) gives up, its confirm (Enter) picks the pixel under the pointer.
+- **Pixels**: each window asks for the pixels around the pointer (`Ui::want_screen_pixels`), and
+  the application copies them from the frame it presents (`Presenter::request_pixels`): an 11 ×
+  11 square, read back once the GPU finished that frame, frames later and without waiting. The
+  pixel asked for travels with them (`ScreenPixels::center`), so that it stays at the center
+  even at the window's edges, where the square stays inside.
+- **The magnifier** is round, the picked pixel always at its center, outlined. It lies below and
+  right of the pointer, clear of it, and inside the window: near an edge it slides along it and
+  passes to the other side of the pointer as the pointer moves, never jumping.
+- A press always ends picking, with the pixel at the magnifier's center. Pixels are forgotten
+  when picking starts and ends, and the eyedropper does not show where the window's frames
+  cannot be read back (`Presenter::can_read_pixels`, `UiState::set_screen_readable`).
 
 Picking anywhere on the screen, outside Koebi, needs each system's own capture API (the
 desktop duplication of Windows, Screen Recording on macOS, which asks for a permission, the

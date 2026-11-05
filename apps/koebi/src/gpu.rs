@@ -94,6 +94,7 @@ impl WindowGpu {
             presenter: None,
             pixels: koebi_gpu::FramePixels {
                 origin: (0, 0),
+                center: (0, 0),
                 extent: Extent::new(0, 0),
                 pixels: Vec::new(),
             },
@@ -203,6 +204,7 @@ impl WindowGpu {
         }
         let into = state.screen_pixels_to_fill();
         into.origin = self.pixels.origin;
+        into.center = self.pixels.center;
         into.width = self.pixels.extent.width;
         into.height = self.pixels.extent.height;
         core::mem::swap(&mut into.pixels, &mut self.pixels.pixels);

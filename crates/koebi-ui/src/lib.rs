@@ -78,6 +78,7 @@ mod input;
 mod operation;
 mod pixel;
 mod routing;
+mod screen_pick;
 mod style;
 mod text;
 mod ui;
@@ -93,6 +94,7 @@ pub use operation::{
 };
 pub use pixel::whole_pixels;
 pub use routing::Layer;
+pub use screen_pick::PickOutcome;
 pub use style::{CornerRadii, IconStyle, InputStyle, Prop, StateColors, StyleCache, Styles};
 pub use text::{Align, FontStyle, TextStyles};
 pub use ui::{EYEDROPPER_PIXELS, Response, ScreenPixels, Ui, UiState, WidgetState};

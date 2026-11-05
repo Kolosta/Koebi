@@ -5,6 +5,7 @@
 mod common;
 
 use common::render;
+use koebi_core::input::CursorShape;
 use koebi_core::input::{Key, Modifiers};
 use koebi_core::{Color, Extent, Hsv, Rect, Vec2};
 use koebi_design::DesignSystem;
@@ -13,9 +14,9 @@ use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    ColorField, ColorFieldState, ColorPicker, ColorPickerState, Input, MENU_CLOSE,
-    OPERATION_CANCEL, OPERATION_CONFIRM, PickerShape, ScreenPixels, Styles, Transparency, Ui,
-    UiState, WidgetId,
+    Button, ColorField, ColorFieldState, ColorPicker, ColorPickerState, Input, MENU_CLOSE,
+    OPERATION_CANCEL, OPERATION_CONFIRM, PickOutcome, PickerShape, Response, ScreenPixels, Styles,
+    Transparency, Ui, UiState, WidgetId,
 };
 
 /// Anti-aliased edges may differ by a few units between drivers.
@@ -35,7 +36,17 @@ struct Harness {
     picker: ColorPickerState,
     color: Color,
     shape: PickerShape,
+    /// What the button below the eyedropper's pointer got in the last frame.
+    below: Response,
 }
+
+/// The window of the harnesses.
+fn window() -> Rect {
+    Rect::from_origin_size(Vec2::ZERO, Vec2::new(500.0, 400.0))
+}
+
+/// A button where the eyedropper picks, which must never react meanwhile.
+const BELOW: Rect = Rect::from_min_max(Vec2::new(380.0, 290.0), Vec2::new(440.0, 314.0));
 
 impl Harness {
     fn new(shape: PickerShape) -> Self {
@@ -53,6 +64,7 @@ impl Harness {
             }
             .to_color(1.0),
             shape,
+            below: Response::default(),
         }
     }
 
@@ -64,17 +76,23 @@ impl Harness {
         )
     }
 
-    /// One frame: the picker in a window of 500 by 400. Returns whether the color changed.
+    /// One frame: the picker in a window of 500 by 400, a button at the bottom right, then the
+    /// layer of a session picking on the screen, as the application draws it last. Returns
+    /// whether the color changed; the button's response goes to `self.below`.
     fn frame(&mut self) -> (bool, Scene) {
         let mut scene = Scene::new();
         let changed = {
             let mut ui = Ui::new(&mut scene, &self.styles, &self.input, &mut self.state);
-            let window = Rect::from_origin_size(Vec2::ZERO, Vec2::new(500.0, 400.0));
             let picker = ColorPicker::new(PICKER, &mut self.picker, &mut self.color)
                 .shape(self.shape)
-                .eyedropper(window);
+                .eyedropper(true);
             let size = picker.size(&ui);
-            picker.show(&mut ui, Rect::from_origin_size(Vec2::new(10.0, 10.0), size))
+            let changed = picker.show(&mut ui, Rect::from_origin_size(Vec2::new(10.0, 10.0), size));
+            self.below = Button::new(WidgetId::new("below"))
+                .label("Below")
+                .show(&mut ui, BELOW);
+            ui.screen_pick_layer(window());
+            changed
         };
         self.input.end_frame();
         (changed, scene)
@@ -113,14 +131,13 @@ impl Harness {
     }
 }
 
-/// 11 by 11 pixels read around (400, 300): orange, the right column red.
+/// 11 by 11 pixels read around (400, 300): orange, the pixel at the center red.
 fn read_back() -> ScreenPixels {
     let mut pixels = vec![[230, 120, 20, 255]; 121];
-    for row in 0..11 {
-        pixels[row * 11 + 10] = [200, 0, 0, 255];
-    }
+    pixels[5 * 11 + 5] = [200, 0, 0, 255];
     ScreenPixels {
         origin: (395, 295),
+        center: (400, 300),
         width: 11,
         height: 11,
         pixels,
@@ -257,46 +274,65 @@ fn the_hue_strip_and_the_wheels_set_their_components() {
 }
 
 #[test]
-fn the_eyedropper_picks_the_pixel_under_the_pointer() {
+fn the_eyedropper_picks_the_pixel_at_the_center_and_nothing_below_reacts() {
     let mut harness = Harness::new(PickerShape::SquareSv);
     harness.frame();
     harness.click_eyedropper();
-    // It asks for the screen around the pointer.
+    // It asks for the screen around the pointer, which rests over the button: not hovered.
     let at = Vec2::new(400.0, 300.0);
     harness.input.pointer_moved(at);
     harness.frame();
+    harness.frame();
     assert_eq!(harness.state.take_pixels_wanted(), Some(at));
-    // The application gives the pixels back: a press picks the one under the pointer.
-    let orange = [230, 120, 20, 255];
-    harness.state.set_screen_pixels(ScreenPixels {
-        origin: (395, 295),
-        width: 11,
-        height: 11,
-        pixels: vec![orange; 121],
-    });
+    assert!(!harness.below.hovered);
+    assert_eq!(harness.state.cursor(), CursorShape::Crosshair);
+    // The pixels come back: a press picks the one at the center, and neither it nor its
+    // release reaches the button.
+    harness.state.set_screen_pixels(read_back());
     harness.frame();
     harness.input.primary_button(true, at);
+    harness.frame();
+    assert!(!harness.below.pressed);
     let (changed, _) = harness.frame();
     assert!(changed);
-    assert_eq!(harness.color.to_rgba8(), orange);
-    // Picked: it stops asking.
+    assert_eq!(harness.color.to_rgba8()[..3], [200, 0, 0]);
     harness.input.primary_button(false, at);
+    harness.frame();
+    assert!(!harness.below.clicked && !harness.below.hovered);
+    // Picked: it stops asking, and the button answers again.
     harness.frame();
     harness.state.take_pixels_wanted();
     harness.frame();
     assert_eq!(harness.state.take_pixels_wanted(), None);
+    harness.frame();
+    assert!(harness.below.hovered);
 }
 
 #[test]
-fn the_eyedropper_picks_the_nearest_pixel_read_when_the_pointer_outran_them() {
+fn the_operation_s_keys_give_up_or_pick_under_the_pointer() {
     let mut harness = Harness::new(PickerShape::SquareSv);
+    let before = harness.color;
     harness.frame();
     harness.click_eyedropper();
-    // The pixels come from a frame shown earlier, around (400, 300); the pointer has gone on
-    // far to the right since: the nearest pixel read, in the right column, is picked.
+    let at = Vec2::new(400.0, 300.0);
+    harness.input.pointer_moved(at);
+    harness.frame();
     harness.state.set_screen_pixels(read_back());
-    assert!(harness.press_at(Vec2::new(460.0, 300.0)));
-    assert_eq!(harness.color.to_rgba8(), [200, 0, 0, 255]);
+    // The cancel (Escape, Delete or the secondary button, through the keymap): nothing picked.
+    harness.input.trigger(&OPERATION_CANCEL);
+    harness.frame();
+    harness.frame();
+    assert_eq!(harness.color, before);
+    assert!(!harness.state.picks_here());
+    // Again, then the confirm (Enter): the pixel under the pointer.
+    harness.click_eyedropper();
+    harness.input.pointer_moved(at);
+    harness.frame();
+    harness.state.set_screen_pixels(read_back());
+    harness.input.trigger(&OPERATION_CONFIRM);
+    harness.frame();
+    harness.frame();
+    assert_eq!(harness.color.to_rgba8()[..3], [200, 0, 0]);
 }
 
 #[test]
@@ -308,6 +344,7 @@ fn a_press_ends_the_eyedropper_even_before_pixels_come_back() {
     harness.state.set_screen_pixels(read_back());
     harness.click_eyedropper();
     assert!(!harness.press_at(Vec2::new(400.0, 300.0)));
+    harness.frame();
     assert_eq!(harness.color, before);
     // It no longer picks: it stops asking for the screen.
     harness.state.take_pixels_wanted();
@@ -325,6 +362,56 @@ fn the_eyedropper_hides_when_frames_cannot_be_read() {
     harness.input.pointer_moved(Vec2::new(400.0, 300.0));
     harness.frame();
     assert_eq!(harness.state.take_pixels_wanted(), None);
+}
+
+#[test]
+fn another_window_picks_for_the_one_that_started_and_its_title_bar_too() {
+    let mut owner = Harness::new(PickerShape::SquareSv);
+    owner.frame();
+    owner.click_eyedropper();
+    assert!(owner.state.picks_here());
+    // The other window learns of the session, as the application tells it.
+    let styles = owner.styles.clone();
+    let mut other = UiState::new();
+    let mut input = Input::new();
+    assert!(other.set_pick_elsewhere(true));
+    let frame = |other: &mut UiState, input: &mut Input| {
+        let mut scene = Scene::new();
+        let pressed = {
+            let mut ui = Ui::new(&mut scene, &styles, input, other);
+            // Its title bar, which must not take the press.
+            let bar = Rect::from_origin_size(Vec2::ZERO, Vec2::new(500.0, 30.0));
+            let response = ui.interact(WidgetId::new("title-bar"), bar);
+            ui.screen_pick_layer(window());
+            response.pressed
+        };
+        input.end_frame();
+        pressed
+    };
+    let at = Vec2::new(250.0, 15.0);
+    input.pointer_moved(at);
+    frame(&mut other, &mut input);
+    assert_eq!(other.take_pixels_wanted(), Some(at));
+    other.set_screen_pixels(ScreenPixels {
+        origin: (245, 10),
+        center: (250, 15),
+        ..read_back()
+    });
+    frame(&mut other, &mut input);
+    input.primary_button(true, at);
+    assert!(
+        !frame(&mut other, &mut input),
+        "the title bar took the press"
+    );
+    // What it picked goes to the window that started the session.
+    let picked = other.take_foreign_pick().expect("a pick");
+    assert_eq!(picked, PickOutcome::Picked([200, 0, 0, 255]));
+    owner.state.deliver_pick(picked);
+    let (changed, _) = owner.frame();
+    assert!(changed);
+    assert_eq!(owner.color.to_rgba8()[..3], [200, 0, 0]);
+    assert!(!owner.state.picks_here());
+    assert!(other.set_pick_elsewhere(false));
 }
 
 #[test]
@@ -417,5 +504,35 @@ fn pickers_and_fields_match_golden() {
     }
     let image = render(&gpu, Extent::new(1330, 700), &scene);
     assert_golden!(image, "color_pickers_dark", CROSS_DRIVER);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn the_round_magnifier_matches_golden() {
+    let Some(gpu) = gpu_or_skip("the_round_magnifier_matches_golden") else {
+        return;
+    };
+    let mut harness = Harness::new(PickerShape::SquareSv);
+    harness.frame();
+    harness.click_eyedropper();
+    let at = Vec2::new(400.0, 300.0);
+    harness.input.pointer_moved(at);
+    harness.frame();
+    // A checkered square, the picked pixel red at its center.
+    let mut pixels = read_back();
+    for (index, pixel) in pixels.pixels.iter_mut().enumerate() {
+        if index != 5 * 11 + 5 {
+            *pixel = if (index / 11 + index % 11) % 2 == 0 {
+                [40, 110, 200, 255]
+            } else {
+                [235, 235, 235, 255]
+            };
+        }
+    }
+    harness.state.set_screen_pixels(pixels);
+    let (_, mut scene) = harness.frame();
+    scene.set_clear_color(harness.styles.background);
+    let image = render(&gpu, Extent::new(500, 400), &scene);
+    assert_golden!(&image, "eyedropper_magnifier_dark", CROSS_DRIVER);
     gpu.assert_no_validation_errors();
 }
