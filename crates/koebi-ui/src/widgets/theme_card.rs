@@ -5,11 +5,12 @@
 
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::{DesignSystem, Layers, Resolve, ThemeId};
-use koebi_render::{RectPrimitive, Scene};
+use koebi_render::{Corners, RectPrimitive};
 use koebi_tokens::{component, semantic};
 
 use crate::icon::Icon;
 use crate::id::WidgetId;
+use crate::text::{Align, FontStyle};
 use crate::ui::{Response, Ui};
 
 /// Colors and metrics of the card around a preview, from the `component.theme-card.*`
@@ -47,15 +48,22 @@ impl ThemeCardStyle {
     }
 }
 
-/// What a theme card shows of a theme, resolved in that theme: its surfaces, text and accent.
+/// What a card shows of a theme, resolved in that theme (or as a color vision mode shows it):
+/// its surfaces, text, controls, the colors of states and of charts.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ThemePreview {
     /// Window background.
     pub background: Color,
+    /// Background of the application bar.
+    pub app_bar: Color,
+    /// Background of the status bar.
+    pub status_bar: Color,
     /// Panel background.
     pub panel: Color,
     /// Panel border.
     pub panel_border: Color,
+    /// Background of a selected row.
+    pub selection: Color,
     /// Primary text.
     pub text_primary: Color,
     /// Secondary text.
@@ -64,14 +72,24 @@ pub struct ThemePreview {
     pub accent: Color,
     /// Label of the accent button.
     pub accent_label: Color,
+    /// Background of a plain button.
+    pub button: Color,
+    /// Label of a plain button.
+    pub button_label: Color,
+    /// Background of a field.
+    pub field: Color,
+    /// The bar of a field's value.
+    pub field_fill: Color,
     /// Background of a checked checkbox.
     pub check_background: Color,
     /// Check mark.
     pub check_mark: Color,
     /// The colors of states: positive, negative, notice and info buttons.
     pub tones: [Color; 4],
-    /// The first colors of charts.
-    pub chart: [Color; 4],
+    /// Their labels.
+    pub tone_labels: [Color; 4],
+    /// The categorical colors of charts.
+    pub chart: [Color; 8],
     /// Corner radius of panels and controls.
     pub corner_radius: f32,
 }
@@ -79,29 +97,48 @@ pub struct ThemePreview {
 impl ThemePreview {
     /// Reads a preview from `tokens`, usually a [`View`](koebi_design::View) of the theme.
     pub fn resolve(tokens: &impl Resolve) -> Self {
+        use component as c;
+        use semantic as s;
         Self {
-            background: tokens.get(semantic::BACKGROUND_BASE_DEFAULT),
-            panel: tokens.get(component::PANEL_BODY_BACKGROUND_COLOR_LEVEL_1),
-            panel_border: tokens.get(component::PANEL_BORDER_COLOR_DEFAULT),
-            text_primary: tokens.get(semantic::TEXT_COLOR_PRIMARY_DEFAULT),
-            text_secondary: tokens.get(semantic::TEXT_COLOR_SECONDARY_DEFAULT),
-            accent: tokens.get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT),
-            accent_label: tokens.get(component::BUTTON_ACCENT_LABEL_COLOR_DEFAULT),
-            check_background: tokens.get(component::CHECKBOX_BACKGROUND_COLOR_SELECTED),
-            check_mark: tokens.get(component::CHECKBOX_MARK_COLOR_DEFAULT),
+            background: tokens.get(s::BACKGROUND_BASE_DEFAULT),
+            app_bar: tokens.get(c::TITLE_BAR_BACKGROUND_COLOR_DEFAULT),
+            status_bar: tokens.get(c::STATUS_BAR_BACKGROUND_COLOR_DEFAULT),
+            panel: tokens.get(c::PANEL_BODY_BACKGROUND_COLOR_LEVEL_1),
+            panel_border: tokens.get(c::PANEL_BORDER_COLOR_DEFAULT),
+            selection: tokens.get(c::OUTLINER_ROW_BACKGROUND_SELECTED),
+            text_primary: tokens.get(s::TEXT_COLOR_PRIMARY_DEFAULT),
+            text_secondary: tokens.get(s::TEXT_COLOR_SECONDARY_DEFAULT),
+            accent: tokens.get(c::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT),
+            accent_label: tokens.get(c::BUTTON_ACCENT_LABEL_COLOR_DEFAULT),
+            button: tokens.get(c::BUTTON_BACKGROUND_COLOR_DEFAULT),
+            button_label: tokens.get(c::BUTTON_LABEL_COLOR_DEFAULT),
+            field: tokens.get(c::NUMBER_FIELD_BACKGROUND_COLOR_DEFAULT),
+            field_fill: tokens.get(c::NUMBER_FIELD_FILL_COLOR_DEFAULT),
+            check_background: tokens.get(c::CHECKBOX_BACKGROUND_COLOR_SELECTED),
+            check_mark: tokens.get(c::CHECKBOX_MARK_COLOR_DEFAULT),
             tones: [
-                tokens.get(component::BUTTON_POSITIVE_BACKGROUND_COLOR_DEFAULT),
-                tokens.get(component::BUTTON_NEGATIVE_BACKGROUND_COLOR_DEFAULT),
-                tokens.get(component::BUTTON_NOTICE_BACKGROUND_COLOR_DEFAULT),
-                tokens.get(component::BUTTON_INFO_BACKGROUND_COLOR_DEFAULT),
+                tokens.get(c::BUTTON_POSITIVE_BACKGROUND_COLOR_DEFAULT),
+                tokens.get(c::BUTTON_NEGATIVE_BACKGROUND_COLOR_DEFAULT),
+                tokens.get(c::BUTTON_NOTICE_BACKGROUND_COLOR_DEFAULT),
+                tokens.get(c::BUTTON_INFO_BACKGROUND_COLOR_DEFAULT),
+            ],
+            tone_labels: [
+                tokens.get(c::BUTTON_POSITIVE_LABEL_COLOR_DEFAULT),
+                tokens.get(c::BUTTON_NEGATIVE_LABEL_COLOR_DEFAULT),
+                tokens.get(c::BUTTON_NOTICE_LABEL_COLOR_DEFAULT),
+                tokens.get(c::BUTTON_INFO_LABEL_COLOR_DEFAULT),
             ],
             chart: [
-                tokens.get(semantic::DATA_VIZ_CATEGORICAL_SHORT_1),
-                tokens.get(semantic::DATA_VIZ_CATEGORICAL_SHORT_2),
-                tokens.get(semantic::DATA_VIZ_CATEGORICAL_SHORT_3),
-                tokens.get(semantic::DATA_VIZ_CATEGORICAL_SHORT_4),
+                tokens.get(s::DATA_VIZ_CATEGORICAL_SHORT_1),
+                tokens.get(s::DATA_VIZ_CATEGORICAL_SHORT_2),
+                tokens.get(s::DATA_VIZ_CATEGORICAL_SHORT_3),
+                tokens.get(s::DATA_VIZ_CATEGORICAL_SHORT_4),
+                tokens.get(s::DATA_VIZ_CATEGORICAL_SHORT_5),
+                tokens.get(s::DATA_VIZ_CATEGORICAL_SHORT_6),
+                tokens.get(s::DATA_VIZ_CATEGORICAL_EXTENDED_7),
+                tokens.get(s::DATA_VIZ_CATEGORICAL_EXTENDED_8),
             ],
-            corner_radius: tokens.get(component::PANEL_CORNER_RADIUS_DEFAULT),
+            corner_radius: tokens.get(c::PANEL_CORNER_RADIUS_DEFAULT),
         }
     }
 
@@ -112,108 +149,13 @@ impl ThemePreview {
             .view(theme, Layers::ALL)
             .map(|view| Self::resolve(&view))
     }
+}
 
-    /// Paints the miniature in `rect`: a panel with text, a checked checkbox and the colors of
-    /// states; a heading, a line, a small chart and a button. Text is drawn as bars, so that it
-    /// reads at any size.
-    pub fn paint(&self, scene: &mut Scene, rect: Rect, corner_radius: f32) {
-        let rounded = |rect: Rect, color: Color, radius: f32| {
-            RectPrimitive::new(rect, color).with_corner_radius(radius)
-        };
-        // A bar of text: a pill `width` long and `unit` tall.
-        let bar = |x: f32, y: f32, width: f32, unit: f32| {
-            Rect::from_origin_size(Vec2::new(x, y), Vec2::new(width, unit * 0.6))
-        };
-        scene.push_rect(&rounded(rect, self.background, corner_radius));
-        let unit = (rect.height() / 10.0).max(1.0);
-        let (x0, y0, width) = (rect.min.x, rect.min.y, rect.width());
-        let pill = unit * 0.3;
-
-        // Panel on the left, with two lines of text and a checked checkbox.
-        let panel = Rect::from_min_max(
-            Vec2::new(x0 + unit, y0 + unit),
-            Vec2::new(x0 + width * 0.45, rect.max.y - unit),
-        );
-        scene.push_rect(
-            &rounded(panel, self.panel, self.corner_radius).with_border(1.0, self.panel_border),
-        );
-        let inner_x = panel.min.x + unit;
-        let inner_width = (panel.width() - 2.0 * unit).max(0.0);
-        let line = |row: f32| panel.min.y + unit * (1.0 + 1.5 * row);
-        scene.push_rect(&rounded(
-            bar(inner_x, line(0.0), inner_width * 0.8, unit),
-            self.text_primary,
-            pill,
-        ));
-        scene.push_rect(&rounded(
-            bar(inner_x, line(1.0), inner_width * 0.6, unit),
-            self.text_secondary,
-            pill,
-        ));
-        let check = Rect::from_origin_size(Vec2::new(inner_x, line(2.0)), Vec2::splat(unit * 1.2));
-        scene.push_rect(&rounded(
-            check,
-            self.check_background,
-            self.corner_radius * 0.5,
-        ));
-        Icon::Check.draw(scene, check, self.check_mark, (unit * 0.2).max(1.0));
-        scene.push_rect(&rounded(
-            bar(
-                check.max.x + unit * 0.5,
-                line(2.0) + unit * 0.3,
-                inner_width * 0.4,
-                unit,
-            ),
-            self.text_secondary,
-            pill,
-        ));
-        // The colors of states, as small chips.
-        let chip = (inner_width / 4.0 - unit * 0.3).max(0.0);
-        for (index, color) in self.tones.into_iter().enumerate() {
-            let at = Rect::from_origin_size(
-                Vec2::new(inner_x + (chip + unit * 0.4) * index as f32, line(3.2)),
-                Vec2::new(chip, unit),
-            );
-            scene.push_rect(&rounded(at, color, self.corner_radius * 0.5));
-        }
-
-        // On the right: a heading, a paragraph and a button.
-        let right_x = panel.max.x + unit;
-        let right_width = (rect.max.x - unit - right_x).max(0.0);
-        let heading = Rect::from_origin_size(
-            Vec2::new(right_x, y0 + unit * 1.2),
-            Vec2::new(right_width * 0.8, unit),
-        );
-        scene.push_rect(&rounded(heading, self.text_primary, unit * 0.5));
-        scene.push_rect(&rounded(
-            bar(right_x, heading.max.y + unit * 0.9, right_width * 0.9, unit),
-            self.text_secondary,
-            pill,
-        ));
-        // A chart: bars of its first colors.
-        let base = rect.max.y - unit * 4.0;
-        let column = right_width / 6.0;
-        for (index, (color, share)) in self
-            .chart
-            .into_iter()
-            .zip([0.5, 0.9, 0.35, 0.7])
-            .enumerate()
-        {
-            let height = unit * 2.4 * share;
-            let at = Rect::from_min_max(
-                Vec2::new(right_x + column * 1.4 * index as f32, base - height),
-                Vec2::new(right_x + column * (1.4 * index as f32 + 1.0), base),
-            );
-            scene.push_rect(&rounded(at, color, pill * 0.5));
-        }
-        let button = Rect::from_min_max(
-            Vec2::new(right_x, rect.max.y - unit * 3.2),
-            Vec2::new(right_x + right_width * 0.6, rect.max.y - unit),
-        );
-        scene.push_rect(&rounded(button, self.accent, self.corner_radius));
-        let label =
-            Rect::from_center_size(button.center(), Vec2::new(button.width() * 0.5, unit * 0.6));
-        scene.push_rect(&rounded(label, self.accent_label, pill));
+/// The text of the miniatures: tiny, but text, set in the label font at `size`.
+fn tiny(ui: &Ui<'_>, size: f32) -> FontStyle {
+    FontStyle {
+        size,
+        ..ui.styles().text.label.clone()
     }
 }
 
@@ -255,8 +197,9 @@ impl Ui<'_> {
         }
     }
 
-    /// A card filling `rect` that shows `preview`. The card itself uses the active theme's
-    /// style: `selected` marks the active theme's card. Clicks are reported.
+    /// A card filling `rect` that shows `preview` as a theme: a miniature of the application in
+    /// it. The card itself uses the active theme's style: `selected` marks the active theme's
+    /// card. Clicks are reported.
     pub fn theme_card(
         &mut self,
         id: WidgetId,
@@ -266,14 +209,241 @@ impl Ui<'_> {
     ) -> Response {
         let card = self.card(id, rect, selected);
         if !card.content.is_empty() {
-            preview.paint(self.scene, card.content, card.corner_radius);
+            self.paint_application(preview, card.content, card.corner_radius);
         }
         card.response
+    }
+
+    /// A card filling `rect` that shows `preview` as a color vision mode sees it: the contrasts
+    /// of text on its surfaces, the colors of states and the colors of charts side by side,
+    /// where the mode's changes show. Clicks are reported.
+    pub fn vision_card(
+        &mut self,
+        id: WidgetId,
+        rect: Rect,
+        preview: &ThemePreview,
+        selected: bool,
+    ) -> Response {
+        let card = self.card(id, rect, selected);
+        if !card.content.is_empty() {
+            self.paint_contrasts(preview, card.content, card.corner_radius);
+        }
+        card.response
+    }
+
+    /// The miniature of the application in `rect`: its bar, a side panel with a list and its
+    /// selected row, a title and text, a field, a checkbox, a button, a chart, the status bar.
+    /// Flat shapes and tiny text, which never look like controls to press.
+    pub fn paint_application(&mut self, preview: &ThemePreview, rect: Rect, corner_radius: f32) {
+        let p = preview;
+        let rounded = |rect: Rect, color: Color, radius: f32| {
+            RectPrimitive::new(rect, color).with_corner_radius(radius)
+        };
+        let unit = (rect.height() / 12.0).max(1.0);
+        let font = tiny(self, (unit * 1.2).clamp(5.0, 12.0));
+        let radius = (p.corner_radius * 0.5).min(unit * 0.5);
+        self.scene
+            .push_rect(&rounded(rect, p.background, corner_radius));
+        self.clipped_rounded(rect, Corners::all(corner_radius), |ui| {
+            // The application bar, with the application's name.
+            let bar = Rect::from_min_max(rect.min, Vec2::new(rect.max.x, rect.min.y + unit * 1.8));
+            ui.scene.push_rect(&RectPrimitive::new(bar, p.app_bar));
+            let logo = Rect::from_center_size(
+                Vec2::new(bar.min.x + unit * 1.1, bar.center().y),
+                Vec2::splat(unit),
+            );
+            ui.scene.push_rect(&rounded(logo, p.accent, unit * 0.25));
+            let name = Rect::from_min_max(
+                Vec2::new(logo.max.x + unit * 0.5, bar.min.y),
+                Vec2::new(bar.max.x, bar.max.y),
+            );
+            ui.label("Koebi", name, &font, p.text_secondary, Align::Start);
+            // The status bar.
+            let status =
+                Rect::from_min_max(Vec2::new(rect.min.x, rect.max.y - unit * 1.5), rect.max);
+            ui.scene
+                .push_rect(&RectPrimitive::new(status, p.status_bar));
+            let ready = Rect::from_min_max(
+                Vec2::new(status.min.x + unit * 0.6, status.min.y),
+                status.max,
+            );
+            ui.label("Ready", ready, &font, p.text_secondary, Align::Start);
+            // A side panel: a list, its second row selected.
+            let side = Rect::from_min_max(
+                Vec2::new(rect.min.x + unit * 0.5, bar.max.y + unit * 0.5),
+                Vec2::new(rect.min.x + rect.width() * 0.36, status.min.y - unit * 0.5),
+            );
+            ui.scene
+                .push_rect(&rounded(side, p.panel, radius).with_border(1.0, p.panel_border));
+            for (index, item) in ["Scene", "Layer", "Shape"].into_iter().enumerate() {
+                let row = Rect::from_origin_size(
+                    Vec2::new(
+                        side.min.x + 1.0,
+                        side.min.y + unit * 0.5 + unit * 1.7 * index as f32,
+                    ),
+                    Vec2::new(side.width() - 2.0, unit * 1.5),
+                );
+                let ink = if index == 1 {
+                    ui.scene.push_rect(&rounded(row, p.selection, radius));
+                    p.text_primary
+                } else {
+                    p.text_secondary
+                };
+                let text =
+                    Rect::from_min_max(Vec2::new(row.min.x + unit * 0.6, row.min.y), row.max);
+                ui.label(item, text, &font, ink, Align::Start);
+            }
+            // The editor: a title, a line of text, a field, a checkbox and two buttons.
+            let left = side.max.x + unit * 0.8;
+            let right = rect.max.x - unit * 0.8;
+            let line = |row: f32| side.min.y + unit * 1.6 * row;
+            let title = Rect::from_min_max(Vec2::new(left, line(0.0)), Vec2::new(right, line(1.0)));
+            let heading = FontStyle {
+                size: font.size * 1.35,
+                ..font.clone()
+            };
+            ui.label("Aa Title", title, &heading, p.text_primary, Align::Start);
+            let body = Rect::from_min_max(Vec2::new(left, line(1.0)), Vec2::new(right, line(1.9)));
+            ui.label(
+                "Text over the theme",
+                body,
+                &font,
+                p.text_secondary,
+                Align::Start,
+            );
+            let width = right - left;
+            let field = Rect::from_min_max(
+                Vec2::new(left, line(2.1)),
+                Vec2::new(left + width * 0.62, line(2.1) + unit * 1.3),
+            );
+            ui.scene.push_rect(&rounded(field, p.field, radius));
+            let fill = Rect::from_min_max(
+                field.min,
+                Vec2::new(field.min.x + field.width() * 0.6, field.max.y),
+            );
+            ui.scene.push_rect(&rounded(fill, p.field_fill, radius));
+            let value = field.inset(unit * 0.3);
+            ui.label("0.60", value, &font, p.text_primary, Align::End);
+            let check = Rect::from_origin_size(
+                Vec2::new(field.max.x + unit * 0.6, field.min.y + unit * 0.15),
+                Vec2::splat(unit),
+            );
+            ui.scene
+                .push_rect(&rounded(check, p.check_background, radius * 0.6));
+            Icon::Check.draw(ui.scene, check, p.check_mark, (unit * 0.16).max(0.8));
+            let buttons = line(3.6);
+            let button = |x: f32| {
+                Rect::from_min_max(
+                    Vec2::new(x, buttons),
+                    Vec2::new(x + width * 0.27, buttons + unit * 1.4),
+                )
+            };
+            let ok = button(left);
+            ui.scene.push_rect(&rounded(ok, p.accent, radius));
+            ui.label("OK", ok, &font, p.accent_label, Align::Center);
+            let cancel = button(ok.max.x + unit * 0.4);
+            ui.scene.push_rect(&rounded(cancel, p.button, radius));
+            ui.label("No", cancel, &font, p.button_label, Align::Center);
+            // A chart beside them: bars of its first colors, standing on the buttons' line.
+            let chart_left = cancel.max.x + unit * 0.8;
+            let column = ((right - chart_left) / 6.5).max(0.0);
+            for (index, (color, share)) in p
+                .chart
+                .into_iter()
+                .take(4)
+                .zip([0.5, 0.9, 0.35, 0.7])
+                .enumerate()
+            {
+                let height = unit * 2.4 * share;
+                let x = chart_left + column * 1.6 * index as f32;
+                let at = Rect::from_min_max(
+                    Vec2::new(x, ok.max.y - height),
+                    Vec2::new(x + column, ok.max.y),
+                );
+                ui.scene.push_rect(&rounded(at, color, unit * 0.15));
+            }
+        });
+    }
+
+    /// The board of contrasts in `rect`, for color vision modes: text on the surfaces it lies
+    /// on ("Aa" on the window, on a panel, on the accent, on a button), the colors of states
+    /// with their labels, and the categorical colors of charts side by side.
+    pub fn paint_contrasts(&mut self, preview: &ThemePreview, rect: Rect, corner_radius: f32) {
+        let p = preview;
+        let unit = (rect.height() / 12.0).max(1.0);
+        let gap = (unit * 0.35).max(1.0);
+        let radius = (p.corner_radius * 0.5).min(unit * 0.5);
+        let big = tiny(self, (unit * 2.4).clamp(6.0, 22.0));
+        let small = tiny(self, (unit * 1.15).clamp(5.0, 12.0));
+        self.scene
+            .push_rect(&RectPrimitive::new(rect, p.background).with_corner_radius(corner_radius));
+        let inner = rect.inset(unit * 0.6);
+        // Text on its surfaces.
+        let samples = [
+            (p.background, p.text_primary, false),
+            (p.panel, p.text_secondary, true),
+            (p.accent, p.accent_label, false),
+            (p.button, p.button_label, false),
+        ];
+        let tile_width = (inner.width() - 3.0 * gap) / 4.0;
+        let tile_height = unit * 4.2;
+        for (index, (surface, ink, framed)) in samples.into_iter().enumerate() {
+            let at = Rect::from_origin_size(
+                Vec2::new(inner.min.x + (tile_width + gap) * index as f32, inner.min.y),
+                Vec2::new(tile_width, tile_height),
+            );
+            let mut tile = RectPrimitive::new(at, surface).with_corner_radius(radius);
+            if framed || index == 0 {
+                tile = tile.with_border(1.0, p.panel_border);
+            }
+            self.scene.push_rect(&tile);
+            self.label("Aa", at, &big, ink, Align::Center);
+        }
+        // The colors of states, with their labels.
+        let tones_top = inner.min.y + tile_height + gap * 2.0;
+        let chip_height = unit * 2.0;
+        for (index, (color, ink)) in p.tones.into_iter().zip(p.tone_labels).enumerate() {
+            let at = Rect::from_origin_size(
+                Vec2::new(inner.min.x + (tile_width + gap) * index as f32, tones_top),
+                Vec2::new(tile_width, chip_height),
+            );
+            self.scene
+                .push_rect(&RectPrimitive::new(at, color).with_corner_radius(radius));
+            let name = ["Done", "Error", "Note", "Info"][index];
+            self.label(name, at, &small, ink, Align::Center);
+        }
+        // The colors of charts, side by side: what a mode confuses shows as neighbours alike.
+        let chart_top = tones_top + chip_height + gap * 2.0;
+        let chart = Rect::from_min_max(Vec2::new(inner.min.x, chart_top), inner.max);
+        let cell = chart.width() / p.chart.len() as f32;
+        for (index, color) in p.chart.into_iter().enumerate() {
+            let at = Rect::from_min_max(
+                Vec2::new(chart.min.x + cell * index as f32, chart.min.y),
+                Vec2::new(chart.min.x + cell * (index + 1) as f32, chart.max.y),
+            );
+            let corners = Corners {
+                top_left: if index == 0 { radius } else { 0.0 },
+                bottom_left: if index == 0 { radius } else { 0.0 },
+                top_right: if index + 1 == p.chart.len() {
+                    radius
+                } else {
+                    0.0
+                },
+                bottom_right: if index + 1 == p.chart.len() {
+                    radius
+                } else {
+                    0.0
+                },
+            };
+            self.scene
+                .push_rect(&RectPrimitive::new(at, color).with_corner_radii(corners));
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use koebi_render::Scene;
     use koebi_tokens::KOEBI;
 
     use crate::{Input, UiState};
@@ -306,8 +476,14 @@ mod tests {
         let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
         ui.theme_card(WidgetId::new("dark"), rect, &preview, true);
         drop(ui);
-        // Frame, background, panel, 2 lines, checkbox, its label, 4 chips, heading, a line,
-        // 4 bars, button and its label; the check mark is one stroke.
-        assert_eq!((scene.rect_count(), scene.line_count()), (19, 1));
+        // Frame, background, the two bars, the logo, the side panel and its selected row, a
+        // field and its bar, a checkbox, two buttons, four bars of the chart; one check mark.
+        assert_eq!((scene.rect_count(), scene.line_count()), (16, 1));
+        // A vision card: frame, background, four tiles, four states, eight chart colors.
+        let (mut scene, mut state) = (Scene::new(), UiState::new());
+        let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+        ui.vision_card(WidgetId::new("vision"), rect, &preview, false);
+        drop(ui);
+        assert_eq!(scene.rect_count(), 18);
     }
 }
