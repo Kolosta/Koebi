@@ -41,6 +41,8 @@ crates/koebi-tokens/   Koebi's design tokens (primitive, semantic, component) an
 crates/koebi-ui/       components drawn from typed token styles, immediate-mode interaction
 crates/koebi-input/    actions and shortcuts: keymap, contexts, gestures, conflicts, overrides
 crates/koebi-text/     fonts: TrueType reading, glyph rasterization, one-line layout; Noto Sans
+crates/koebi-svg/      icon compiler: checked SVG subset -> quadratic curves per color zone; no deps
+crates/koebi-icons/    the SVG icons (icons/<category>/), compiled and checked by build.rs
 crates/koebi-workspace/ workspace model: tiled areas, linked lines, joins, editor stacks
 crates/koebi-gpu/      Vulkan RHI: loader, instance, device, memory, resources, pipelines, presenter
 crates/koebi-render/   2D renderer: Scene -> instanced draws; GLSL in shaders/, SPIR-V committed
@@ -52,7 +54,8 @@ docs/                  architecture, ADRs, development guides, AI workflow
 ```
 
 Layering (enforced by Cargo): `app -> ui -> render -> gpu -> core`, `render -> text -> core`,
-`app -> platform -> core` and `ui -> tokens -> design -> core`.
+`app -> platform -> core`, `ui -> tokens -> design -> core` and `ui -> icons -> svg`,
+`render -> svg` (`svg` depends on nothing).
 `render`, `gpu` and `ui` never see SDL; `platform` never sees the renderer; `core` depends on
 nothing.
 

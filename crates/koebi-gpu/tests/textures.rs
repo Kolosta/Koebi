@@ -587,3 +587,59 @@ fn a_region_of_a_texture_reads_back_row_by_row() {
     );
     gpu.assert_no_validation_errors();
 }
+
+#[test]
+fn float_data_textures_are_sampled_never_rendered_to() {
+    let Some(gpu) = gpu_or_skip("float_data_textures_are_sampled_never_rendered_to") else {
+        return;
+    };
+    // Sampled and copied to: the icon set's data texture.
+    let data = gpu
+        .device
+        .create_texture(&TextureDesc {
+            label: "data",
+            extent: Extent::new(16, 2),
+            format: TextureFormat::Rgba32Float,
+            usage: TextureUsage::SAMPLED | TextureUsage::TRANSFER_DST,
+        })
+        .expect("a sampled float texture can be created");
+    drop(data);
+    // Vulkan does not require rendering to the format, or blending it.
+    let target = gpu.device.create_texture(&TextureDesc {
+        label: "float target",
+        extent: Extent::new(16, 2),
+        format: TextureFormat::Rgba32Float,
+        usage: TextureUsage::COLOR_ATTACHMENT,
+    });
+    assert!(matches!(target, Err(Error::InvalidArgument(_))));
+    let vertex = gpu
+        .device
+        .create_shader_module("textured.vert", TEXTURED_VERT)
+        .expect("the test vertex shader is valid SPIR-V");
+    let fragment = gpu
+        .device
+        .create_shader_module("textured.frag", TEXTURED_FRAG)
+        .expect("the test fragment shader is valid SPIR-V");
+    let layout = sampled_layout(&gpu.device);
+    let pipeline = gpu.device.create_render_pipeline(&RenderPipelineDesc {
+        label: "float target",
+        vertex: ShaderStage {
+            module: &vertex,
+            entry_point: c"main",
+        },
+        fragment: ShaderStage {
+            module: &fragment,
+            entry_point: c"main",
+        },
+        vertex_buffers: &[],
+        topology: PrimitiveTopology::TriangleStrip,
+        color_targets: &[ColorTargetDesc {
+            format: TextureFormat::Rgba32Float,
+            blend: BlendMode::PremultipliedAlpha,
+        }],
+        push_constant_size: 0,
+        bind_group_layouts: &[&layout],
+    });
+    assert!(matches!(pipeline, Err(Error::InvalidArgument(_))));
+    gpu.assert_no_validation_errors();
+}

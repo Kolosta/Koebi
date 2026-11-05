@@ -17,6 +17,9 @@
 //! - **Clipping**: [`Scene::push_clip`] clips what follows to a rectangle, applied as a
 //!   scissor per draw; clips nest, and primitives entirely outside are dropped.
 //!   [`Scene::push_rounded_clip`] also cuts them at rounded corners, in every fragment shader.
+//! - **Icons**: vector icons compiled by `koebi-svg` are drawn from their curves in the fragment
+//!   shader, sharp at every size and recolored zone by zone per instance; the set lives in a
+//!   data texture uploaded once (`docs/adr/0020-vector-icons.md`).
 //! - **Text**: glyphs of `koebi_text` lines are rasterized on the CPU at their physical size,
 //!   cached in a glyph atlas texture and drawn one texel per pixel
 //!   (`docs/adr/0014-text-basics.md`).
@@ -25,11 +28,13 @@
 
 mod atlas;
 mod fill;
+mod icon;
 mod renderer;
 mod scene;
 mod shaders;
 
 pub use fill::{Fill, FillPrimitive, HueModel, Pointing};
+pub use icon::{ICON_ZONES, IconColors, IconPrimitive};
 pub use renderer::{Renderer2D, Viewport};
 pub use scene::{
     Corners, Edges, GlyphPrimitive, LinePrimitive, RectPrimitive, Scene, Sides, TIE_TOLERANCE,

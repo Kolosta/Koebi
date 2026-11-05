@@ -5,6 +5,7 @@ use koebi_gpu::Pod;
 use koebi_text::{FontId, GlyphId, TextLine};
 
 use crate::fill::{FillInstance, FillPrimitive};
+use crate::icon::{IconInstance, IconPrimitive};
 
 /// Per-corner values of a rectangle: top-left, top-right, bottom-right, bottom-left.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -359,6 +360,7 @@ pub(crate) enum PrimitiveKind {
     Line,
     Glyph,
     Fill,
+    Icon,
 }
 
 /// What primitives are clipped to.
@@ -415,6 +417,7 @@ pub struct Scene {
     rects: Vec<RectInstance>,
     lines: Vec<LineInstance>,
     fills: Vec<FillInstance>,
+    icons: Vec<IconInstance>,
     /// Glyphs stay descriptions: their instances depend on the atlas and the scale factor.
     glyphs: Vec<GlyphPrimitive>,
     /// The runs of each layer, by layer number, each in painter's order.
@@ -440,6 +443,7 @@ impl Scene {
         self.rects.clear();
         self.lines.clear();
         self.fills.clear();
+        self.icons.clear();
         self.glyphs.clear();
         for layer in &mut self.layers {
             layer.clear();
@@ -557,6 +561,22 @@ impl Scene {
         self.extend_batch(PrimitiveKind::Fill, self.fills.len());
     }
 
+    /// Appends an icon ([`IconPrimitive`]). Icons without size or opacity, or with a
+    /// non-finite rectangle, are culled.
+    pub fn push_icon(&mut self, primitive: &IconPrimitive) {
+        let rect = primitive.rect;
+        let finite = [rect.min.x, rect.min.y, rect.max.x, rect.max.y]
+            .iter()
+            .all(|v| v.is_finite());
+        // A NaN opacity is culled too: it would blank the icon's whole square.
+        let visible = primitive.opacity.partial_cmp(&0.0) == Some(core::cmp::Ordering::Greater);
+        if !finite || rect.is_empty() || !visible || !self.visible(rect) {
+            return;
+        }
+        self.icons.push(IconInstance::from_primitive(primitive));
+        self.extend_batch(PrimitiveKind::Icon, self.icons.len());
+    }
+
     /// Appends a segment, or two joined. Strokes without width or color are culled, and so are
     /// strokes with a non-finite coordinate or width, which cannot be drawn.
     pub fn push_line(&mut self, primitive: &LinePrimitive) {
@@ -647,6 +667,11 @@ impl Scene {
         self.fills.len()
     }
 
+    /// Number of icons.
+    pub fn icon_count(&self) -> usize {
+        self.icons.len()
+    }
+
     /// Number of glyphs.
     pub fn glyph_count(&self) -> usize {
         self.glyphs.len()
@@ -673,6 +698,10 @@ impl Scene {
 
     pub(crate) fn fill_instances(&self) -> &[FillInstance] {
         &self.fills
+    }
+
+    pub(crate) fn icon_instances(&self) -> &[IconInstance] {
+        &self.icons
     }
 
     pub(crate) fn glyphs(&self) -> &[GlyphPrimitive] {
@@ -744,6 +773,24 @@ mod tests {
         let joined = LineInstance::from_primitive(&line().then(Vec2::new(5.0, 2.0)));
         assert_eq!(joined.points, [1.0, 2.0, 3.0, 4.0]);
         assert_eq!(joined.params, [1.0, 5.0, 2.0, 1.0]);
+    }
+
+    #[test]
+    fn icons_without_size_or_opacity_are_culled() {
+        let mut scene = Scene::new();
+        let icon = |rect: Rect, opacity: f32| IconPrimitive {
+            opacity,
+            ..IconPrimitive::tinted(rect, 0, Color::WHITE)
+        };
+        scene.push_icon(&icon(Rect::ZERO, 1.0));
+        scene.push_icon(&icon(rect(), 0.0));
+        // A NaN opacity would blank the whole square.
+        scene.push_icon(&icon(rect(), f32::NAN));
+        let far = Rect::from_origin_size(Vec2::new(f32::INFINITY, 0.0), Vec2::new(1.0, 1.0));
+        scene.push_icon(&icon(far, 1.0));
+        assert!(scene.is_empty());
+        scene.push_icon(&icon(rect(), 0.5));
+        assert_eq!(scene.icon_count(), 1);
     }
 
     #[test]

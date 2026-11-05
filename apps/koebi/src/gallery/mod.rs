@@ -13,6 +13,8 @@
 //!   a horizontal strip, a picker in place, and the settings to try on them.
 //! - **Curves** ([`curves`]): the curve editor, temporary, with presets and where something
 //!   moving by the curve lies at equal times.
+//! - **Icons** ([`icons`]): every vector icon at a size to choose, recolored by state or in
+//!   its own colors.
 //! - **Color vision** ([`editor`]): the simulation and correction modes, each previewed on
 //!   four chart colors.
 //! - **Grid**: hundreds of components, to show that styling costs nothing per component.
@@ -24,6 +26,7 @@ mod colors;
 mod curves;
 mod editor;
 mod fields;
+mod icons;
 mod menus;
 
 use koebi_core::{Color, Oklch, Rect, Vec2};
@@ -166,6 +169,8 @@ pub(crate) struct Gallery {
     colors: colors::Colors,
     /// The curve of the curves panel.
     curves: curves::Curves,
+    /// The size and colors of the icons panel.
+    icons: icons::Icons,
     /// The color vision dropdown's menu.
     vision_menu: MenuState,
     /// How far the gallery is scrolled when its area is too small for it.
@@ -185,6 +190,7 @@ impl Gallery {
             fields: fields::Fields::new(),
             colors: colors::Colors::new(),
             curves: curves::Curves::new(),
+            icons: icons::Icons::new(),
             vision_menu: MenuState::new(),
             scroll: ScrollState::new(),
         }
@@ -235,6 +241,7 @@ impl Gallery {
         let fields = metrics.panel_height(ui, fields::ROWS);
         let colors = self.colors.height(ui, metrics);
         let curves = curves::Curves::height(ui, metrics);
+        let icons = self.icons.height(ui, width - 2.0 * gap, metrics);
         let vision = metrics.panel_height(ui, 1);
         let grid = metrics.panel_height(ui, 6);
         2.0 * gap
@@ -251,6 +258,8 @@ impl Gallery {
             + colors
             + gap
             + curves
+            + gap
+            + icons
             + gap
             + vision
             + gap
@@ -310,6 +319,9 @@ impl Gallery {
         self.colors.show(ui, colors, window, metrics);
         let curves = cut_top(&mut rest, curves::Curves::height(ui, metrics), metrics.gap);
         self.curves.show(ui, curves, metrics);
+        let icons_height = self.icons.height(ui, rest.width(), metrics);
+        let icons = cut_top(&mut rest, icons_height, metrics.gap);
+        self.icons.show(ui, icons, metrics);
         let vision = cut_top(&mut rest, vision_height, metrics.gap);
         editor::color_vision(ui, design, vision, metrics, &mut self.vision_menu, window);
         self.grid(ui, design, rest, metrics);

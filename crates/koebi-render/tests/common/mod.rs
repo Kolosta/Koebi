@@ -35,3 +35,22 @@ pub(crate) fn assert_pixel(image: &Image, x: u32, y: u32, expected: [u8; 4], tol
         "pixel ({x}, {y}) is {actual:?}, expected {expected:?} ±{tolerance}"
     );
 }
+
+/// Renders `scene` offscreen into an RGBA8 image, its icons from `icons`.
+pub(crate) fn render_with_icons(
+    gpu: &HeadlessGpu,
+    extent: Extent,
+    scale_factor: f32,
+    scene: &Scene,
+    icons: &koebi_svg::pack::Packed,
+) -> Image {
+    let format = TextureFormat::Rgba8Unorm;
+    let mut renderer = Renderer2D::new(&gpu.device, format).expect("renderer creation");
+    renderer.set_icons(icons).expect("a valid icon set");
+    gpu.render_offscreen(extent, format, |encoder, target| {
+        renderer
+            .render(encoder, target, scene, 0, scale_factor)
+            .expect("render");
+    })
+    .expect("offscreen rendering")
+}

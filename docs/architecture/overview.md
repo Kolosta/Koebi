@@ -15,10 +15,14 @@ flowchart TD
     tokens["koebi-tokens<br/>Koebi's design tokens and themes"]
     design["koebi-design<br/>design tokens, themes, overrides, color vision"]
     text["koebi-text<br/>fonts, glyph rasterization, single-line layout"]
+    svg["koebi-svg<br/>SVG subset → curves per color zone"]
+    icons["koebi-icons<br/>SVG icons compiled at build time"]
     workspace["koebi-workspace<br/>areas, lines, joins, editor stacks"]
     core["koebi-core<br/>geometry, color science, logging"]
     app --> ui --> render --> gpu --> core
     render --> text
+    render --> svg
+    ui --> icons --> svg
     app --> platform --> core
     app --> gpu
     app --> tokens
@@ -31,14 +35,16 @@ flowchart TD
 |---|---|---|
 | `koebi-core` | `Vec2`/`Rect`/`Extent`, `Color` (sRGB, linear, OKLab, OKLCH, WCAG contrast), color vision matrices, input vocabulary (`Key`, `Modifiers` with sides, `MouseButton`), logging facade, arithmetic expressions with units | nothing |
 | `koebi-gpu` | Vulkan loading, instance, adapter selection, device, memory, buffers, textures, samplers, bind groups, pipelines, command recording, swapchain and frame pacing | `ash`, core |
-| `koebi-render` | Retained `Scene` of 2D primitives (rectangles, segments, glyphs), glyph atlas, GPU instance layouts, shaders, batching ([pixel grid](pixel-grid.md)) | gpu, text, core |
+| `koebi-render` | Retained `Scene` of 2D primitives (rectangles, segments, fills, glyphs, vector icons), glyph atlas, icon set, GPU instance layouts, shaders, batching ([pixel grid](pixel-grid.md)) | gpu, text, svg, core |
 | `koebi-platform` | SDL3 main callbacks (`App` trait), windows and custom chrome ([ADR 0019](../adr/0019-window-chrome.md)), event translation (keys, pointer and relative motion, wheel, pinch, text, focus), cursors, pointer lock, text input, clipboard, Vulkan library and surface | `sdl3-sys`, `ash` (types), core |
 | `koebi-design` | Design token engine: typed tokens in three tiers, compiled token tables, themes, overrides, views, color vision ([ADR 0008](../adr/0008-design-token-system.md)) | core |
 | `koebi-tokens` | Koebi's token set and built-in themes ([design system](../design-system/README.md)) | design |
-| `koebi-ui` | Components drawn from typed styles of component tokens, immediate-mode interaction ([ADR 0011](../adr/0011-token-driven-components.md)) | render, tokens, design, core |
+| `koebi-ui` | Components drawn from typed styles of component tokens, immediate-mode interaction ([ADR 0011](../adr/0011-token-driven-components.md)) | render, icons, tokens, design, core |
 | `koebi-input` | Actions and shortcuts: keymap, contexts, gestures, conflicts, overrides ([ADR 0012](../adr/0012-actions-and-shortcuts.md)) | core |
 | `koebi-workspace` | Workspace model: areas tiling an integer grid, linked lines, splits, joins and closes that fill gaps, editor stacks and docking ([ADR 0015](../adr/0015-workspace-layout.md)) | core |
 | `koebi-text` | TrueType reading, glyph rasterization to coverage, single-line layout with ellipsis, embedded Noto Sans ([ADR 0014](../adr/0014-text-basics.md)) | core |
+| `koebi-svg` | Icon compiler: a checked SVG subset compiled into quadratic curves per color zone, packed for the GPU, and a CPU rasterizer of the shader's coverage ([ADR 0020](../adr/0020-vector-icons.md)) | nothing |
+| `koebi-icons` | The SVG icons of `icons/<category>/`, checked and compiled by its build script into constants and the packed set ([icons](../development/icons.md)) | svg |
 | `koebi-testkit` | Headless GPU, offscreen readback, PNG golden images (tests only) | gpu, core |
 | `koebi` (app) | Wires the layers, owns application state, theme tokens | all |
 
@@ -51,6 +57,8 @@ Rules that keep the graph clean:
   values. `koebi-ui` maps those values to render primitives, and never sees the platform:
   the app turns platform events into `koebi_ui::Input`.
 
+- `koebi-svg` depends on nothing: the build script of `koebi-icons` runs it, the renderer only
+  reads the layout of its packed icons.
 - `koebi-text` and `koebi-workspace` are pure models: fonts and glyph bitmaps, areas and editor
   stacks. The renderer draws the glyphs; the interface draws the areas and turns gestures into
   workspace operations.

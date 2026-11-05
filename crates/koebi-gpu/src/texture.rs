@@ -119,6 +119,12 @@ impl Texture {
                 desc.label
             )));
         }
+        if desc.usage.contains(TextureUsage::COLOR_ATTACHMENT) && !desc.format.is_renderable() {
+            return Err(Error::InvalidArgument(format!(
+                "texture {:?}: {:?} cannot be rendered to",
+                desc.label, desc.format
+            )));
+        }
         let info = vk::ImageCreateInfo::default()
             .image_type(vk::ImageType::TYPE_2D)
             .format(desc.format.to_vk())

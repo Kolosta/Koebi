@@ -40,6 +40,7 @@ dependencies = [
  "koebi-core",
  "koebi-design",
  "koebi-gpu",
+ "koebi-icons",
  "koebi-input",
  "koebi-platform",
  "koebi-render",
@@ -71,6 +72,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koebi-icons"
+version = "0.1.0"
+dependencies = [
+ "koebi-svg",
+]
+
+[[package]]
 name = "koebi-input"
 version = "0.1.0"
 dependencies = [
@@ -92,9 +100,14 @@ version = "0.1.0"
 dependencies = [
  "koebi-core",
  "koebi-gpu",
+ "koebi-svg",
  "koebi-testkit",
  "koebi-text",
 ]
+
+[[package]]
+name = "koebi-svg"
+version = "0.1.0"
 
 [[package]]
 name = "koebi-testkit"
@@ -126,6 +139,7 @@ dependencies = [
  "koebi-core",
  "koebi-design",
  "koebi-gpu",
+ "koebi-icons",
  "koebi-input",
  "koebi-render",
  "koebi-testkit",

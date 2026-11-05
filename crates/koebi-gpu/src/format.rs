@@ -19,6 +19,9 @@ pub enum TextureFormat {
     Bgra8Srgb,
     /// 16-bit float RGBA (HDR intermediate targets).
     Rgba16Float,
+    /// 32-bit float RGBA: data textures read texel by texel (`texelFetch`), never filtered,
+    /// and never rendered to (Vulkan does not require blending it): sampled and copied to only.
+    Rgba32Float,
     /// Single 8-bit channel (masks, glyph coverage).
     R8Unorm,
 }
@@ -32,6 +35,7 @@ impl TextureFormat {
             Self::Rgba8Srgb => vk::Format::R8G8B8A8_SRGB,
             Self::Bgra8Srgb => vk::Format::B8G8R8A8_SRGB,
             Self::Rgba16Float => vk::Format::R16G16B16A16_SFLOAT,
+            Self::Rgba32Float => vk::Format::R32G32B32A32_SFLOAT,
             Self::R8Unorm => vk::Format::R8_UNORM,
         }
     }
@@ -44,6 +48,7 @@ impl TextureFormat {
             vk::Format::R8G8B8A8_SRGB => Self::Rgba8Srgb,
             vk::Format::B8G8R8A8_SRGB => Self::Bgra8Srgb,
             vk::Format::R16G16B16A16_SFLOAT => Self::Rgba16Float,
+            vk::Format::R32G32B32A32_SFLOAT => Self::Rgba32Float,
             vk::Format::R8_UNORM => Self::R8Unorm,
             _ => return None,
         })
@@ -54,6 +59,7 @@ impl TextureFormat {
         match self {
             Self::Rgba8Unorm | Self::Bgra8Unorm | Self::Rgba8Srgb | Self::Bgra8Srgb => 4,
             Self::Rgba16Float => 8,
+            Self::Rgba32Float => 16,
             Self::R8Unorm => 1,
         }
     }
@@ -66,6 +72,12 @@ impl TextureFormat {
     /// `true` when bytes are stored in B, G, R, A order.
     pub const fn is_bgra(self) -> bool {
         matches!(self, Self::Bgra8Unorm | Self::Bgra8Srgb)
+    }
+
+    /// `true` when every Vulkan implementation can render to the format and blend it: what a
+    /// color attachment or a pipeline's color target may be.
+    pub const fn is_renderable(self) -> bool {
+        !matches!(self, Self::Rgba32Float)
     }
 }
 
@@ -123,6 +135,7 @@ mod tests {
             TextureFormat::Rgba8Srgb,
             TextureFormat::Bgra8Srgb,
             TextureFormat::Rgba16Float,
+            TextureFormat::Rgba32Float,
             TextureFormat::R8Unorm,
         ] {
             assert_eq!(TextureFormat::from_vk(format.to_vk()), Some(format));
@@ -135,6 +148,9 @@ mod tests {
         assert!(TextureFormat::Bgra8Srgb.is_srgb() && TextureFormat::Bgra8Srgb.is_bgra());
         assert!(!TextureFormat::Rgba8Unorm.is_srgb() && !TextureFormat::Rgba8Unorm.is_bgra());
         assert_eq!(TextureFormat::Rgba16Float.bytes_per_pixel(), 8);
+        assert_eq!(TextureFormat::Rgba32Float.bytes_per_pixel(), 16);
+        assert!(TextureFormat::Rgba16Float.is_renderable());
+        assert!(!TextureFormat::Rgba32Float.is_renderable());
     }
 
     #[test]

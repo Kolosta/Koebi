@@ -86,7 +86,7 @@ mod widgets;
 mod workspace;
 
 pub use bar::BarLayout;
-pub use icon::Icon;
+pub use icon::{Icon, IconInk, IconPaint, paint_icon};
 pub use id::WidgetId;
 pub use input::{Input, PointerButton};
 pub use operation::{

@@ -321,6 +321,13 @@ fn validate(device: &Arc<DeviceShared>, desc: &RenderPipelineDesc<'_>) -> Result
     if desc.color_targets.is_empty() {
         return fail("at least one color target is required");
     }
+    if desc
+        .color_targets
+        .iter()
+        .any(|target| !target.format.is_renderable())
+    {
+        return fail("a color target's format cannot be rendered to");
+    }
     if !desc.push_constant_size.is_multiple_of(4)
         || desc.push_constant_size > MAX_PUSH_CONSTANT_SIZE
     {

@@ -12,6 +12,7 @@ publish.workspace = true
 [dependencies]
 koebi-core.workspace = true
 koebi-gpu.workspace = true
+koebi-svg.workspace = true
 koebi-text.workspace = true
 
 [dev-dependencies]

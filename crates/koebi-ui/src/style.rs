@@ -16,6 +16,7 @@ use koebi_design::{DesignSystem, Resolve, Snapshot, Token, TokenId};
 use koebi_render::Corners;
 use koebi_tokens::{component, semantic};
 
+use crate::icon::IconInk;
 use crate::pixel::whole_pixels;
 use crate::text::TextStyles;
 use crate::ui::WidgetState;
@@ -245,7 +246,8 @@ impl InputStyle {
     }
 }
 
-/// Size and stroke of line icons, from the `component.icon.*` tokens.
+/// Size and stroke of line icons, and how vector icons drawn in one color recolor their zones,
+/// from the `component.icon.*` tokens.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct IconStyle {
     /// Width and height of an icon, in logical pixels.
@@ -254,6 +256,12 @@ pub struct IconStyle {
     pub stroke_width: f32,
     /// Stroke width of the chevrons that fold and open: fold arrows, panel headers, dropdowns.
     pub chevron_stroke_width: f32,
+    /// Opacity of secondary zones, in the color of the primary ones.
+    pub secondary_opacity: f32,
+    /// Opacity of tertiary zones, in the color of the primary ones.
+    pub tertiary_opacity: f32,
+    /// Color of accent zones.
+    pub accent: Color,
 }
 
 impl IconStyle {
@@ -263,6 +271,29 @@ impl IconStyle {
             size: tokens.get(component::ICON_SIZE_DEFAULT),
             stroke_width: tokens.get(component::ICON_STROKE_WIDTH_DEFAULT),
             chevron_stroke_width: tokens.get(component::ICON_STROKE_WIDTH_CHEVRON),
+            secondary_opacity: tokens.get(component::ICON_ZONE_SECONDARY_OPACITY),
+            tertiary_opacity: tokens.get(component::ICON_ZONE_TERTIARY_OPACITY),
+            accent: tokens.get(component::ICON_ZONE_ACCENT_COLOR),
+        }
+    }
+
+    /// The ink of a vector icon drawn in `color`, its component's icon color in the state it
+    /// shows: primary zones in it, secondary and tertiary zones in it, fainter, accent zones in
+    /// the accent color. A disabled icon takes [`IconInk::uniform`] instead, its accent dimmed
+    /// with the rest.
+    pub fn ink(&self, color: Color) -> IconInk {
+        let faded = |opacity: f32| Color {
+            a: color.a * opacity.clamp(0.0, 1.0),
+            ..color
+        };
+        IconInk {
+            primary: color,
+            secondary: faded(self.secondary_opacity),
+            tertiary: faded(self.tertiary_opacity),
+            accent: Color {
+                a: self.accent.a * color.a,
+                ..self.accent
+            },
         }
     }
 }
@@ -622,8 +653,38 @@ mod tests {
                 size: 16.0,
                 stroke_width: 1.5,
                 chevron_stroke_width: 1.25,
+                secondary_opacity: design.get(semantic::OPACITY_MODERATE),
+                tertiary_opacity: design.get(semantic::OPACITY_REDUCED),
+                accent: design.get(semantic::ICON_COLOR_ACCENT_DEFAULT),
             }
         );
+    }
+
+    #[test]
+    fn icons_drawn_in_one_color_fade_their_lesser_zones_and_keep_the_accent() {
+        let design = design();
+        let style = Styles::resolve(&design).icon;
+        let color = Color::new(0.2, 0.4, 0.6, 0.5);
+        let ink = style.ink(color);
+        assert_eq!(ink.primary, color);
+        assert_eq!(
+            ink.secondary,
+            Color::new(0.2, 0.4, 0.6, 0.5 * style.secondary_opacity)
+        );
+        assert_eq!(
+            ink.tertiary,
+            Color::new(0.2, 0.4, 0.6, 0.5 * style.tertiary_opacity)
+        );
+        assert!(style.tertiary_opacity < style.secondary_opacity);
+        // The accent keeps its color, as translucent as the icon.
+        assert_eq!(
+            ink.accent,
+            Color {
+                a: style.accent.a * 0.5,
+                ..style.accent
+            }
+        );
+        assert_eq!(IconInk::uniform(color).accent, color);
     }
 
     #[test]

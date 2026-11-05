@@ -161,6 +161,10 @@ impl WindowGpu {
                 match Renderer2D::new(&gpu.device, target.format()) {
                     Ok(mut created) => {
                         created.set_fonts(gpu.fonts.clone());
+                        // The build script's set is always valid.
+                        if let Err(error) = created.set_icons(koebi_icons::packed()) {
+                            koebi_core::warn!("icons are not drawn: {error}");
+                        }
                         *renderer = Some(created);
                     }
                     Err(error) => {

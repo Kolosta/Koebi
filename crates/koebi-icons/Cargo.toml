@@ -1,0 +1,20 @@
+[package]
+name = "koebi-icons"
+description = "Koebi's icons: the SVG files of icons/, checked and compiled by the build script into vector icons for the renderer."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+build = "build.rs"
+
+[dependencies]
+koebi-svg.workspace = true
+
+[build-dependencies]
+koebi-svg.workspace = true
+
+[lints]
+workspace = true

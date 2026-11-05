@@ -1,6 +1,7 @@
-//! Line icons.
+//! Icons: the size and stroke of line icons, and how vector icons recolor their zones.
 
 use super::*;
+use crate::semantic;
 use koebi_design::define::*;
 
 koebi_design::tokens! {
@@ -14,4 +15,12 @@ koebi_design::tokens! {
     /// dropdowns), a little finer than other icons, which are larger.
     ICON_STROKE_WIDTH_CHEVRON = "icon.stroke-width.chevron": Dimension = px(1.25),
         range(0.5, 4.0);
+    /// Icon: opacity of the secondary zones of a vector icon drawn in one color, which its
+    /// primary zones take whole.
+    ICON_ZONE_SECONDARY_OPACITY = "icon.zone.secondary.opacity": Number ->
+        semantic::OPACITY_MODERATE;
+    /// Icon: opacity of the tertiary zones of a vector icon drawn in one color.
+    ICON_ZONE_TERTIARY_OPACITY = "icon.zone.tertiary.opacity": Number -> semantic::OPACITY_REDUCED;
+    /// Icon: color of the accent zones of a vector icon drawn in one color.
+    ICON_ZONE_ACCENT_COLOR = "icon.zone.accent.color": Color -> semantic::ICON_COLOR_ACCENT_DEFAULT;
 }
