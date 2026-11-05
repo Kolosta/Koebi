@@ -93,7 +93,10 @@ with its caps), its event and what depends on it (repeat for actions that repeat
 direction and distance, the double-click time, each distance and time the application's
 unless the shortcut has its own), its modifiers (a group per family, its sides below, and Any,
 which keeps them for when it goes off), and a key held as a modifier below. A button adds an
-empty shortcut, which waits for its key without a color. Conflicts are checked as soon as a
+empty shortcut, which waits for its key without a color. Another device keeps the shortcut and
+gives it the device's first input the action does not have yet (letters first, the left button
+first); a shortcut the action already has is refused, a draft then waiting for another one,
+since two equal shortcuts of one action would merge into one. Conflicts are checked as soon as a
 shortcut changes, by the [shortcut rules](../development/editors.md#shortcut-rules); the
 shortcut's header takes the conflict's color and every panel holding it shows the warning. A
 search finds actions by name or by the shortcut pressed.

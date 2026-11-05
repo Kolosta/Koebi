@@ -36,7 +36,8 @@ pub(super) enum Edit {
     Set(Binding),
     /// It goes.
     Remove,
-    /// A draft takes this device.
+    /// It takes this device: a draft waits for its input, a shortcut takes the device's first
+    /// input that no other shortcut of the action has.
     Device(Device),
 }
 
@@ -210,16 +211,7 @@ pub(super) fn header(
         .show(ui, at, bounds)
         && let Some(&chosen) = Device::ALL.get(choice.index())
     {
-        edit = Some(match shown {
-            Shown::Binding(binding) => Edit::Set(Binding {
-                shortcut: Shortcut {
-                    trigger: chosen.trigger(binding.shortcut.trigger),
-                    ..binding.shortcut
-                },
-                ..binding
-            }),
-            Shown::Draft(_) => Edit::Device(chosen),
-        });
+        edit = Some(Edit::Device(chosen));
     }
     // The field recording it, then the removal.
     let remove = Rect::from_min_max(Vec2::new(rect.max.x - row, rect.min.y), rect.max);
