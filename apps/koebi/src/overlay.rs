@@ -1,5 +1,6 @@
-//! The frame-time overlay, at the bottom left of the window: how many frames per second the
-//! application could draw, and the CPU and GPU time of a frame ([`FrameTimes`]).
+//! The frame-time overlay, at the bottom left of the window above the status bar: how many
+//! frames per second the application could draw, and the CPU and GPU time of a frame
+//! ([`FrameTimes`]), on a slightly translucent background (`component.status-bar.frame-times.*`).
 //!
 //! Its text is formatted into fixed buffers and laid out again only when the averages or the
 //! typography tokens change, so the overlay allocates nothing in steady state and costs one
@@ -100,8 +101,8 @@ impl Overlay {
         }
     }
 
-    /// Draws the overlay at the bottom left of `area`, over everything already in `scene`,
-    /// with the tooltip's tokens and the body text's font.
+    /// Draws the overlay at the bottom left of `area` (the room above the status bar), over
+    /// everything already in `scene`, on its translucent background, in the body text's font.
     pub(crate) fn draw(
         &mut self,
         scene: &mut Scene,
@@ -129,7 +130,7 @@ impl Overlay {
                 laid_out.layout(fonts, line.text(), &style);
             }
         }
-        let margin = design.get(semantic::SPACING_EDITOR_INSET);
+        let margin = design.get(component::STATUS_BAR_FRAME_TIMES_MARGIN_DEFAULT);
         let padding = Vec2::new(
             design.get(component::TOOLTIP_PADDING_HORIZONTAL_DEFAULT),
             design.get(component::TOOLTIP_PADDING_VERTICAL_DEFAULT),
@@ -148,13 +149,12 @@ impl Overlay {
             Vec2::new(min.x.round(), min.y.round()),
             Vec2::new(size.x.round(), size.y.round()),
         );
+        let background = design.get(component::STATUS_BAR_FRAME_TIMES_BACKGROUND_COLOR_DEFAULT);
+        let opacity = design.get(component::STATUS_BAR_FRAME_TIMES_OPACITY_DEFAULT);
         scene.push_rect(
-            &RectPrimitive::new(
-                panel,
-                design.get(component::TOOLTIP_BACKGROUND_COLOR_DEFAULT),
-            )
-            .with_corner_radius(design.get(component::TOOLTIP_CORNER_RADIUS_DEFAULT))
-            .with_border(border, design.get(component::TOOLTIP_BORDER_COLOR_DEFAULT)),
+            &RectPrimitive::new(panel, background.with_alpha(background.a * opacity))
+                .with_corner_radius(design.get(component::TOOLTIP_CORNER_RADIUS_DEFAULT))
+                .with_border(border, design.get(component::TOOLTIP_BORDER_COLOR_DEFAULT)),
         );
         let ink = design.get(component::TOOLTIP_LABEL_COLOR_DEFAULT);
         let origin = panel.min + padding + Vec2::splat(border);

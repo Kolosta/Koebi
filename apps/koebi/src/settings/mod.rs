@@ -3,6 +3,7 @@
 //! - **Theme** ([`theme`]) and **Accessibility** ([`accessibility`]) choose among what the design
 //!   system offers.
 //! - **Customisation** ([`customisation`]) edits every token, by feature or by component.
+//! - **Dev** ([`dev`]), in development builds: what helps develop, the frame times first.
 //! - **Inputs** ([`inputs`]) edits the distances and delays of interaction, which are tokens.
 //! - The others wait for what they will hold. **Dev** shows only in development builds.
 //!
@@ -13,6 +14,7 @@
 mod accessibility;
 mod cards;
 mod customisation;
+mod dev;
 mod inputs;
 mod keymaps;
 mod options;
@@ -184,13 +186,15 @@ impl SettingsView {
         self.page
     }
 
-    /// Draws the settings in `rect`, applying the changes to `design`.
+    /// Draws the settings in `rect`, applying the changes to `design`, to `keymap`, and to
+    /// whether the frame times show.
     pub(crate) fn show(
         &mut self,
         ui: &mut Ui<'_>,
         rect: Rect,
         design: &mut DesignSystem,
         keymap: &mut Keymap,
+        frame_times: &mut bool,
     ) {
         let width = design.get(component::SIDE_PANEL_WIDTH_DEFAULT);
         let margin = ui.whole_pixels(design.get(component::SIDE_PANEL_MARGIN_DEFAULT));
@@ -201,7 +205,7 @@ impl SettingsView {
         self.column(ui, column, design, margin);
         let content = Rect::from_min_max(Vec2::new(column.max.x, rect.min.y), rect.max);
         if !content.is_empty() {
-            self.content(ui, content, design, keymap, margin);
+            self.content(ui, content, design, keymap, frame_times, margin);
         }
     }
 
@@ -243,6 +247,7 @@ impl SettingsView {
         rect: Rect,
         design: &mut DesignSystem,
         keymap: &mut Keymap,
+        frame_times: &mut bool,
         margin: f32,
     ) {
         let index = self.page as usize;
@@ -271,6 +276,7 @@ impl SettingsView {
                     Page::Accessibility => self.accessibility.show(ui, &mut stack, design),
                     Page::Inputs => self.inputs.show(ui, &mut stack, design),
                     Page::Keymaps => self.keymaps.show(ui, &mut stack, design, keymap),
+                    Page::Dev => dev::show(ui, &mut stack, design, frame_times),
                     _ => empty_page(ui, area.viewport, design),
                 }
                 stack.y - top + margin
@@ -304,6 +310,7 @@ mod tests {
         pub(super) design: DesignSystem,
         pub(super) keymap: Keymap,
         pub(super) settings: SettingsView,
+        pub(super) frame_times: bool,
         pub(super) state: UiState,
         pub(super) input: Input,
         styles: StyleCache,
@@ -320,6 +327,7 @@ mod tests {
                 design,
                 keymap: Keymap::new(&crate::actions::GROUPS).unwrap(),
                 settings: SettingsView::new(),
+                frame_times: false,
                 state,
                 input: Input::new(),
                 time: 0,
@@ -338,8 +346,13 @@ mod tests {
             {
                 let styles = self.styles.update(&self.design, self.state.scale_factor());
                 let mut ui = Ui::new(&mut scene, styles, &self.input, &mut self.state);
-                self.settings
-                    .show(&mut ui, Self::window(), &mut self.design, &mut self.keymap);
+                self.settings.show(
+                    &mut ui,
+                    Self::window(),
+                    &mut self.design,
+                    &mut self.keymap,
+                    &mut self.frame_times,
+                );
             }
             self.input.end_frame();
             scene
@@ -359,6 +372,17 @@ mod tests {
             self.frame();
             self.input.primary_button(false, at);
             self.frame();
+        }
+
+        /// The middle of the Dev page's checkbox: below its section's title, in its container.
+        pub(super) fn dev_option(&self) -> Vec2 {
+            let styles = koebi_ui::Styles::resolve(&self.design);
+            let row = self.design.get(semantic::SIZE_CONTROL_HEIGHT);
+            let margin = self.design.get(component::SIDE_PANEL_MARGIN_DEFAULT);
+            let left = self.design.get(component::SIDE_PANEL_WIDTH_DEFAULT);
+            let inset = styles.panel.border_width + styles.panel.padding;
+            let y = margin + inset + row + styles.property_group.row_gap + row * 0.5;
+            Vec2::new(left + inset + 6.0, y)
         }
 
         /// The middle of the button of `page` in the column.

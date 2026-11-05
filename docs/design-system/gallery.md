@@ -59,8 +59,10 @@ draws it again with the new styles before presenting it.
 
 ## Frame times
 
-Debug builds show an overlay at the bottom left (`--fps` shows it in release builds,
-`--no-fps` hides it):
+Debug builds show an overlay at the bottom left, above the status bar, on a slightly
+translucent background (`component.status-bar.frame-times.*`). `--fps` shows it in release
+builds, `--no-fps` hides it; F12 and Settings > Dev (development builds) show or hide it while
+the application runs:
 
 - **FPS**: the frames per second the application could draw at the current cost, whatever
   the screen's refresh rate: one frame per CPU or GPU frame time, whichever is longer, since
