@@ -59,6 +59,37 @@ impl Device {
         }
     }
 
+    /// A trigger of this device that `taken` does not refuse: `from` when it is this device's
+    /// and free, else the first free input in the order of the device's lists (letters
+    /// first, the left button first). `None` when every one is taken.
+    pub(super) fn free_trigger(
+        self,
+        from: Trigger,
+        taken: impl Fn(Trigger) -> bool,
+    ) -> Option<Trigger> {
+        let kept = self.trigger(from);
+        if !taken(kept) {
+            return Some(kept);
+        }
+        match self {
+            Self::Keyboard => KEY_SECTIONS
+                .iter()
+                .flat_map(|section| section.inputs)
+                .map(|(key, _)| Trigger::key(*key))
+                .find(|trigger| !taken(*trigger)),
+            Self::Mouse => MOUSE_SECTIONS
+                .iter()
+                .flat_map(|section| section.inputs)
+                .map(|(input, _)| input.apply(kept))
+                .find(|trigger| !taken(*trigger)),
+            Self::Touchpad => PINCHES
+                .iter()
+                .map(|(direction, _)| Trigger::Pinch(*direction))
+                .find(|trigger| !taken(*trigger)),
+            Self::Pointer => None,
+        }
+    }
+
     /// What a field recording this device's shortcuts takes: its keys or its buttons and
     /// wheel; nothing for the others, chosen from a list.
     pub(super) const fn records(self) -> bool {

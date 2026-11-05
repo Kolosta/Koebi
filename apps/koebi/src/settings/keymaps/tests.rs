@@ -1,6 +1,7 @@
 //! Tests of the Keymaps page: edits against conflicts, searches, identifiers.
 
-use koebi_core::input::{Key, ModifierKey};
+use koebi_core::input::{Key, ModifierKey, MouseButton};
+use koebi_input::Trigger;
 
 use super::*;
 use crate::actions;
@@ -108,6 +109,59 @@ fn a_draft_waits_for_its_key_quietly_then_becomes_a_shortcut() {
     assert_eq!(bindings[before], Binding::on(key));
     let state = page.actions.get(id).unwrap();
     assert!(state.bindings[before].panel.is_open());
+}
+
+#[test]
+fn a_new_shortcut_switched_to_the_mouse_stays_and_takes_a_free_button() {
+    let (mut page, mut keymap) = (KeymapsPage::new(), keymap());
+    let id = actions::FULLSCREEN.id;
+    // The action already answers a left click.
+    let left = Shortcut {
+        trigger: Trigger::button(MouseButton::Left),
+        ..Shortcut::key(Key::F7)
+    };
+    keymap.add_shortcut(id, left).unwrap();
+    let before = keymap.bindings(id).unwrap().len();
+    page.add_draft(id);
+    let key = Shortcut::key(Key::F7);
+    page.edit_draft(&mut keymap, id, 0, Edit::Set(Binding::on(key)));
+    assert_eq!(keymap.bindings(id).unwrap().len(), before + 1);
+    // Mouse chosen in its device dropdown: it stays, and takes the next free button.
+    page.edit_binding(
+        &mut keymap,
+        id,
+        before,
+        Edit::Device(binding::Device::Mouse),
+    );
+    let bindings = keymap.bindings(id).unwrap();
+    assert_eq!(bindings.len(), before + 1, "{bindings:?}");
+    assert_eq!(
+        bindings[before].shortcut.trigger,
+        Trigger::button(MouseButton::Middle)
+    );
+    let state = page.actions.get(id).unwrap();
+    assert_eq!(state.bindings.len(), before + 1);
+}
+
+#[test]
+fn a_shortcut_the_action_already_has_is_refused_and_a_draft_stays() {
+    let (mut page, mut keymap) = (KeymapsPage::new(), keymap());
+    let id = actions::FULLSCREEN.id;
+    let existing = keymap.shortcuts(id).unwrap()[0];
+    let before = keymap.bindings(id).unwrap().len();
+    // A draft recording the action's own shortcut: refused, still a draft.
+    page.add_draft(id);
+    page.edit_draft(&mut keymap, id, 0, Edit::Set(Binding::on(existing)));
+    assert_eq!(keymap.bindings(id).unwrap().len(), before);
+    assert_eq!(page.drafts(id), 1);
+    // A second shortcut changed into the first: refused, both kept.
+    let other = Shortcut::key(Key::F7);
+    page.edit_draft(&mut keymap, id, 0, Edit::Set(Binding::on(other)));
+    assert_eq!(page.drafts(id), 0);
+    page.edit_binding(&mut keymap, id, before, Edit::Set(Binding::on(existing)));
+    let bindings = keymap.bindings(id).unwrap();
+    assert_eq!(bindings.len(), before + 1);
+    assert_eq!(bindings[before].shortcut, other);
 }
 
 #[test]

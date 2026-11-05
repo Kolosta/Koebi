@@ -26,7 +26,7 @@ use std::collections::HashMap;
 
 use koebi_core::{Rect, Vec2};
 use koebi_design::DesignSystem;
-use koebi_input::{ActionDef, Binding, Conflict, Context, Keymap, Shortcut, Within};
+use koebi_input::{ActionDef, Binding, Conflict, Context, Keymap, Shortcut, Trigger, Within};
 use koebi_tokens::semantic;
 use koebi_ui::{
     Align, Button, Capture, CaptureField, CaptureState, CollapsiblePanel, CollapsiblePanelState,
@@ -186,6 +186,17 @@ impl KeymapsPage {
         };
         let mut state = self.actions.remove(id).unwrap_or_else(ActionUi::new);
         self.apply(keymap, action, Target::Draft(index), edit, &mut state);
+        self.actions.insert(action.id, state);
+    }
+
+    /// Applies `edit` to the shortcut at `index` of the action `id`, as its controls do.
+    #[cfg(test)]
+    fn edit_binding(&mut self, keymap: &mut Keymap, id: &str, index: usize, edit: Edit) {
+        let Some(action) = keymap.action(id) else {
+            return;
+        };
+        let mut state = self.actions.remove(id).unwrap_or_else(ActionUi::new);
+        self.apply(keymap, action, Target::Binding(index), edit, &mut state);
         self.actions.insert(action.id, state);
     }
 
@@ -646,11 +657,54 @@ impl KeymapsPage {
             }
         };
         let mut bindings = keymap.bindings(action.id).unwrap_or(&[]).to_vec();
+        // A shortcut another one of the action already is would merge into it and vanish: the
+        // edit is refused, a draft stays a draft.
+        let edit = match (edit, index) {
+            (Edit::Device(device), Some(index)) => {
+                let Some(current) = bindings.get(index).copied() else {
+                    return;
+                };
+                let taken = |trigger| {
+                    let shortcut = Shortcut {
+                        trigger,
+                        ..current.shortcut
+                    };
+                    duplicates(&bindings, Some(index), shortcut)
+                };
+                match device.free_trigger(current.shortcut.trigger, taken) {
+                    Some(trigger) => Edit::Set(Binding {
+                        shortcut: Shortcut {
+                            trigger,
+                            ..current.shortcut
+                        },
+                        ..current
+                    }),
+                    None => return,
+                }
+            }
+            (Edit::Set(wanted), _) if duplicates(&bindings, index, wanted.shortcut) => {
+                koebi_core::info!(
+                    "{} already has this shortcut: the edit is not applied",
+                    action.label
+                );
+                if let Target::Draft(_) = target {
+                    // Back among the drafts, waiting for another input.
+                    let mut draft = Draft::new();
+                    if let Some(ui) = state.bindings.pop() {
+                        draft.ui = ui;
+                    }
+                    draft.device = binding::Device::of(wanted.shortcut.trigger);
+                    state.drafts.push(draft);
+                }
+                return;
+            }
+            (edit, _) => edit,
+        };
         // One state per shortcut, in step with the keymap (a draft's added after them).
         let wanted = bindings.len() + usize::from(index.is_none());
         state.bindings.resize_with(wanted, BindingUi::new);
         match edit {
-            // Only drafts change device without a key.
+            // Drafts change device without a key, above.
             Edit::Device(_) => {}
             Edit::Remove => {
                 if let Some(index) = index.filter(|&index| index < bindings.len()) {
@@ -704,6 +758,26 @@ impl KeymapsPage {
             koebi_core::warn!("cannot change the shortcuts of {}: {error}", action.label);
         }
     }
+}
+
+/// Whether `shortcut` is one of `bindings` other than the one at `except`, as the keymap
+/// compares them (a key's repeat aside, which actions that do not repeat drop).
+fn duplicates(bindings: &[Binding], except: Option<usize>, shortcut: Shortcut) -> bool {
+    let plain = |shortcut: Shortcut| match shortcut.trigger {
+        Trigger::Key { key, when, .. } => Shortcut {
+            trigger: Trigger::Key {
+                key,
+                when,
+                repeat: false,
+            },
+            ..shortcut
+        },
+        _ => shortcut,
+    };
+    bindings
+        .iter()
+        .enumerate()
+        .any(|(index, binding)| Some(index) != except && plain(binding.shortcut) == plain(shortcut))
 }
 
 /// A number standing for `context` in widget identifiers.
