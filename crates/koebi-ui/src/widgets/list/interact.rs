@@ -7,10 +7,9 @@ use koebi_core::{Rect, Vec2};
 
 use super::state::{Drag, ListState};
 use super::{
-    AUTO_SCROLL_ROWS_PER_SECOND, LIST_DRAG, LIST_DRAG_CANCEL, LIST_EXTEND_NEXT,
-    LIST_EXTEND_PREVIOUS, LIST_FOLD, LIST_NEXT, LIST_PREVIOUS, LIST_SELECT_ALL, LIST_UNFOLD,
-    ListContextMenu, ListDelegate, ListItem, ListOptions, ListResponse, ListSelection, Metrics,
-    primary_held,
+    AUTO_SCROLL_ROWS_PER_SECOND, LIST_EXTEND_NEXT, LIST_EXTEND_PREVIOUS, LIST_FOLD, LIST_NEXT,
+    LIST_PREVIOUS, LIST_SELECT_ALL, LIST_UNFOLD, ListContextMenu, ListDelegate, ListItem,
+    ListOptions, ListResponse, ListSelection, Metrics, primary_held,
 };
 use crate::input::PointerButton;
 use crate::ui::{Response, Ui};
@@ -78,11 +77,12 @@ impl Ui<'_> {
             drag.started = true;
             drag.scrolled_at = now;
         }
-        if drag.started && !drag.cancelled {
-            self.grab(LIST_DRAG);
-            if self.triggered(&LIST_DRAG_CANCEL) {
-                drag.cancelled = true;
-            }
+        // The operation's keys while rows move: its cancel puts nothing anywhere.
+        if drag.started
+            && !drag.cancelled
+            && self.operation() == Some(crate::operation::OperationEnd::Cancelled)
+        {
+            drag.cancelled = true;
         }
         drag.target = None;
         if drag.started

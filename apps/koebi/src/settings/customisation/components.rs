@@ -90,7 +90,7 @@ static KINDS: [(&str, &[Doc]); 4] = [
                     step it. A bounded field fills a bar up to its value.",
                 preview: Preview::NumberField,
                 groups: &[component::NUMBER_FIELD::GROUP],
-                actions: Some(&koebi_ui::NUMBER_ACTIONS),
+                actions: Some(&koebi_ui::OPERATION_ACTIONS),
             },
             Doc {
                 title: "Text field",

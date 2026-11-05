@@ -40,10 +40,8 @@ pub use style::NumberFieldStyle;
 pub(crate) use state::NumberState;
 
 use koebi_core::expr::Unit;
-use koebi_core::input::Key;
 use koebi_core::{Rect, Vec2};
 use koebi_design::kind::{self, Kind};
-use koebi_input::{ActionDef, ActionGroup, ActionKind, Context, Hint, Shortcut};
 
 use self::math::Scale;
 use crate::id::WidgetId;
@@ -51,39 +49,6 @@ use crate::style::{CornerRadii, Prop};
 use crate::ui::{Response, Ui};
 use crate::widgets::parts::ControlState;
 use crate::widgets::text_field::EditEnd;
-
-/// A number field being dragged: its keys apply wherever the pointer is.
-pub const NUMBER: Context = Context::new("number");
-
-/// Cancels the drag of a number field, restoring the value it started from.
-pub static NUMBER_CANCEL: ActionDef = ActionDef {
-    id: "number.cancel",
-    label: "Cancel drag",
-    description: "Cancels the drag of a number field and restores its value.",
-    context: NUMBER,
-    defaults: &[Shortcut::key(Key::Escape), Shortcut::key(Key::Delete)],
-    repeats: false,
-    when: None,
-    hint: Some(Hint::new(ActionKind::Confirm, 8)),
-};
-
-/// Ends the drag of a number field, keeping the value.
-pub static NUMBER_CONFIRM: ActionDef = ActionDef {
-    id: "number.confirm",
-    label: "Confirm drag",
-    description: "Ends the drag of a number field and keeps its value.",
-    context: NUMBER,
-    defaults: &[Shortcut::key(Key::Enter), Shortcut::key(Key::KeypadEnter)],
-    repeats: false,
-    when: None,
-    hint: Some(Hint::new(ActionKind::Confirm, 9)),
-};
-
-/// The actions of number fields, for the keymap.
-pub static NUMBER_ACTIONS: ActionGroup = ActionGroup {
-    name: "Number fields",
-    actions: &[&NUMBER_CANCEL, &NUMBER_CONFIRM],
-};
 
 /// A number a [`NumberField`] edits: floats, or integers that show no decimals and step by
 /// whole numbers. Fields compute in `f64`: integers beyond 2⁵³ lose their last digits.

@@ -47,7 +47,7 @@ for documentation and previews (Settings > Customisation, by component).
 | Color field | `ColorField::new(id, &mut color, &mut state).show(ui, rect, bounds)`: the color one unit high, outlined in its own gray, each half showing transparency its way (`.halves(left, right)`), opening its picker as a dropdown (`.dropdown(true)`, the default) or a panel; `.shape`, `.title`, `.palette`, `.original`, `.sections`, `.eyedropper` set up the picker ([Color pickers](color-picker.md)) | `component.color-field.*` |
 | Color picker | `ColorPicker::new(id, &mut state, &mut color).show(ui, rect)`, in place or opened by a field: an area, strips, swatches, an eyedropper, the switch of models and their fields, a palette | `component.color-picker.*` |
 | Color strip | `ColorStrip::new(id, &mut state, &mut value, fill)`, vertical or horizontal (`.vertical(false)`), over a checkerboard (`.checker(true)`): one component, marked by two triangles | `component.color-picker.*` |
-| Curve editor | `CurveEditor::new(id, &mut curve, &mut state).show(ui, rect)`, `CurveEditor::height(ui)`: the graph of an easing curve (`koebi_design::value::Curve`) over a grid; keys selected and dragged (Escape brings a dragged key back), added by a double click or "Add key", removed by the secondary button or "Remove key"; the selected key's place and its segment's easing typed in grouped fields. **Temporary**, until curves get a fuller editor; the curve stays valid (ends fixed, keys in time order, values within `Curve::LIMIT`, eight keys at most) | `component.curve-editor.*` |
+| Curve editor | `CurveEditor::new(id, &mut curve, &mut state).show(ui, rect)`, `CurveEditor::height(ui)`: the graph of an easing curve (`koebi_design::value::Curve`) over a grid; keys selected and dragged (the operation's cancel brings a dragged key back), added by a double click or "Add key", removed by the secondary button or "Remove key"; the selected key's place and its segment's easing typed in grouped fields. **Temporary**, until curves get a fuller editor; the curve stays valid (ends fixed, keys in time order, values within `Curve::LIMIT`, eight keys at most) | `component.curve-editor.*` |
 | Field group | `FieldGroup::horizontal(rect, count, radius, border)` or `::vertical`: fields sharing their borders, only the group's outer corners rounded (`.cell(index)` gives each field's rectangle and corners) | the fields' |
 | Color swatch | `Ui::swatch(id, rect, color, selected)` | `component.color-swatch.*` |
 | Theme card | `Ui::theme_card(id, rect, &preview, selected)`: a miniature of shapes painted from a `ThemePreview` (surfaces, text, accent, the colors of states and of a chart), resolved from a theme's view or a color vision mode's | `component.theme-card.*` |
@@ -205,9 +205,10 @@ expressions), `.label(text)`, `.bar(mapping)`, `.vertical()`, `.step_buttons(sho
   is released, as many times as wanted; `FromHere`, the default without a bar, goes on finer from
   the value reached, without a jump either way. Ctrl goes to round units and Alt moves by units
   keeping the hidden digits (`1.23`, `2.23`, `3.23`), both finer with Shift; without a bar, a unit
-  takes the travel of a step, so that they go faster than plain steps. Escape or Delete
-  (`number.cancel`) or a right click cancel at any time and restore the value (a right click that
-  cancels asks for no context menu); Enter (`number.confirm`) or the release keep it. The pointer
+  takes the travel of a step, so that they go faster than plain steps. The operation's cancel
+  (`operation.cancel`: Escape, Delete, a right click) restores the value at any time (a right click
+  that cancels asks for no context menu); its confirm (`operation.confirm`: Enter) or the release
+  keep it. The pointer
   comes back where the press was, or at the end of the bar of a bounded field, also when the
   application draws the frame again with settled input. Travel past a bound does not count:
   coming back moves the value at once. Integers step by whole numbers, at least 1, Shift
@@ -398,8 +399,8 @@ One component draws every list of the application (outliner, layers, color usage
   inside the dragged rows, `ListDelegate::can_drop` decides the rest, and a refused place
   gives way to the next one. A line (`list-row.drop-line.*`) or a frame (`drop-target.*`)
   previews the drop; the dragged rows fade and their label follows the pointer
-  (`list-row.drag.*`); pressing against the top or bottom edge scrolls. Escape, Delete or a
-  right click cancel (`list.cancel-drag`). The list moves nothing itself: when
+  (`list-row.drag.*`); pressing against the top or bottom edge scrolls. The operation's
+  cancel (`operation.cancel`: Escape, Delete, a right click) puts nothing anywhere. The list moves nothing itself: when
   `ListResponse::dropped` says where, the application moves the rows `ListState::dragged`
   lists.
 
@@ -518,8 +519,9 @@ area) and learns when a split copies an editor or a join removes some.
   goes (from the kept area towards the removed one), or "not allowed"
   where nothing can join. A press applies the preview; a press where nothing can happen does
   nothing.
-- **Cancel**: Escape, Delete or a right click (`workspace.cancel`) end any operation and restore
-  the exact previous layout; Enter (`workspace.confirm`) applies a preview.
+- **Cancel**: the operation's cancel (`operation.cancel`: Escape, Delete, a right click) ends any
+  operation and restores the exact previous layout; its confirm (`operation.confirm`: Enter)
+  applies a preview.
 
 ## One frame
 

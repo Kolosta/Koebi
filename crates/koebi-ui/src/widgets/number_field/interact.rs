@@ -10,10 +10,8 @@ use koebi_core::{Rect, Vec2};
 use super::format::ValueText;
 use super::math::{DragState, Precision, Scale, stepped};
 use super::state::{NumberDrag, NumberEdit, NumberWheel};
-use super::{
-    EDIT_KEY, NUMBER, NUMBER_CANCEL, NUMBER_CONFIRM, NumberField, NumberFieldResponse, Numeric,
-};
-use crate::input::PointerButton;
+use super::{EDIT_KEY, NumberField, NumberFieldResponse, Numeric};
+use crate::operation::OperationEnd;
 use crate::text::Align;
 use crate::ui::{Response, Ui};
 use crate::widgets::parts::ControlState;
@@ -179,12 +177,9 @@ impl<N: Numeric> NumberField<'_, N> {
         if !drag.dragging && drag.moved.length() >= threshold {
             drag.dragging = true;
         }
-        let right_click = ui
-            .input()
-            .button_pressed_at(PointerButton::Secondary)
-            .is_some();
-        if ui.triggered(&NUMBER_CANCEL) || right_click {
-            ui.consume(&NUMBER_CANCEL);
+        // The operation's keys: its cancel (the secondary button among them) and its confirm.
+        let end = ui.operation();
+        if end == Some(OperationEnd::Cancelled) {
             self.set(drag.state.start, out);
             out.ended = Some(EditEnd::Cancelled);
             // The right click cancels; it does not also ask for a context menu.
@@ -200,8 +195,7 @@ impl<N: Numeric> NumberField<'_, N> {
         }
         let release_at = self.release_point(track, drag.press);
         let released = !out.response.held || out.response.released;
-        if ui.triggered(&NUMBER_CONFIRM) || (released && drag.dragging) {
-            ui.consume(&NUMBER_CONFIRM);
+        if end == Some(OperationEnd::Confirmed) || (released && drag.dragging) {
             out.ended = Some(EditEnd::Confirmed);
             Self::release(ui, release_at);
             return;
@@ -212,8 +206,7 @@ impl<N: Numeric> NumberField<'_, N> {
             Self::release(ui, drag.press);
             return;
         }
-        // The keys of the drag, as long as it lasts.
-        ui.grab(NUMBER);
+        // The operation's keys, taken above, as long as it lasts.
         ui.lock_pointer(release_at);
         ui.state.number.drag = Some(drag);
     }

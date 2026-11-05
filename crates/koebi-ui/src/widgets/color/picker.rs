@@ -18,6 +18,7 @@ use super::shape::{
 use super::strip::{ColorStrip, ColorStripState, StripFill};
 use crate::icon::Icon;
 use crate::id::WidgetId;
+use crate::operation::OperationEnd;
 use crate::routing::Layer;
 use crate::text::Align;
 use crate::ui::{EYEDROPPER_PIXELS, ScreenPixels, Ui};
@@ -471,7 +472,7 @@ impl ColorPicker<'_> {
 
     /// The drag in the area: a press sets the components where it lands; the pointer hides
     /// while the mark follows it (finer with Shift), even past the area's rounded corners up
-    /// to its real ones; Escape brings the color back.
+    /// to its real ones; the operation's cancel brings the color back, its confirm keeps it.
     fn area_drag(&mut self, ui: &mut Ui<'_>, area: Rect) -> Option<Change> {
         let response = ui.interact(self.id.with(1), area);
         let size = area.width().max(1.0);
@@ -489,11 +490,17 @@ impl ColorPicker<'_> {
                 before: (state.components, state.alpha),
             });
         } else if let Some(drag) = state.drag {
-            if ui.triggered(&MENU_CLOSE) {
-                ui.consume(&MENU_CLOSE);
-                (state.components, state.alpha) = drag.before;
-                state.drag = None;
-                return Some(Change::Components);
+            match ui.operation() {
+                Some(OperationEnd::Cancelled) => {
+                    (state.components, state.alpha) = drag.before;
+                    state.drag = None;
+                    return Some(Change::Components);
+                }
+                Some(OperationEnd::Confirmed) => {
+                    state.drag = None;
+                    return None;
+                }
+                None => {}
             }
             if response.held {
                 let fine = ui.input().modifiers().sides(ModifierKey::Shift).any();
@@ -986,12 +993,14 @@ fn magnifier(ui: &mut Ui<'_>, pointer: Vec2, bounds: Rect, pixels: &Magnified, u
     }
 }
 
-/// The ring marking the color on an area at `center`, filled with `color`: white, thinly
-/// outlined in black so that it shows on any color.
+/// The ring marking the color on an area at `center`, filled with `color`: a thin white ring
+/// (`color-picker.marker.ring.width`), thinly outlined in black on both sides so that it shows
+/// on any color.
 fn marker(ui: &mut Ui<'_>, center: Vec2, color: Color) {
     let style = ui.styles().color_picker;
     let side = style.marker_size;
     let outline = style.outline_width;
+    let ring_width = style.ring_width.min(side * 0.5);
     let outer = Rect::from_center_size(center, Vec2::splat(side + 2.0 * outline));
     let ring = Rect::from_center_size(center, Vec2::splat(side));
     let exact = koebi_render::Edges::Exact;
@@ -1004,13 +1013,10 @@ fn marker(ui: &mut Ui<'_>, center: Vec2, color: Color) {
     ui.scene().push_rect(
         &RectPrimitive::new(ring, color)
             .with_corner_radius(side * 0.5)
-            .with_border((side * 0.18).max(1.5), style.marker)
+            .with_border(ring_width, style.marker)
             .with_edges(exact),
     );
-    let inner = Rect::from_center_size(
-        center,
-        Vec2::splat((side - 2.0 * (side * 0.18).max(1.5)).max(0.0)),
-    );
+    let inner = Rect::from_center_size(center, Vec2::splat((side - 2.0 * ring_width).max(0.0)));
     ui.scene().push_rect(
         &RectPrimitive::new(inner, Color::TRANSPARENT)
             .with_corner_radius(inner.width() * 0.5)

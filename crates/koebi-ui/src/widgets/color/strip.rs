@@ -10,8 +10,8 @@ use koebi_core::{Color, Rect, Vec2};
 use koebi_render::{Fill, FillPrimitive, HueModel, Pointing};
 
 use crate::id::WidgetId;
+use crate::operation::OperationEnd;
 use crate::ui::{Response, Ui};
-use crate::widgets::menu::MENU_CLOSE;
 
 /// What a strip shows along its length, from its start (top or left) to its end.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -126,10 +126,12 @@ impl<'a> ColorStrip<'a> {
             self.state.drag = Some((at, *self.value));
             changed |= set(self.value, at);
         } else if let Some((at, before)) = self.state.drag {
-            if ui.triggered(&MENU_CLOSE) {
-                // Escape: the value comes back, the drag ends.
-                ui.consume(&MENU_CLOSE);
+            // The operation's keys: its cancel brings the value back, its confirm keeps it.
+            let end = ui.operation();
+            if end == Some(OperationEnd::Cancelled) {
                 changed |= set(self.value, before);
+                self.state.drag = None;
+            } else if end == Some(OperationEnd::Confirmed) {
                 self.state.drag = None;
             } else if response.held {
                 let motion = ui.input().motion();

@@ -7,6 +7,7 @@ use koebi_core::{Rect, Vec2};
 
 use super::*;
 use crate::PointerButton;
+use crate::operation::{OPERATION, OPERATION_CANCEL, OPERATION_CONFIRM};
 use crate::widgets::text_field::{TEXT_CANCEL, TEXT_CONFIRM};
 
 #[test]
@@ -21,7 +22,7 @@ fn a_press_locks_the_pointer_and_travel_changes_the_value() {
     assert_eq!(harness.state.pointer_lock(), Some(press));
     let mut chain = Vec::new();
     harness.state.chain_at(Some(press), &mut chain);
-    assert_eq!(chain, [NUMBER]);
+    assert_eq!(chain, [OPERATION]);
     // The locked pointer reports motion: a step per step distance.
     let three = harness.steps(3.0);
     harness.input.pointer_moved_by(three);
@@ -105,11 +106,12 @@ fn escape_delete_and_right_clicks_cancel_and_bring_the_pointer_back() {
         harness.input.pointer_moved_by(Vec2::new(80.0, 0.0));
         harness.show(&mut value);
         assert!(value > 4.0);
+        // A right click, as the keymap turns it into the operation's cancel, or the cancel
+        // alone.
         if right_click {
             harness.input.button(PointerButton::Secondary, true, press);
-        } else {
-            harness.input.trigger(&NUMBER_CANCEL);
         }
+        harness.input.trigger(&OPERATION_CANCEL);
         let cancelled = harness.show(&mut value);
         assert_eq!(cancelled.ended, Some(EditEnd::Cancelled));
         assert!(close(value, 4.0) && cancelled.changed);
@@ -131,7 +133,7 @@ fn enter_keeps_the_value_while_the_button_is_still_down() {
     harness.input.pointer_moved_by(Vec2::new(40.0, 0.0));
     harness.show(&mut value);
     let dragged = value;
-    harness.input.trigger(&NUMBER_CONFIRM);
+    harness.input.trigger(&OPERATION_CONFIRM);
     assert_eq!(harness.show(&mut value).ended, Some(EditEnd::Confirmed));
     harness.input.pointer_moved_by(Vec2::new(40.0, 0.0));
     harness.show(&mut value);

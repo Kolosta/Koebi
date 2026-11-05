@@ -87,6 +87,8 @@ pub struct ColorPickerStyle {
     pub marker_outline: Color,
     /// Width of that outline.
     pub outline_width: f32,
+    /// Width of the white ring marking the color on the area.
+    pub ring_width: f32,
     /// Depth of the triangles of a strip.
     pub arrow_size: f32,
     /// How far the triangles pass the strip's sides.
@@ -109,6 +111,7 @@ impl ColorPickerStyle {
             marker: tokens.get(c::COLOR_PICKER_MARKER_COLOR_DEFAULT),
             marker_outline: tokens.get(c::COLOR_PICKER_MARKER_OUTLINE_COLOR_DEFAULT),
             outline_width: tokens.get(c::COLOR_PICKER_MARKER_OUTLINE_WIDTH_DEFAULT),
+            ring_width: tokens.get(c::COLOR_PICKER_MARKER_RING_WIDTH_DEFAULT),
             arrow_size: tokens.get(c::COLOR_PICKER_ARROW_SIZE_DEFAULT),
             arrow_overhang: tokens.get(c::COLOR_PICKER_ARROW_OVERHANG_DEFAULT),
             fine_factor: tokens.get(c::COLOR_PICKER_FINE_FACTOR_DEFAULT),
