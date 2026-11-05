@@ -18,6 +18,9 @@ koebi_design::tokens! {
 
     /// Background of floating surfaces: popovers, menus and tooltips.
     BACKGROUND_FLOATING_DEFAULT = "background.floating.default": Color -> primitive::COLOR_GRAY_800;
+    /// Background that stands out on every other one: light where the theme is dark, dark
+    /// where it is light (tooltips).
+    BACKGROUND_INVERSE_DEFAULT = "background.inverse.default": Color -> primitive::COLOR_GRAY_100;
 
     /// Scrim that dims the content behind a modal surface.
     BACKGROUND_DIM_DEFAULT = "background.dim.default": Color ->

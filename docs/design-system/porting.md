@@ -321,6 +321,14 @@ checkerboard of 4 px aliasing the swatches' colors) and `component.color-picker.
 192 px, strips of 16 px, swatches of 40 px, a gap of 6 px; white marks outlined in black 1 px
 wide, triangles 7 px deep passing the strips by 2 px; the share of a drag with Shift, 0.1).
 
+Tooltips (#204): `component.tooltip.background.color.default` aliases the new
+`semantic.background.inverse.default` (gray 100, gray 850 in Light, white in High contrast)
+instead of the editor top bar's color, and its label the new `semantic.text.color.inverse.default`
+(gray 900, white in Light, black in High contrast), so that tooltips stand out on every surface
+and on menus; its border aliases `semantic.border.color.shadow.default`.
+`component.tooltip.offset.default` is 6 px from the control (was 16 px from the pointer); new
+`component.tooltip.margin.default` (6 px) and `component.tooltip.max-width.default` (360 px).
+
 Ranges (#189): sizes that draw nothing at zero no longer accept it: `primitive.size.*` (and so
 `semantic.size.*`) from 1 px, `component.checkbox.box-size.default` from 6 px, the chevrons and
 icons of dropdowns, text fields, number fields and panels from 4 px, a number field's step

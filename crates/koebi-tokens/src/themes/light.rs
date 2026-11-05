@@ -9,6 +9,8 @@ koebi_design::theme! {
         semantic::BACKGROUND_SUNKEN_DEFAULT => primitive::COLOR_GRAY_100;
         semantic::BACKGROUND_RAISED_DEFAULT => primitive::COLOR_GRAY_25;
         semantic::BACKGROUND_FLOATING_DEFAULT => primitive::COLOR_GRAY_25;
+        semantic::BACKGROUND_INVERSE_DEFAULT => primitive::COLOR_GRAY_850;
+        semantic::TEXT_COLOR_INVERSE_DEFAULT => primitive::COLOR_GRAY_25;
         semantic::TEXT_COLOR_PRIMARY_DEFAULT => primitive::COLOR_GRAY_900;
         semantic::TEXT_COLOR_SECONDARY_DEFAULT => primitive::COLOR_GRAY_700;
         semantic::TEXT_COLOR_TERTIARY_DEFAULT => primitive::COLOR_GRAY_600;

@@ -85,6 +85,8 @@ pub struct UiState {
     screen_unreadable: bool,
     /// This window's part of a session picking a color on the screen.
     pub(crate) pick: crate::screen_pick::PickState,
+    /// The window's area in logical pixels, which tooltips stay inside.
+    window: Option<Rect>,
 }
 
 /// Pixels of a frame the window showed, read back for an eyedropper: gamma-encoded RGBA, row by
@@ -138,6 +140,17 @@ impl UiState {
     /// Forgets the pixels read back: a session picking starts or ends.
     pub(crate) fn forget_pixels(&mut self) {
         self.screen_pixels = None;
+    }
+
+    /// The window's area in logical pixels: tooltips stay inside it. Set it every frame,
+    /// before building the interface.
+    pub fn set_window(&mut self, area: Rect) {
+        self.window = Some(area);
+    }
+
+    /// The window's area, once set.
+    pub(crate) fn window(&self) -> Option<Rect> {
+        self.window
     }
 
     /// Where the application writes the pixels it read back, in place: they count as read
@@ -406,9 +419,14 @@ impl<'a> Ui<'a> {
                 .and_then(|(_, region)| region.widget)
         };
         state.hovered = topmost(input.pointer());
-        state
-            .tooltip
-            .update(state.hovered, input.any_pressed(), input.time());
+        let dismiss = input.any_pressed() || input.wheel() != Vec2::ZERO;
+        state.tooltip.update(
+            state.hovered,
+            input.pointer(),
+            dismiss,
+            styles.input.drag_threshold,
+            input.time(),
+        );
         // While the pointer is held, a press of another button reaches nothing but what holds
         // it, and it stays that way until its release: it never starts anything later.
         let held = state.is_pointer_held();
