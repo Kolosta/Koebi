@@ -34,6 +34,11 @@ const HEADER_INPUT: f32 = 140.0;
 /// The space between the columns of an option.
 const COLUMN_GAP: f32 = 12.0;
 
+/// The keys of a column's dot and editor under the column's key: apart, so that nothing the
+/// editor holds shares the dot's identity.
+const DOT: u64 = 1;
+const EDITOR: u64 = 2;
+
 /// What an option edits and shows.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct OptionDesc {
@@ -326,7 +331,7 @@ pub(super) fn show_option(
     // the dot bringing back the option's changes.
     if let Some(trailing) = shown.trailing {
         let (field, dot) = field_and_dot(trailing, slot, gap);
-        let key = id.with(10);
+        let key = id.with(10).with(EDITOR);
         values::editor(
             ui,
             field,
@@ -412,10 +417,22 @@ fn option_body(
         let input = Rect::from_origin_size(Vec2::new(x, top + row), Vec2::new(width, height));
         let (field, dot) = field_and_dot(input, slot, inset);
         let dot = Rect::from_min_max(dot.min, Vec2::new(dot.max.x, dot.min.y + row));
+        // The editor and the dot each under their own key: what an editor holds lies under
+        // its key (a curve's graph, a number's step buttons), never the dot's.
         let key = id.with(20 + index as u64);
         let slot = Slot::Column(scope);
-        values::editor(ui, field, key, design, desc, slot, editors, text, bounds);
-        scope_dot(ui, dot, key.with(1), design, desc, scope);
+        values::editor(
+            ui,
+            field,
+            key.with(EDITOR),
+            design,
+            desc,
+            slot,
+            editors,
+            text,
+            bounds,
+        );
+        scope_dot(ui, dot, key.with(DOT), design, desc, scope);
     }
     let gap = ui.styles().collapsible_panel.gap;
     let below = top + row + height + gap;
@@ -627,5 +644,128 @@ mod tests {
         assert_eq!(text, "100 ms");
         write_value(&mut text, None, desc);
         assert_eq!(text, "");
+    }
+
+    /// Frames of one option alone in a window, open, its panel at the top left.
+    struct OptionHarness {
+        design: DesignSystem,
+        state: koebi_ui::UiState,
+        input: koebi_ui::Input,
+        row: OptionRow,
+        time: u64,
+    }
+
+    impl OptionHarness {
+        const AREA: Rect = Rect::from_min_max(Vec2::new(0.0, 0.0), Vec2::new(700.0, 600.0));
+
+        fn new(token: TokenId) -> Self {
+            let design = design();
+            let mut state = koebi_ui::UiState::new();
+            state.set_fonts(koebi_text::Fonts::with_embedded());
+            let mut row = OptionRow::new(OptionDesc::of(&design, token, "Option"));
+            row.set_open(true, false);
+            Self {
+                design,
+                state,
+                input: koebi_ui::Input::new(),
+                row,
+                time: 0,
+            }
+        }
+
+        fn frame(&mut self) {
+            let mut scene = koebi_render::Scene::new();
+            self.time += 16;
+            self.input
+                .set_time(core::time::Duration::from_millis(self.time));
+            {
+                let styles = koebi_ui::Styles::resolve(&self.design);
+                let mut ui = Ui::new(&mut scene, &styles, &self.input, &mut self.state);
+                let id = WidgetId::new("option");
+                show_option(
+                    &mut ui,
+                    Self::AREA,
+                    id,
+                    &mut self.design,
+                    &mut self.row,
+                    Self::AREA,
+                );
+            }
+            self.input.end_frame();
+        }
+
+        fn settle(&mut self) {
+            for _ in 0..30 {
+                self.frame();
+            }
+        }
+
+        fn click(&mut self, at: Vec2) {
+            self.input.pointer_moved(at);
+            self.frame();
+            self.input.primary_button(true, at);
+            self.frame();
+            self.input.primary_button(false, at);
+            self.frame();
+        }
+
+        /// The middle of the dot of the column of `scope`, beside its editor.
+        fn column_dot(&self, scope: Scope) -> Vec2 {
+            let styles = koebi_ui::Styles::resolve(&self.design);
+            let panel = styles.collapsible_panel;
+            let padding = styles.panel.padding;
+            let row = self.design.get(semantic::SIZE_CONTROL_HEIGHT);
+            let slot = reset_slot(&self.design);
+            let inner = Self::AREA.max.x - styles.panel.border_width;
+            let (left, right) = (styles.panel.border_width + padding, inner - padding);
+            let width = ((right - left - COLUMN_GAP) * 0.5).max(0.0);
+            let x = match scope {
+                Scope::Global => left,
+                _ => left + width + COLUMN_GAP,
+            };
+            let top = panel.header_height + panel.content_padding;
+            Vec2::new(x + width - slot * 0.5, top + row * 1.5)
+        }
+    }
+
+    #[test]
+    fn the_dots_beside_every_kind_of_editor_bring_their_value_back() {
+        // A curve (its editor's graph), a number (its step buttons), a color.
+        let cases = [
+            koebi_tokens::component::PANEL_EXPAND_CURVE.id(),
+            semantic::INPUT_DRAG_THRESHOLD.id(),
+            semantic::BACKGROUND_ACCENT_DEFAULT.id(),
+        ];
+        for token in cases {
+            for scope in [Scope::Global, Scope::ActiveTheme] {
+                let mut harness = OptionHarness::new(token);
+                let value = harness.design.value(token).cloned().unwrap();
+                let changed = match value {
+                    Value::Curve(_) => {
+                        Value::Curve(std::sync::Arc::new(koebi_design::value::Curve::LINEAR))
+                    }
+                    Value::Color(_) => Value::Color(Color::from_hex(0x12_34_56)),
+                    other => values::value_like(&other, values::number_of(&other).unwrap() + 2.0)
+                        .unwrap(),
+                };
+                harness
+                    .design
+                    .set_override(
+                        scope,
+                        token,
+                        koebi_design::value::Definition::Value(changed),
+                    )
+                    .unwrap();
+                harness.settle();
+                let at = harness.column_dot(scope);
+                harness.click(at);
+                harness.settle();
+                let path = harness.design.info(token).unwrap().qualified();
+                assert!(
+                    harness.design.override_of(scope, token).is_none(),
+                    "{path} for {scope:?}"
+                );
+            }
+        }
     }
 }
