@@ -195,7 +195,7 @@ impl Colors {
         let size = self.picker_size(ui);
         let at = Rect::from_origin_size(content.min, size);
         let (color, state) = &mut self.inline;
-        let picker = ColorPicker::new(ID.with(30), state, color).eyedropper(window);
+        let picker = ColorPicker::new(ID.with(30), state, color).eyedropper(true);
         let picker = configured(
             picker,
             self.shape.0,

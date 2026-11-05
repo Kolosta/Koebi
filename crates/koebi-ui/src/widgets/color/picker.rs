@@ -6,7 +6,7 @@
 //! Every change shows at once: the color is written on every frame something moves it (a drag
 //! in the area or a strip, a field, a swatch), and the caller sees it in the same frame.
 
-use koebi_core::input::{CursorShape, ModifierKey};
+use koebi_core::input::ModifierKey;
 use koebi_core::{Cmyk, Color, Hsl, Hsv, Oklch, Rect, Vec2};
 use koebi_render::{Corners, Fill, FillPrimitive, RectPrimitive};
 
@@ -19,12 +19,11 @@ use super::strip::{ColorStrip, ColorStripState, StripFill};
 use crate::icon::Icon;
 use crate::id::WidgetId;
 use crate::operation::OperationEnd;
-use crate::routing::Layer;
+use crate::screen_pick::PickOutcome;
 use crate::text::Align;
-use crate::ui::{EYEDROPPER_PIXELS, ScreenPixels, Ui};
+use crate::ui::Ui;
 use crate::widgets::button::{Button, ButtonGroup, GroupCell};
 use crate::widgets::field_group::FieldGroup;
-use crate::widgets::menu::MENU_CLOSE;
 use crate::widgets::number_field::{BarMapping, NumberField};
 use crate::widgets::text_field::TextField;
 
@@ -117,8 +116,6 @@ pub struct ColorPickerState {
     third: ColorStripState,
     opacity: ColorStripState,
     hex: String,
-    /// The eyedropper picks a color from the screen.
-    eyedropping: bool,
 }
 
 impl Default for ColorPickerState {
@@ -145,7 +142,6 @@ impl ColorPickerState {
             third: ColorStripState::new(),
             opacity: ColorStripState::new(),
             hex: String::new(),
-            eyedropping: false,
         }
     }
 
@@ -234,8 +230,8 @@ pub struct ColorPicker<'a> {
     original: Option<Color>,
     palette: &'a [Color],
     sections: &'a [PickerSection],
-    /// Where its eyedropper picks from: the window, when it has one.
-    eyedropper: Option<Rect>,
+    /// Whether it has an eyedropper.
+    eyedropper: bool,
 }
 
 impl<'a> ColorPicker<'a> {
@@ -250,7 +246,7 @@ impl<'a> ColorPicker<'a> {
             original: None,
             palette: &[],
             sections: &PICKER_SECTIONS,
-            eyedropper: None,
+            eyedropper: false,
         }
     }
 
@@ -283,12 +279,11 @@ impl<'a> ColorPicker<'a> {
         self
     }
 
-    /// An eyedropper picking a color anywhere in `bounds` (the window): a button before the
-    /// switch of models, then a magnifier at the pointer, a click to pick, Escape or the
-    /// secondary button to give up.
+    /// An eyedropper: a button below the swatches starting a session that picks a color in
+    /// any window of the application ([`Ui::start_screen_pick`]).
     #[must_use]
-    pub fn eyedropper(mut self, bounds: Rect) -> Self {
-        self.eyedropper = Some(bounds);
+    pub fn eyedropper(mut self, eyedropper: bool) -> Self {
+        self.eyedropper = eyedropper;
         self
     }
 
@@ -673,16 +668,22 @@ impl ColorPicker<'_> {
     fn swatches(&mut self, ui: &mut Ui<'_>, column: Rect) -> Option<Change> {
         let style = ui.styles().color_picker;
         // The eyedropper below them, a control high, when the application can read its frames.
-        let column = if self.eyedropper.is_some() && ui.can_read_screen() {
+        let column = if self.eyedropper && ui.can_read_screen() {
             let row = ui.styles().button.height;
             let button =
                 Rect::from_min_max(Vec2::new(column.min.x, column.max.y - row), column.max);
-            let mut on = self.state.eyedropping;
-            Button::new(self.id.with(19))
+            let key = self.id.with(19);
+            let was = ui.is_screen_picking(key);
+            let mut on = was;
+            Button::new(key)
                 .icon(Icon::Eyedropper)
                 .toggle(&mut on)
                 .show(ui, button);
-            self.set_eyedropping(ui, on);
+            if on && !was {
+                ui.start_screen_pick(key);
+            } else if was && !on {
+                ui.cancel_screen_pick(key);
+            }
             ui.tooltip(self.id.with(19), "Pick a color on the screen", button);
             Rect::from_min_max(
                 column.min,
@@ -818,178 +819,18 @@ impl ColorPicker<'_> {
 }
 
 impl ColorPicker<'_> {
-    /// While the eyedropper picks: a magnifier of the screen at the pointer, a press anywhere
-    /// in its bounds picking the pixel under it, Escape or the secondary button giving up.
+    /// What the session its eyedropper started ended with, once: the pixel picked becomes the
+    /// color, keeping the opacity.
     fn eyedrop(&mut self, ui: &mut Ui<'_>) -> Option<Change> {
-        let bounds = self.eyedropper?;
-        if !self.state.eyedropping {
+        if !self.eyedropper {
             return None;
         }
-        if !ui.can_read_screen() {
-            self.set_eyedropping(ui, false);
-            return None;
+        match ui.take_screen_pick(self.id.with(19))? {
+            PickOutcome::Picked([r, g, b, _]) => Some(Change::Color(
+                Color::from_rgba8(r, g, b, 255).with_alpha(self.state.alpha),
+            )),
+            PickOutcome::Cancelled => None,
         }
-        // Over everything: the press that picks never reaches what lies below, nor closes the
-        // panel.
-        let response = ui.on_layer(Layer::OVERLAY, |ui| {
-            ui.interact_with_cursor(self.id.with(60), bounds, CursorShape::Crosshair)
-        });
-        if ui.triggered(&MENU_CLOSE) || response.secondary_pressed {
-            ui.consume(&MENU_CLOSE);
-            self.set_eyedropping(ui, false);
-            return None;
-        }
-        ui.request_redraw_after(core::time::Duration::from_millis(16));
-        let pointer = ui.input().pointer()?;
-        ui.want_screen_pixels(pointer);
-        let scale = ui.scale_factor();
-        #[allow(
-            clippy::cast_possible_truncation,
-            clippy::cast_sign_loss,
-            reason = "a pointer inside the window, in physical pixels"
-        )]
-        let under = (
-            (pointer.x * scale).max(0.0) as u32,
-            (pointer.y * scale).max(0.0) as u32,
-        );
-        // Copied out of the interface's state, which the scene's borrow would hold otherwise.
-        let magnified = ui.screen_pixels().map(Magnified::of);
-        if let Some(magnified) = &magnified {
-            ui.on_layer(Layer::OVERLAY, |ui| {
-                magnifier(ui, pointer, bounds, magnified, under);
-            });
-        }
-        if !response.pressed {
-            return None;
-        }
-        // A press always ends picking. The pixels come from a frame shown a few frames ago: a
-        // pointer moving fast may have left them, and the nearest one, the one the magnifier
-        // outlines, is picked.
-        self.set_eyedropping(ui, false);
-        let [r, g, b, _] = magnified?.nearest(under)?;
-        Some(Change::Color(
-            Color::from_rgba8(r, g, b, 255).with_alpha(self.state.alpha),
-        ))
-    }
-
-    /// Starts or ends picking; the pixels read back are forgotten either way, so that a new
-    /// eyedropper never shows those of another time.
-    fn set_eyedropping(&mut self, ui: &mut Ui<'_>, on: bool) {
-        if on != self.state.eyedropping {
-            self.state.eyedropping = on;
-            ui.forget_screen_pixels();
-        }
-    }
-}
-
-/// The most pixels a magnifier shows: the square an eyedropper reads.
-const MAGNIFIED: usize = (EYEDROPPER_PIXELS * EYEDROPPER_PIXELS) as usize;
-
-/// Pixels of the screen copied for one frame without allocating, at most the square an
-/// eyedropper reads: what the magnifier draws and the press picks from.
-#[derive(Clone, Copy, Debug)]
-struct Magnified {
-    origin: (u32, u32),
-    width: u32,
-    height: u32,
-    pixels: [Option<[u8; 4]>; MAGNIFIED],
-}
-
-impl Magnified {
-    /// The top left square of `pixels`, [`EYEDROPPER_PIXELS`] wide at most.
-    fn of(pixels: &ScreenPixels) -> Self {
-        let width = pixels.width.min(EYEDROPPER_PIXELS);
-        let height = pixels.height.min(EYEDROPPER_PIXELS);
-        let mut copied = [None; MAGNIFIED];
-        for row in 0..height {
-            for column in 0..width {
-                copied[(row * width + column) as usize] =
-                    pixels.at(pixels.origin.0 + column, pixels.origin.1 + row);
-            }
-        }
-        Self {
-            origin: pixels.origin,
-            width,
-            height,
-            pixels: copied,
-        }
-    }
-
-    /// The pixel at `column`, `row` of the square.
-    fn get(&self, column: u32, row: u32) -> Option<[u8; 4]> {
-        if column >= self.width || row >= self.height {
-            return None;
-        }
-        self.pixels[(row * self.width + column) as usize]
-    }
-
-    /// The place in the square of the pixel nearest to `(x, y)` of the window.
-    fn nearest_place(&self, (x, y): (u32, u32)) -> Option<(u32, u32)> {
-        if self.width == 0 || self.height == 0 {
-            return None;
-        }
-        let column = x.saturating_sub(self.origin.0).min(self.width - 1);
-        let row = y.saturating_sub(self.origin.1).min(self.height - 1);
-        Some((column, row))
-    }
-
-    /// The pixel nearest to `(x, y)` of the window.
-    fn nearest(&self, at: (u32, u32)) -> Option<[u8; 4]> {
-        let (column, row) = self.nearest_place(at)?;
-        self.get(column, row)
-    }
-}
-
-/// The magnifier of an eyedropper, near `pointer` inside `bounds`: `pixels` of the screen
-/// zoomed, the one nearest to the pixel `under` the pointer outlined: the one a press picks.
-fn magnifier(ui: &mut Ui<'_>, pointer: Vec2, bounds: Rect, pixels: &Magnified, under: (u32, u32)) {
-    let style = ui.styles().color_picker;
-    let cell = (style.marker_size * 0.75).max(4.0);
-    let size = Vec2::new(pixels.width as f32 * cell, pixels.height as f32 * cell);
-    // Below and right of the pointer, clear of the pixels read around it; flipped near the
-    // window's edges.
-    let offset = style.marker_size * 2.0;
-    let mut origin = pointer + Vec2::splat(offset);
-    if origin.x + size.x > bounds.max.x {
-        origin.x = pointer.x - offset - size.x;
-    }
-    if origin.y + size.y > bounds.max.y {
-        origin.y = pointer.y - offset - size.y;
-    }
-    let frame = Rect::from_origin_size(origin, size);
-    let outline = style.outline_width;
-    ui.scene().push_rect(
-        &RectPrimitive::new(frame.inset(-outline), style.marker_outline)
-            .with_corner_radius(style.corner_radius),
-    );
-    ui.clipped_rounded(frame, Corners::all(style.corner_radius), |ui| {
-        for row in 0..pixels.height {
-            for column in 0..pixels.width {
-                let Some([r, g, b, _]) = pixels.get(column, row) else {
-                    continue;
-                };
-                let at = Rect::from_origin_size(
-                    origin + Vec2::new(column as f32 * cell, row as f32 * cell),
-                    Vec2::splat(cell),
-                );
-                ui.scene()
-                    .push_rect(&RectPrimitive::new(at, Color::from_rgba8(r, g, b, 255)));
-            }
-        }
-    });
-    // The pixel picked: outlined in white, then black.
-    if let Some((column, row)) = pixels.nearest_place(under) {
-        let at = Rect::from_origin_size(
-            origin + Vec2::new(column as f32 * cell, row as f32 * cell),
-            Vec2::splat(cell),
-        );
-        ui.scene().push_rect(
-            &RectPrimitive::new(at.inset(-outline), Color::TRANSPARENT)
-                .with_border(outline, style.marker_outline),
-        );
-        ui.scene().push_rect(
-            &RectPrimitive::new(at, Color::TRANSPARENT).with_border(outline, style.marker),
-        );
     }
 }
 

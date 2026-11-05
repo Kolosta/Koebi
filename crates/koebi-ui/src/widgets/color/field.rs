@@ -322,7 +322,7 @@ impl<'a> ColorField<'a> {
                     shown = shown.original(original);
                 }
                 if eyedropper {
-                    shown = shown.eyedropper(bounds);
+                    shown = shown.eyedropper(true);
                 }
                 shown.show(ui, content)
             })

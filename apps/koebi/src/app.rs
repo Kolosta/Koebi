@@ -608,6 +608,7 @@ impl App for KoebiApp {
             }
             window.apply_requests(context);
         }
+        route_screen_pick(&mut self.windows);
         let control = self.apply_commands(context);
         if control != AppControl::Continue {
             return control;
@@ -692,6 +693,29 @@ impl App for KoebiApp {
 /// What the system asking to close a window does: what its close button does.
 const fn close_command() -> AppCommand {
     AppCommand::Window(WindowCommand::Close)
+}
+
+/// An eyedropper started in one window picks in every window: the others learn there is a
+/// session (and draw again), and what one of them picks goes to the window that started it.
+fn route_screen_pick(windows: &mut [AppWindow]) {
+    let owner = windows.iter().position(|window| window.state.picks_here());
+    for (index, window) in windows.iter_mut().enumerate() {
+        let elsewhere = owner.is_some_and(|owner| owner != index);
+        if window.state.set_pick_elsewhere(elsewhere) {
+            window.needs_redraw = true;
+        }
+    }
+    let Some(owner) = owner else {
+        return;
+    };
+    for index in 0..windows.len() {
+        if index != owner
+            && let Some(outcome) = windows[index].state.take_foreign_pick()
+        {
+            windows[owner].state.deliver_pick(outcome);
+            windows[owner].needs_redraw = true;
+        }
+    }
 }
 
 /// The workspace of the oldest main window among `windows`: what is saved.

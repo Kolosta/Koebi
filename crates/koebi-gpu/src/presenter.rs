@@ -85,6 +85,9 @@ pub enum RenderOutcome {
 pub struct FramePixels {
     /// The top left pixel's place in the frame, in physical pixels.
     pub origin: (u32, u32),
+    /// The pixel asked for ([`Presenter::request_pixels`]'s center, kept inside the frame): the
+    /// middle of the square, but at the frame's edges.
+    pub center: (u32, u32),
     /// Width and height, in pixels.
     pub extent: Extent,
     /// The pixels.
@@ -110,6 +113,8 @@ impl FramePixels {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Copied {
     region: TextureRegion,
+    /// The pixel asked for, inside the region.
+    center: (u32, u32),
     /// The swapchain's format when it copied: a recreation may change it before the read.
     format: TextureFormat,
 }
@@ -329,13 +334,19 @@ impl Presenter {
             .requested
             .take()
             .filter(|_| readable(swapchain))
-            .and_then(|(center, side)| square(center, side, swapchain.extent))
-            .and_then(|region| {
+            .and_then(|(center, side)| {
+                let region = square(center, side, swapchain.extent)?;
+                // The pixel asked for, inside the frame and so inside the square.
+                let center = (
+                    center.0.min(region.x + region.width - 1),
+                    center.1.min(region.y + region.height - 1),
+                );
                 prepare_readback(&self.device, readback, swapchain.format, region)
                     .inspect_err(|error| {
                         koebi_core::warn!("cannot read the frame's pixels back: {error}");
                     })
                     .ok()
+                    .map(|region| (region, center))
             });
 
         // SAFETY: valid swapchain; the semaphore is unsignaled (its last wait completed).
@@ -425,7 +436,7 @@ impl Presenter {
         stamp(1);
         // The square asked for, copied before presenting: prepared and checked above.
         match copy.zip(readback.buffer.as_ref()) {
-            Some((region, buffer)) => {
+            Some(((region, center), buffer)) => {
                 encoder.image_barrier(
                     image,
                     TextureState::ColorAttachment,
@@ -435,6 +446,7 @@ impl Presenter {
                 encoder.image_barrier(image, TextureState::TransferSrc, TextureState::Present);
                 readback.copied = Some(Copied {
                     region,
+                    center,
                     format: swapchain.format,
                 });
             }
@@ -626,6 +638,7 @@ fn read_pixels(buffer: &Buffer, copied: Copied, into: &mut FramePixels) -> Resul
         }
     }
     into.origin = (region.x, region.y);
+    into.center = copied.center;
     into.extent = Extent::new(region.width, region.height);
     Ok(())
 }
@@ -753,6 +766,7 @@ mod tests {
     fn read_back_pixels_answer_for_their_place_in_the_frame() {
         let pixels = FramePixels {
             origin: (10, 20),
+            center: (11, 21),
             extent: Extent::new(2, 2),
             pixels: vec![
                 [1, 0, 0, 255],

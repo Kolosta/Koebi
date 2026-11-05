@@ -83,6 +83,8 @@ pub struct UiState {
     screen_pixels: Option<ScreenPixels>,
     /// The application cannot read its frames back: eyedroppers do not show.
     screen_unreadable: bool,
+    /// This window's part of a session picking a color on the screen.
+    pub(crate) pick: crate::screen_pick::PickState,
 }
 
 /// Pixels of a frame the window showed, read back for an eyedropper: gamma-encoded RGBA, row by
@@ -91,6 +93,9 @@ pub struct UiState {
 pub struct ScreenPixels {
     /// The top left pixel's place in the window.
     pub origin: (u32, u32),
+    /// The pixel asked for, under the pointer when it was read: the middle of the square, but
+    /// at the window's edges, where the square stays inside.
+    pub center: (u32, u32),
     /// Width and height, in pixels.
     pub width: u32,
     /// Height, in pixels.
@@ -128,6 +133,11 @@ impl UiState {
     /// The pixels the application read back from a frame the window showed.
     pub fn set_screen_pixels(&mut self, pixels: ScreenPixels) {
         self.screen_pixels = Some(pixels);
+    }
+
+    /// Forgets the pixels read back: a session picking starts or ends.
+    pub(crate) fn forget_pixels(&mut self) {
+        self.screen_pixels = None;
     }
 
     /// Where the application writes the pixels it read back, in place: they count as read

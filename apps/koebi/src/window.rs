@@ -265,6 +265,8 @@ impl AppWindow {
                 }
             }
         });
+        // An eyedropper's session, started here or in another window: over everything, last.
+        ui.screen_pick_layer(area);
         drop(ui);
         // Shown or hidden from the Dev page of the settings.
         if frame_times != overlay.is_some() {
