@@ -1,10 +1,11 @@
 //! The Accessibility page: the color vision modes, as cards showing the interface each makes.
 //!
 //! One container holds the three kinds of modes, a section each, which never fold. A card
-//! paints the miniature of the current theme as its mode shows it (its surfaces, text, accent,
-//! the colors of states and of a chart: where the differences a mode makes matter), the same
-//! miniature as the theme cards, of the same size: shapes, never real components, which would
-//! seem to answer the pointer.
+//! paints the current theme's contrasts and colors as its mode shows them (`Ui::vision_card`):
+//! text on the surfaces it lies on, the colors of states with their labels, and the colors of
+//! charts side by side, where what a mode confuses shows as neighbours alike. Theme cards show
+//! a miniature of the application instead; both are the same size, flat shapes and tiny text
+//! that never seem to answer the pointer.
 
 use koebi_core::{Rect, Vec2};
 use koebi_design::{ColorVision, Deficiency, DesignSystem, Layers};
@@ -314,7 +315,7 @@ fn mode_cards(
         let selected = is_mode(current, mode.vision);
         let card = section.cards.card(index);
         let key = id.with(index as u64 + 1);
-        if ui.theme_card(key, card, preview, selected).clicked {
+        if ui.vision_card(key, card, preview, selected).clicked {
             chosen = Some(mode.vision);
         }
         ui.tooltip(key, mode.detail, card);

@@ -126,8 +126,10 @@ starting above it.
 
 The Theme and Accessibility pages are containers that never fold, split into sections
 (`Ui::section_title`); their cards are all the same size, as many as fit a row, a name below
-each (`settings::cards`). The Theme page shows a card per theme; the Accessibility page the
-color vision modes, a section per kind. A mode's card paints the current theme's miniature
-as that mode shows it (`View::seen_as`, `ThemePreview`): surfaces, text, the accent, the
-colors of states and of a chart, as shapes that never seem to answer the pointer; what the
-mode does shows under the pointer.
+each (`settings::cards`). The Theme page shows a card per theme, a miniature of the application
+in it (`Ui::theme_card`): its bar, a side panel and its selected row, a title and text, a field,
+a checkbox, buttons, a chart, the status bar. The Accessibility page shows the color vision
+modes, a section per kind; a mode's card shows what the mode does to colors and contrasts
+(`Ui::vision_card`, `View::seen_as`): text on the surfaces it lies on, the colors of states
+with their labels, the colors of charts side by side. Both are flat shapes and tiny text that
+never seem to answer the pointer; what a mode does shows under the pointer.
