@@ -44,6 +44,7 @@ dependencies = [
  "koebi-input",
  "koebi-platform",
  "koebi-render",
+ "koebi-svg",
  "koebi-testkit",
  "koebi-text",
  "koebi-tokens",

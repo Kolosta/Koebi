@@ -5,7 +5,7 @@
 //! ```
 //! # use koebi_core::{Rect, Vec2};
 //! # use koebi_render::Scene;
-//! # use koebi_ui::{Button, IconId, Input, Tone, Ui, UiState, WidgetId};
+//! # use koebi_ui::{Button, Input, Tone, Ui, UiState, WidgetId};
 //! # let styles = koebi_ui::Styles::resolve(&koebi_design::DesignSystem::new(&koebi_tokens::KOEBI)?);
 //! # let (mut scene, mut state, input) = (Scene::new(), UiState::new(), Input::new());
 //! # let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);

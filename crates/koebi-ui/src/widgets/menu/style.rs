@@ -55,7 +55,7 @@ pub struct MenuStyle {
     pub label_disabled: Color,
     /// Shortcut color.
     pub shortcut_color: Color,
-    /// IconId and submenu arrow color.
+    /// Icon and submenu arrow color.
     pub icon_color: Color,
     /// Check and radio mark color.
     pub mark_color: Color,

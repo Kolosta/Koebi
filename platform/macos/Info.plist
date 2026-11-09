@@ -7,6 +7,8 @@
     <string>en</string>
     <key>CFBundleDisplayName</key>
     <string>Koebi</string>
+    <key>CFBundleIconFile</key>
+    <string>Koebi</string>
     <key>CFBundleExecutable</key>
     <string>koebi</string>
     <key>CFBundleIdentifier</key>

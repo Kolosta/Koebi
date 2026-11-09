@@ -1,13 +1,14 @@
-//! Minimal PNG codec for golden images (RGBA8, uncompressed deflate "stored" blocks).
+//! Minimal PNG codec for golden images and the platforms' icon files (RGBA8).
 //!
-//! Golden images are only ever written by [`encode_png`] (via `cargo xtask bless`), so the
-//! decoder supports exactly what the encoder produces plus all five row filters. Files
-//! re-compressed by external tools are rejected with a message telling how to regenerate them.
+//! The encoder chooses a row filter per row and compresses with LZ77 and deflate's fixed codes
+//! (`crate::deflate`). Golden images are only ever written by [`encode_png`] (via `cargo xtask
+//! bless`), so the decoder reads what it writes (and the stored blocks of earlier golden images)
+//! with all five row filters. Files re-compressed by external tools, with dynamic codes, are
+//! rejected with a message telling how to regenerate them.
 
 use std::fmt;
 
 const SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
-const MAX_STORED_BLOCK: usize = 65_535;
 
 /// PNG decoding failure.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -38,7 +39,7 @@ impl fmt::Display for PngError {
 
 impl std::error::Error for PngError {}
 
-/// Encodes RGBA8 pixels as a PNG with stored (uncompressed) deflate blocks.
+/// Encodes RGBA8 pixels as a compressed PNG.
 ///
 /// # Panics
 ///
@@ -51,24 +52,31 @@ pub fn encode_png(width: u32, height: u32, rgba: &[u8]) -> Vec<u8> {
         "RGBA buffer size mismatch"
     );
 
+    // Each row with the filter that leaves the smallest differences: they compress best.
     let mut raw = Vec::with_capacity((stride + 1) * height as usize);
+    let mut candidate = vec![0_u8; stride];
+    let mut chosen = vec![0_u8; stride];
+    let mut previous: Option<&[u8]> = None;
     for row in rgba.chunks_exact(stride.max(1)) {
-        raw.push(0); // filter type: none
-        raw.extend_from_slice(row);
+        let mut best = (u64::MAX, 0_u8);
+        for filter in 0..=4 {
+            filter_row(filter, row, previous, &mut candidate);
+            let cost: u64 = candidate
+                .iter()
+                .map(|&byte| u64::from(byte.min(byte.wrapping_neg())))
+                .sum();
+            if cost < best.0 {
+                best = (cost, filter);
+                chosen.copy_from_slice(&candidate);
+            }
+        }
+        raw.push(best.1);
+        raw.extend_from_slice(&chosen);
+        previous = Some(row);
     }
 
     let mut zlib = vec![0x78, 0x01];
-    if raw.is_empty() {
-        zlib.extend_from_slice(&[1, 0, 0, 0xFF, 0xFF]);
-    }
-    let mut blocks = raw.chunks(MAX_STORED_BLOCK).peekable();
-    while let Some(block) = blocks.next() {
-        zlib.push(u8::from(blocks.peek().is_none())); // BFINAL, BTYPE = 00 (stored)
-        let len = u16::try_from(block.len()).unwrap_or(u16::MAX);
-        zlib.extend_from_slice(&len.to_le_bytes());
-        zlib.extend_from_slice(&(!len).to_le_bytes());
-        zlib.extend_from_slice(block);
-    }
+    zlib.extend_from_slice(&crate::deflate::compress(&raw));
     zlib.extend_from_slice(&adler32(&raw).to_be_bytes());
 
     let mut header = Vec::with_capacity(13);
@@ -118,7 +126,7 @@ pub fn decode_png(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), PngError> {
         }
     }
     let (width, height) = size.ok_or(PngError::Corrupt("missing IHDR"))?;
-    let raw = inflate_stored(&idat)?;
+    let raw = inflate(&idat)?;
     let rgba = unfilter(&raw, width as usize, height as usize)?;
     Ok((width, height, rgba))
 }
@@ -136,7 +144,7 @@ fn parse_header(data: &[u8]) -> Result<(u32, u32), PngError> {
     }
 }
 
-fn inflate_stored(zlib: &[u8]) -> Result<Vec<u8>, PngError> {
+fn inflate(zlib: &[u8]) -> Result<Vec<u8>, PngError> {
     if zlib.len() < 2 {
         return Err(PngError::Truncated);
     }
@@ -147,33 +155,34 @@ fn inflate_stored(zlib: &[u8]) -> Result<Vec<u8>, PngError> {
     if flg & 0x20 != 0 {
         return Err(PngError::Unsupported("zlib preset dictionary"));
     }
-    let mut out = Vec::new();
-    let mut pos = 2;
-    loop {
-        let block = zlib.get(pos..pos + 5).ok_or(PngError::Truncated)?;
-        let header = block[0];
-        if (header >> 1) & 0b11 != 0 {
-            return Err(PngError::Unsupported("compressed deflate blocks"));
-        }
-        let len = u16::from_le_bytes([block[1], block[2]]);
-        if len != !u16::from_le_bytes([block[3], block[4]]) {
-            return Err(PngError::Corrupt("stored block length"));
-        }
-        let start = pos + 5;
-        let data = zlib
-            .get(start..start + usize::from(len))
-            .ok_or(PngError::Truncated)?;
-        out.extend_from_slice(data);
-        pos = start + usize::from(len);
-        if header & 1 == 1 {
-            break;
-        }
-    }
-    let (checksum, _) = split_u32(&zlib[pos..])?;
+    let (out, end) = crate::deflate::inflate(&zlib[2..])?;
+    let (checksum, _) = split_u32(&zlib[2 + end..])?;
     if checksum != adler32(&out) {
         return Err(PngError::Corrupt("adler32 mismatch"));
     }
     Ok(out)
+}
+
+/// `row` filtered by `filter` (0 to 4) against the row above it, into `out`.
+fn filter_row(filter: u8, row: &[u8], previous: Option<&[u8]>, out: &mut [u8]) {
+    const BPP: usize = 4;
+    for x in 0..row.len() {
+        let a = if x >= BPP { row[x - BPP] } else { 0 };
+        let b = previous.map_or(0, |p| p[x]);
+        let c = if x >= BPP {
+            previous.map_or(0, |p| p[x - BPP])
+        } else {
+            0
+        };
+        let predictor = match filter {
+            1 => a,
+            2 => b,
+            3 => u8::try_from(u16::midpoint(u16::from(a), u16::from(b))).unwrap_or(0),
+            4 => paeth(a, b, c),
+            _ => 0,
+        };
+        out[x] = row[x].wrapping_sub(predictor);
+    }
 }
 
 fn unfilter(raw: &[u8], width: usize, height: usize) -> Result<Vec<u8>, PngError> {
@@ -303,12 +312,39 @@ mod tests {
     }
 
     #[test]
-    fn large_images_span_several_stored_blocks() {
-        let (width, height) = (200_u32, 100_u32); // 80 kB of pixels > one 64 kB block
-        let rgba = vec![0xAB; (width * height * 4) as usize];
-        let (w, h, decoded) = decode_png(&encode_png(width, height, &rgba)).unwrap();
-        assert_eq!((w, h), (width, height));
-        assert_eq!(decoded, rgba);
+    fn images_compress_and_come_back() {
+        let (width, height) = (200_u32, 100_u32);
+        let uniform = vec![0xAB; (width * height * 4) as usize];
+        let png = encode_png(width, height, &uniform);
+        assert!(png.len() < 4_000, "{} bytes", png.len());
+        assert_eq!(decode_png(&png).unwrap(), (width, height, uniform));
+        // A gradient: every row filter has something to do.
+        #[allow(
+            clippy::cast_possible_truncation,
+            reason = "the low bits of the coordinates: a pattern"
+        )]
+        let gradient: Vec<u8> = (0..width * height)
+            .flat_map(|i| {
+                let (x, y) = (i % width, i / width);
+                [x as u8, y as u8, (x ^ y) as u8, 255]
+            })
+            .collect();
+        let (w, h, decoded) = decode_png(&encode_png(width, height, &gradient)).unwrap();
+        assert_eq!((w, h, decoded), (width, height, gradient));
+    }
+
+    #[test]
+    fn earlier_golden_images_in_stored_blocks_still_decode() {
+        // 1x1 pixel, filter 0, in one stored block, as the codec wrote golden images before.
+        let raw = [0, 1, 2, 3, 4];
+        let mut zlib = vec![0x78, 0x01, 1, 5, 0, 0xFA, 0xFF];
+        zlib.extend_from_slice(&raw);
+        zlib.extend_from_slice(&adler32(&raw).to_be_bytes());
+        let mut png = SIGNATURE.to_vec();
+        write_chunk(&mut png, *b"IHDR", &[0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0]);
+        write_chunk(&mut png, *b"IDAT", &zlib);
+        write_chunk(&mut png, *b"IEND", &[]);
+        assert_eq!(decode_png(&png).unwrap(), (1, 1, vec![1, 2, 3, 4]));
     }
 
     #[test]

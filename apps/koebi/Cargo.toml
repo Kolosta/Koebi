@@ -29,6 +29,7 @@ koebi-icons.workspace = true
 koebi-input.workspace = true
 koebi-platform.workspace = true
 koebi-render.workspace = true
+koebi-svg.workspace = true
 koebi-text.workspace = true
 koebi-tokens.workspace = true
 koebi-ui.workspace = true

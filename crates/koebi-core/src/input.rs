@@ -561,6 +561,18 @@ pub enum CursorShape {
     ArrowUp,
     /// An arrow pointing down.
     ArrowDown,
+    /// The top-left corner of an area, from which a drag splits it or joins it to another.
+    CornerTopLeft,
+    /// The top-right corner of an area.
+    CornerTopRight,
+    /// The bottom-left corner of an area.
+    CornerBottomLeft,
+    /// The bottom-right corner of an area.
+    CornerBottomRight,
+    /// Splitting an area along a vertical line: two areas side by side.
+    SplitVertical,
+    /// Splitting an area along a horizontal line: two areas one above the other.
+    SplitHorizontal,
     /// A cursor the application created, by its own number.
     Custom(u16),
 }

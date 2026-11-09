@@ -189,7 +189,7 @@ pub struct ListItem<'a> {
     pub depth: u16,
     /// Text of the row.
     pub label: &'a str,
-    /// IconId or color before the label.
+    /// Icon or color before the label.
     pub mark: ItemMark,
     /// How the line along its children looks, in a tree that shows lines.
     pub guide: TreeGuide,

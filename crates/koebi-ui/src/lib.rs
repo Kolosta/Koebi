@@ -27,8 +27,9 @@
 //!   [`Ui::grab`].
 //! - **Layout**: callers give every component its rectangle, in logical pixels. A layout
 //!   engine comes with the widget tree.
-//! - **Text**: labels come with the components that need them (menus, tabs, lists); line
-//!   [`Icon`]s stand in elsewhere.
+//! - **Text**: labels come with the components that need them (menus, tabs, lists).
+//! - **Icons**: the vector icons of `koebi_icons`, by their [`IconId`], painted by [`Ui::icon`]
+//!   with their zones in the colors of their component's state ([`IconStyle::ink`]).
 //! - **Lists**: [`Ui::list`] draws every list and tree of the application, folding,
 //!   selecting and reordering rows the application identifies by its own keys.
 //!
@@ -38,7 +39,7 @@
 //! use koebi_core::{Rect, Vec2};
 //! use koebi_design::DesignSystem;
 //! use koebi_render::Scene;
-//! use koebi_ui::{Button, IconId, Input, StyleCache, Ui, UiState, WidgetId};
+//! use koebi_ui::{Button, Input, StyleCache, Ui, UiState, WidgetId};
 //!
 //! let design = DesignSystem::new(&koebi_tokens::KOEBI)?;
 //! let mut styles = StyleCache::new(&design);

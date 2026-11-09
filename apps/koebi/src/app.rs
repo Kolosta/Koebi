@@ -19,6 +19,7 @@ use koebi_text::Fonts;
 use koebi_ui::WindowCommand;
 use koebi_workspace::{EditorId, Workspace};
 
+use crate::app_icon::AppIcon;
 use crate::chrome::AppCommand;
 use crate::cursors::AppCursors;
 use crate::editors::{Editors, Entry, default_floating};
@@ -51,6 +52,8 @@ pub(crate) struct KoebiApp {
     rate: IterationRate,
     /// Cursors the application drew.
     cursors: AppCursors,
+    /// The icon its windows show.
+    icon: AppIcon,
     // Field order is drop order: every window before what they share.
     windows: Vec<AppWindow>,
     gpu: Gpu,
@@ -234,6 +237,7 @@ impl KoebiApp {
         if let Some(pointer) = pointer {
             window.center_top_at(pointer);
         }
+        self.icon.apply(&window);
         let gpu = self.gpu.for_window(&window)?;
         self.windows
             .push(AppWindow::new(role, window, gpu, content, &self.interface));
@@ -533,6 +537,8 @@ impl App for KoebiApp {
             )
         })?;
         let window = main_window(context, &options)?;
+        let icon = AppIcon::new();
+        icon.apply(&window);
         let (gpu, window_gpu) = Gpu::new(&window, &vulkan, options.present_mode, fonts)?;
         let cursors = AppCursors::create(context, window.scale_factor());
         koebi_core::info!(
@@ -558,6 +564,7 @@ impl App for KoebiApp {
             frame_times: FrameTimes::new(),
             rate,
             cursors,
+            icon,
             windows: vec![main],
             gpu,
         };

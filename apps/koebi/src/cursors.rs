@@ -1,69 +1,102 @@
-//! The application's own cursors: direction arrows, drawn at start-up, and the mapping of
-//! the interface's cursor shapes to platform cursors.
+//! The application's own cursors, and the mapping of the interface's cursor shapes to them or to
+//! platform cursors.
+//!
+//! The workspace's cursors are the icons of `koebi_icons::cursors` (those of the previous
+//! application): the corners of areas, splits, joins, a refused drop, moves. They are drawn once
+//! at start-up for the display's scale, white over a dark outline so that they read on any
+//! background. Text, links and resizing keep the system's cursors, which people know.
 
-use koebi_core::Vec2;
 use koebi_core::input::CursorShape;
+use koebi_icons::{IconId, cursors};
 use koebi_platform::{AppContext, Cursor, CursorId, CursorImage, SystemCursor};
+use koebi_svg::raster::{Colors, render};
 
 /// Side of a cursor image at scale 1, in pixels.
 const SIZE: f32 = 32.0;
-/// Width of the dark outline around the arrows, in pixels at scale 1.
+/// Width of the dark outline around the glyphs, in pixels at scale 1.
 const OUTLINE: f32 = 1.5;
 
-/// An arrow pointing right on a unit square: shaft, then head, clockwise.
-const ARROW: [[f32; 2]; 7] = [
-    [0.12, 0.41],
-    [0.55, 0.41],
-    [0.55, 0.20],
-    [0.90, 0.50],
-    [0.55, 0.80],
-    [0.55, 0.59],
-    [0.12, 0.59],
+/// The shapes drawn from icons, the icon of each, and the system cursor standing in for it when
+/// it could not be created.
+const CUSTOM: [(CursorShape, IconId, SystemCursor); 12] = [
+    (
+        CursorShape::ArrowLeft,
+        cursors::JOIN_LEFT,
+        SystemCursor::Move,
+    ),
+    (
+        CursorShape::ArrowRight,
+        cursors::JOIN_RIGHT,
+        SystemCursor::Move,
+    ),
+    (CursorShape::ArrowUp, cursors::JOIN_UP, SystemCursor::Move),
+    (
+        CursorShape::ArrowDown,
+        cursors::JOIN_DOWN,
+        SystemCursor::Move,
+    ),
+    (
+        CursorShape::NotAllowed,
+        cursors::BLOCK,
+        SystemCursor::NotAllowed,
+    ),
+    (
+        CursorShape::Move,
+        cursors::MOVE_ALL_DIRECTIONS,
+        SystemCursor::Move,
+    ),
+    (
+        CursorShape::CornerTopLeft,
+        cursors::CORNER_ACTIONS_ADD_UP_LEFT,
+        SystemCursor::Crosshair,
+    ),
+    (
+        CursorShape::CornerTopRight,
+        cursors::CORNER_ACTIONS_ADD_UP_RIGHT,
+        SystemCursor::Crosshair,
+    ),
+    (
+        CursorShape::CornerBottomLeft,
+        cursors::CORNER_ACTIONS_ADD_DOWN_LEFT,
+        SystemCursor::Crosshair,
+    ),
+    (
+        CursorShape::CornerBottomRight,
+        cursors::CORNER_ACTIONS_ADD_DOWN_RIGHT,
+        SystemCursor::Crosshair,
+    ),
+    (
+        CursorShape::SplitVertical,
+        cursors::SPLIT_JOIN_VERTICAL,
+        SystemCursor::ResizeHorizontal,
+    ),
+    (
+        CursorShape::SplitHorizontal,
+        cursors::SPLIT_JOIN_HORIZONTAL,
+        SystemCursor::ResizeVertical,
+    ),
 ];
-
-/// The four arrow directions, in the order of [`AppCursors::arrows`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Direction {
-    Left,
-    Right,
-    Up,
-    Down,
-}
-
-impl Direction {
-    const ALL: [Self; 4] = [Self::Left, Self::Right, Self::Up, Self::Down];
-
-    /// A point of the right-pointing arrow, turned to this direction.
-    fn turn(self, [x, y]: [f32; 2]) -> Vec2 {
-        match self {
-            Self::Right => Vec2::new(x, y),
-            Self::Left => Vec2::new(1.0 - x, y),
-            Self::Down => Vec2::new(y, x),
-            Self::Up => Vec2::new(y, 1.0 - x),
-        }
-    }
-}
 
 /// Cursors the application created; shapes without one fall back to system cursors.
 #[derive(Debug, Default)]
 pub(crate) struct AppCursors {
-    arrows: [Option<CursorId>; 4],
+    custom: [Option<CursorId>; CUSTOM.len()],
 }
 
 impl AppCursors {
-    /// Draws and registers the arrows for a display of `scale` (physical pixels per logical
-    /// pixel). Failures leave the system's move cursor in their place.
+    /// Draws and registers the cursors for a display of `scale` (physical pixels per logical
+    /// pixel). A cursor that cannot be created leaves a system cursor in its place.
     pub(crate) fn create(context: &mut AppContext, scale: f32) -> Self {
-        let size = (SIZE * scale.clamp(1.0, 4.0)).round();
+        let scale = scale.clamp(1.0, 4.0);
         #[allow(
             clippy::cast_possible_truncation,
             clippy::cast_sign_loss,
             reason = "between 32 and 128 pixels"
         )]
-        let side = size as u32;
-        let mut cursors = Self::default();
-        for (slot, direction) in cursors.arrows.iter_mut().zip(Direction::ALL) {
-            let pixels = arrow_pixels(side, direction, OUTLINE * scale.max(1.0));
+        let side = (SIZE * scale).round() as u32;
+        let mut created = Self::default();
+        for (slot, (_, icon, _)) in created.custom.iter_mut().zip(CUSTOM) {
+            let pixels = cursor_pixels(icon, side, OUTLINE * scale);
             let image = CursorImage {
                 width: side,
                 height: side,
@@ -72,83 +105,86 @@ impl AppCursors {
             };
             match context.create_cursor(&image) {
                 Ok(id) => *slot = Some(id),
-                Err(error) => koebi_core::warn!("cannot create an arrow cursor: {error}"),
+                Err(error) => {
+                    koebi_core::warn!("cannot create the {} cursor: {error}", icon.name());
+                }
             }
         }
-        cursors
+        created
     }
 
     /// The platform cursor showing `shape`.
     pub(crate) fn cursor(&self, shape: CursorShape) -> Cursor {
-        let arrow = |index: usize| {
-            self.arrows[index].map_or(Cursor::System(SystemCursor::Move), Cursor::Custom)
-        };
+        if let Some(index) = CUSTOM.iter().position(|(custom, ..)| *custom == shape) {
+            let (_, _, fallback) = CUSTOM[index];
+            return self.custom[index].map_or(Cursor::System(fallback), Cursor::Custom);
+        }
         let system = match shape {
-            CursorShape::ArrowLeft => return arrow(0),
-            CursorShape::ArrowRight => return arrow(1),
-            CursorShape::ArrowUp => return arrow(2),
-            CursorShape::ArrowDown => return arrow(3),
             CursorShape::Pointer => SystemCursor::Pointer,
             CursorShape::Text => SystemCursor::Text,
             CursorShape::Crosshair => SystemCursor::Crosshair,
-            CursorShape::Move => SystemCursor::Move,
-            CursorShape::NotAllowed => SystemCursor::NotAllowed,
             CursorShape::ResizeHorizontal => SystemCursor::ResizeHorizontal,
             CursorShape::ResizeVertical => SystemCursor::ResizeVertical,
             CursorShape::ResizeNwse => SystemCursor::ResizeNwse,
             CursorShape::ResizeNesw => SystemCursor::ResizeNesw,
-            CursorShape::Default | CursorShape::Custom(_) => SystemCursor::Default,
+            _ => SystemCursor::Default,
         };
         Cursor::System(system)
     }
 }
 
-/// RGBA pixels (straight alpha) of an arrow pointing `direction`: white with a dark outline,
-/// anti-aliased, on a transparent square of `side` pixels.
-fn arrow_pixels(side: u32, direction: Direction, outline: f32) -> Vec<u8> {
-    let scale = side as f32;
-    let polygon: Vec<Vec2> = ARROW
+/// `value`, from 0 to 1, as a byte.
+fn byte(value: f32) -> u8 {
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "clamped to a byte"
+    )]
+    let byte = (value.clamp(0.0, 1.0) * 255.0).round() as u8;
+    byte
+}
+
+/// RGBA pixels (straight alpha) of `icon` on a transparent square of `side` pixels: white,
+/// over a dark outline `outline` pixels wide, anti-aliased.
+fn cursor_pixels(icon: IconId, side: u32, outline: f32) -> Vec<u8> {
+    let compiled = icon.compile();
+    let glyph: Vec<f32> = render(&compiled, side, Colors::Original)
+        .as_chunks::<4>()
+        .0
         .iter()
-        .map(|point| direction.turn(*point) * scale)
+        .map(|pixel| f32::from(pixel[3]) / 255.0)
         .collect();
-    let mut pixels = Vec::with_capacity((side * side * 4) as usize);
-    for y in 0..side {
-        for x in 0..side {
-            let center = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
-            let distance = signed_distance(&polygon, center);
-            // Opaque inside the outline's outer edge, white inside its inner edge.
-            let alpha = (0.5 - distance).clamp(0.0, 1.0);
-            let white = (0.5 - (distance + outline)).clamp(0.0, 1.0);
-            #[allow(
-                clippy::cast_possible_truncation,
-                clippy::cast_sign_loss,
-                reason = "values clamped to 0..=1, scaled to 0..=255"
-            )]
-            let byte = |value: f32| (value * 255.0).round() as u8;
-            let shade = byte(white);
-            pixels.extend_from_slice(&[shade, shade, shade, byte(alpha)]);
+    let width = i32::try_from(side).unwrap_or(i32::MAX);
+    let at = |x: i32, y: i32| -> f32 {
+        let inside = (0..width).contains(&x) && (0..width).contains(&y);
+        usize::try_from(y * width + x)
+            .ok()
+            .filter(|_| inside)
+            .map_or(0.0, |index| glyph[index])
+    };
+    // The outline: the glyph grown by `outline`, each pixel as covered as the most covered
+    // pixel near it, less how far past the outline that one lies.
+    #[allow(clippy::cast_possible_truncation, reason = "a few pixels")]
+    let reach = (outline + 0.5).ceil() as i32;
+    let mut pixels = Vec::with_capacity(glyph.len() * 4);
+    for y in 0..width {
+        for x in 0..width {
+            let mut grown = 0.0_f32;
+            for dy in -reach..=reach {
+                for dx in -reach..=reach {
+                    let distance = (dx as f32).hypot(dy as f32);
+                    let weight = (outline + 0.5 - distance).clamp(0.0, 1.0);
+                    grown = grown.max(at(x + dx, y + dy) * weight);
+                }
+            }
+            let ink = at(x, y);
+            // White over black: the glyph covers the outline under it.
+            let alpha = ink + grown * (1.0 - ink);
+            let white = if alpha > 1e-6 { ink / alpha } else { 0.0 };
+            pixels.extend_from_slice(&[byte(white), byte(white), byte(white), byte(alpha)]);
         }
     }
     pixels
-}
-
-/// Distance from `point` to the edge of `polygon`, negative inside.
-fn signed_distance(polygon: &[Vec2], point: Vec2) -> f32 {
-    let mut distance = f32::MAX;
-    let mut inside = false;
-    for (index, &a) in polygon.iter().enumerate() {
-        let b = polygon[(index + 1) % polygon.len()];
-        let edge = b - a;
-        let t = ((point - a).dot(edge) / edge.dot(edge)).clamp(0.0, 1.0);
-        distance = distance.min((point - (a + edge * t)).length());
-        // Even-odd rule: count the edges a ray to the right of the point crosses.
-        if (a.y > point.y) != (b.y > point.y)
-            && point.x < a.x + (point.y - a.y) / (b.y - a.y) * edge.x
-        {
-            inside = !inside;
-        }
-    }
-    if inside { -distance } else { distance }
 }
 
 #[cfg(test)]
@@ -161,43 +197,49 @@ mod tests {
     }
 
     #[test]
-    fn arrows_are_white_with_an_outline_on_transparency() {
+    fn cursors_are_white_glyphs_outlined_on_transparency() {
         let side = 32;
-        let right = arrow_pixels(side, Direction::Right, OUTLINE);
-        assert_eq!(right.len(), 32 * 32 * 4);
-        // The middle of the shaft is opaque white; corners are transparent.
-        assert_eq!(pixel(&right, side, 10, 16), [255, 255, 255, 255]);
-        assert_eq!(pixel(&right, side, 0, 0)[3], 0);
-        assert_eq!(pixel(&right, side, 31, 31)[3], 0);
-        // Just inside the shaft's top edge: the dark outline.
-        let edge = pixel(&right, side, 10, 13);
-        assert!(edge[3] > 200 && edge[0] < 60, "{edge:?}");
-        // The tip points right: opaque near x = 28, transparent beyond.
-        assert!(pixel(&right, side, 26, 16)[3] > 200);
-        assert_eq!(pixel(&right, side, 30, 16)[3], 0);
+        // The block: a ring crossed by a bar, its center covered.
+        let pixels = cursor_pixels(cursors::BLOCK, side, OUTLINE);
+        assert_eq!(pixel(&pixels, side, 16, 16), [255, 255, 255, 255]);
+        assert_eq!(pixel(&pixels, side, 0, 0)[3], 0);
+        // The outline surrounds the glyph: no white pixel touches transparency.
+        for y in 1..side - 1 {
+            for x in 1..side - 1 {
+                if pixel(&pixels, side, x, y) == [255, 255, 255, 255] {
+                    for (nx, ny) in [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)] {
+                        assert!(pixel(&pixels, side, nx, ny)[3] > 0, "({nx}, {ny})");
+                    }
+                }
+            }
+        }
+        // And it is dark.
+        assert!(
+            pixels
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .any(|pixel| pixel[3] == 255 && pixel[0] < 32)
+        );
     }
 
     #[test]
-    fn arrows_turn_to_every_direction() {
-        let side = 32;
-        let left = arrow_pixels(side, Direction::Left, OUTLINE);
-        let up = arrow_pixels(side, Direction::Up, OUTLINE);
-        let down = arrow_pixels(side, Direction::Down, OUTLINE);
-        // Each tip lies on its side, the opposite end is the shaft's square end.
-        assert!(pixel(&left, side, 5, 16)[3] > 200 && pixel(&left, side, 1, 16)[3] == 0);
-        assert!(pixel(&up, side, 16, 5)[3] > 200 && pixel(&up, side, 16, 1)[3] == 0);
-        assert!(pixel(&down, side, 16, 26)[3] > 200 && pixel(&down, side, 16, 30)[3] == 0);
-    }
-
-    #[test]
-    fn distances_are_negative_inside_polygons() {
-        let square = [
-            Vec2::new(0.0, 0.0),
-            Vec2::new(10.0, 0.0),
-            Vec2::new(10.0, 10.0),
-            Vec2::new(0.0, 10.0),
-        ];
-        assert!((signed_distance(&square, Vec2::new(5.0, 5.0)) + 5.0).abs() < 1e-5);
-        assert!((signed_distance(&square, Vec2::new(13.0, 5.0)) - 3.0).abs() < 1e-5);
+    fn every_shape_drawn_from_an_icon_falls_back_to_a_system_cursor() {
+        let none = AppCursors::default();
+        for (shape, _, fallback) in CUSTOM {
+            assert_eq!(none.cursor(shape), Cursor::System(fallback), "{shape:?}");
+        }
+        assert_eq!(
+            none.cursor(CursorShape::Text),
+            Cursor::System(SystemCursor::Text)
+        );
+        assert_eq!(
+            none.cursor(CursorShape::Custom(3)),
+            Cursor::System(SystemCursor::Default)
+        );
+        // Each shape once.
+        for (index, (shape, ..)) in CUSTOM.iter().enumerate() {
+            assert!(CUSTOM[index + 1..].iter().all(|(other, ..)| other != shape));
+        }
     }
 }

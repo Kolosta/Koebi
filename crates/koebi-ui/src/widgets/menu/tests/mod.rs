@@ -9,7 +9,6 @@ use koebi_text::Fonts;
 use super::*;
 use crate::widgets::parts::Placement;
 use crate::{Input, PointerButton, ScrollAxes, ScrollState, Styles, UiState};
-use koebi_icons::IconId;
 
 mod opening;
 

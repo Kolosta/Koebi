@@ -140,6 +140,7 @@ impl AppChrome {
         let bar = Rect::from_min_max(area.min, Vec2::new(area.max.x, area.min.y + height));
         let filled = matches!(view.state, WindowState::Maximized | WindowState::Fullscreen);
         let shown = AppBar::new(BAR, view.title)
+            .logo(koebi_icons::app::ICON)
             .filled(filled)
             .window_buttons(view.insets.draws_buttons)
             .leading_inset(view.insets.leading)
@@ -183,10 +184,14 @@ impl AppChrome {
             MenuItem::action("Save")
                 .icon(koebi_icons::actions::SAVE)
                 .enabled(false),
-            // Without an icon, its label lines up with the others all the same.
-            MenuItem::action("Save As").enabled(false),
+            MenuItem::action("Save As")
+                .icon(koebi_icons::actions::SAVE_AS)
+                .enabled(false),
             MenuItem::Separator,
-            with_shortcut(MenuItem::action("Quit"), &labels.quit),
+            with_shortcut(
+                MenuItem::action("Quit").icon(koebi_icons::actions::QUIT),
+                &labels.quit,
+            ),
         ];
         let edit = [with_shortcut(
             MenuItem::action("Settings").icon(koebi_icons::actions::SETTINGS),
@@ -235,11 +240,19 @@ impl AppChrome {
 
 /// The Window menu: windows of the same document, another instance, fullscreen.
 fn window_items(state: WindowState, labels: &ShortcutLabels) -> [MenuItem<'_>; 5] {
-    let fullscreen = MenuItem::action("Fullscreen").checked(state == WindowState::Fullscreen);
+    let fullscreen = MenuItem::action("Fullscreen")
+        .icon(koebi_icons::view::FULLSCREEN)
+        .checked(state == WindowState::Fullscreen);
     [
-        MenuItem::action("New Window").enabled(MULTIPLE_WINDOWS),
-        MenuItem::action("New Main Window").enabled(MULTIPLE_WINDOWS),
-        MenuItem::action("New Instance").enabled(MULTIPLE_WINDOWS),
+        MenuItem::action("New Window")
+            .icon(koebi_icons::actions::NEW_WINDOW)
+            .enabled(MULTIPLE_WINDOWS),
+        MenuItem::action("New Main Window")
+            .icon(koebi_icons::actions::NEW_MAIN_WINDOW)
+            .enabled(MULTIPLE_WINDOWS),
+        MenuItem::action("New Instance")
+            .icon(koebi_icons::actions::NEW_INSTANCE)
+            .enabled(MULTIPLE_WINDOWS),
         MenuItem::Separator,
         with_shortcut(fullscreen, &labels.fullscreen),
     ]
