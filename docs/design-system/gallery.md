@@ -53,6 +53,10 @@ From top to bottom (the two middle panels stack on narrow windows):
 8. **Grid**: as many checkboxes, toggles, buttons and swatches as the window holds, several
    hundred in the default 1280 x 800 window. They are all interactive, and none of them
    reads a token while drawing: styles are resolved once per change of the design system.
+9. **Vector icons**: every icon of `koebi-icons` at the size of the field, recolored on hover
+   (accent) and press. *Original colors* shows the colors of the files; *Two tones* shows the
+   secondary part of two-tone icons fainter, or in the main color when off
+   ([icons](../development/icons.md#two-tone-icons)). An icon's name shows in its tooltip.
 
 Every edit shows in the same frame: when a frame changes the design system, the application
 draws it again with the new styles before presenting it.

@@ -123,6 +123,33 @@ mod tests {
     }
 
     #[test]
+    fn icons_with_a_part_behind_inside_or_acted_on_have_a_secondary_ink() {
+        // Two-tone icons (docs/development/icons.md): an action mark or an outline in the main
+        // ink, what it acts on, what lies inside or behind it in the secondary one.
+        let two_tones = IconId::all()
+            .filter(|icon| icon.roles().contains(&Role::Secondary))
+            .count();
+        assert!(two_tones >= 60, "{two_tones} icons in two tones");
+        for icon in [
+            actions::NEW,
+            actions::SAVE_AS,
+            actions::EYE,
+            view::SHADOW,
+            view::IMAGE,
+            text::SUBSCRIPT,
+            transform::ALIGN_FLEX_END,
+            objects::BEZIER_CURVE,
+        ] {
+            assert_eq!(
+                icon.roles(),
+                [Role::Primary, Role::Secondary],
+                "{}",
+                icon.name()
+            );
+        }
+    }
+
+    #[test]
     fn the_packed_set_holds_every_icon_compiled_again() {
         let set = packed();
         assert_eq!(set.icons, COUNT);

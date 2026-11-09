@@ -59,9 +59,13 @@ A zone's role comes from the `class` of what it colors:
 </svg>
 ```
 
+Zones are told apart by color: a secondary part needs a color of its own in the file
+(`#9c9c9c` beside the `#e3e3e3` of the primary ink, so that the original colors show two tones
+too), a class alone is not enough.
+
 Opacity stays with what it colors: the translucent circle above stays translucent in any
 color. A gradient's stops belong to the zones of their colors, so a recolored gradient keeps its
-shape. A standard interface icon has a single `ds-primary` ink.
+shape. A standard interface icon has a single `ds-primary` ink, or two for a two-tone icon.
 
 ## Style guide
 
@@ -85,12 +89,37 @@ are drawn larger), round caps and joins, about 2 units of margin, open shapes (a
 chevron) centered on the grid so that their axis falls on a pixel.
 
 **Colors and zones.** One ink (`ds-primary`) for standard icons: the interface colors them by
-the state of their component. A second ink (`ds-secondary`, drawn fainter) for a supporting part
-that must stay legible behind the main one (a layer under another, a frame around content). The
-accent (`ds-accent`) for a single part that tells a state (the pressed button of a mouse). No
-more than these three in an interface icon; a gradient only where the original colors show
-(`IconPaint::Original`: the logo, illustrations, colors that mean something). Translucency belongs
-to the drawing (`fill-opacity`), never to emphasis: emphasis is the role.
+the state of their component. A second ink (`ds-secondary`, drawn fainter) for the supporting
+part of a two-tone icon (below). The accent (`ds-accent`) for a single part that tells a state
+(the pressed button of a mouse). No more than these three in an interface icon; a gradient only
+where the original colors show (`IconPaint::Original`: the logo, illustrations, colors that mean
+something). Translucency belongs to the drawing (`fill-opacity`), never to emphasis: emphasis is
+the role.
+
+### Two-tone icons
+
+An icon whose parts do not weigh the same draws the lesser part in the secondary ink, at
+`component.icon.zone.secondary.opacity` of the main color (60 %), so that what matters reads
+first. Which part is which follows three rules, in order:
+
+1. **An action mark is primary**: a plus, a minus, an arrow, a slash, a check, the line or the
+   color an action applies (strikethrough, underline, the color bar), the guide an alignment
+   aligns to.
+2. **What an action applies to is secondary**: the document of *New*, the window of *New window*,
+   the disk of *Save as*, the eye struck by a slash, the letter that gets smaller, the boxes being
+   aligned.
+3. **Without an action mark, the outline of the main object is primary and what lies inside or
+   behind it is secondary**: the picture inside a frame, the lines of a list beside its bullets
+   or checks, a shadow, an object behind another, the flame of a rocket, a key hole, the curve
+   between the points that shape it.
+
+An icon drawn as one shape stays in one ink: its holes belong to the shape that holds them, so
+its parts cannot be told apart without drawing it again (the grid of *Background grid* is the
+holes of its frame). Splitting a Material icon moves whole subpaths, a hole always with the
+outline around it. The gallery's *Two tones* button shows the icons in one tone or two
+(`IconStyle::one_tone` and `IconStyle::ink`).
+
+60 icons have two tones; `koebi-icons` checks a sample of them.
 
 **Size.** Icons take the interface unit (`semantic.size.control-height`, 20 px) less
 `component.icon.size.margin` (1 px) on each side: 18 px. Key caps take
