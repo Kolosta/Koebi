@@ -7,7 +7,7 @@ use koebi_design::kind::{self, Kind};
 use koebi_render::RectPrimitive;
 use koebi_tokens::component;
 
-use crate::icon::Icon;
+use crate::icon::{Mark, draw_mark};
 use crate::id::WidgetId;
 use crate::style::Prop;
 use crate::text::Align;
@@ -394,12 +394,12 @@ impl<'a> Checkbox<'a> {
             } else {
                 style.mark_disabled
             };
-            let icon = if self.mixed && !response.changed {
-                Icon::Minus
+            let shape = if self.mixed && !response.changed {
+                Mark::Dash
             } else {
-                Icon::Check
+                Mark::Check
             };
-            icon.draw(ui.scene(), bounds, mark, style.mark_width);
+            draw_mark(ui.scene(), bounds, shape, mark, style.mark_width);
         }
         let text_left = bounds.max.x + style.gap;
         if let Some(label) = self.label {

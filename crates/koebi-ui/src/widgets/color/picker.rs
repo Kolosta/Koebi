@@ -16,7 +16,6 @@ use super::shape::{
     ring_point,
 };
 use super::strip::{ColorStrip, ColorStripState, StripFill};
-use crate::icon::Icon;
 use crate::id::WidgetId;
 use crate::operation::OperationEnd;
 use crate::screen_pick::PickOutcome;
@@ -676,7 +675,7 @@ impl ColorPicker<'_> {
             let was = ui.is_screen_picking(key);
             let mut on = was;
             Button::new(key)
-                .icon(Icon::Eyedropper)
+                .icon(koebi_icons::interface::EYEDROPPER)
                 .toggle(&mut on)
                 .show(ui, button);
             if on && !was {

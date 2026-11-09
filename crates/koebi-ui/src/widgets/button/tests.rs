@@ -71,7 +71,9 @@ fn buttons_fit_their_content_within_their_limits() {
         (
             label,
             Button::new(SAVE).label("Save").size(ui),
-            Button::new(SAVE).icon(Icon::Plus).size(ui),
+            Button::new(SAVE)
+                .icon(koebi_icons::interface::PLUS)
+                .size(ui),
             Button::new(SAVE).label("Save").width(120.0).size(ui),
             Button::new(SAVE).label("Save").max_width(20.0).size(ui),
         )
@@ -600,7 +602,9 @@ fn a_menu_button_in_a_group_opens_its_menu() {
     let at = Rect::from_origin_size(Vec2::ZERO, Vec2::new(120.0, 20.0));
     let show = |harness: &mut Harness, menu: &mut MenuState| {
         let mut cells = [
-            GroupCell::new(Button::new(WidgetId::new("play")).icon(Icon::ChevronRight)),
+            GroupCell::new(
+                Button::new(WidgetId::new("play")).icon(koebi_icons::interface::CHEVRON_RIGHT),
+            ),
             GroupCell::new(
                 Button::new(WidgetId::new("render"))
                     .label("Render")
@@ -644,7 +648,7 @@ fn toned_dropdowns_keep_the_metrics_of_dropdowns() {
             .dropdown_look()
             .tone(tone)
             .label("Viewport")
-            .trailing_icon(Icon::ChevronDown)
+            .trailing_icon(koebi_icons::interface::CHEVRON_DOWN)
     };
     let ((plain, toned), _) = harness.frame(|ui| {
         let plain = dropdown(Tone::DEFAULT);

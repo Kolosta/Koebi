@@ -6,6 +6,7 @@
 //! Super on Linux, Option on Apple keyboards; a side shows before the name (`L Ctrl`). Mouse
 //! buttons show as a mouse with the button marked.
 
+use crate::icon::icon_bounds;
 use core::fmt::Write as _;
 
 use koebi_core::input::{Key, KeyName, ModifierKey, MouseButton};
@@ -18,9 +19,9 @@ use koebi_input::{
 use koebi_render::RectPrimitive;
 use koebi_tokens::component;
 
-use crate::icon::Icon;
 use crate::text::{Align, FontStyle};
 use crate::ui::Ui;
+use koebi_icons::IconId;
 
 /// Colors and metrics of key caps, from the `component.key-cap.*` tokens.
 #[derive(Clone, Debug, PartialEq)]
@@ -45,8 +46,6 @@ pub struct KeyCapStyle {
     pub gap: f32,
     /// Side of the icons in caps.
     pub icon_size: f32,
-    /// Stroke width of the icons.
-    pub stroke_width: f32,
     /// Font of the labels: the label font, scaled.
     pub font: FontStyle,
 }
@@ -67,7 +66,6 @@ impl KeyCapStyle {
             inset: tokens.get(c::KEY_CAP_PADDING_VERTICAL_DEFAULT),
             gap: tokens.get(c::KEY_CAP_GAP_DEFAULT),
             icon_size: tokens.get(c::KEY_CAP_ICON_SIZE_DEFAULT),
-            stroke_width: tokens.get(c::ICON_STROKE_WIDTH_CHEVRON),
             font: FontStyle {
                 size: label.size * scale,
                 ..label.clone()
@@ -125,11 +123,11 @@ impl Keyboard {
     }
 
     /// The icon of `family`'s keys, where they have one.
-    const fn modifier_icon(self, family: ModifierKey) -> Option<Icon> {
+    const fn modifier_icon(self, family: ModifierKey) -> Option<IconId> {
         match (family, self) {
-            (ModifierKey::Shift, _) => Some(Icon::Shift),
-            (ModifierKey::Gui, Self::Apple) => Some(Icon::Command),
-            (ModifierKey::Gui, Self::Windows) => Some(Icon::Windows),
+            (ModifierKey::Shift, _) => Some(koebi_icons::input::SHIFT),
+            (ModifierKey::Gui, Self::Apple) => Some(koebi_icons::input::COMMAND),
+            (ModifierKey::Gui, Self::Windows) => Some(koebi_icons::input::WINDOWS),
             _ => None,
         }
     }
@@ -167,7 +165,7 @@ pub enum CapLabel {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Cap {
     /// Its icon, before the label.
-    pub icon: Option<Icon>,
+    pub icon: Option<IconId>,
     /// Its label.
     pub label: Option<CapLabel>,
 }
@@ -180,7 +178,7 @@ impl Cap {
         }
     }
 
-    const fn icon(icon: Icon, text: Option<&'static str>) -> Self {
+    const fn icon(icon: IconId, text: Option<&'static str>) -> Self {
         Self {
             icon: Some(icon),
             label: match text {
@@ -275,9 +273,9 @@ fn modifier_cap(keyboard: Keyboard, family: ModifierKey, state: ModifierState) -
 /// The cap of a keyboard key.
 pub fn key_cap(key: Key) -> Cap {
     let friendly = match key {
-        Key::Tab => return Cap::icon(Icon::Tab, Some("Tab")),
-        Key::LeftShift => return Cap::icon(Icon::Shift, Some("L Shift")),
-        Key::RightShift => return Cap::icon(Icon::Shift, Some("R Shift")),
+        Key::Tab => return Cap::icon(koebi_icons::input::TAB, Some("Tab")),
+        Key::LeftShift => return Cap::icon(koebi_icons::input::SHIFT, Some("L Shift")),
+        Key::RightShift => return Cap::icon(koebi_icons::input::SHIFT, Some("R Shift")),
         Key::Escape => Some("Esc"),
         Key::PageUp => Some("Page Up"),
         Key::PageDown => Some("Page Down"),
@@ -342,9 +340,9 @@ fn trigger_cap(trigger: Trigger) -> (Cap, Option<&'static str>) {
         ),
         Trigger::Button { button, when } => {
             let cap = match button {
-                MouseButton::Left => Cap::icon(Icon::MouseLeft, None),
-                MouseButton::Middle => Cap::icon(Icon::MouseMiddle, None),
-                MouseButton::Right => Cap::icon(Icon::MouseRight, None),
+                MouseButton::Left => Cap::icon(koebi_icons::input::MOUSE_LEFT, None),
+                MouseButton::Middle => Cap::icon(koebi_icons::input::MOUSE_MIDDLE, None),
+                MouseButton::Right => Cap::icon(koebi_icons::input::MOUSE_RIGHT, None),
                 other => Cap {
                     icon: None,
                     label: Some(CapLabel::Button(other.number())),
@@ -521,12 +519,7 @@ impl Ui<'_> {
                         Vec2::new(inner, bounds.min.y),
                         Vec2::new(style.icon_size, bounds.height()),
                     );
-                    icon.draw(
-                        self.scene,
-                        Icon::centered(slot, style.icon_size),
-                        style.label,
-                        style.stroke_width,
-                    );
+                    self.icon(icon_bounds(slot, style.icon_size), icon, style.label);
                     inner += style.icon_size + between;
                 }
                 if let Some(text) = text {
@@ -573,7 +566,9 @@ mod tests {
         caps.caps()
             .iter()
             .map(|cap| {
-                let icon = cap.icon.map_or(String::new(), |icon| format!("{icon:?} "));
+                let icon = cap
+                    .icon
+                    .map_or(String::new(), |icon| format!("{} ", icon.name()));
                 let text = cap.label.map_or("", |label| label_text(label, &mut buffer));
                 format!("{icon}{text}").trim().to_owned()
             })
@@ -586,7 +581,10 @@ mod tests {
             .with(ModifierKey::Ctrl)
             .with(ModifierKey::Shift)
             .holding(Key::Space);
-        assert_eq!(labels(&shortcut), ["Ctrl", "Shift Shift", "Space", "G"]);
+        assert_eq!(
+            labels(&shortcut),
+            ["Ctrl", "input/shift Shift", "Space", "G"]
+        );
         assert_eq!(ShortcutCaps::of(&shortcut, Keyboard::Windows).phase, None);
         // The keypad says it is the keypad's.
         assert_eq!(labels(&Shortcut::key(Key::KeypadPlus)), ["Num +"]);
@@ -597,11 +595,11 @@ mod tests {
             .with(ModifierKey::Alt);
         assert_eq!(
             labels_on(&gui, Keyboard::Apple),
-            ["Option", "Command Cmd", "Q"]
+            ["Option", "input/command Cmd", "Q"]
         );
         assert_eq!(
             labels_on(&gui, Keyboard::Windows),
-            ["Alt", "Windows Win", "Q"]
+            ["Alt", "input/windows Win", "Q"]
         );
         assert_eq!(labels_on(&gui, Keyboard::Other), ["Alt", "Super", "Q"]);
         assert_eq!(Keyboard::Apple.modifier_name(ModifierKey::Alt), "Option");
@@ -612,7 +610,7 @@ mod tests {
         let any = Shortcut::key(Key::Escape).modifiers(ModifierRule::ANY);
         assert_eq!(labels(&any), ["Any", "Esc"]);
         assert_eq!(labels(&Shortcut::key(Key::Unknown(42))), ["#42"]);
-        assert_eq!(labels(&Shortcut::key(Key::Tab)), ["Tab Tab"]);
+        assert_eq!(labels(&Shortcut::key(Key::Tab)), ["input/tab Tab"]);
     }
 
     #[test]
@@ -633,7 +631,7 @@ mod tests {
                 distance: None,
             }),
         );
-        assert_eq!(labels(&drag), ["MouseMiddle"]);
+        assert_eq!(labels(&drag), ["input/mouse-middle"]);
         assert_eq!(
             ShortcutCaps::of(&drag, Keyboard::Other).phase,
             Some("drag up")

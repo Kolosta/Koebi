@@ -16,10 +16,11 @@ use koebi_input::{
     ModifierState, Shortcut, Side, Trigger,
 };
 use koebi_tokens::{component, semantic};
+use koebi_ui::icon_bounds;
 use koebi_ui::{
     Align, BarMapping, Button, ButtonGroup, Capture, CaptureField, CaptureState, Checkbox,
-    CollapsiblePanelState, Dropdown, GroupCell, Icon, MenuItem, MenuState, NumberField, Track, Ui,
-    WidgetId,
+    CollapsiblePanelState, Dropdown, GroupCell, IconId, MenuItem, MenuState, NumberField, Track,
+    Ui, WidgetId,
 };
 
 use super::analysis::BindingReport;
@@ -247,7 +248,7 @@ pub(super) fn header(
         }));
     }
     if Button::new(id.with(4))
-        .icon(Icon::Close)
+        .icon(koebi_icons::interface::CLOSE)
         .show(ui, remove)
         .clicked
     {
@@ -299,7 +300,7 @@ impl Rows {
     }
 
     /// A line of text, after `icon` in `color` when given.
-    fn line(&mut self, ui: &mut Ui<'_>, icon: Option<(Icon, Color)>, text: &str) {
+    fn line(&mut self, ui: &mut Ui<'_>, icon: Option<(IconId, Color)>, text: &str) {
         let line = Rect::from_min_max(
             Vec2::new(self.left, self.y),
             Vec2::new(self.right, self.y + self.row),
@@ -308,12 +309,7 @@ impl Rows {
         let mut start = line.min.x;
         if let Some((icon, color)) = icon {
             let slot = Rect::from_origin_size(line.min, Vec2::new(icons.size, self.row));
-            icon.draw(
-                ui.scene(),
-                Icon::centered(slot, icons.size),
-                color,
-                icons.stroke_width,
-            );
+            ui.icon(icon_bounds(slot, icons.size), icon, color);
             start = slot.max.x + self.gap;
         }
         let detail = ui.styles().text.detail.clone();
@@ -391,9 +387,12 @@ pub(super) fn details(
     let messages = report.map_or(&[][..], |report| report.messages.as_slice());
     for (kind, text) in messages {
         let icon = if kind.is_conflict() {
-            (Icon::Warning, conflict_color(design, *kind))
+            (
+                koebi_icons::interface::WARNING,
+                conflict_color(design, *kind),
+            )
         } else {
-            (Icon::Info, ui.styles().text.secondary)
+            (koebi_icons::interface::INFO, ui.styles().text.secondary)
         };
         rows.line(ui, Some(icon), text);
     }
@@ -594,7 +593,7 @@ pub(super) fn details(
         );
         if let Some(clear) = clear
             && Button::new(id.with(31))
-                .icon(Icon::Close)
+                .icon(koebi_icons::interface::CLOSE)
                 .show(ui, clear)
                 .clicked
         {

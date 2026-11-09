@@ -5,14 +5,14 @@
 //! ```
 //! # use koebi_core::{Rect, Vec2};
 //! # use koebi_render::Scene;
-//! # use koebi_ui::{Button, Icon, Input, Tone, Ui, UiState, WidgetId};
+//! # use koebi_ui::{Button, Input, Tone, Ui, UiState, WidgetId};
 //! # let styles = koebi_ui::Styles::resolve(&koebi_design::DesignSystem::new(&koebi_tokens::KOEBI)?);
 //! # let (mut scene, mut state, input) = (Scene::new(), UiState::new(), Input::new());
 //! # let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
 //! let rect = Rect::from_origin_size(Vec2::ZERO, Vec2::new(80.0, 20.0));
 //! let response = Button::new(WidgetId::new("save"))
 //!     .label("Save")
-//!     .leading_icon(Icon::Check)
+//!     .leading_icon(koebi_icons::interface::CHECK)
 //!     .tone(Tone::ACCENT)
 //!     .show(&mut ui, rect);
 //! if response.clicked {
@@ -46,13 +46,13 @@ use koebi_core::{Color, Rect, Vec2};
 use koebi_design::kind;
 use koebi_render::RectPrimitive;
 
-use crate::icon::Icon;
 use crate::id::WidgetId;
 use crate::style::{CornerRadii, Prop};
 use crate::text::Align;
 use crate::ui::{Response, Ui};
 use crate::widgets::menu::MenuState;
 use crate::widgets::parts::{Content, ContentColors, ControlState, Placement, Tone};
+use koebi_icons::IconId;
 
 /// When a button's action fires.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -142,21 +142,21 @@ impl<'a> Button<'a> {
 
     /// Shows `icon` in place of the label, or after it.
     #[must_use]
-    pub fn icon(mut self, icon: Icon) -> Self {
+    pub fn icon(mut self, icon: IconId) -> Self {
         self.content.icon = Some(icon);
         self
     }
 
     /// Shows `icon` before everything.
     #[must_use]
-    pub fn leading_icon(mut self, icon: Icon) -> Self {
+    pub fn leading_icon(mut self, icon: IconId) -> Self {
         self.content.leading = Some(icon);
         self
     }
 
     /// Shows `icon` after everything.
     #[must_use]
-    pub fn trailing_icon(mut self, icon: Icon) -> Self {
+    pub fn trailing_icon(mut self, icon: IconId) -> Self {
         self.content.trailing = Some(icon);
         self
     }

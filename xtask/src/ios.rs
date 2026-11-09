@@ -10,6 +10,14 @@ use std::process::Command;
 
 use crate::util::{self, Result};
 
+/// The app icons of `platform/ios`, named as `Info.plist` lists them.
+const IOS_ICONS: [&str; 4] = [
+    "AppIcon60x60@2x.png",
+    "AppIcon60x60@3x.png",
+    "AppIcon76x76@2x~ipad.png",
+    "AppIcon83.5x83.5@2x~ipad.png",
+];
+
 const BUNDLE_ID: &str = "io.github.kolosta.koebi";
 const DEPLOYMENT_TARGET: &str = "15.0";
 const SMOKE_FRAMES: &str = "120";
@@ -65,6 +73,9 @@ pub(crate) fn run(options: &Options) -> Result<()> {
         .replace("$(KOEBI_BUILD)", &build_number)
         .replace("$(KOEBI_BUNDLE_ID)", BUNDLE_ID);
     fs::write(app.join("Info.plist"), plist)?;
+    for icon in IOS_ICONS {
+        fs::copy(root.join("platform/ios").join(icon), app.join(icon))?;
+    }
     util::run(
         Command::new("codesign")
             .args(["--force", "--sign", "-", "--timestamp=none"])

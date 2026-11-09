@@ -12,8 +12,8 @@ use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    Checkbox, CollapsiblePanel, CollapsiblePanelState, Icon, Input, PanelLevel, Styles, Ui,
-    UiState, WidgetId,
+    Checkbox, CollapsiblePanel, CollapsiblePanelState, Input, PanelLevel, Styles, Ui, UiState,
+    WidgetId,
 };
 
 /// Anti-aliased edges may differ by a few units between drivers.
@@ -53,7 +53,7 @@ fn panel_sheet(design: &DesignSystem) -> Scene {
         let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
         let [transform, delta, advanced, visibility] = &mut panels;
         let first = CollapsiblePanel::new(WidgetId::new("transform"), transform, "Transform")
-            .icon(Icon::Plus)
+            .icon(koebi_icons::interface::PLUS)
             .show(&mut ui, area, |ui, rect| {
                 let mut y = rect.min.y;
                 y += row(ui, rect, y, "snap", "Snap to grid") + 4.0;

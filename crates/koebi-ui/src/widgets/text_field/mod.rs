@@ -50,12 +50,12 @@ use koebi_design::kind::{self, Kind};
 
 use self::edit::Select;
 use self::session::{Away, Session};
-use crate::icon::Icon;
 use crate::id::WidgetId;
 use crate::style::{CornerRadii, Prop};
 use crate::text::{Align, FontStyle};
 use crate::ui::{Response, Ui};
 use crate::widgets::parts::ControlState;
+use koebi_icons::IconId;
 
 /// What a press on a field that is not editing selects.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -137,7 +137,7 @@ pub struct TextField<'a> {
     id: WidgetId,
     text: &'a mut String,
     placeholder: Option<&'a str>,
-    icon: Option<Icon>,
+    icon: Option<IconId>,
     enabled: bool,
     align: Align,
     select_on_focus: SelectOnFocus,
@@ -197,7 +197,7 @@ impl<'a> TextField<'a> {
 
     /// Shows `icon` before the text (a search field's magnifier).
     #[must_use]
-    pub fn icon(mut self, icon: Icon) -> Self {
+    pub fn icon(mut self, icon: IconId) -> Self {
         self.icon = Some(icon);
         self
     }

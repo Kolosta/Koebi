@@ -8,7 +8,7 @@ use koebi_workspace::{AreaId, JoinPlan, Layout, Orientation, Workspace};
 
 use super::geometry::Frame;
 use super::preview::{SplitPreview, join_cursor, split_preview};
-use super::{EditorHost, Operation, WorkspaceStyle, WorkspaceView, resize_cursor};
+use super::{EditorHost, Operation, WorkspaceStyle, WorkspaceView, corner_cursor, split_cursor};
 use crate::id::WidgetId;
 use crate::ui::Ui;
 
@@ -99,7 +99,7 @@ fn corners(panel: Rect, size: f32, top: f32) -> [Rect; 4] {
 }
 
 impl Ui<'_> {
-    /// The corners of the areas: a crosshair cursor, and drags that split or join.
+    /// The corners of the areas: a cursor of their corner, and drags that split or join.
     pub(super) fn workspace_corners(
         &mut self,
         view: &mut WorkspaceView,
@@ -137,14 +137,14 @@ impl Ui<'_> {
                 );
                 let cursor = if dragging {
                     match current(view, workspace, area, pointer, frame, style) {
-                        CornerPreview::Split(split) => resize_cursor(split.orientation),
+                        CornerPreview::Split(split) => split_cursor(split.orientation),
                         CornerPreview::Join(plan) => join_cursor(workspace.layout(), &plan),
                         // Once the drag has started, releasing here would do nothing.
                         CornerPreview::Nothing if started => CursorShape::NotAllowed,
-                        CornerPreview::Nothing => CursorShape::Crosshair,
+                        CornerPreview::Nothing => corner_cursor(corner),
                     }
                 } else {
-                    CursorShape::Crosshair
+                    corner_cursor(corner)
                 };
                 let id = CORNER.with((u64::from(area.get()) << 2) | u64::from(corner));
                 let response = self.interact_with_cursor(id, square, cursor);

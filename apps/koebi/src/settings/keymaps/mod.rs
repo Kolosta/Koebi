@@ -30,7 +30,7 @@ use koebi_input::{ActionDef, Binding, Conflict, Context, Keymap, Shortcut, Trigg
 use koebi_tokens::semantic;
 use koebi_ui::{
     Align, Button, Capture, CaptureField, CaptureState, CollapsiblePanel, CollapsiblePanelState,
-    Icon, TextField, Ui, WidgetId,
+    TextField, Ui, WidgetId,
 };
 
 use self::analysis::{Analysis, contains_folded, finds};
@@ -155,7 +155,10 @@ impl KeymapsPage {
             let mut panel =
                 CollapsiblePanel::new(ID.with(context_key(context)), &mut state, info.label);
             if let Some(worst) = self.analysis.zone(context) {
-                panel = panel.status(Icon::Warning, conflict_color(design, worst));
+                panel = panel.status(
+                    koebi_icons::interface::WARNING,
+                    conflict_color(design, worst),
+                );
             }
             stack.panel(ui, panel, |ui, rect| {
                 self.zone_content(ui, rect, context, design, keymap, bounds)
@@ -248,7 +251,7 @@ impl KeymapsPage {
         let searching = !self.search.is_empty() || self.search_shortcut.is_some();
         if searching
             && Button::new(ID.with(3))
-                .icon(Icon::Close)
+                .icon(koebi_icons::interface::CLOSE)
                 .show(ui, clear)
                 .clicked
         {
@@ -398,7 +401,10 @@ impl KeymapsPage {
             let mut panel =
                 CollapsiblePanel::new(ID.with(context_key(info.context)), &mut state, info.label);
             if let Some(worst) = self.analysis.zone(info.context) {
-                panel = panel.status(Icon::Warning, conflict_color(design, worst));
+                panel = panel.status(
+                    koebi_icons::interface::WARNING,
+                    conflict_color(design, worst),
+                );
             }
             let inner = info.context;
             let shown = panel.show(ui, at, |ui, rect| {
@@ -454,7 +460,10 @@ impl KeymapsPage {
         let mut panel =
             CollapsiblePanel::new(id, panel_state, action.label).trailing(ACTION_TRAILING);
         if let Some(worst) = worst {
-            panel = panel.status(Icon::Warning, conflict_color(design, worst));
+            panel = panel.status(
+                koebi_icons::interface::WARNING,
+                conflict_color(design, worst),
+            );
         }
         let mut edits: Vec<(Target, Edit)> = Vec::new();
         let shown = panel.show(ui, rect, |ui, inner| {
@@ -607,7 +616,7 @@ impl KeymapsPage {
             Vec2::new(rect.max.x - padding, y + row),
         );
         if Button::new(ID.with(name_key(action.id)).with(99))
-            .leading_icon(Icon::Plus)
+            .leading_icon(koebi_icons::interface::PLUS)
             .label("Add a shortcut")
             .show(ui, at)
             .clicked

@@ -13,10 +13,12 @@
 
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
+use koebi_icons::IconId;
 use koebi_render::{LinePrimitive, RectPrimitive};
 use koebi_tokens::component;
 
 use crate::bar::BarLayout;
+use crate::icon::{IconPaint, icon_bounds, paint_icon};
 use crate::id::WidgetId;
 use crate::text::Align;
 use crate::ui::{Response, Ui};
@@ -141,6 +143,7 @@ pub struct AppBar<'a> {
     filled: bool,
     buttons: bool,
     leading: f32,
+    logo: Option<IconId>,
     maximize_state: (bool, bool),
 }
 
@@ -156,8 +159,17 @@ impl<'a> AppBar<'a> {
             filled: false,
             buttons: true,
             leading: 0.0,
+            logo: None,
             maximize_state: (false, false),
         }
+    }
+
+    /// Shows `icon` at the start of the bar, in its own colors, before the items: the
+    /// application's logo.
+    #[must_use]
+    pub const fn logo(mut self, icon: IconId) -> Self {
+        self.logo = Some(icon);
+        self
     }
 
     /// The window is maximized or fullscreen: its middle button brings it back.
@@ -248,6 +260,17 @@ impl<'a> AppBar<'a> {
             Vec2::new(end - padding, rect.max.y - padding),
         );
         let mut layout = BarLayout::new(items, style.gap);
+        if let Some(logo) = self.logo {
+            let size = ui.styles().icon.size;
+            let slot = layout.left(size);
+            paint_icon(
+                ui.scene(),
+                icon_bounds(slot, size),
+                logo,
+                IconPaint::Original,
+                0.0,
+            );
+        }
         let result = add(ui, &mut layout);
         self.draw_title(ui, rect, &layout);
         AppBarResponse {

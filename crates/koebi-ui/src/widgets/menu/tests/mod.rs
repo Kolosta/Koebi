@@ -7,7 +7,6 @@ use koebi_render::Scene;
 use koebi_text::Fonts;
 
 use super::*;
-use crate::icon::Icon;
 use crate::widgets::parts::Placement;
 use crate::{Input, PointerButton, ScrollAxes, ScrollState, Styles, UiState};
 
@@ -28,7 +27,7 @@ fn items() -> [MenuItem<'static>; 6] {
         MenuItem::action("Join areas").enabled(false),
         MenuItem::Separator,
         MenuItem::action("Vertical split").shortcut("Ctrl+V"),
-        MenuItem::submenu("Add", &ADD).icon(Icon::Plus),
+        MenuItem::submenu("Add", &ADD).icon(koebi_icons::interface::PLUS),
     ]
 }
 

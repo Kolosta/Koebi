@@ -14,8 +14,8 @@ use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    BarMapping, Button, Checkbox, Icon, Input, ListItem, ListOptions, ListState, NumberField,
-    PanelLevel, Styles, ThemePreview, Ui, UiState, WidgetId,
+    BarMapping, Button, Checkbox, Input, ListItem, ListOptions, ListState, NumberField, PanelLevel,
+    Styles, ThemePreview, Ui, UiState, WidgetId,
 };
 
 /// Anti-aliased edges may differ by a few units between drivers.
@@ -50,21 +50,25 @@ fn draw_sheet(ui: &mut Ui<'_>, design: &DesignSystem) {
     // Buttons, toggles and checkboxes.
     Button::new(id("plain")).show(ui, rect(12.0, 12.0, 64.0, 24.0));
     Button::new(id("hovered"))
-        .icon(Icon::Plus)
+        .icon(koebi_icons::interface::PLUS)
         .show(ui, rect(84.0, 12.0, 32.0, 24.0));
     Button::new(id("off"))
-        .icon(Icon::ChevronDown)
+        .icon(koebi_icons::interface::CHEVRON_DOWN)
         .toggle(&mut false)
         .show(ui, rect(124.0, 12.0, 24.0, 24.0));
     Button::new(id("on"))
-        .icon(Icon::Check)
+        .icon(koebi_icons::interface::CHECK)
         .toggle(&mut true)
         .show(ui, rect(152.0, 12.0, 24.0, 24.0));
     Checkbox::new(id("unchecked"), &mut false).show(ui, rect(188.0, 16.0, 24.0, 16.0));
     Checkbox::new(id("checked"), &mut true).show(ui, rect(212.0, 16.0, 24.0, 16.0));
-    for (index, icon) in [Icon::Minus, Icon::Close, Icon::ChevronUp]
-        .into_iter()
-        .enumerate()
+    for (index, icon) in [
+        koebi_icons::interface::MINUS,
+        koebi_icons::interface::CLOSE,
+        koebi_icons::interface::CHEVRON_UP,
+    ]
+    .into_iter()
+    .enumerate()
     {
         let x = 240.0 + 24.0 * index as f32;
         Button::new(id("icons").with(index as u64))
@@ -159,15 +163,15 @@ fn list_items() -> [ListItem<'static>; 9] {
         ListItem::new(1, "Scene"),
         ListItem::new(2, "Camera")
             .with_depth(1)
-            .with_icon(Icon::Plus),
+            .with_icon(koebi_icons::interface::PLUS),
         ListItem::new(3, "Lights")
             .with_depth(1)
-            .with_icon(Icon::Check),
+            .with_icon(koebi_icons::interface::CHECK),
         ListItem::new(4, "Sun").with_depth(2),
         ListItem::new(5, "Fill light with a long name").with_depth(2),
         ListItem::new(6, "Props")
             .with_depth(1)
-            .with_icon(Icon::Close),
+            .with_icon(koebi_icons::interface::CLOSE),
         ListItem::new(7, "Table").with_depth(2),
         ListItem::new(8, "Background").with_color(Color::from_hex(0x2D_9C_DB)),
         ListItem::new(9, "Notes").with_color(Color::from_hex(0xE0_4F_5F)),

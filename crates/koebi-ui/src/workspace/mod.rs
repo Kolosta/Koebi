@@ -346,6 +346,25 @@ fn resize_cursor(orientation: Orientation) -> CursorShape {
     }
 }
 
+/// The cursor of a split along a line of `orientation`.
+fn split_cursor(orientation: Orientation) -> CursorShape {
+    match orientation {
+        Orientation::Vertical => CursorShape::SplitVertical,
+        Orientation::Horizontal => CursorShape::SplitHorizontal,
+    }
+}
+
+/// The cursor of an area's corner, by its number in the order of `corner::corners`: top left, top
+/// right, bottom left, bottom right.
+fn corner_cursor(corner: u8) -> CursorShape {
+    match corner {
+        0 => CursorShape::CornerTopLeft,
+        1 => CursorShape::CornerTopRight,
+        2 => CursorShape::CornerBottomLeft,
+        _ => CursorShape::CornerBottomRight,
+    }
+}
+
 impl Ui<'_> {
     /// Draws `workspace` in `area` (the window) and applies what the user does with its
     /// areas: resizing lines by their gutters, splitting and joining by the areas' corners,

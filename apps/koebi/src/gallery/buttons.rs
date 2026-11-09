@@ -5,8 +5,8 @@ use core::fmt::Write as _;
 
 use koebi_core::{Color, Rect};
 use koebi_ui::{
-    Activation, Align, Button, ButtonGroup, Checkbox, GroupCell, Hue, Icon, PanelLevel, Response,
-    Tone, Ui, Variant, WidgetId,
+    Activation, Align, Button, ButtonGroup, Checkbox, GroupCell, Hue, PanelLevel, Response, Tone,
+    Ui, Variant, WidgetId,
 };
 
 use super::{Metrics, cut_left, cut_top};
@@ -145,7 +145,11 @@ impl Buttons {
             self.mode = index;
         }
 
-        let icons = [Icon::Plus, Icon::Minus, Icon::Close];
+        let icons = [
+            koebi_icons::interface::PLUS,
+            koebi_icons::interface::MINUS,
+            koebi_icons::interface::CLOSE,
+        ];
         let mut tools: [GroupCell<'_>; 3] = core::array::from_fn(|index| {
             GroupCell::new(Button::new(ID.with(10 + index as u64)).icon(icons[index]))
         });
@@ -158,10 +162,10 @@ impl Buttons {
             line,
             gap,
             Button::new(ID.with(20))
-                .leading_icon(Icon::Plus)
+                .leading_icon(koebi_icons::interface::PLUS)
                 .label("Add")
                 .status_dot(Color::from_hex(0x27_AE_60))
-                .trailing_icon(Icon::ChevronDown),
+                .trailing_icon(koebi_icons::interface::CHEVRON_DOWN),
         );
     }
 
@@ -182,8 +186,16 @@ impl Buttons {
         group.show(ui, cut_left(&mut band, width, gap), &mut modifiers);
 
         let mut steps = [
-            GroupCell::new(Button::new(ID.with(3)).icon(Icon::ChevronUp).repeat(true)),
-            GroupCell::new(Button::new(ID.with(4)).icon(Icon::ChevronDown).repeat(true)),
+            GroupCell::new(
+                Button::new(ID.with(3))
+                    .icon(koebi_icons::interface::CHEVRON_UP)
+                    .repeat(true),
+            ),
+            GroupCell::new(
+                Button::new(ID.with(4))
+                    .icon(koebi_icons::interface::CHEVRON_DOWN)
+                    .repeat(true),
+            ),
         ];
         let group = ButtonGroup::vertical();
         let width = group.size(ui, &steps).x;

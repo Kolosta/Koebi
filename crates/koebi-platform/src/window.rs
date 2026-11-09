@@ -6,7 +6,11 @@ use std::ptr::NonNull;
 
 use ash::vk;
 use koebi_core::{Extent, Vec2};
+use sdl3_sys::pixels::SDL_PIXELFORMAT_RGBA32;
 use sdl3_sys::rect::SDL_Rect;
+use sdl3_sys::surface::{
+    SDL_AddSurfaceAlternateImage, SDL_CreateSurface, SDL_DestroySurface, SDL_Surface,
+};
 #[cfg(not(windows))]
 use sdl3_sys::video::SDL_ShowWindowSystemMenu;
 #[cfg(not(any(target_os = "macos", target_os = "android", target_os = "ios")))]
@@ -16,7 +20,7 @@ use sdl3_sys::video::{
     SDL_GetWindowFromID, SDL_GetWindowID, SDL_GetWindowPixelDensity, SDL_GetWindowPosition,
     SDL_GetWindowSize, SDL_GetWindowSizeInPixels, SDL_MaximizeWindow, SDL_MinimizeWindow,
     SDL_RaiseWindow, SDL_RestoreWindow, SDL_SetWindowFullscreen, SDL_SetWindowHitTest,
-    SDL_SetWindowMinimumSize, SDL_SetWindowPosition, SDL_WINDOW_FULLSCREEN,
+    SDL_SetWindowIcon, SDL_SetWindowMinimumSize, SDL_SetWindowPosition, SDL_WINDOW_FULLSCREEN,
     SDL_WINDOW_HIGH_PIXEL_DENSITY, SDL_WINDOW_MAXIMIZED, SDL_WINDOW_MINIMIZED,
     SDL_WINDOW_RESIZABLE, SDL_WINDOW_VULKAN, SDL_Window, SDL_WindowFlags, SDL_WindowID,
 };
@@ -26,6 +30,65 @@ use sdl3_sys::vulkan::SDL_Vulkan_CreateSurface;
 use crate::chrome::Hit;
 use crate::chrome::{self, ChromeInsets, HitData, MaximizeButtonState, Moves, WindowRegions};
 use crate::error::PlatformError;
+
+/// One size of a window icon: a square of straight-alpha RGBA pixels, 8 bits per channel, row by
+/// row from the top.
+#[derive(Clone, Copy, Debug)]
+pub struct IconImage<'a> {
+    /// Width and height, in pixels.
+    pub side: u32,
+    /// `side * side * 4` bytes.
+    pub pixels: &'a [u8],
+}
+
+impl IconImage<'_> {
+    /// Larger images are refused: no system shows a window icon this large.
+    pub const MAX_SIDE: u32 = 1024;
+
+    fn validate(&self) -> Result<(), PlatformError> {
+        let expected = u64::from(self.side) * u64::from(self.side) * 4;
+        if (1..=Self::MAX_SIDE).contains(&self.side) && self.pixels.len() as u64 == expected {
+            Ok(())
+        } else {
+            Err(PlatformError::new(
+                "setting the window icon",
+                format!(
+                    "invalid {0}x{0} image of {1} bytes",
+                    self.side,
+                    self.pixels.len()
+                ),
+            ))
+        }
+    }
+
+    /// A surface SDL owns, holding a copy of the pixels: SDL may keep it after the call.
+    fn surface(&self) -> Result<NonNull<SDL_Surface>, PlatformError> {
+        let side = i32::try_from(self.side).unwrap_or(i32::MAX);
+        // SAFETY: SDL video is initialized; the size is valid (checked by `validate`).
+        let surface = unsafe { SDL_CreateSurface(side, side, SDL_PIXELFORMAT_RGBA32) };
+        let surface =
+            NonNull::new(surface).ok_or_else(|| PlatformError::from_sdl("SDL_CreateSurface"))?;
+        // SAFETY: the surface was just created: its fields are valid, its `pixels` hold `h`
+        // rows of `pitch` bytes, at least `side * 4` each, and nothing else uses them yet.
+        unsafe {
+            let raw = surface.as_ptr();
+            let pitch = usize::try_from((*raw).pitch).unwrap_or(0);
+            let row = self.side as usize * 4;
+            let base = (*raw).pixels.cast::<u8>();
+            if base.is_null() || pitch < row {
+                SDL_DestroySurface(raw);
+                return Err(PlatformError::new(
+                    "setting the window icon",
+                    "SDL gave a surface without room for the pixels",
+                ));
+            }
+            for (index, source) in self.pixels.chunks_exact(row).enumerate() {
+                std::ptr::copy_nonoverlapping(source.as_ptr(), base.add(index * pitch), row);
+            }
+        }
+        Ok(surface)
+    }
+}
 
 /// Identifies a window in [`crate::Event`]s.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -144,6 +207,54 @@ impl Window {
             window.take_chrome();
         }
         Ok(window)
+    }
+
+    /// Shows `images` as the window's icon, in task bars, window switchers and title bars (the
+    /// dock's icon on macOS). Give it several sizes, the largest first: the system takes the one
+    /// that fits each place and display. Platforms without window icons (Android, iOS, Wayland
+    /// without its icon protocol) ignore it.
+    ///
+    /// # Errors
+    ///
+    /// Fails when an image's pixels do not match its size, or when SDL cannot make a surface.
+    pub fn set_icon(&self, images: &[IconImage<'_>]) -> Result<(), PlatformError> {
+        let Some((largest, others)) = images.split_first() else {
+            return Ok(());
+        };
+        for image in images {
+            image.validate()?;
+        }
+        let main = largest.surface()?;
+        for image in others {
+            match image.surface() {
+                Ok(alternate) => {
+                    // SAFETY: both surfaces are live; SDL takes its own reference to the
+                    // alternate, which is released here.
+                    unsafe {
+                        if !SDL_AddSurfaceAlternateImage(main.as_ptr(), alternate.as_ptr()) {
+                            koebi_core::debug!(
+                                "an icon size is left out: {}",
+                                crate::error::sdl_error()
+                            );
+                        }
+                        SDL_DestroySurface(alternate.as_ptr());
+                    }
+                }
+                Err(error) => koebi_core::debug!("an icon size is left out: {error}"),
+            }
+        }
+        // SAFETY: live window, on the main thread; the surface is live and SDL copies or
+        // references what it keeps of it, so that it can be released after the call.
+        let shown = unsafe { SDL_SetWindowIcon(self.raw(), main.as_ptr()) };
+        // SAFETY: created above, not used afterwards.
+        unsafe { SDL_DestroySurface(main.as_ptr()) };
+        if !shown {
+            koebi_core::debug!(
+                "the window keeps the system's icon: {}",
+                crate::error::sdl_error()
+            );
+        }
+        Ok(())
     }
 
     /// Gives the window its smallest size, in logical units.

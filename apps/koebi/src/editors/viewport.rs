@@ -10,7 +10,7 @@ use koebi_design::DesignSystem;
 use koebi_input::{ActionDef, ActionGroup, ActionKind, Context, Hint, Shortcut};
 use koebi_render::RectPrimitive;
 use koebi_tokens::component;
-use koebi_ui::{Align, BarLayout, Button, Icon, PointerButton, Ui, WidgetId};
+use koebi_ui::{Align, BarLayout, Button, PointerButton, Ui, WidgetId};
 
 /// The viewport's canvas: its keys apply where the pointer is over one.
 pub(crate) const VIEWPORT: Context = Context::new("viewport");
@@ -251,10 +251,10 @@ fn multiples(from: f32, to: f32, step: f32) -> impl Iterator<Item = f32> {
 /// The ruler toggles of a viewport's top bar, from the right.
 pub(crate) fn top_bar(ui: &mut Ui<'_>, id: WidgetId, view: &mut View, bar: &mut BarLayout) {
     let icons = [
-        Icon::ChevronUp,
-        Icon::ChevronLeft,
-        Icon::ChevronDown,
-        Icon::ChevronRight,
+        koebi_icons::interface::CHEVRON_UP,
+        koebi_icons::interface::CHEVRON_LEFT,
+        koebi_icons::interface::CHEVRON_DOWN,
+        koebi_icons::interface::CHEVRON_RIGHT,
     ];
     let side = bar.rect().height();
     for (index, icon) in icons.into_iter().enumerate().rev() {

@@ -5,8 +5,7 @@
 use koebi_core::Rect;
 use koebi_core::expr::MILLIMETER;
 use koebi_ui::{
-    Align, BarMapping, EditEnd, Icon, NumberField, PanelLevel, SelectOnFocus, TextField, Ui,
-    WidgetId,
+    Align, BarMapping, EditEnd, NumberField, PanelLevel, SelectOnFocus, TextField, Ui, WidgetId,
 };
 
 use super::{Metrics, cut_left, cut_top};
@@ -69,7 +68,7 @@ impl Fields {
             .ended;
         ended[1] = TextField::new(ID.with(1), &mut self.search)
             .placeholder("Search")
-            .icon(Icon::Search)
+            .icon(koebi_icons::interface::SEARCH)
             .select_on_focus(SelectOnFocus::End)
             .show(ui, cut_left(&mut line, sixth, gap))
             .ended;

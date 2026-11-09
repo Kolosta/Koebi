@@ -312,3 +312,42 @@ fn a_renderer_draws_the_set_it_was_given_last_and_refuses_corrupt_ones() {
     assert_pixel(&frame(&mut renderer, 1), 21, 12, [255, 255, 255, 255], 0);
     gpu.assert_no_validation_errors();
 }
+
+#[test]
+fn icons_keep_their_axis_on_a_pixel_center_or_on_a_pixel_edge() {
+    let Some(gpu) = gpu_or_skip("icons_keep_their_axis_on_a_pixel_center_or_on_a_pixel_edge")
+    else {
+        return;
+    };
+    // A square filling its icon: what it covers is where the icon lies.
+    let solid = compile(r#"<svg viewBox="0 0 1 1"><rect width="1" height="1"/></svg>"#).unwrap();
+    let packed = pack(&[&solid]);
+    // Centered on a pixel's center, the side is odd; on a pixel edge, even; the nearest to the
+    // size asked for, the center where it was asked.
+    let cases: [(f32, f32, (u32, u32)); 4] = [
+        (10.5, 11.0, (5, 16)),
+        (30.0, 11.0, (24, 36)),
+        (50.5, 12.0, (44, 57)),
+        (70.0, 12.0, (64, 76)),
+    ];
+    let mut scene = Scene::new();
+    for (center, side, _) in cases {
+        scene.push_icon(&IconPrimitive::tinted(
+            square(center - side * 0.5, 2.0, side),
+            0,
+            Color::WHITE,
+        ));
+    }
+    let image = render_with_icons(&gpu, Extent::new(80, 16), 1.0, &scene, &packed);
+    let covered = |x: u32| image.pixel(x, 7)[3] == 255;
+    for (center, side, (first, end)) in cases {
+        for x in first.saturating_sub(2)..end + 2 {
+            assert_eq!(
+                covered(x),
+                (first..end).contains(&x),
+                "centered on {center}, {side} wide: column {x}"
+            );
+        }
+    }
+    gpu.assert_no_validation_errors();
+}

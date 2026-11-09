@@ -35,4 +35,4 @@ pub use error::PlatformError;
 pub use event::{Event, GesturePhase, TextChunk, WindowEvent};
 pub use koebi_core::input::{Key, Modifiers, MouseButton};
 pub use vulkan::VulkanSupport;
-pub use window::{Window, WindowChrome, WindowDesc, WindowId, WindowState};
+pub use window::{IconImage, Window, WindowChrome, WindowDesc, WindowId, WindowState};

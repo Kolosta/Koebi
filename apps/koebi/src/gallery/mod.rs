@@ -35,8 +35,8 @@ use koebi_design::tier::Semantic;
 use koebi_design::{DesignSystem, Scope, Token};
 use koebi_tokens::semantic;
 use koebi_ui::{
-    BarMapping, Button, Checkbox, Icon, MenuState, NumberField, PanelLevel, ScrollAxes,
-    ScrollState, ThemePreview, Ui, WidgetId,
+    BarMapping, Button, Checkbox, MenuState, NumberField, PanelLevel, ScrollAxes, ScrollState,
+    ThemePreview, Ui, WidgetId,
 };
 
 /// The twelve chart colors, shown as swatches and in the grid.
@@ -338,15 +338,22 @@ impl Gallery {
         Button::new(ID.with(0))
             .label("Button")
             .show(ui, cut_left(&mut line, 4.0 * row, gap));
-        for (index, icon) in [Icon::Plus, Icon::Minus, Icon::Close]
-            .into_iter()
-            .enumerate()
+        for (index, icon) in [
+            koebi_icons::interface::PLUS,
+            koebi_icons::interface::MINUS,
+            koebi_icons::interface::CLOSE,
+        ]
+        .into_iter()
+        .enumerate()
         {
             Button::new(ID.with(1 + index as u64))
                 .icon(icon)
                 .show(ui, cut_left(&mut line, row, gap));
         }
-        let icons = [Icon::ChevronDown, Icon::Check];
+        let icons = [
+            koebi_icons::interface::CHEVRON_DOWN,
+            koebi_icons::interface::CHECK,
+        ];
         for (index, (on, icon)) in sheet.toggles.iter_mut().zip(icons).enumerate() {
             Button::new(ID.with(4 + index as u64))
                 .icon(icon)
@@ -424,12 +431,16 @@ impl Gallery {
                 }
                 1 => {
                     Button::new(id)
-                        .icon(Icon::Check)
+                        .icon(koebi_icons::interface::CHECK)
                         .toggle(state)
                         .show(ui, rect);
                 }
                 2 => {
-                    let icon = if *state { Icon::Minus } else { Icon::Plus };
+                    let icon = if *state {
+                        koebi_icons::interface::MINUS
+                    } else {
+                        koebi_icons::interface::PLUS
+                    };
                     if Button::new(id).icon(icon).show(ui, rect).clicked {
                         *state = !*state;
                     }

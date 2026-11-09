@@ -338,9 +338,11 @@ fn every_part_of_the_window_answers_as_it_should() {
     let bar = 10;
     assert_eq!(app.hit(width / 2, bar), HTCAPTION);
     assert_eq!(app.hit(width / 3, bar), HTCAPTION);
-    // Its menus and its window buttons are the application's.
-    assert_eq!(app.hit(20, bar), HTCLIENT);
+    // The logo at its start moves the window too; the menus after it and the window buttons
+    // are the application's.
     let button = button_width(&app);
+    assert_eq!(app.hit(button * 12 / BUTTON_WIDTH, bar), HTCAPTION);
+    assert_eq!(app.hit(button * 45 / BUTTON_WIDTH, bar), HTCLIENT);
     assert_eq!(app.hit(width - button / 2, bar), HTCLIENT);
     assert_eq!(app.hit(width - button * 5 / 2, bar), HTCLIENT);
     // The maximize button answers as such, for the snap layouts of Windows 11.

@@ -11,6 +11,7 @@
 
 mod actions;
 mod app;
+mod app_icon;
 mod chrome;
 mod cursors;
 mod design_options;

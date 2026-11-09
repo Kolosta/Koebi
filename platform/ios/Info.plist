@@ -9,6 +9,30 @@
     <string>Koebi</string>
     <key>CFBundleExecutable</key>
     <string>koebi</string>
+    <!-- The icons copied into the bundle by `cargo xtask ios`, drawn from
+         crates/koebi-icons/icons/app/icon.svg (apps/koebi/src/app_icon.rs). -->
+    <key>CFBundleIcons</key>
+    <dict>
+        <key>CFBundlePrimaryIcon</key>
+        <dict>
+            <key>CFBundleIconFiles</key>
+            <array>
+                <string>AppIcon60x60</string>
+            </array>
+        </dict>
+    </dict>
+    <key>CFBundleIcons~ipad</key>
+    <dict>
+        <key>CFBundlePrimaryIcon</key>
+        <dict>
+            <key>CFBundleIconFiles</key>
+            <array>
+                <string>AppIcon60x60</string>
+                <string>AppIcon76x76</string>
+                <string>AppIcon83.5x83.5</string>
+            </array>
+        </dict>
+    </dict>
     <key>CFBundleIdentifier</key>
     <string>$(KOEBI_BUNDLE_ID)</string>
     <key>CFBundleInfoDictionaryVersion</key>

@@ -590,6 +590,14 @@ dropdowns (#109, #110) (22):
 
 </details>
 
+Vector icons (#205, #206): `component.icon.zone.secondary.opacity` (→ `semantic.opacity.moderate`),
+`component.icon.zone.tertiary.opacity` (→ `semantic.opacity.reduced`),
+`component.icon.zone.accent.color` (→ `semantic.icon.color.accent.default`), how icons drawn in
+one color paint their zones, and `component.icon.size.margin` (1 px). `component.icon.size.default`
+(16 px), `component.icon.stroke-width.default` and `component.icon.stroke-width.chevron` are
+removed: icons take the interface unit less the margin on each side (18 px), and their strokes
+are drawn in their SVG files ([icons](../development/icons.md)).
+
 ## Changed after the port
 
 - `component.button.background.color.default`, `.hover` and `.pressed` aliased

@@ -12,7 +12,6 @@ use koebi_design::Resolve;
 use koebi_design::kind;
 use koebi_tokens::component;
 
-use crate::icon::Icon;
 use crate::id::WidgetId;
 use crate::style::{CornerRadii, Prop};
 use crate::text::Align;
@@ -21,6 +20,7 @@ use crate::widgets::button::Button;
 use crate::widgets::menu::{MenuChoice, MenuItem, MenuState};
 use crate::widgets::parts::Content;
 use crate::widgets::parts::{ControlState, Placement, Side, States, Tone, ToneColors};
+use koebi_icons::IconId;
 
 /// Colors and metrics of dropdowns, from the `component.dropdown.*` tokens.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -108,12 +108,12 @@ impl DropdownStyle {
 
 /// The chevron of a dropdown whose menu opens on `side`: pointing there while closed, and
 /// back towards the control from the side the menu opened on (`open`) while it is open.
-pub(crate) fn chevron(side: Side, open: Option<Side>) -> Icon {
+pub(crate) fn chevron(side: Side, open: Option<Side>) -> IconId {
     let pointing = |side: Side| match side {
-        Side::Below => Icon::ChevronDown,
-        Side::Above => Icon::ChevronUp,
-        Side::Right => Icon::ChevronRight,
-        Side::Left => Icon::ChevronLeft,
+        Side::Below => koebi_icons::interface::CHEVRON_DOWN,
+        Side::Above => koebi_icons::interface::CHEVRON_UP,
+        Side::Right => koebi_icons::interface::CHEVRON_RIGHT,
+        Side::Left => koebi_icons::interface::CHEVRON_LEFT,
     };
     match open {
         Some(side) => pointing(side.opposite()),
@@ -141,7 +141,7 @@ impl<'a> Dropdown<'a> {
             button: Button::new(id)
                 .dropdown_look()
                 .align(Align::Start)
-                .trailing_icon(Icon::ChevronDown)
+                .trailing_icon(koebi_icons::interface::CHEVRON_DOWN)
                 .trailing_at_end(true)
                 .menu(state, Placement::BELOW),
             items,
@@ -162,13 +162,13 @@ impl<'a> Dropdown<'a> {
 
     /// Shows `icon` before the label.
     #[must_use]
-    pub fn leading_icon(self, icon: Icon) -> Self {
+    pub fn leading_icon(self, icon: IconId) -> Self {
         self.with(|button| button.leading_icon(icon))
     }
 
     /// Shows `icon` in place of the label, or after it.
     #[must_use]
-    pub fn icon(self, icon: Icon) -> Self {
+    pub fn icon(self, icon: IconId) -> Self {
         self.with(|button| button.icon(icon))
     }
 
@@ -295,7 +295,7 @@ impl<'a> Dropdown<'a> {
             .dropdown_look()
             .align(Align::Start)
             .label(label)
-            .trailing_icon(Icon::ChevronDown)
+            .trailing_icon(koebi_icons::interface::CHEVRON_DOWN)
             .size(ui)
     }
 
@@ -376,8 +376,8 @@ mod tests {
     fn a_click_opens_the_menu_below_and_a_choice_closes_it() {
         let mut harness = Harness::new();
         let (_, closed) = harness.frame(Placement::BELOW, control());
-        // The control, its chevron (one stroke) and its label.
-        assert_eq!((closed.rect_count(), closed.line_count()), (1, 1));
+        // The control, its chevron and its label.
+        assert_eq!((closed.rect_count(), closed.icon_count()), (1, 1));
         assert!(closed.glyph_count() >= 8);
         harness.click(Vec2::new(50.0, 20.0));
         let (_, open) = harness.frame(Placement::BELOW, control());
@@ -416,12 +416,27 @@ mod tests {
 
     #[test]
     fn the_chevron_points_where_the_menu_opens_and_turns_while_open() {
-        assert_eq!(chevron(Side::Below, None), Icon::ChevronDown);
-        assert_eq!(chevron(Side::Below, Some(Side::Below)), Icon::ChevronUp);
+        assert_eq!(
+            chevron(Side::Below, None),
+            koebi_icons::interface::CHEVRON_DOWN
+        );
+        assert_eq!(
+            chevron(Side::Below, Some(Side::Below)),
+            koebi_icons::interface::CHEVRON_UP
+        );
         // Flipped above: it points down, back to the control.
-        assert_eq!(chevron(Side::Below, Some(Side::Above)), Icon::ChevronDown);
-        assert_eq!(chevron(Side::Right, None), Icon::ChevronRight);
-        assert_eq!(chevron(Side::Right, Some(Side::Left)), Icon::ChevronRight);
+        assert_eq!(
+            chevron(Side::Below, Some(Side::Above)),
+            koebi_icons::interface::CHEVRON_DOWN
+        );
+        assert_eq!(
+            chevron(Side::Right, None),
+            koebi_icons::interface::CHEVRON_RIGHT
+        );
+        assert_eq!(
+            chevron(Side::Right, Some(Side::Left)),
+            koebi_icons::interface::CHEVRON_RIGHT
+        );
     }
 
     #[test]

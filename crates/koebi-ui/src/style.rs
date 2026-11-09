@@ -252,10 +252,6 @@ impl InputStyle {
 pub struct IconStyle {
     /// Width and height of an icon, in logical pixels.
     pub size: f32,
-    /// Stroke width.
-    pub stroke_width: f32,
-    /// Stroke width of the chevrons that fold and open: fold arrows, panel headers, dropdowns.
-    pub chevron_stroke_width: f32,
     /// Opacity of secondary zones, in the color of the primary ones.
     pub secondary_opacity: f32,
     /// Opacity of tertiary zones, in the color of the primary ones.
@@ -264,13 +260,17 @@ pub struct IconStyle {
     pub accent: Color,
 }
 
+/// The side of icons: the interface unit less `component.icon.size.margin` on each side.
+pub(crate) fn icon_size(tokens: &impl Resolve) -> f32 {
+    let unit = tokens.get(semantic::SIZE_CONTROL_HEIGHT);
+    (unit - 2.0 * tokens.get(component::ICON_SIZE_MARGIN)).max(0.0)
+}
+
 impl IconStyle {
     /// Reads the style from `tokens`.
     pub fn resolve(tokens: &impl Resolve) -> Self {
         Self {
-            size: tokens.get(component::ICON_SIZE_DEFAULT),
-            stroke_width: tokens.get(component::ICON_STROKE_WIDTH_DEFAULT),
-            chevron_stroke_width: tokens.get(component::ICON_STROKE_WIDTH_CHEVRON),
+            size: icon_size(tokens),
             secondary_opacity: tokens.get(component::ICON_ZONE_SECONDARY_OPACITY),
             tertiary_opacity: tokens.get(component::ICON_ZONE_TERTIARY_OPACITY),
             accent: tokens.get(component::ICON_ZONE_ACCENT_COLOR),
@@ -650,9 +650,7 @@ mod tests {
         assert_eq!(
             styles.icon,
             IconStyle {
-                size: 16.0,
-                stroke_width: 1.5,
-                chevron_stroke_width: 1.25,
+                size: 18.0,
                 secondary_opacity: design.get(semantic::OPACITY_MODERATE),
                 tertiary_opacity: design.get(semantic::OPACITY_REDUCED),
                 accent: design.get(semantic::ICON_COLOR_ACCENT_DEFAULT),
@@ -745,11 +743,6 @@ mod tests {
                 (panel.header_height - 2.0 * panel.header_inset - whole_pixels(control, scale))
                     .abs()
                     < 1e-4
-            );
-            // Strokes stay as the tokens say.
-            assert_eq!(
-                styles.icon.chevron_stroke_width,
-                Styles::resolve(&design).icon.chevron_stroke_width
             );
         }
     }

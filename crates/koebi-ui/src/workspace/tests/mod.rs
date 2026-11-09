@@ -335,7 +335,7 @@ fn the_split_preview_follows_the_pointer_and_a_press_splits() {
     let preview = harness.frame();
     // Pointing into an area previews its two halves.
     harness.frame();
-    assert_eq!(harness.state.cursor(), CursorShape::ResizeHorizontal);
+    assert_eq!(harness.state.cursor(), CursorShape::SplitVertical);
     harness.input.primary_button(true, target);
     harness.frame();
     assert!(!harness.view.is_operating());
@@ -426,7 +426,7 @@ fn dragging_a_corner_inwards_splits_along_the_drag() {
     harness.input.pointer_moved(LEFT_BOTTOM_CORNER);
     harness.frame();
     harness.frame();
-    assert_eq!(harness.state.cursor(), CursorShape::Crosshair);
+    assert_eq!(harness.state.cursor(), CursorShape::CornerBottomLeft);
     // A horizontal drag makes a vertical line where the pointer lets go.
     harness.drag(LEFT_BOTTOM_CORNER, Vec2::new(202.0, 560.0));
     assert_eq!(harness.areas().len(), 3);
@@ -469,7 +469,7 @@ fn escape_cancels_a_corner_drag() {
     harness.input.pointer_moved(Vec2::new(202.0, 560.0));
     harness.frame();
     assert!(harness.view.is_operating());
-    assert_eq!(harness.state.cursor(), CursorShape::ResizeHorizontal);
+    assert_eq!(harness.state.cursor(), CursorShape::SplitVertical);
     harness.input.trigger(&OPERATION_CANCEL);
     harness.frame();
     harness.input.primary_button(false, Vec2::new(202.0, 560.0));

@@ -143,6 +143,10 @@ fn package_macos(binary: &Path, version: &str, target: &str, dist: &Path) -> Res
     let plist = fs::read_to_string(util::workspace_root().join("platform/macos/Info.plist"))?
         .replace("$(KOEBI_VERSION)", version);
     fs::write(contents.join("Info.plist"), plist)?;
+    fs::copy(
+        util::workspace_root().join("platform/macos/Koebi.icns"),
+        contents.join("Resources").join("Koebi.icns"),
+    )?;
     util::run(
         Command::new("codesign")
             .args(["--force", "--deep", "--sign", "-"])

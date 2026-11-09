@@ -8,7 +8,7 @@ use koebi_workspace::{AreaId, Fill, GridRect, JoinPlan, Layout, Orientation, Sid
 
 use super::geometry::Frame;
 use super::{
-    EditorHost, OPERATION_CONFIRM, Operation, WorkspaceStyle, WorkspaceView, resize_cursor,
+    EditorHost, OPERATION_CONFIRM, Operation, WorkspaceStyle, WorkspaceView, split_cursor,
 };
 use crate::id::WidgetId;
 use crate::routing::Layer;
@@ -362,8 +362,7 @@ impl Ui<'_> {
                 let min = frame.grid_length(style.min_size, orientation);
                 let preview = pointed
                     .and_then(|(area, point)| split_preview(layout, area, orientation, point, min));
-                let cursor =
-                    preview.map_or(CursorShape::NotAllowed, |_| resize_cursor(orientation));
+                let cursor = preview.map_or(CursorShape::NotAllowed, |_| split_cursor(orientation));
                 let confirmed = self.on_layer(Layer::OVERLAY, |ui| {
                     let catcher = ui.interact_with_cursor(OPERATION, window, cursor);
                     if let Some(preview) = preview {

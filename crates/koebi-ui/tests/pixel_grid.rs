@@ -16,8 +16,8 @@ use koebi_testkit::gpu_or_skip;
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    BarMapping, Button, CollapsiblePanel, CollapsiblePanelState, Icon, Input, ListItem,
-    ListOptions, ListState, NumberField, Styles, Tone, Ui, UiState, WidgetId,
+    BarMapping, Button, CollapsiblePanel, CollapsiblePanelState, Input, ListItem, ListOptions,
+    ListState, NumberField, Styles, Tone, Ui, UiState, WidgetId,
 };
 
 /// The size of the sheet of icon buttons.
@@ -189,7 +189,12 @@ fn an_icon_is_centered_in_a_button_too_narrow_for_its_paddings() {
     };
     let design = design();
     let styles = Styles::resolve(&design);
-    let icons = [Icon::Reset, Icon::Check, Icon::Minus, Icon::Close];
+    let icons = [
+        koebi_icons::interface::RESET,
+        koebi_icons::interface::CHECK,
+        koebi_icons::interface::MINUS,
+        koebi_icons::interface::CLOSE,
+    ];
     let sizes = [16.0, 18.0, 20.0, 24.0, 40.0];
     let cell = |row: u64, column: u64| {
         let side = sizes[usize::try_from(column).expect("five sizes")];

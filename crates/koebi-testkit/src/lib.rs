@@ -18,6 +18,7 @@
     reason = "skips and blessings are reported on stderr"
 )]
 
+mod deflate;
 mod golden;
 mod gpu;
 mod image;
