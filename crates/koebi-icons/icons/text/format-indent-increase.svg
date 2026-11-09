@@ -1,3 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="#e3e3e3">
-  <path class="ds-primary" d="M120-120v-80h720v80H120Zm320-160v-80h400v80H440Zm0-160v-80h400v80H440Zm0-160v-80h400v80H440ZM120-760v-80h720v80H120Zm0 440v-320l160 160-160 160Z"/>
+  <path class="ds-secondary" fill="#9c9c9c" d="M120 -120v-80h720v80H120ZM440 -280v-80h400v80H440ZM440 -440v-80h400v80H440ZM440 -600v-80h400v80H440ZM120 -760v-80h720v80H120Z"/>
+  <path class="ds-primary" d="M120 -320v-320l160 160l-160 160Z"/>
 </svg>

@@ -296,6 +296,16 @@ impl IconStyle {
             },
         }
     }
+
+    /// The ink of a two-tone icon shown in one tone: every zone in `color` but the accent,
+    /// which keeps its meaning (the pressed button of a mouse).
+    pub fn one_tone(&self, color: Color) -> IconInk {
+        IconInk {
+            secondary: color,
+            tertiary: color,
+            ..self.ink(color)
+        }
+    }
 }
 
 /// The style of every component, resolved together.
@@ -683,6 +693,13 @@ mod tests {
             }
         );
         assert_eq!(IconInk::uniform(color).accent, color);
+        // In one tone, the lesser zones take the color; the accent keeps its own.
+        let one = style.one_tone(color);
+        assert_eq!(
+            (one.primary, one.secondary, one.tertiary),
+            (color, color, color)
+        );
+        assert_eq!(one.accent, ink.accent);
     }
 
     #[test]

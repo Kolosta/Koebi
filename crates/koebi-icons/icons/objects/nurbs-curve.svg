@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#e3e3e3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
   <!-- Control polygon (thin, connecting the control points) -->
-  <path class="ds-primary" stroke-width="1" d="M4 18 L 8 5 L 16 19 L 20 6"/>
+  <path class="ds-secondary" stroke-width="1" d="M4 18 L 8 5 L 16 19 L 20 6" stroke="#9c9c9c"/>
   <!-- Smooth NURBS curve approximating the control polygon -->
   <path class="ds-primary" d="M4 18 C 7 11, 9 9, 12 12 C 15 15, 17 11, 20 6"/>
   <!-- Square control points -->

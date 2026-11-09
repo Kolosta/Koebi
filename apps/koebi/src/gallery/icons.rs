@@ -1,7 +1,8 @@
 //! The icons of the gallery: every vector icon of `koebi-icons`, drawn from its curves at the
 //! size the field sets, in the interface's colors (zones recolored by role; a hovered icon takes
-//! the accent, a pressed one the secondary text color) or in the colors of its file. Its name
-//! shows in a tooltip.
+//! the accent, a pressed one the secondary text color) or in the colors of its file. Icons with
+//! a secondary ink show it fainter (two tones) or in the main color (one tone). Its name shows
+//! in a tooltip.
 
 use koebi_core::{Rect, Vec2};
 use koebi_icons::IconId;
@@ -22,6 +23,8 @@ const PADDING: f32 = 6.0;
 pub(super) struct Icons {
     size: f32,
     original: bool,
+    /// Secondary inks fainter than the main one (two tones), or in it (one tone).
+    two_tones: bool,
 }
 
 impl Icons {
@@ -29,6 +32,7 @@ impl Icons {
         Self {
             size: 24.0,
             original: false,
+            two_tones: true,
         }
     }
 
@@ -75,6 +79,22 @@ impl Icons {
         {
             self.original = !self.original;
         }
+        let tones = cut_left(&mut line, 5.0 * row, gap);
+        if Button::new(ID.with(3))
+            .label("Two tones")
+            .selected(self.two_tones)
+            .enabled(!self.original)
+            .show(ui, tones)
+            .clicked
+        {
+            self.two_tones = !self.two_tones;
+        }
+        ui.tooltip(
+            ID.with(3),
+            "Icons with a secondary part (what lies behind, inside, or what an action applies \
+             to) show it fainter; off, in the main color",
+            tones,
+        );
 
         let style = ui.styles().icon;
         let columns = self.columns(content.width());
@@ -87,14 +107,19 @@ impl Icons {
             let bounds = Rect::from_origin_size(at, Vec2::splat(cell));
             let id = ID.with(100 + u64::from(icon.index()));
             let response = ui.interact(id, bounds);
+            let color = if response.held {
+                secondary
+            } else if response.hovered {
+                style.accent
+            } else {
+                primary
+            };
             let paint = if self.original {
                 IconPaint::Original
-            } else if response.held {
-                IconPaint::Ink(style.ink(secondary))
-            } else if response.hovered {
-                IconPaint::Ink(style.ink(style.accent))
+            } else if self.two_tones {
+                IconPaint::Ink(style.ink(color))
             } else {
-                IconPaint::Ink(style.ink(primary))
+                IconPaint::Ink(style.one_tone(color))
             };
             let square = Rect::from_origin_size(at + Vec2::splat(PADDING), Vec2::splat(self.size));
             paint_icon(ui.scene(), square, icon, paint, 0.0);
@@ -212,5 +237,69 @@ mod tests {
             at(&original)
         );
         gpu.assert_no_validation_errors();
+    }
+
+    #[test]
+    fn two_tones_show_the_secondary_part_fainter_and_one_tone_in_the_main_color() {
+        let Some(gpu) = koebi_testkit::gpu_or_skip(
+            "two_tones_show_the_secondary_part_fainter_and_one_tone_in_the_main_color",
+        ) else {
+            return;
+        };
+        // Small enough for every row to fit the image.
+        let mut icons = Icons::new();
+        icons.size = 24.0;
+        let shadow = koebi_icons::view::SHADOW.index() as usize;
+        let (_, design) = frame(&mut icons, &Input::new());
+        let columns = icons.columns(AREA.x - 2.0 * first_cell(&design).x);
+        let cell = icons.cell();
+        let square = first_cell(&design)
+            + Vec2::new(
+                (shadow % columns) as f32 * cell + PADDING,
+                (shadow / columns) as f32 * cell + PADDING,
+            );
+        // The middle of the shadow, the strip left of the square: x 80..240, y 240..720 of 960.
+        let point = square + Vec2::new(icons.size * 160.0 / 960.0, icons.size * 0.5);
+        let render = |icons: &mut Icons| {
+            let (scene, _) = frame(icons, &Input::new());
+            let format = koebi_gpu::TextureFormat::Rgba8Unorm;
+            let mut renderer = Renderer2D::new(&gpu.device, format).expect("renderer creation");
+            renderer.set_fonts(Fonts::with_embedded());
+            renderer
+                .set_icons(koebi_icons::packed())
+                .expect("a valid icon set");
+            gpu.render_offscreen(Extent::new(720, 600), format, |encoder, target| {
+                renderer
+                    .render(encoder, target, &scene, 0, 1.0)
+                    .expect("render");
+            })
+            .expect("offscreen rendering")
+        };
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "a pixel inside the image"
+        )]
+        let (x, y) = (point.x.floor() as u32, point.y.floor() as u32);
+        let text: Color = design.get(koebi_tokens::semantic::TEXT_COLOR_PRIMARY_DEFAULT);
+        let close_enough = |pixel: [u8; 4], color: Color| {
+            pixel
+                .iter()
+                .zip(color.to_rgba8())
+                .all(|(a, b)| a.abs_diff(b) <= 2)
+        };
+        let two = render(&mut icons).pixel(x, y);
+        assert!(
+            !close_enough(two, text),
+            "two tones: the shadow is fainter, {two:?}"
+        );
+        icons.two_tones = false;
+        let one = render(&mut icons).pixel(x, y);
+        assert!(
+            close_enough(one, text),
+            "one tone: the shadow in the text color, {one:?}"
+        );
+        // Fainter means darker than the text on the dark panel.
+        assert!(two[0] < one[0], "{two:?} {one:?}");
     }
 }
