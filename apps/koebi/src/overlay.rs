@@ -82,6 +82,61 @@ fn lines(averages: Option<Averages>) -> [Line; 3] {
     lines
 }
 
+/// The overlay's background: its color at its opacity.
+fn background(design: &DesignSystem) -> koebi_core::Color {
+    let color = design.get(component::STATUS_BAR_FRAME_TIMES_BACKGROUND_COLOR_DEFAULT);
+    let opacity = design.get(component::STATUS_BAR_FRAME_TIMES_OPACITY_DEFAULT);
+    color.with_alpha(color.a * opacity)
+}
+
+/// Whether the overlay is shown, shared by the windows, and how many times that changed.
+///
+/// Every main window draws the overlay, and a window draws only when something it shows
+/// changes: the count of changes is part of [`Interface::revision`](crate::interface::Interface::revision),
+/// so that turning the overlay on or off from one window (the settings, F12) redraws all of them.
+#[derive(Clone, Debug)]
+pub(crate) struct OverlaySwitch {
+    overlay: Option<Overlay>,
+    changes: u64,
+}
+
+impl OverlaySwitch {
+    pub(crate) fn new(shown: bool) -> Self {
+        Self {
+            overlay: shown.then(Overlay::new),
+            changes: 0,
+        }
+    }
+
+    /// `true` while the overlay is shown.
+    pub(crate) fn is_shown(&self) -> bool {
+        self.overlay.is_some()
+    }
+
+    /// Shows or hides the overlay; counts a change only when it changes.
+    pub(crate) fn set(&mut self, shown: bool) {
+        if shown != self.is_shown() {
+            self.overlay = shown.then(Overlay::new);
+            self.changes += 1;
+        }
+    }
+
+    /// Shows the overlay when hidden, hides it when shown.
+    pub(crate) fn toggle(&mut self) {
+        self.set(!self.is_shown());
+    }
+
+    /// How many times the overlay was shown or hidden.
+    pub(crate) fn changes(&self) -> u64 {
+        self.changes
+    }
+
+    /// The overlay, when shown.
+    pub(crate) fn overlay_mut(&mut self) -> Option<&mut Overlay> {
+        self.overlay.as_mut()
+    }
+}
+
 /// The overlay's text, formatted and laid out again only when it changes.
 #[derive(Clone, Debug)]
 pub(crate) struct Overlay {
@@ -132,10 +187,9 @@ impl Overlay {
         }
         let margin = design.get(component::STATUS_BAR_FRAME_TIMES_MARGIN_DEFAULT);
         let padding = Vec2::new(
-            design.get(component::TOOLTIP_PADDING_HORIZONTAL_DEFAULT),
-            design.get(component::TOOLTIP_PADDING_VERTICAL_DEFAULT),
+            design.get(component::STATUS_BAR_FRAME_TIMES_PADDING_HORIZONTAL_DEFAULT),
+            design.get(component::STATUS_BAR_FRAME_TIMES_PADDING_VERTICAL_DEFAULT),
         );
-        let border = design.get(component::TOOLTIP_BORDER_WIDTH_DEFAULT);
         let line_height = (size * design.get(semantic::FONT_LINE_HEIGHT_DETAIL_S)).round();
         let widest = self
             .laid_out
@@ -143,21 +197,19 @@ impl Overlay {
             .map(TextLine::width)
             .fold(0.0, f32::max);
         let text = Vec2::new(widest.ceil(), line_height * self.laid_out.len() as f32);
-        let size = text + (padding + Vec2::splat(border)) * 2.0;
+        let size = text + padding * 2.0;
         let min = Vec2::new(area.min.x + margin, area.max.y - margin - size.y);
         let panel = Rect::from_origin_size(
             Vec2::new(min.x.round(), min.y.round()),
             Vec2::new(size.x.round(), size.y.round()),
         );
-        let background = design.get(component::STATUS_BAR_FRAME_TIMES_BACKGROUND_COLOR_DEFAULT);
-        let opacity = design.get(component::STATUS_BAR_FRAME_TIMES_OPACITY_DEFAULT);
         scene.push_rect(
-            &RectPrimitive::new(panel, background.with_alpha(background.a * opacity))
-                .with_corner_radius(design.get(component::TOOLTIP_CORNER_RADIUS_DEFAULT))
-                .with_border(border, design.get(component::TOOLTIP_BORDER_COLOR_DEFAULT)),
+            &RectPrimitive::new(panel, background(design)).with_corner_radius(
+                design.get(component::STATUS_BAR_FRAME_TIMES_CORNER_RADIUS_DEFAULT),
+            ),
         );
-        let ink = design.get(component::TOOLTIP_LABEL_COLOR_DEFAULT);
-        let origin = panel.min + padding + Vec2::splat(border);
+        let ink = design.get(component::STATUS_BAR_FRAME_TIMES_LABEL_COLOR_DEFAULT);
+        let origin = panel.min + padding;
         for (index, line) in self.laid_out.iter().enumerate() {
             let top = origin.y + line_height * index as f32;
             let baseline = line.centered_baseline(top, line_height);
@@ -221,5 +273,72 @@ mod tests {
         let mut empty = Scene::new();
         Overlay::new().draw(&mut empty, &design, &Fonts::new(), &times, area);
         assert!(empty.is_empty());
+    }
+
+    #[test]
+    fn the_switch_counts_only_changes() {
+        let mut switch = OverlaySwitch::new(false);
+        assert!(!switch.is_shown() && switch.overlay_mut().is_none());
+        switch.set(false);
+        assert_eq!(switch.changes(), 0, "hidden already");
+        switch.set(true);
+        assert!(switch.is_shown() && switch.overlay_mut().is_some());
+        assert_eq!(switch.changes(), 1);
+        switch.toggle();
+        assert!(!switch.is_shown());
+        assert_eq!(switch.changes(), 2);
+    }
+
+    #[test]
+    fn a_window_drawn_before_the_switch_changed_draws_again() {
+        // Regression: the Dev page turned the overlay on, but the main windows only drew it
+        // once the pointer moved over them. The count of changes is part of what each window
+        // compares with what it drew.
+        let mut switch = OverlaySwitch::new(false);
+        let drawn = switch.changes();
+        assert!(!crate::window::is_due(false, drawn, switch.changes(), None));
+        switch.set(true);
+        assert!(crate::window::is_due(false, drawn, switch.changes(), None));
+        assert!(crate::window::is_due(true, 0, 0, None), "asked to draw");
+        assert!(
+            crate::window::is_due(false, 0, 0, Some(Duration::ZERO)),
+            "a delay ran out"
+        );
+        assert!(!crate::window::is_due(
+            false,
+            0,
+            0,
+            Some(Duration::from_millis(5))
+        ));
+    }
+
+    #[test]
+    fn the_background_is_translucent_and_the_text_reads_on_it_in_every_theme() {
+        let mut design = DesignSystem::new(&KOEBI).expect("Koebi's schema is valid");
+        let themes: Vec<_> = design.themes().map(|(id, _)| id).collect();
+        for theme in themes {
+            design.set_active_theme(theme).unwrap();
+            let background = background(&design);
+            assert!(
+                background.a < 1.0,
+                "{theme}: the overlay lets what lies below show"
+            );
+            let ink = design.get(component::STATUS_BAR_FRAME_TIMES_LABEL_COLOR_DEFAULT);
+            // Over the surfaces the overlay may cover, the lightest included.
+            for surface in [
+                semantic::BACKGROUND_BASE_DEFAULT,
+                semantic::BACKGROUND_RAISED_DEFAULT,
+                semantic::BACKGROUND_APP_FRAME,
+                semantic::BACKGROUND_APP_FRAME_HOVER,
+                semantic::BACKGROUND_ACCENT_DEFAULT,
+            ] {
+                let below = background.over(design.get(surface));
+                let ratio = ink.contrast_ratio(below);
+                assert!(
+                    ratio >= 4.5,
+                    "{theme}: frame times on {surface:?}: {ratio:.2}"
+                );
+            }
+        }
     }
 }

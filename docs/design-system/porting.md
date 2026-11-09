@@ -608,3 +608,15 @@ are drawn in their SVG files ([icons](../development/icons.md)).
   `component.button.accent.*` tokens, which alias `semantic.background.accent.*`.
 - `component.toggle.*` now styles the toggle buttons of the default tone (`Button::toggle`),
   completed with the states it lacked (pressed, selected and hovered, disabled).
+- `component.toggle.border.width.default` held 1 px of its own; it aliases
+  `semantic.border.width.thin`, like the button groups that toggles stand beside (#217).
+- Tooltips (#204, #217) use the theme's own colors: `component.tooltip.background.color.default`
+  → `semantic.background.base.default`, `component.tooltip.label.color.default` →
+  `semantic.text.color.primary.default`, `component.tooltip.border.color.default` →
+  `semantic.border.color.subtle.default`.
+- The frame-time overlay (#216) has its own tokens instead of the tooltip's:
+  `component.status-bar.frame-times.background.color.default` →
+  `semantic.background.sunken.default` at `component.status-bar.frame-times.opacity.default`
+  (0.72), `.label.color.default` → `semantic.text.color.primary.default`,
+  `.corner-radius.default` → `semantic.radius.control`, `.padding.horizontal.default` (8 px) and
+  `.padding.vertical.default` (6 px).

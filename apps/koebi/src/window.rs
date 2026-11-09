@@ -18,7 +18,6 @@ use crate::editors::{Editors, Host};
 use crate::frame_times::FrameTimes;
 use crate::gpu::WindowGpu;
 use crate::interface::Interface;
-use crate::overlay::Overlay;
 use crate::settings::SettingsView;
 use crate::status::{StatusShortcuts, VERSION};
 
@@ -97,7 +96,7 @@ pub(crate) struct AppWindow {
     /// The settings shown over the content, on platforms with one window.
     pub(crate) settings_in_place: Option<Box<SettingsView>>,
     pub(crate) needs_redraw: bool,
-    /// The revision of the design system the last frame showed.
+    /// The revision of what every window shows ([`Interface::revision`]) the last frame showed.
     pub(crate) drawn_revision: u64,
     /// While the pointer is locked, motion only moves what holds it: positions stay.
     pointer_locked: bool,
@@ -133,7 +132,7 @@ impl AppWindow {
             command: None,
             settings_in_place: None,
             needs_redraw: true,
-            drawn_revision: interface.design.revision(),
+            drawn_revision: interface.revision(),
             pointer_locked: false,
             locked_at: None,
             typing: None,
@@ -188,7 +187,7 @@ impl AppWindow {
             self.draw(interface, area, &input.settled(), times);
         }
         self.input.end_frame();
-        self.drawn_revision = interface.design.revision();
+        self.drawn_revision = interface.revision();
     }
 
     fn draw(&mut self, interface: &mut Interface, area: Rect, input: &Input, times: &FrameTimes) {
@@ -230,7 +229,7 @@ impl AppWindow {
         shown.messages.collect();
         // The frame times lie above the status bar, where there is one.
         let mut above_bar = area;
-        let mut frame_times = overlay.is_some();
+        let mut frame_times = overlay.is_shown();
         ui.zone(area, actions::APP, |ui| {
             let (rest, asked) = chrome.show(ui, area, view, labels);
             if asked.is_some() {
@@ -269,11 +268,10 @@ impl AppWindow {
         // An eyedropper's session, started here or in another window: over everything, last.
         ui.screen_pick_layer(area);
         drop(ui);
-        // Shown or hidden from the Dev page of the settings.
-        if frame_times != overlay.is_some() {
-            *overlay = frame_times.then(Overlay::new);
-        }
-        if is_main && let Some(overlay) = overlay {
+        // Shown or hidden from the Dev page of the settings: the other windows follow, as
+        // `Interface::revision` changes.
+        overlay.set(frame_times);
+        if is_main && let Some(overlay) = overlay.overlay_mut() {
             overlay.draw(scene, design, fonts, times, above_bar);
         }
     }
@@ -364,6 +362,17 @@ impl AppWindow {
         Some(at.saturating_sub(now))
     }
 
+    /// `true` when the window must draw now: asked to, behind `revision` (what every window
+    /// shows changed, maybe from another window), or at the end of a delay of its own.
+    pub(crate) fn is_due(&self, revision: u64, now: Duration) -> bool {
+        is_due(
+            self.needs_redraw,
+            self.drawn_revision,
+            revision,
+            self.redraw_in(now),
+        )
+    }
+
     /// Applies what the last frame asked of the platform: a locked pointer (released where the
     /// interface says) and text input.
     pub(crate) fn apply_requests(&mut self, context: &mut AppContext) {
@@ -429,6 +438,17 @@ impl AppWindow {
             WindowContent::Workspace { .. } => "Koebi",
         }
     }
+}
+
+/// Whether a window must draw now: asked to, drawn at another revision of what every window
+/// shows than `revision`, or at the end of a delay of its own (`redraw_in` zero).
+pub(crate) fn is_due(
+    needs_redraw: bool,
+    drawn_revision: u64,
+    revision: u64,
+    redraw_in: Option<Duration>,
+) -> bool {
+    needs_redraw || drawn_revision != revision || redraw_in.is_some_and(|wait| wait.is_zero())
 }
 
 #[cfg(test)]

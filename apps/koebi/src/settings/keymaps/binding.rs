@@ -841,12 +841,15 @@ fn modifiers(
         });
     }
     let any_at = Rect::from_min_max(Vec2::new(rect.max.x - any_width, rect.min.y), rect.max);
-    let mut on = any;
-    if Button::new(id.with(40))
-        .label("Any")
-        .toggle(&mut on)
-        .show(ui, any_at)
+    // A group of one cell, so that it looks like the families beside it: their state shows as
+    // selected cells with the group's borders, not as a toggle button.
+    let mut any_cell = [GroupCell::new(
+        Button::new(id.with(40)).label("Any").selected(any),
+    )];
+    if ButtonGroup::horizontal()
+        .show(ui, any_at, &mut any_cell)
         .clicked
+        .is_some()
     {
         let next = toggle_any(rule, state.before_any);
         state.before_any = (!any).then_some(rule);

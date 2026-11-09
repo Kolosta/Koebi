@@ -168,6 +168,26 @@ impl Color {
         .to_color()
     }
 
+    /// `self` drawn over `below`, as the renderer blends on sRGB targets: in linear light,
+    /// source over. Over an opaque color, the result is opaque: what a contrast ratio is
+    /// measured on when a translucent color shows what lies below it.
+    #[must_use]
+    pub fn over(self, below: Self) -> Self {
+        let (top, bottom) = (self.to_linear(), below.to_linear());
+        let alpha = self.a + below.a * (1.0 - self.a);
+        if alpha <= 0.0 {
+            return Self::TRANSPARENT;
+        }
+        let blend = |t: f32, b: f32| (t * self.a + b * below.a * (1.0 - self.a)) / alpha;
+        LinearRgba::new(
+            blend(top.r, bottom.r),
+            blend(top.g, bottom.g),
+            blend(top.b, bottom.b),
+            alpha,
+        )
+        .to_srgb()
+    }
+
     /// WCAG 2.x relative luminance (`0.0` black to `1.0` white). Opacity is ignored.
     #[must_use]
     pub fn relative_luminance(self) -> f32 {
@@ -622,6 +642,26 @@ mod tests {
             Color::from_hex(0x77_77_77).contrast_ratio(Color::WHITE),
             4.478,
             5e-3,
+        );
+    }
+
+    #[test]
+    fn over_blends_in_linear_light() {
+        // Opaque on top hides what lies below; transparent shows it unchanged.
+        let red = Color::from_hex(0xFF_00_00);
+        assert_eq!(red.over(Color::WHITE).to_rgba8(), red.to_rgba8());
+        assert_eq!(Color::TRANSPARENT.over(red).to_rgba8(), red.to_rgba8());
+        // Half white over black is half the light, #bcbcbc in sRGB, not #808080.
+        let half = Color::WHITE.with_alpha(0.5).over(Color::BLACK);
+        assert_eq!(half.to_rgba8(), [188, 188, 188, 255]);
+        // Translucent over translucent stays translucent.
+        let both = Color::BLACK
+            .with_alpha(0.5)
+            .over(Color::WHITE.with_alpha(0.5));
+        assert_close(both.a, 0.75, 1e-6);
+        assert_eq!(
+            Color::TRANSPARENT.over(Color::TRANSPARENT),
+            Color::TRANSPARENT
         );
     }
 }

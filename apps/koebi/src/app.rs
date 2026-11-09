@@ -428,32 +428,22 @@ impl KoebiApp {
         AppControl::Continue
     }
 
-    /// Waits for events, except while changes wait to be saved: then the application wakes up
-    /// a few times per second until they are. Tests and benchmarks draw continuously.
+    /// Waits for events, except while a window has to draw (see [`iteration_rate`]) or
+    /// changes wait to be saved. Tests and benchmarks draw continuously.
     fn update_rate(&mut self, context: &mut AppContext) {
         let now = self.interface.now();
-        let redraw = self
-            .windows
-            .iter()
-            .filter(|window| window.window.state() != WindowState::Minimized)
-            .filter_map(|window| window.redraw_in(now))
-            .min();
+        let revision = self.interface.revision();
+        let shown = || {
+            self.windows
+                .iter()
+                .filter(|window| window.window.state() != WindowState::Minimized)
+        };
+        let due = shown().any(|window| window.is_due(revision, now));
+        let redraw = shown().filter_map(|window| window.redraw_in(now)).min();
         let unsaved = self.main_workspace().is_some_and(|(workspace, editors)| {
             self.interface.has_unsaved_changes(workspace, editors)
         });
-        let rate = if self.options.frames.is_some() {
-            IterationRate::Unlimited
-        } else if redraw.is_some_and(|wait| wait < Duration::from_millis(20)) {
-            // An animation: draw at the display's pace.
-            IterationRate::Unlimited
-        } else if redraw.is_some() {
-            // A delay running out: check often enough to be on time.
-            IterationRate::Hz(60)
-        } else if unsaved {
-            IterationRate::Hz(10)
-        } else {
-            IterationRate::WaitEvent
-        };
+        let rate = iteration_rate(self.options.frames.is_some(), due, redraw, unsaved);
         if rate != self.rate {
             context.set_iteration_rate(rate);
             self.rate = rate;
@@ -494,6 +484,31 @@ impl KoebiApp {
 }
 
 /// The first area of `workspace`.
+/// How soon the application iterates again. `due`: a window has to draw now, because a
+/// window drawn later in the last iteration changed what it shows (a setting turning the
+/// overlay on, a token) or a command asked for it: the next iteration comes at once instead of
+/// waiting for an event of that window. `redraw`: the nearest delay of a window's own.
+fn iteration_rate(
+    continuous: bool,
+    due: bool,
+    redraw: Option<Duration>,
+    unsaved: bool,
+) -> IterationRate {
+    if continuous || due {
+        IterationRate::Unlimited
+    } else if redraw.is_some_and(|wait| wait < Duration::from_millis(20)) {
+        // An animation: draw at the display's pace.
+        IterationRate::Unlimited
+    } else if redraw.is_some() {
+        // A delay running out: check often enough to be on time.
+        IterationRate::Hz(60)
+    } else if unsaved {
+        IterationRate::Hz(10)
+    } else {
+        IterationRate::WaitEvent
+    }
+}
+
 fn first_area(workspace: &Workspace) -> Option<koebi_workspace::AreaId> {
     workspace.layout().areas().next().map(|(area, _)| area)
 }
@@ -586,18 +601,15 @@ impl App for KoebiApp {
 
     fn iterate(&mut self, context: &mut AppContext) -> AppControl {
         let now = self.interface.now();
-        let revision = self.interface.design.revision();
+        let revision = self.interface.revision();
         let continuous = self.options.frames.is_some();
         for index in 0..self.windows.len() {
             let window = &self.windows[index];
             // A minimized window has nothing to show: it is drawn when it comes back, which asks
             // for a frame. Trying would recreate its swapchain, waiting for the GPU every time.
             let shown = window.window.state() != WindowState::Minimized;
-            let due = window.needs_redraw
-                || continuous
-                // Another window changed the design system.
-                || window.drawn_revision != revision
-                || window.redraw_in(now).is_some_and(|wait| wait.is_zero());
+            // Another window may have changed the design system or the overlay.
+            let due = continuous || window.is_due(revision, now);
             if !due || !shown {
                 continue;
             }
@@ -793,5 +805,32 @@ mod tests {
         };
         // The data directory only: the other options were this instance's.
         assert_eq!(args(&options), ["--untitled", "--data-dir", "state"]);
+    }
+
+    #[test]
+    fn a_window_due_to_draw_does_not_wait_for_an_event() {
+        // Regression: the settings window turned the overlay on after the main window's turn
+        // in the iteration, and the application then waited for an event before drawing the
+        // main window again: the overlay appeared once the pointer moved over it.
+        assert_eq!(
+            iteration_rate(false, true, None, false),
+            IterationRate::Unlimited
+        );
+        assert_eq!(
+            iteration_rate(false, false, None, false),
+            IterationRate::WaitEvent
+        );
+        assert_eq!(
+            iteration_rate(false, false, Some(Duration::from_millis(200)), false),
+            IterationRate::Hz(60)
+        );
+        assert_eq!(
+            iteration_rate(false, false, None, true),
+            IterationRate::Hz(10)
+        );
+        assert_eq!(
+            iteration_rate(true, false, None, false),
+            IterationRate::Unlimited
+        );
     }
 }

@@ -18,7 +18,7 @@ use crate::chrome::ShortcutLabels;
 use crate::design_options;
 use crate::editors::{self, Content, Editors};
 use crate::options::Options;
-use crate::overlay::Overlay;
+use crate::overlay::OverlaySwitch;
 use crate::preferences::Preferences;
 
 /// The interface shared by the windows.
@@ -31,8 +31,8 @@ pub(crate) struct Interface {
     pub(crate) styles: StyleCache,
     /// What the editors show: the gallery, the document, the messages.
     pub(crate) content: Content,
-    /// `None` when the frame-time overlay is hidden.
-    pub(crate) overlay: Option<Overlay>,
+    /// Whether the frame-time overlay is shown.
+    pub(crate) overlay: OverlaySwitch,
     /// The fonts text is laid out with; the renderers rasterize glyphs from the same ones.
     pub(crate) fonts: Fonts,
     /// The text of the shortcuts the menus show.
@@ -92,7 +92,7 @@ impl Interface {
             store,
             preferences,
             content: Content::new(),
-            overlay: options.shows_frame_times().then(Overlay::new),
+            overlay: OverlaySwitch::new(options.shows_frame_times()),
             fonts,
             labels,
             labels_revision: keymap.revision(),
@@ -123,10 +123,15 @@ impl Interface {
 
     /// Shows or hides the frame-time overlay.
     pub(crate) fn toggle_frame_times(&mut self) {
-        self.overlay = match self.overlay {
-            Some(_) => None,
-            None => Some(Overlay::new()),
-        };
+        self.overlay.toggle();
+    }
+
+    /// The revision of what every window shows: the design system and the shared state drawn
+    /// over it (the frame-time overlay). A window drawn at another revision draws again, even
+    /// when the change came from another window. Both counts only grow, so their sum changes
+    /// whenever either does.
+    pub(crate) fn revision(&self) -> u64 {
+        self.design.revision() + self.overlay.changes()
     }
 
     /// The time since the interface started: the time scale of `Input::set_time`.
