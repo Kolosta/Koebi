@@ -3,8 +3,8 @@
 
 use koebi_core::Rect;
 use koebi_ui::{
-    Align, Button, ButtonGroup, Dropdown, GroupCell, Icon, MenuChoice, MenuItem, MenuState,
-    PanelLevel, Placement, PointerButton, Ui, WidgetId,
+    Align, Button, ButtonGroup, Dropdown, GroupCell, MenuChoice, MenuItem, MenuState, PanelLevel,
+    Placement, PointerButton, Ui, WidgetId,
 };
 
 use super::{Metrics, cut_left, cut_top};
@@ -66,7 +66,7 @@ impl Menus {
 
         // A vertical dropdown: its menu opens beside it.
         let side = Dropdown::new(ID.with(1), &mut self.side_menu, &shadings)
-            .icon(Icon::Plus)
+            .icon(koebi_icons::interface::PLUS)
             .placement(Placement::RIGHT);
         let width = side.size(ui).x;
         if let Some(choice) = side.show(ui, cut_left(&mut line, width, gap), window) {
@@ -76,15 +76,15 @@ impl Menus {
         // A menu button between two step buttons, fused in a group.
         let modes = mark(MODES.map(MenuItem::action), self.mode);
         let mut cells = [
-            GroupCell::new(Button::new(ID.with(2)).icon(Icon::ChevronLeft)),
+            GroupCell::new(Button::new(ID.with(2)).icon(koebi_icons::interface::CHEVRON_LEFT)),
             GroupCell::new(
                 Button::new(ID.with(3))
                     .label(MODES[self.mode])
-                    .trailing_icon(Icon::ChevronDown)
+                    .trailing_icon(koebi_icons::interface::CHEVRON_DOWN)
                     .align(Align::Start)
                     .menu(&mut self.mode_menu, Placement::BELOW),
             ),
-            GroupCell::new(Button::new(ID.with(4)).icon(Icon::ChevronRight)),
+            GroupCell::new(Button::new(ID.with(4)).icon(koebi_icons::interface::CHEVRON_RIGHT)),
         ];
         let group = ButtonGroup::horizontal();
         let width = group.size(ui, &cells).x.max(7.0 * row);
@@ -147,7 +147,7 @@ impl Menus {
         });
         let items = [
             MenuItem::Title("Object"),
-            MenuItem::submenu("Add", &ADD).icon(Icon::Plus),
+            MenuItem::submenu("Add", &ADD).icon(koebi_icons::interface::PLUS),
             MenuItem::action("Duplicate").shortcut("Shift+D"),
             MenuItem::action("Delete").shortcut("X"),
             MenuItem::action("Join").enabled(false),

@@ -14,6 +14,7 @@
 //!   place along `panel.expand.*` or `panel.collapse.*` (duration and curve), clipped to the
 //!   share shown.
 
+use crate::icon::icon_bounds;
 use core::f32::consts::FRAC_PI_2;
 use core::time::Duration;
 
@@ -25,13 +26,13 @@ use koebi_tokens::component;
 
 use koebi_design::kind;
 
-use crate::icon::Icon;
 use crate::id::WidgetId;
 use crate::style::Prop;
 use crate::text::Align;
 use crate::ui::{Response, Ui};
 use crate::widgets::panel::{PanelLevel, content_level};
 use crate::widgets::parts::{Tween, shade};
+use koebi_icons::IconId;
 
 /// Metrics, colors and motion of collapsible panels, from the `component.panel.*` tokens.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -164,14 +165,14 @@ pub struct CollapsiblePanel<'a> {
     id: WidgetId,
     state: &'a mut CollapsiblePanelState,
     title: &'a str,
-    icon: Option<Icon>,
+    icon: Option<IconId>,
     /// The level asked for; `None` follows the nesting.
     level: Option<PanelLevel>,
     /// How deep the panel looks: the level asked for, or its nesting once shown.
     depth: u8,
     trailing: Option<Prop<kind::Dimension>>,
     /// An icon at the end of the title, in its color: what needs attention inside.
-    status: Option<(Icon, Color)>,
+    status: Option<(IconId, Color)>,
     /// A color over the header.
     tint: Option<Color>,
 }
@@ -195,7 +196,7 @@ impl<'a> CollapsiblePanel<'a> {
 
     /// Shows `icon` between the chevron and the title.
     #[must_use]
-    pub fn icon(mut self, icon: Icon) -> Self {
+    pub fn icon(mut self, icon: IconId) -> Self {
         self.icon = Some(icon);
         self
     }
@@ -217,7 +218,7 @@ impl<'a> CollapsiblePanel<'a> {
     /// Shows `icon` in `color` at the end of the title: what needs attention inside, such as a
     /// conflict, carried up to every panel holding it.
     #[must_use]
-    pub fn status(mut self, icon: Icon, color: Color) -> Self {
+    pub fn status(mut self, icon: IconId, color: Color) -> Self {
         self.status = Some((icon, color));
         self
     }
@@ -429,21 +430,19 @@ impl<'a> CollapsiblePanel<'a> {
         // The chevron points right while closed and down while open, turning as it folds,
         // centered on a pixel: the axis it is symmetric around covers whole pixels.
         let chevron = ui.pixel_centered(slot(x, style.chevron_size), style.chevron_size);
-        Icon::ChevronRight.draw_rotated(
-            ui.scene(),
+        ui.icon_rotated(
             chevron,
+            koebi_icons::interface::CHEVRON_RIGHT,
             style.chevron,
-            icons.chevron_stroke_width,
             self.state.openness() * FRAC_PI_2,
         );
         // The title on whole pixels, whatever the chevron's size.
         x += style.chevron_size.ceil() + style.header_gap;
         if let Some(icon) = self.icon {
-            icon.draw(
-                ui.scene(),
-                Icon::centered(slot(x, icons.size), icons.size),
+            ui.icon(
+                icon_bounds(slot(x, icons.size), icons.size),
+                icon,
                 style.title,
-                icons.stroke_width,
             );
             x += icons.size + style.header_gap;
         }
@@ -468,12 +467,7 @@ impl<'a> CollapsiblePanel<'a> {
                 Vec2::new((title_end - side).max(x), header.min.y),
                 Vec2::new(side, header.height()),
             );
-            icon.draw(
-                ui.scene(),
-                Icon::centered(slot, side),
-                color,
-                icons.stroke_width,
-            );
+            ui.icon(icon_bounds(slot, side), icon, color);
             title_end = slot.min.x - style.header_gap;
         }
         let title = Rect::from_min_max(
@@ -703,14 +697,14 @@ mod tests {
         let marked = harness
             .frame(|ui| {
                 CollapsiblePanel::new(ID, &mut panel, "Transform")
-                    .status(Icon::Warning, red)
+                    .status(koebi_icons::interface::WARNING, red)
                     .tint(red)
                     .show(ui, area(), |_, _| 10.0)
             })
             .1;
-        // The tint over the header; the icon's strokes.
+        // The tint over the header; the icon.
         assert_eq!(marked.rect_count(), plain.rect_count() + 1);
-        assert!(marked.line_count() > plain.line_count());
+        assert_eq!(marked.icon_count(), plain.icon_count() + 1);
     }
 
     #[test]
@@ -721,7 +715,7 @@ mod tests {
         let response = harness
             .frame(|ui| {
                 CollapsiblePanel::new(ID, &mut panel, "Transform")
-                    .icon(Icon::Plus)
+                    .icon(koebi_icons::interface::PLUS)
                     .trailing(40.0)
                     .show(ui, area(), |_, _| 60.0)
             })

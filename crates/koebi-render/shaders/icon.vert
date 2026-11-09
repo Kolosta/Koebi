@@ -2,8 +2,11 @@
 // Instanced vector icon: a square whose pixels the fragment shader covers from the icon's curves.
 //
 // One instance per icon, drawn as a 4-vertex triangle strip over the largest square centered in
-// its rectangle, its corner and side rounded to whole physical pixels so that an icon drawn on
-// a pixel grid keeps its edges on it, then turned about its center by the instance's rotation.
+// its rectangle, on whole physical pixels: its center goes to the nearest half pixel and its side
+// to the nearest whole number of pixels of the parity that keeps both edges on pixel edges (odd
+// on a pixel's center, even on an edge). An icon drawn on the pixel grid keeps its edges on it,
+// and one centered on a pixel's center or on a line keeps its axis there. Then turned about its
+// center by the rotation.
 // Keep the instance layout in sync with `IconInstance` (crates/koebi-render/src/icon.rs) and the
 // push constants with `ViewportConstants` (crates/koebi-render/src/renderer.rs).
 
@@ -25,7 +28,7 @@ layout(location = 8) in vec4 in_color6;
 layout(location = 9) in vec4 in_color7;
 
 layout(location = 0) out vec2 v_unit;        // position in the icon's unit square
-layout(location = 1) flat out float v_side;  // the square's side, physical px
+layout(location = 1) flat out vec2 v_side;   // the square's width and height, physical px
 layout(location = 2) flat out vec4 v_params;
 layout(location = 3) flat out vec4 v_color0;
 layout(location = 4) flat out vec4 v_color1;
@@ -43,8 +46,15 @@ void main() {
     vec2 corner = vec2(float(gl_VertexIndex & 1), float((gl_VertexIndex >> 1) & 1));
     float side = min(in_rect.z, in_rect.w);
     vec2 origin = in_rect.xy + 0.5 * (in_rect.zw - vec2(side));
-    vec2 low = floor(origin * pc.scale_factor + 0.5 + TIE);
-    float side_px = floor(side * pc.scale_factor + 0.5 + TIE);
+    vec2 center = (origin + 0.5 * side) * pc.scale_factor;
+    float wanted = side * pc.scale_factor;
+    // The center in half pixels: even on a pixel edge, odd on a pixel's center.
+    vec2 halves = floor(center * 2.0 + 0.5 + TIE);
+    vec2 side_px = vec2(floor(wanted + 0.5 + TIE));
+    // A side of the other parity moves by a pixel toward the size asked for.
+    vec2 mismatch = mod(side_px + halves, 2.0);
+    side_px += mismatch * vec2(wanted >= side_px.x ? 1.0 : -1.0, wanted >= side_px.y ? 1.0 : -1.0);
+    vec2 low = 0.5 * (halves - side_px);
 
     // Clockwise on screen (y down), about the square's center.
     vec2 local = (corner - 0.5) * side_px;
@@ -53,7 +63,7 @@ void main() {
     vec2 turned = vec2(local.x * c - local.y * s, local.x * s + local.y * c);
     vec2 ndc = (low + 0.5 * side_px + turned) / pc.viewport_px * 2.0 - 1.0;
     // An icon rounded to no pixel covers nothing: its quad collapses.
-    if (side_px <= 0.0) {
+    if (side_px.x <= 0.0 || side_px.y <= 0.0) {
         ndc = vec2(-2.0);
     }
     gl_Position = vec4(ndc, 0.0, 1.0);

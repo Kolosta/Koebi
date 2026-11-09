@@ -55,14 +55,12 @@ pub struct MenuStyle {
     pub label_disabled: Color,
     /// Shortcut color.
     pub shortcut_color: Color,
-    /// Icon and submenu arrow color.
+    /// IconId and submenu arrow color.
     pub icon_color: Color,
     /// Check and radio mark color.
     pub mark_color: Color,
     /// Side of icons and marks.
     pub icon_size: f32,
-    /// Stroke width of icons.
-    pub stroke_width: f32,
     /// Side of the dot of a radio mark.
     pub radio_size: f32,
     /// Separator lines.
@@ -110,8 +108,7 @@ impl MenuStyle {
             shortcut_color: tokens.get(c::MENU_ITEM_SHORTCUT_COLOR_DEFAULT),
             icon_color: tokens.get(c::MENU_ITEM_ICON_COLOR_DEFAULT),
             mark_color: tokens.get(c::MENU_ITEM_MARK_COLOR_DEFAULT),
-            icon_size: tokens.get(c::ICON_SIZE_DEFAULT),
-            stroke_width: tokens.get(c::ICON_STROKE_WIDTH_DEFAULT),
+            icon_size: crate::style::icon_size(tokens),
             radio_size: tokens.get(c::MENU_ITEM_RADIO_SIZE_DEFAULT),
             separator_color: tokens.get(c::SEPARATOR_COLOR_DEFAULT),
             separator_width: tokens.get(c::SEPARATOR_SIZE_DEFAULT),

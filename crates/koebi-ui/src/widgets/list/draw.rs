@@ -1,6 +1,7 @@
 //! Drawing a list: rows with their zebra and state backgrounds, lines, fold arrows, marks,
 //! labels and counts; the drop preview; the dragged rows' label near the pointer.
 
+use crate::icon::icon_bounds;
 use core::f32::consts::FRAC_PI_2;
 
 use koebi_core::input::CursorShape;
@@ -13,7 +14,6 @@ use super::{
     BACKGROUND, FOLDS, ItemMark, ListContextMenu, ListDelegate, ListItem, ListOptions,
     ListResponse, ListSelection, ListStyle, Metrics, ROWS, TreeGuide, primary_held,
 };
-use crate::icon::Icon;
 use crate::id::WidgetId;
 use crate::input::PointerButton;
 use crate::text::Align;
@@ -303,11 +303,10 @@ impl Ui<'_> {
             );
             // Centered on the pixels of the line along its children, below its tip.
             let bounds = self.centered_on_line(slot, style.fold_size, style.line_width);
-            Icon::ChevronRight.draw_rotated(
-                self.scene,
+            self.icon_rotated(
                 bounds,
+                koebi_icons::interface::CHEVRON_RIGHT,
                 style.fold_color,
-                styles.icon.chevron_stroke_width,
                 row.openness * FRAC_PI_2,
             );
             // On the press, as panels do: a fold follows the hand.
@@ -339,17 +338,12 @@ impl Ui<'_> {
         match item.mark {
             ItemMark::None => {}
             ItemMark::Icon(icon) => {
-                icon.draw(
-                    self.scene,
-                    Icon::centered(mark_slot, icon_size),
-                    ink,
-                    styles.icon.stroke_width,
-                );
+                self.icon(icon_bounds(mark_slot, icon_size), icon, ink);
                 x += icon_size + style.gap;
             }
             ItemMark::Color(color) => {
                 self.scene.push_rect(
-                    &RectPrimitive::new(Icon::centered(mark_slot, style.swatch_size), color)
+                    &RectPrimitive::new(icon_bounds(mark_slot, style.swatch_size), color)
                         .with_corner_radius(style.swatch_radius),
                 );
                 x += icon_size + style.gap;

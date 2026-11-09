@@ -67,10 +67,14 @@ for documentation and previews (Settings > Customisation, by component).
 | Scrollbar | `Scrollbar::new(id, &mut state, axis, &mut offset, visible, content)`, then `.show(ui, area)` | `component.scrollbar.*` |
 | List and tree | `Ui::list(id, rect, &mut state, &items, &options, &mut delegate)` returns a `ListResponse` | `component.list-row.*`, `component.outliner.*`, `component.table.row.*`, `component.drop-target.*` |
 
-Line icons (`Icon::Check`, `Icon::Plus`, chevrons...) use `component.icon.*`: polylines
-whose segments are drawn by pairs joined at their corner, so that a chevron's tip or a check
-mark's corner is covered once and keeps the weight of its arms. The chevrons that fold and open
-(fold arrows, panel headers, dropdowns) take the finer `icon.stroke-width.chevron`.
+Icons are the vector icons of `koebi-icons` ([icons](../development/icons.md)): components take
+any `IconId`, the interface's glyphs being `koebi_icons::interface::*` (check, plus, chevrons,
+search...) and `koebi_icons::input::*` (keys, mouse buttons). `Ui::icon(bounds, icon, color)`
+paints one in its component's icon color for its state, its zones by role
+(`IconStyle::ink`: secondary and tertiary zones fainter, accent zones in the accent);
+`Ui::icon_rotated` turns it (fold arrows). They take `component.icon.size.margin` less than the
+interface unit on each side. A checkbox's check mark and dash stay line marks (`draw_mark`),
+their weight `component.checkbox.mark.width`.
 `Ui::pixel_span` and `Ui::centered_on_line` place what must line up on the physical pixel grid:
 a line covering whole pixels, and a shape centered on the middle of that line. Labels use the
 fonts given to `UiState::set_fonts`, in the roles of `Styles::text` (label, body, detail): one

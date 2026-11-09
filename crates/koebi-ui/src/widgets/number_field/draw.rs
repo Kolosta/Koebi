@@ -1,12 +1,12 @@
 //! How a number field looks: its box in the colors of its state, the bar of a bounded field,
 //! its label, its value and unit, and on hover its step buttons.
 
+use crate::icon::icon_bounds;
 use koebi_core::{Color, Rect, Vec2};
 use koebi_render::{Corners, RectPrimitive};
 
 use super::format::ValueText;
 use super::{BACKGROUND, BORDER, FILL, NumberField, Numeric};
-use crate::icon::Icon;
 use crate::text::Align;
 use crate::ui::{Response, Ui};
 use crate::widgets::parts::ControlState;
@@ -149,11 +149,16 @@ impl<N: Numeric> NumberField<'_, N> {
             ]
         };
         let icons = if self.vertical {
-            [Icon::ChevronDown, Icon::ChevronUp]
+            [
+                koebi_icons::interface::CHEVRON_DOWN,
+                koebi_icons::interface::CHEVRON_UP,
+            ]
         } else {
-            [Icon::ChevronLeft, Icon::ChevronRight]
+            [
+                koebi_icons::interface::CHEVRON_LEFT,
+                koebi_icons::interface::CHEVRON_RIGHT,
+            ]
         };
-        let stroke = ui.styles().icon.stroke_width;
         for (((area, icon), response), end) in areas.into_iter().zip(icons).zip(responses).zip(ends)
         {
             let hovered = response.hovered || response.held;
@@ -168,12 +173,7 @@ impl<N: Numeric> NumberField<'_, N> {
             } else {
                 style.step
             };
-            icon.draw(
-                ui.scene(),
-                Icon::centered(area, style.step_icon_size),
-                color,
-                stroke,
-            );
+            ui.icon(icon_bounds(area, style.step_icon_size), icon, color);
         }
     }
 

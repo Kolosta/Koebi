@@ -16,7 +16,7 @@
 layout(set = 0, binding = 0) uniform sampler2D icons;
 
 layout(location = 0) in vec2 v_unit;
-layout(location = 1) flat in float v_side;
+layout(location = 1) flat in vec2 v_side;
 layout(location = 2) flat in vec4 v_params;
 layout(location = 3) flat in vec4 v_color0;
 layout(location = 4) flat in vec4 v_color1;
@@ -104,8 +104,9 @@ float shade(float winding, bool even_odd) {
     return even_odd ? 1.0 - abs(1.0 - mod(abs(winding), 2.0)) : min(abs(winding), 1.0);
 }
 
-// The coverage of a layer's curves for the pixel centered on p, `scale` pixels per unit.
-float coverage(int first, int count, bool even_odd, vec2 p, float scale) {
+// The coverage of a layer's curves for the pixel centered on p, `scale` pixels per unit along
+// each axis (the square's edges each lie on a pixel edge: its two sides may differ by a pixel).
+float coverage(int first, int count, bool even_odd, vec2 p, vec2 scale) {
     float across = 0.0;
     float across_weight = 0.0;
     float down = 0.0;
@@ -117,13 +118,13 @@ float coverage(int first, int count, bool even_odd, vec2 p, float scale) {
         vec2 c = fetch(first + 2 * k + 1).xy;
         if (spans(a.y, c.y, p.y)) {
             float t = monotonic_root(a.y, b.y, c.y, p.y);
-            float offset = (quad_at(a.x, b.x, c.x, t) - p.x) * scale;
+            float offset = (quad_at(a.x, b.x, c.x, t) - p.x) * scale.x;
             across += (c.y > a.y ? 1.0 : -1.0) * clamp(offset + 0.5, 0.0, 1.0);
             across_weight = max(across_weight, clamp(1.0 - abs(offset) * 2.0, 0.0, 1.0));
         }
         if (spans(a.x, c.x, p.x)) {
             float t = monotonic_root(a.x, b.x, c.x, p.x);
-            float offset = (quad_at(a.y, b.y, c.y, t) - p.y) * scale;
+            float offset = (quad_at(a.y, b.y, c.y, t) - p.y) * scale.y;
             // A curve going left crosses the downward ray as one going down the rightward one.
             down += (c.x < a.x ? 1.0 : -1.0) * clamp(offset + 0.5, 0.0, 1.0);
             down_weight = max(down_weight, clamp(1.0 - abs(offset) * 2.0, 0.0, 1.0));
@@ -184,7 +185,7 @@ void main() {
     int mask = int(v_params.y);
     vec2 p = v_unit;
     // Half a pixel in the icon's square: a layer farther than that from p leaves it uncovered.
-    float reach = 0.5 / v_side;
+    vec2 reach = 0.5 / v_side;
 
     vec4 color = vec4(0.0); // premultiplied, layers over each other
     for (int l = 0; l < layers; ++l) {

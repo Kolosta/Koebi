@@ -14,8 +14,8 @@ use koebi_design::{DesignSystem, Layers, Scope, Token};
 use koebi_render::RectPrimitive;
 use koebi_tokens::{component, semantic};
 use koebi_ui::{
-    BarMapping, Button, Dropdown, Icon, MenuChoice, MenuItem, MenuState, NumberField, PanelLevel,
-    Tone, Ui, WidgetId,
+    BarMapping, Button, Dropdown, MenuChoice, MenuItem, MenuState, NumberField, PanelLevel, Tone,
+    Ui, WidgetId,
 };
 
 use super::{Gallery, Metrics, PALETTE, cut_left, cut_top};
@@ -217,7 +217,13 @@ fn dimension_row<T: Tier>(
                 &RectPrimitive::new(bounds, style.background_checked.normal)
                     .with_corner_radius(style.corner_radius),
             );
-            Icon::Check.draw(ui.scene(), bounds, style.mark, style.mark_width);
+            koebi_ui::draw_mark(
+                ui.scene(),
+                bounds,
+                koebi_ui::Mark::Check,
+                style.mark,
+                style.mark_width,
+            );
         }
     }
     let Some(range) = design.range(token) else {
@@ -277,7 +283,7 @@ pub(super) fn tokens(
     }
     let clear = Rect::from_origin_size(Vec2::new(line.max.x - row, line.min.y), Vec2::splat(row));
     if Button::new(ID.with(2))
-        .icon(Icon::Close)
+        .icon(koebi_icons::interface::CLOSE)
         .show(ui, clear)
         .clicked
         && let Err(error) = design.reset_scope(gallery.scope)

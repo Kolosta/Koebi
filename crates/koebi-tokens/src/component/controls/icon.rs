@@ -7,14 +7,9 @@ use koebi_design::define::*;
 koebi_design::tokens! {
     group ICON: Component, start = ICON_BUTTON::END;
 
-    /// Icon: size of line icons.
-    ICON_SIZE_DEFAULT = "icon.size.default": Dimension = px(16.0), range(8.0, 64.0);
-    /// Icon: stroke width of line icons (check marks and the chevrons that fold excepted).
-    ICON_STROKE_WIDTH_DEFAULT = "icon.stroke-width.default": Dimension = px(1.5), range(0.5, 4.0);
-    /// Icon: stroke width of the chevrons that fold and open (fold arrows, panel headers,
-    /// dropdowns), a little finer than other icons, which are larger.
-    ICON_STROKE_WIDTH_CHEVRON = "icon.stroke-width.chevron": Dimension = px(1.25),
-        range(0.5, 4.0);
+    /// Icon: space between an icon and the edges of the interface unit it sits in, on each side:
+    /// icons are the unit (`semantic.size.control-height`) less twice this.
+    ICON_SIZE_MARGIN = "icon.size.margin": Dimension = px(1.0), range(0.0, 8.0);
     /// Icon: opacity of the secondary zones of a vector icon drawn in one color, which its
     /// primary zones take whole.
     ICON_ZONE_SECONDARY_OPACITY = "icon.zone.secondary.opacity": Number ->

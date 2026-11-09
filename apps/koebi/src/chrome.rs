@@ -174,15 +174,22 @@ impl AppChrome {
     ) -> Option<AppCommand> {
         // The document model comes later: its commands show what the menu will hold.
         let file = [
-            MenuItem::action("New").enabled(false),
-            MenuItem::action("Open").enabled(false),
-            MenuItem::action("Save").enabled(false),
+            MenuItem::action("New")
+                .icon(koebi_icons::actions::NEW)
+                .enabled(false),
+            MenuItem::action("Open")
+                .icon(koebi_icons::actions::OPEN)
+                .enabled(false),
+            MenuItem::action("Save")
+                .icon(koebi_icons::actions::SAVE)
+                .enabled(false),
+            // Without an icon, its label lines up with the others all the same.
             MenuItem::action("Save As").enabled(false),
             MenuItem::Separator,
             with_shortcut(MenuItem::action("Quit"), &labels.quit),
         ];
         let edit = [with_shortcut(
-            MenuItem::action("Settings"),
+            MenuItem::action("Settings").icon(koebi_icons::actions::SETTINGS),
             &labels.settings,
         )];
         let window = window_items(state, labels);

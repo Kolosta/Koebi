@@ -327,11 +327,11 @@ fn the_field_draws_its_selection_and_caret_while_editing() {
     let ((), placeholder) = harness.frame(|ui| {
         TextField::new(OTHER, &mut empty)
             .placeholder("Search")
-            .icon(Icon::Search)
+            .icon(koebi_icons::interface::SEARCH)
             .show(ui, other());
     });
     assert_eq!(placeholder.glyph_count(), 6);
-    assert!(placeholder.line_count() > 0);
+    assert_eq!(placeholder.icon_count(), 1);
 }
 
 #[test]

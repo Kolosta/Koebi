@@ -8,7 +8,7 @@ use koebi_design::{DesignSystem, Layers, Resolve, ThemeId};
 use koebi_render::{Corners, RectPrimitive};
 use koebi_tokens::{component, semantic};
 
-use crate::icon::Icon;
+use crate::icon::{Mark, draw_mark};
 use crate::id::WidgetId;
 use crate::text::{Align, FontStyle};
 use crate::ui::{Response, Ui};
@@ -330,7 +330,13 @@ impl Ui<'_> {
             );
             ui.scene
                 .push_rect(&rounded(check, p.check_background, radius * 0.6));
-            Icon::Check.draw(ui.scene, check, p.check_mark, (unit * 0.16).max(0.8));
+            draw_mark(
+                ui.scene,
+                check,
+                Mark::Check,
+                p.check_mark,
+                (unit * 0.16).max(0.8),
+            );
             let buttons = line(3.6);
             let button = |x: f32| {
                 Rect::from_min_max(

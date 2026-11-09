@@ -37,11 +37,11 @@ use koebi_design::value::Curve;
 use koebi_input::{ActionDef, ActionGroup, ActionKind, Context, Hint, ModifierRule, Shortcut};
 use koebi_tokens::{component, semantic};
 
-use crate::icon::Icon;
 use crate::id::WidgetId;
 use crate::ui::Ui;
 use crate::widgets::repeating;
 use crate::widgets::scroll::ScrollAxes;
+use koebi_icons::IconId;
 pub use state::ListState;
 
 /// A list: its keys apply where the pointer is over it.
@@ -162,7 +162,7 @@ pub enum ItemMark {
     #[default]
     None,
     /// A line icon.
-    Icon(Icon),
+    Icon(IconId),
     /// A color: a layer's, a color in use.
     Color(Color),
 }
@@ -189,7 +189,7 @@ pub struct ListItem<'a> {
     pub depth: u16,
     /// Text of the row.
     pub label: &'a str,
-    /// Icon or color before the label.
+    /// IconId or color before the label.
     pub mark: ItemMark,
     /// How the line along its children looks, in a tree that shows lines.
     pub guide: TreeGuide,
@@ -223,7 +223,7 @@ impl<'a> ListItem<'a> {
 
     /// The same row, showing `icon` before its label.
     #[must_use]
-    pub const fn with_icon(mut self, icon: Icon) -> Self {
+    pub const fn with_icon(mut self, icon: IconId) -> Self {
         self.mark = ItemMark::Icon(icon);
         self
     }

@@ -22,9 +22,9 @@ pub struct TextFieldStyle {
     pub text_disabled: Color,
     /// Color of the placeholder shown while the text is empty.
     pub placeholder: Color,
-    /// Icon color.
+    /// IconId color.
     pub icon: Color,
-    /// Icon color when disabled.
+    /// IconId color when disabled.
     pub icon_disabled: Color,
     /// Background of the selected text.
     pub selection: Color,

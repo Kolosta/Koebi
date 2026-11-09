@@ -32,8 +32,6 @@ pub struct ButtonStyle {
     pub dot_size: f32,
     /// Side of icons.
     pub icon_size: f32,
-    /// Stroke width of icons.
-    pub stroke_width: f32,
     /// Colors of each variant, in the order of [`Variant::ALL`].
     pub variants: [ToneColors; 7],
     /// Colors of each variant in each color family: `hues[hue][variant]`.
@@ -282,8 +280,7 @@ impl ButtonStyle {
             border_width: tokens.get(c::BUTTON_BORDER_WIDTH_DEFAULT),
             group_border_width: tokens.get(c::BUTTON_GROUP_BORDER_WIDTH_DEFAULT),
             dot_size: tokens.get(c::BUTTON_STATUS_DOT_SIZE_DEFAULT),
-            icon_size: tokens.get(c::ICON_SIZE_DEFAULT),
-            stroke_width: tokens.get(c::ICON_STROKE_WIDTH_DEFAULT),
+            icon_size: crate::style::icon_size(tokens),
             variants,
             hues,
             toggle,

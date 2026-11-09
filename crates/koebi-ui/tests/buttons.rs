@@ -14,7 +14,7 @@ use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    Align, Button, ButtonGroup, Checkbox, ControlState, GroupCell, Hue, Icon, Input, MenuState,
+    Align, Button, ButtonGroup, Checkbox, ControlState, GroupCell, Hue, Input, MenuState,
     Placement, Styles, TextField, Tone, Ui, UiState, Variant, WidgetId,
 };
 
@@ -152,7 +152,9 @@ fn button_sheet(design: &DesignSystem) -> Scene {
             let tone = Tone::new(variant);
             let cell = state_cell(variant, state);
             show_in_state(&mut scene, &styles, &fonts, cell, state, || {
-                Button::new(id("state")).icon(Icon::Plus).tone(tone)
+                Button::new(id("state"))
+                    .icon(koebi_icons::interface::PLUS)
+                    .tone(tone)
             });
         }
     }
@@ -191,9 +193,13 @@ fn button_sheet(design: &DesignSystem) -> Scene {
     let input = Input::new();
     let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
     let mut stack = [
-        GroupCell::new(Button::new(id("up")).icon(Icon::ChevronUp)),
-        GroupCell::new(Button::new(id("check")).icon(Icon::Check).selected(true)),
-        GroupCell::new(Button::new(id("down")).icon(Icon::ChevronDown)),
+        GroupCell::new(Button::new(id("up")).icon(koebi_icons::interface::CHEVRON_UP)),
+        GroupCell::new(
+            Button::new(id("check"))
+                .icon(koebi_icons::interface::CHECK)
+                .selected(true),
+        ),
+        GroupCell::new(Button::new(id("down")).icon(koebi_icons::interface::CHEVRON_DOWN)),
     ];
     ButtonGroup::vertical().show(&mut ui, rect(324.0, 8.0, 60.0, 60.0), &mut stack);
     let mut modifiers = [
@@ -205,12 +211,17 @@ fn button_sheet(design: &DesignSystem) -> Scene {
     ];
     ButtonGroup::horizontal().show(&mut ui, rect(324.0, 76.0, 60.0, 40.0), &mut modifiers);
     let mut grid = [
-        GroupCell::new(Button::new(id("plus")).icon(Icon::Plus)).at(0, 0),
-        GroupCell::new(Button::new(id("minus")).icon(Icon::Minus)).at(1, 0),
-        GroupCell::new(Button::new(id("close")).icon(Icon::Close).enabled(false)).at(0, 1),
+        GroupCell::new(Button::new(id("plus")).icon(koebi_icons::interface::PLUS)).at(0, 0),
+        GroupCell::new(Button::new(id("minus")).icon(koebi_icons::interface::MINUS)).at(1, 0),
+        GroupCell::new(
+            Button::new(id("close"))
+                .icon(koebi_icons::interface::CLOSE)
+                .enabled(false),
+        )
+        .at(0, 1),
         GroupCell::new(
             Button::new(id("accept"))
-                .icon(Icon::Check)
+                .icon(koebi_icons::interface::CHECK)
                 .tone(Tone::ACCENT),
         )
         .at(1, 1),
@@ -226,10 +237,10 @@ fn button_sheet(design: &DesignSystem) -> Scene {
     place(
         &mut ui,
         Button::new(id("full"))
-            .leading_icon(Icon::Plus)
+            .leading_icon(koebi_icons::interface::PLUS)
             .label("Add")
             .status_dot(Color::from_hex(0x27_AE_60))
-            .trailing_icon(Icon::ChevronDown),
+            .trailing_icon(koebi_icons::interface::CHEVRON_DOWN),
     );
     place(&mut ui, Button::new(id("off")).label("Off").enabled(false));
     place(
@@ -424,12 +435,12 @@ fn fitted_components(design: &DesignSystem) -> (Scene, Vec<Rect>) {
     };
     let buttons = [
         Button::new(id("label")).label("Save"),
-        Button::new(id("icon")).icon(Icon::Plus),
+        Button::new(id("icon")).icon(koebi_icons::interface::PLUS),
         Button::new(id("full"))
-            .leading_icon(Icon::Check)
+            .leading_icon(koebi_icons::interface::CHECK)
             .label("Render")
             .status_dot(Color::WHITE)
-            .trailing_icon(Icon::ChevronDown)
+            .trailing_icon(koebi_icons::interface::CHEVRON_DOWN)
             .tone(Tone::ACCENT),
         Button::new(id("selected")).label("On").selected(true),
     ];
@@ -465,7 +476,7 @@ fn fitted_components(design: &DesignSystem) -> (Scene, Vec<Rect>) {
         TextField::new(id("name"), &mut name),
         TextField::new(id("search"), &mut search)
             .placeholder("Search")
-            .icon(Icon::Search),
+            .icon(koebi_icons::interface::SEARCH),
     ];
     for field in fields {
         let size = field.size(&mut ui);

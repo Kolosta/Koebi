@@ -3,12 +3,12 @@
 //! at its point, each submenu beside its item, cascading the way the previous one went); and
 //! the drawing of each row.
 
+use crate::icon::icon_bounds;
 use koebi_core::{Color, Rect, Vec2};
 use koebi_render::{LinePrimitive, RectPrimitive};
 
 use super::state::{Anchor, MAX_DEPTH};
 use super::{MenuItem, MenuMark, MenuState, MenuStyle, around_pointer, at_point};
-use crate::icon::Icon;
 use crate::text::Align;
 use crate::ui::Ui;
 use crate::widgets::parts::{PanelAlign, Placed, Placement, Side};
@@ -378,7 +378,7 @@ fn draw_parts(
         _ => return,
     };
     let slot = |x: f32| {
-        Icon::centered(
+        icon_bounds(
             Rect::from_min_max(
                 Vec2::new(x, text.min.y),
                 Vec2::new(x + style.icon_size, text.max.y),
@@ -391,7 +391,7 @@ fn draw_parts(
         let bounds = slot(x);
         match mark {
             MenuMark::Check(true) => {
-                Icon::Check.draw(ui.scene(), bounds, colors.mark, style.stroke_width);
+                ui.icon(bounds, koebi_icons::interface::CHECK, colors.mark);
             }
             MenuMark::Radio(true) => {
                 let dot = Rect::from_center_size(bounds.center(), Vec2::splat(style.radio_size));
@@ -406,7 +406,7 @@ fn draw_parts(
     }
     if columns.icon {
         if let Some(icon) = icon {
-            icon.draw(ui.scene(), slot(x), colors.icon, style.stroke_width);
+            ui.icon(slot(x), icon, colors.icon);
         }
         x += style.icon_size + style.icon_gap;
     }
@@ -415,11 +415,11 @@ fn draw_parts(
         end -= style.icon_size;
         if matches!(item, MenuItem::Submenu(_)) {
             let arrow = if toward_left {
-                Icon::ChevronLeft
+                koebi_icons::interface::CHEVRON_LEFT
             } else {
-                Icon::ChevronRight
+                koebi_icons::interface::CHEVRON_RIGHT
             };
-            arrow.draw(ui.scene(), slot(end), colors.icon, style.stroke_width);
+            ui.icon(slot(end), arrow, colors.icon);
         }
         end -= style.icon_gap;
     }

@@ -4,7 +4,7 @@
 use koebi_input::Shortcut;
 
 use super::state::MAX_DEPTH;
-use crate::icon::Icon;
+use koebi_icons::IconId;
 
 /// The mark shown before the label of an action.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -24,7 +24,7 @@ pub struct MenuAction<'a> {
     /// What it does.
     pub label: &'a str,
     /// An icon before the label.
-    pub icon: Option<Icon>,
+    pub icon: Option<IconId>,
     /// Its shortcut, shown at the end.
     pub shortcut: Option<&'a str>,
     /// A shortcut shown as key caps at the end, instead of text: the key a choice stands for.
@@ -43,7 +43,7 @@ pub struct Submenu<'a> {
     /// What the submenu holds.
     pub label: &'a str,
     /// An icon before the label.
-    pub icon: Option<Icon>,
+    pub icon: Option<IconId>,
     /// The items of the submenu.
     pub items: &'a [MenuItem<'a>],
     /// A disabled submenu shows but does not open.
@@ -92,7 +92,7 @@ impl<'a> MenuItem<'a> {
 
     /// The same choice or submenu, showing `icon` before its label.
     #[must_use]
-    pub const fn icon(self, icon: Icon) -> Self {
+    pub const fn icon(self, icon: IconId) -> Self {
         match self {
             Self::Action(mut action) => {
                 action.icon = Some(icon);

@@ -1,26 +1,27 @@
 //! [`Content`]: what a control shows, in order: a leading icon, a label or an icon, a status
 //! dot and a trailing icon; measured to size the control, laid out and drawn inside it.
 
+use crate::icon::icon_bounds;
 use koebi_core::{Color, Rect, Vec2};
 use koebi_render::RectPrimitive;
 
-use crate::icon::Icon;
 use crate::text::{Align, FontStyle};
 use crate::ui::Ui;
+use koebi_icons::IconId;
 
 /// What a control shows, left to right: each part is optional. By default, nothing, centered.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Content<'a> {
     /// An icon before everything.
-    pub leading: Option<Icon>,
+    pub leading: Option<IconId>,
     /// The label.
     pub label: Option<&'a str>,
     /// An icon in place of, or after, the label.
-    pub icon: Option<Icon>,
+    pub icon: Option<IconId>,
     /// A status dot of this color, after the label.
     pub dot: Option<Color>,
     /// An icon after everything: a chevron, a shortcut hint.
-    pub trailing: Option<Icon>,
+    pub trailing: Option<IconId>,
     /// Where the content sits when the control is wider than it.
     pub align: Align,
     /// The trailing icon sits at the end of the control, whatever the alignment of the rest.
@@ -34,9 +35,6 @@ pub(crate) struct ContentMetrics<'f> {
     pub(crate) icon_size: f32,
     /// Side of the trailing icon (a dropdown's chevron is smaller than icons).
     pub(crate) trailing_size: f32,
-    pub(crate) stroke_width: f32,
-    /// Stroke width of the trailing icon (a dropdown's chevron is finer than icons).
-    pub(crate) trailing_stroke_width: f32,
     pub(crate) dot_size: f32,
     pub(crate) font: &'f FontStyle,
 }
@@ -51,8 +49,8 @@ pub(crate) struct ContentColors {
 /// One part of laid-out content.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Part<'a> {
-    /// An icon, its side and its stroke width.
-    Icon(Icon, f32, f32),
+    /// An icon and its side.
+    Icon(IconId, f32),
     Label(&'a str, f32),
     Dot(Color),
 }
@@ -86,7 +84,7 @@ impl<'a> Content<'a> {
     }
 
     /// An icon alone.
-    pub const fn icon(icon: Icon) -> Self {
+    pub const fn icon(icon: IconId) -> Self {
         Self {
             leading: None,
             label: None,
@@ -119,24 +117,20 @@ impl<'a> Content<'a> {
     /// The parts in order, the label with its natural width; calls `each` with each part.
     fn parts(&self, ui: &mut Ui<'_>, metrics: &ContentMetrics<'_>, mut each: impl FnMut(Part<'a>)) {
         if let Some(icon) = self.leading {
-            each(Part::Icon(icon, metrics.icon_size, metrics.stroke_width));
+            each(Part::Icon(icon, metrics.icon_size));
         }
         if let Some(label) = self.label {
             let width = ui.text_width(label, metrics.font);
             each(Part::Label(label, width));
         }
         if let Some(icon) = self.icon {
-            each(Part::Icon(icon, metrics.icon_size, metrics.stroke_width));
+            each(Part::Icon(icon, metrics.icon_size));
         }
         if let Some(color) = self.dot {
             each(Part::Dot(color));
         }
         if let Some(icon) = self.trailing {
-            each(Part::Icon(
-                icon,
-                metrics.trailing_size,
-                metrics.trailing_stroke_width,
-            ));
+            each(Part::Icon(icon, metrics.trailing_size));
         }
     }
 
@@ -226,13 +220,13 @@ impl<'a> Content<'a> {
                 x = x.max(rect.max.x - metrics.trailing_size);
             }
             match part {
-                Part::Icon(icon, size, stroke_width) => {
+                Part::Icon(icon, size) => {
                     let slot = Rect::from_min_max(
                         Vec2::new(x, rect.min.y),
                         Vec2::new(x + size, rect.max.y),
                     );
-                    let bounds = Icon::centered(slot, size);
-                    icon.draw(ui.scene(), bounds, colors.icon, stroke_width);
+                    let bounds = icon_bounds(slot, size);
+                    ui.icon(bounds, icon, colors.icon);
                     x += size;
                 }
                 Part::Label(label, natural_width) => {
@@ -263,7 +257,7 @@ impl<'a> Content<'a> {
 /// The width of one part.
 fn part_width(part: Part<'_>, metrics: &ContentMetrics<'_>) -> f32 {
     match part {
-        Part::Icon(_, size, _) => size,
+        Part::Icon(_, size) => size,
         Part::Label(_, width) => width,
         Part::Dot(_) => metrics.dot_size,
     }
@@ -292,18 +286,19 @@ mod tests {
             gap: 4.0,
             icon_size: 16.0,
             trailing_size: 16.0,
-            stroke_width: 1.5,
-            trailing_stroke_width: 1.25,
             dot_size: 6.0,
             font: &styles.text.label,
         };
         assert_eq!(Content::default().width(&mut ui, &metrics), 0.0);
-        assert_eq!(Content::icon(Icon::Plus).width(&mut ui, &metrics), 16.0);
+        assert_eq!(
+            Content::icon(koebi_icons::interface::PLUS).width(&mut ui, &metrics),
+            16.0
+        );
         let label = ui.text_width("Save", &styles.text.label);
         let full = Content {
-            leading: Some(Icon::Check),
+            leading: Some(koebi_icons::interface::CHECK),
             dot: Some(Color::WHITE),
-            trailing: Some(Icon::ChevronDown),
+            trailing: Some(koebi_icons::interface::CHEVRON_DOWN),
             ..Content::label("Save")
         };
         assert!(
@@ -313,14 +308,17 @@ mod tests {
         let line = ui.line_height(&styles.text.label);
         assert_eq!(full.height(&mut ui, &metrics), line.max(16.0));
         assert_eq!(Content::label("Save").height(&mut ui, &metrics), line);
-        assert_eq!(Content::icon(Icon::Plus).height(&mut ui, &metrics), 16.0);
+        assert_eq!(
+            Content::icon(koebi_icons::interface::PLUS).height(&mut ui, &metrics),
+            16.0
+        );
         // Drawn in a rectangle too narrow, the label is cut and the icons stay.
         let narrow = Rect::from_origin_size(Vec2::ZERO, Vec2::new(50.0, 20.0));
         full.draw(&mut ui, narrow, narrow, WHITE, &metrics);
         assert_eq!(ui.scene().clip(), None);
         drop(ui);
-        // The check mark and the chevron, each one stroke of two joined segments.
-        assert_eq!(scene.line_count(), 2);
+        // The check mark and the chevron.
+        assert_eq!(scene.icon_count(), 2);
         assert_eq!(scene.rect_count(), 1);
     }
 
@@ -334,15 +332,13 @@ mod tests {
             gap: 4.0,
             icon_size: 16.0,
             trailing_size: 16.0,
-            stroke_width: 1.5,
-            trailing_stroke_width: 1.25,
             dot_size: 6.0,
             font: &styles.text.label,
         };
         let icons = Content {
-            leading: Some(Icon::Check),
-            trailing: Some(Icon::ChevronDown),
-            ..Content::icon(Icon::Plus)
+            leading: Some(koebi_icons::interface::CHECK),
+            trailing: Some(koebi_icons::interface::CHEVRON_DOWN),
+            ..Content::icon(koebi_icons::interface::PLUS)
         };
         // Three icons and two gaps need 56 pixels: centered on a 10 pixel wide button, the
         // first and third icons fall outside it and are clipped away.
@@ -351,7 +347,7 @@ mod tests {
         // The clip ends with the content.
         assert_eq!(ui.scene().clip(), None);
         drop(ui);
-        // The plus sign's two segments only.
-        assert_eq!(scene.line_count(), 2);
+        // The plus sign only.
+        assert_eq!(scene.icon_count(), 1);
     }
 }

@@ -12,8 +12,8 @@ use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    Button, ButtonGroup, Dropdown, GroupCell, Icon, Input, MENU_OPEN_SUBMENU, MENU_PREVIOUS,
-    MenuItem, MenuState, Placement, Styles, Ui, UiState, WidgetId,
+    Button, ButtonGroup, Dropdown, GroupCell, Input, MENU_OPEN_SUBMENU, MENU_PREVIOUS, MenuItem,
+    MenuState, Placement, Styles, Ui, UiState, WidgetId,
 };
 
 /// Anti-aliased edges may differ by a few units between drivers.
@@ -49,7 +49,7 @@ fn menu_sheet(design: &DesignSystem) -> Scene {
     let items = [
         MenuItem::Title("Object"),
         MenuItem::action("Duplicate")
-            .icon(Icon::Plus)
+            .icon(koebi_icons::interface::PLUS)
             .shortcut("Shift+D"),
         MenuItem::action("Delete").shortcut("X").enabled(false),
         MenuItem::Separator,
@@ -57,7 +57,7 @@ fn menu_sheet(design: &DesignSystem) -> Scene {
         MenuItem::action("Global").radio(true),
         MenuItem::action("Local").radio(false),
         MenuItem::Separator,
-        MenuItem::submenu("Add", &ADD).icon(Icon::Plus),
+        MenuItem::submenu("Add", &ADD).icon(koebi_icons::interface::PLUS),
     ];
     let mut menu = MenuState::new();
     menu.open_at(Vec2::new(8.0, 8.0));
@@ -123,18 +123,22 @@ fn dropdown_sheet(design: &DesignSystem) -> Scene {
             .label("Solid")
             .show(&mut ui, above, window());
         Dropdown::new(WidgetId::new("beside"), third, &CHOICES)
-            .icon(Icon::Plus)
+            .icon(koebi_icons::interface::PLUS)
             .placement(Placement::RIGHT)
             .show(&mut ui, beside, window());
         let mut cells = [
-            GroupCell::new(Button::new(WidgetId::new("back")).icon(Icon::ChevronLeft)),
+            GroupCell::new(
+                Button::new(WidgetId::new("back")).icon(koebi_icons::interface::CHEVRON_LEFT),
+            ),
             GroupCell::new(
                 Button::new(WidgetId::new("mode"))
                     .label("Mode")
-                    .trailing_icon(Icon::ChevronDown)
+                    .trailing_icon(koebi_icons::interface::CHEVRON_DOWN)
                     .menu(fourth, Placement::BELOW),
             ),
-            GroupCell::new(Button::new(WidgetId::new("next")).icon(Icon::ChevronRight)),
+            GroupCell::new(
+                Button::new(WidgetId::new("next")).icon(koebi_icons::interface::CHEVRON_RIGHT),
+            ),
         ];
         ButtonGroup::horizontal().show(&mut ui, fused, &mut cells);
         ui.menu(WidgetId::new("fused"), fourth, &CHOICES, window());

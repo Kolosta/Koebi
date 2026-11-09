@@ -38,7 +38,7 @@
 //! use koebi_core::{Rect, Vec2};
 //! use koebi_design::DesignSystem;
 //! use koebi_render::Scene;
-//! use koebi_ui::{Button, Icon, Input, StyleCache, Ui, UiState, WidgetId};
+//! use koebi_ui::{Button, IconId, Input, StyleCache, Ui, UiState, WidgetId};
 //!
 //! let design = DesignSystem::new(&koebi_tokens::KOEBI)?;
 //! let mut styles = StyleCache::new(&design);
@@ -53,7 +53,7 @@
 //!     let styles = styles.update(&design, state.scale_factor());
 //!     let mut ui = Ui::new(&mut scene, styles, input, &mut state);
 //!     let response = Button::new(WidgetId::new("grid"))
-//!         .icon(Icon::Plus)
+//!         .icon(koebi_icons::interface::PLUS)
 //!         .toggle(grid)
 //!         .show(&mut ui, toggle);
 //!     drop(ui);
@@ -86,9 +86,10 @@ mod widgets;
 mod workspace;
 
 pub use bar::BarLayout;
-pub use icon::{Icon, IconInk, IconPaint, paint_icon};
+pub use icon::{IconInk, IconPaint, Mark, draw_mark, icon_bounds, paint_icon};
 pub use id::WidgetId;
 pub use input::{Input, PointerButton};
+pub use koebi_icons::IconId;
 pub use operation::{
     OPERATION, OPERATION_ACTIONS, OPERATION_CANCEL, OPERATION_CONFIRM, OperationEnd,
 };

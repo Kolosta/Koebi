@@ -11,7 +11,7 @@ use koebi_testkit::{Tolerance, assert_golden, gpu_or_skip};
 use koebi_text::Fonts;
 use koebi_tokens::KOEBI;
 use koebi_ui::{
-    Align, Icon, Input, Styles, TEXT_END, TEXT_SELECT_LEFT, TextField, Ui, UiState, WidgetId,
+    Align, Input, Styles, TEXT_END, TEXT_SELECT_LEFT, TextField, Ui, UiState, WidgetId,
 };
 
 /// Anti-aliased edges may differ by a few units between drivers.
@@ -43,7 +43,7 @@ fn frame(state: &mut UiState, styles: &Styles, input: &Input, texts: &mut Texts)
     TextField::new(id("name"), &mut texts.name).show(&mut ui, row(0));
     TextField::new(id("search"), &mut texts.search)
         .placeholder("Search")
-        .icon(Icon::Search)
+        .icon(koebi_icons::interface::SEARCH)
         .show(&mut ui, row(1));
     TextField::new(id("centered"), &mut texts.centered)
         .align(Align::Center)

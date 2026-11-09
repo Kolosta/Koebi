@@ -2,6 +2,7 @@
 //! ellipsis or its placeholder while idle, and while it edits, the text scrolled to keep the
 //! caret in view, the selection and the caret, blinking when its token says so.
 
+use crate::icon::icon_bounds;
 use core::time::Duration;
 
 use koebi_core::{Color, Rect, Vec2};
@@ -10,7 +11,6 @@ use koebi_render::{Corners, RectPrimitive};
 use super::geometry::{caret_x, scroll_to};
 use super::session::Session;
 use super::{BACKGROUND, BORDER, ICON, TEXT_PART, TextField, TextFieldResponse};
-use crate::icon::Icon;
 use crate::ui::Ui;
 use crate::widgets::parts::ControlState;
 use crate::widgets::snap;
@@ -90,13 +90,7 @@ impl TextField<'_> {
                 Vec2::new(area.min.x - style.gap - style.icon_size, rect.min.y),
                 Vec2::new(style.icon_size, rect.height()),
             );
-            let stroke = ui.styles().icon.stroke_width;
-            icon.draw(
-                ui.scene(),
-                Icon::centered(slot, style.icon_size),
-                color,
-                stroke,
-            );
+            ui.icon(icon_bounds(slot, style.icon_size), icon, color);
         }
         let font = self.font.unwrap_or(&ui.styles().text.body);
         let text_color = self.color(ui, TEXT_PART, state);
