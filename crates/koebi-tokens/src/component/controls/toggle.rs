@@ -3,7 +3,6 @@
 
 use super::*;
 use crate::semantic;
-use koebi_design::define::*;
 
 koebi_design::tokens! {
     group TOGGLE: Component, start = ICON::END;
@@ -31,9 +30,9 @@ koebi_design::tokens! {
         semantic::TEXT_COLOR_PRIMARY_DEFAULT;
     /// Toggle: corner radius.
     TOGGLE_CORNER_RADIUS_DEFAULT = "toggle.corner-radius.default": Dimension -> semantic::RADIUS_S;
-    /// Toggle: border width.
-    TOGGLE_BORDER_WIDTH_DEFAULT = "toggle.border.width.default": Dimension =
-        px(1.0), range(0.0, 4.0);
+    /// Toggle: border width, the theme's thin border like the button groups beside toggles.
+    TOGGLE_BORDER_WIDTH_DEFAULT = "toggle.border.width.default": Dimension ->
+        semantic::BORDER_WIDTH_THIN;
 
     /// Toggle: background color, pressed.
     TOGGLE_BACKGROUND_COLOR_PRESSED = "toggle.background.color.pressed": Color ->

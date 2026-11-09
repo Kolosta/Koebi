@@ -481,10 +481,11 @@ Blender's rules:
   near the bottom. Placed once when it appears, it never moves while it shows.
 - **Until**: the pointer leaves the widget, a press or the wheel; then hidden until another
   widget.
-- **Look**: `semantic.background.inverse` and `semantic.text.color.inverse` (light where the
-  theme is dark, dark where it is light), so that it stands out on every surface and on menus,
-  outlined in `semantic.border.color.shadow`; its text wraps past `tooltip.max-width` (360 px),
-  never wider than the window. Tooltips never take the pointer.
+- **Look**: in the theme's own colors, deeper than what it covers: the window's background
+  (`semantic.background.base`) under the primary text color, outlined in
+  `semantic.border.color.subtle` so that its edge shows over the window's background too. In a
+  dark theme it stays dark, darker than the panels, controls and menus. Its text wraps past
+  `tooltip.max-width` (360 px), never wider than the window. Tooltips never take the pointer.
 
 [`crates/koebi-ui/tests/golden/`](../../crates/koebi-ui/tests/golden/) shows every component
 in the dark and light themes, and the application shows them all in its

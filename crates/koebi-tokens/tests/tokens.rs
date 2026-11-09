@@ -22,7 +22,7 @@ fn hex(rgb: u32) -> Color {
 #[test]
 fn schema_passes_the_run_time_validation() {
     assert_eq!(KOEBI.validate(), Ok(()));
-    assert_eq!(KOEBI.len(), 1901);
+    assert_eq!(KOEBI.len(), 1905);
     assert_eq!(KOEBI.composites().count(), 21);
     let keys: Vec<_> = design().themes().map(|(_, t)| t.key().to_owned()).collect();
     assert_eq!(keys, ["dark", "light", "muted-green", "high-contrast"]);
@@ -474,4 +474,64 @@ fn an_override_along_the_way_stops_the_values_there() {
     assert_eq!(steps[0].origin, Origin::ThemeOverride);
     assert_eq!(steps[0].role, ChainRole::Source);
     assert_eq!(steps[1].role, ChainRole::Unused);
+}
+
+#[test]
+fn toggles_take_the_border_width_of_the_button_groups_beside_them() {
+    // Regression: the shortcut editor's Any, a toggle, kept a 1 px border of its own where the
+    // button groups beside it follow `semantic.border.width.thin`, which a theme may set to 0.
+    let mut design = design();
+    let ids: Vec<_> = design.themes().map(|(id, _)| id).collect();
+    for id in ids {
+        design.set_active_theme(id).unwrap();
+        for thin in [None, Some(0.0), Some(2.0)] {
+            if let Some(width) = thin {
+                design
+                    .set_value(Scope::ActiveTheme, semantic::BORDER_WIDTH_THIN, width)
+                    .unwrap();
+            }
+            assert_eq!(
+                design.get(component::TOGGLE_BORDER_WIDTH_DEFAULT),
+                design.get(component::BUTTON_GROUP_BORDER_WIDTH_DEFAULT),
+                "{id}, thin border {thin:?}"
+            );
+        }
+        design
+            .reset(Scope::ActiveTheme, semantic::BORDER_WIDTH_THIN)
+            .unwrap();
+    }
+}
+
+#[test]
+fn tooltips_stand_out_in_the_colors_of_their_theme() {
+    // Tooltips were inverted (white in the dark themes); they keep the theme's colors and
+    // stand out by being deeper than what they cover, with a border on the window background.
+    let mut design = design();
+    let ids: Vec<_> = design.themes().map(|(id, _)| id).collect();
+    for id in ids {
+        design.set_active_theme(id).unwrap();
+        let background = design.get(component::TOOLTIP_BACKGROUND_COLOR_DEFAULT);
+        let label = design.get(component::TOOLTIP_LABEL_COLOR_DEFAULT);
+        let ratio = label.contrast_ratio(background);
+        assert!(ratio >= 4.5, "{id}: tooltip text {ratio:.2}");
+        // Dark themes keep a dark tooltip.
+        let base = design.get(semantic::BACKGROUND_BASE_DEFAULT);
+        assert_eq!(
+            background.relative_luminance() < 0.2,
+            base.relative_luminance() < 0.2,
+            "{id}: the tooltip follows the theme's lightness"
+        );
+        for covered in [
+            semantic::BACKGROUND_RAISED_DEFAULT,
+            semantic::BACKGROUND_FLOATING_DEFAULT,
+            semantic::BACKGROUND_APP_FRAME,
+        ] {
+            assert_ne!(design.get(covered), background, "{id}: {covered:?}");
+        }
+        assert_ne!(
+            design.get(component::TOOLTIP_BORDER_COLOR_DEFAULT),
+            base,
+            "{id}: the border shows on the window background"
+        );
+    }
 }

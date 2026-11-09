@@ -8,16 +8,16 @@ use koebi_design::define::*;
 koebi_design::tokens! {
     group TOOLTIP: Component, start = MENU::END;
 
-    /// Tooltip: background color, inverted so that it stands out on every surface and on
-    /// menus.
+    /// Tooltip: background color, the window's own background: in the theme's colors, deeper
+    /// than the panels, controls and menus it covers, so that it stands out from them.
     TOOLTIP_BACKGROUND_COLOR_DEFAULT = "tooltip.background.color.default": Color ->
-        semantic::BACKGROUND_INVERSE_DEFAULT;
+        semantic::BACKGROUND_BASE_DEFAULT;
     /// Tooltip: label color.
     TOOLTIP_LABEL_COLOR_DEFAULT = "tooltip.label.color.default": Color ->
-        semantic::TEXT_COLOR_INVERSE_DEFAULT;
-    /// Tooltip: border color, the shadow's, marking its edge on light surfaces too.
+        semantic::TEXT_COLOR_PRIMARY_DEFAULT;
+    /// Tooltip: border color, marking its edge where it lies over the window's background.
     TOOLTIP_BORDER_COLOR_DEFAULT = "tooltip.border.color.default": Color ->
-        semantic::BORDER_COLOR_SHADOW_DEFAULT;
+        semantic::BORDER_COLOR_SUBTLE_DEFAULT;
     /// Tooltip: border width.
     TOOLTIP_BORDER_WIDTH_DEFAULT = "tooltip.border.width.default": Dimension ->
         semantic::BORDER_WIDTH_THIN;
