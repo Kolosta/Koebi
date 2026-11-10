@@ -39,6 +39,9 @@ koebi_design::tokens! {
     ACCENT_COLOR_1500 = "accent.color.1500": Color -> primitive::COLOR_BLUE_1500;
     /// Accent role, palette step 1600 (primary actions and selection).
     ACCENT_COLOR_1600 = "accent.color.1600": Color -> primitive::COLOR_BLUE_1600;
+    /// The color the accent palette is made from: its fill (step 900) until the color
+    /// settings make the palette from another (`crate::palettes::Editable`).
+    ACCENT_COLOR_SOURCE = "accent.color.source": Color -> ACCENT_COLOR_900;
     /// Vivid accent color, for indicators and data visualization (the accent counterpart of
     /// `info.color.visual.default`).
     ACCENT_COLOR_VISUAL_BASE = "accent.color.visual-base": Color -> ACCENT_COLOR_1300;
@@ -172,6 +175,10 @@ koebi_design::tokens! {
     NEUTRAL_COLOR_900 = "neutral.color.900": Color -> primitive::COLOR_GRAY_900;
     /// Neutral, step 1000: `color.gray.1000`.
     NEUTRAL_COLOR_1000 = "neutral.color.1000": Color -> primitive::COLOR_GRAY_1000;
+    /// The tint the neutral palette is made from: the panels' gray (step 150) until the color
+    /// settings tint it (`crate::palettes::Editable`); its hue and chroma count, not its
+    /// lightness.
+    NEUTRAL_COLOR_SOURCE = "neutral.color.source": Color -> primitive::COLOR_GRAY_150;
 
     /// Vivid neutral color, for indicators and data visualization.
     NEUTRAL_COLOR_VISUAL_DEFAULT = "neutral.color.visual.default": Color ->
@@ -209,6 +216,9 @@ koebi_design::tokens! {
     NEGATIVE_COLOR_1500 = "negative.color.1500": Color -> primitive::COLOR_RED_1500;
     /// Negative role, palette step 1600 (errors and destructive actions).
     NEGATIVE_COLOR_1600 = "negative.color.1600": Color -> primitive::COLOR_RED_1600;
+    /// The color the negative palette is made from: its fill (step 900) until the color
+    /// settings make the palette from another (`crate::palettes::Editable`).
+    NEGATIVE_COLOR_SOURCE = "negative.color.source": Color -> NEGATIVE_COLOR_900;
 
     /// Vivid negative color, for indicators and data visualization.
     NEGATIVE_COLOR_VISUAL_DEFAULT = "negative.color.visual.default": Color -> NEGATIVE_COLOR_1300;
@@ -245,6 +255,9 @@ koebi_design::tokens! {
     POSITIVE_COLOR_1500 = "positive.color.1500": Color -> primitive::COLOR_GREEN_1500;
     /// Positive role, palette step 1600 (success and validation).
     POSITIVE_COLOR_1600 = "positive.color.1600": Color -> primitive::COLOR_GREEN_1600;
+    /// The color the positive palette is made from: its fill (step 900) until the color
+    /// settings make the palette from another (`crate::palettes::Editable`).
+    POSITIVE_COLOR_SOURCE = "positive.color.source": Color -> POSITIVE_COLOR_900;
 
     /// Vivid positive color, for indicators and data visualization.
     POSITIVE_COLOR_VISUAL_DEFAULT = "positive.color.visual.default": Color -> POSITIVE_COLOR_1300;
@@ -281,6 +294,9 @@ koebi_design::tokens! {
     INFO_COLOR_1500 = "info.color.1500": Color -> primitive::COLOR_BLUE_1500;
     /// Informative role, palette step 1600 (information).
     INFO_COLOR_1600 = "info.color.1600": Color -> primitive::COLOR_BLUE_1600;
+    /// The color the info palette is made from: its fill (step 900) until the color
+    /// settings make the palette from another (`crate::palettes::Editable`).
+    INFO_COLOR_SOURCE = "info.color.source": Color -> INFO_COLOR_900;
 
     /// Vivid informative color, for indicators and data visualization.
     INFO_COLOR_VISUAL_DEFAULT = "info.color.visual.default": Color -> INFO_COLOR_1300;
@@ -317,6 +333,9 @@ koebi_design::tokens! {
     NOTICE_COLOR_1500 = "notice.color.1500": Color -> primitive::COLOR_ORANGE_1500;
     /// Notice role, palette step 1600 (warnings).
     NOTICE_COLOR_1600 = "notice.color.1600": Color -> primitive::COLOR_ORANGE_1600;
+    /// The color the notice palette is made from: its fill (step 900) until the color
+    /// settings make the palette from another (`crate::palettes::Editable`).
+    NOTICE_COLOR_SOURCE = "notice.color.source": Color -> NOTICE_COLOR_900;
 
     /// Vivid notice color, for indicators and data visualization.
     NOTICE_COLOR_VISUAL_DEFAULT = "notice.color.visual.default": Color -> NOTICE_COLOR_1300;

@@ -41,6 +41,7 @@ koebi_design::theme! {
             primitive::COLOR_RED_1400: Color = hex("#F8CFC9");
             primitive::COLOR_RED_1500: Color = hex("#FBE7E3");
             primitive::COLOR_RED_1600: Color = hex("#FEFAF9");
+            primitive::COLOR_RED_SOURCE: Color = hex("#CB4B3A");
             primitive::COLOR_ORANGE_100: Color = hex("#2F1506");
             primitive::COLOR_ORANGE_200: Color = hex("#331607");
             primitive::COLOR_ORANGE_300: Color = hex("#3F1B09");
@@ -57,6 +58,7 @@ koebi_design::theme! {
             primitive::COLOR_ORANGE_1400: Color = hex("#F8D399");
             primitive::COLOR_ORANGE_1500: Color = hex("#FBE9CE");
             primitive::COLOR_ORANGE_1600: Color = hex("#FFFAF7");
+            primitive::COLOR_ORANGE_SOURCE: Color = hex("#B85C2F");
             primitive::COLOR_YELLOW_100: Color = hex("#251A06");
             primitive::COLOR_YELLOW_200: Color = hex("#291C07");
             primitive::COLOR_YELLOW_300: Color = hex("#322209");
@@ -73,6 +75,7 @@ koebi_design::theme! {
             primitive::COLOR_YELLOW_1400: Color = hex("#F4D760");
             primitive::COLOR_YELLOW_1500: Color = hex("#FBED9D");
             primitive::COLOR_YELLOW_1600: Color = hex("#FEFCEC");
+            primitive::COLOR_YELLOW_SOURCE: Color = hex("#9A6D2E");
             primitive::COLOR_CHARTREUSE_100: Color = hex("#191E06");
             primitive::COLOR_CHARTREUSE_200: Color = hex("#1C2106");
             primitive::COLOR_CHARTREUSE_300: Color = hex("#222809");
@@ -89,6 +92,7 @@ koebi_design::theme! {
             primitive::COLOR_CHARTREUSE_1400: Color = hex("#C9E367");
             primitive::COLOR_CHARTREUSE_1500: Color = hex("#E6F2AD");
             primitive::COLOR_CHARTREUSE_1600: Color = hex("#FAFCF0");
+            primitive::COLOR_CHARTREUSE_SOURCE: Color = hex("#6C7D2E");
             primitive::COLOR_CELERY_100: Color = hex("#191D0F");
             primitive::COLOR_CELERY_200: Color = hex("#1B2011");
             primitive::COLOR_CELERY_300: Color = hex("#222715");
@@ -105,6 +109,7 @@ koebi_design::theme! {
             primitive::COLOR_CELERY_1400: Color = hex("#D3DBC5");
             primitive::COLOR_CELERY_1500: Color = hex("#E9EDE2");
             primitive::COLOR_CELERY_1600: Color = hex("#FBFBF9");
+            primitive::COLOR_CELERY_SOURCE: Color = hex("#6D7B4E");
             primitive::COLOR_GREEN_100: Color = hex("#072019");
             primitive::COLOR_GREEN_200: Color = hex("#08231C");
             primitive::COLOR_GREEN_300: Color = hex("#0B2A21");
@@ -121,6 +126,7 @@ koebi_design::theme! {
             primitive::COLOR_GREEN_1400: Color = hex("#A6E6BF");
             primitive::COLOR_GREEN_1500: Color = hex("#D5F3DE");
             primitive::COLOR_GREEN_1600: Color = hex("#F4FDFB");
+            primitive::COLOR_GREEN_SOURCE: Color = hex("#338558");
             primitive::COLOR_SEAFOAM_100: Color = hex("#07201C");
             primitive::COLOR_SEAFOAM_200: Color = hex("#08221F");
             primitive::COLOR_SEAFOAM_300: Color = hex("#0B2A25");
@@ -137,6 +143,7 @@ koebi_design::theme! {
             primitive::COLOR_SEAFOAM_1400: Color = hex("#A3E5D1");
             primitive::COLOR_SEAFOAM_1500: Color = hex("#D3F3E8");
             primitive::COLOR_SEAFOAM_1600: Color = hex("#F6FDFC");
+            primitive::COLOR_SEAFOAM_SOURCE: Color = hex("#348371");
             primitive::COLOR_CYAN_100: Color = hex("#071E28");
             primitive::COLOR_CYAN_200: Color = hex("#08212B");
             primitive::COLOR_CYAN_300: Color = hex("#0B2834");
@@ -153,6 +160,7 @@ koebi_design::theme! {
             primitive::COLOR_CYAN_1400: Color = hex("#B1DFF5");
             primitive::COLOR_CYAN_1500: Color = hex("#D7F0F9");
             primitive::COLOR_CYAN_1600: Color = hex("#F7FCFE");
+            primitive::COLOR_CYAN_SOURCE: Color = hex("#347CAD");
             primitive::COLOR_BLUE_100: Color = hex("#10193A");
             primitive::COLOR_BLUE_200: Color = hex("#111C41");
             primitive::COLOR_BLUE_300: Color = hex("#122153");
@@ -169,6 +177,7 @@ koebi_design::theme! {
             primitive::COLOR_BLUE_1400: Color = hex("#C4DAF6");
             primitive::COLOR_BLUE_1500: Color = hex("#E5ECFB");
             primitive::COLOR_BLUE_1600: Color = hex("#FAFBFE");
+            primitive::COLOR_BLUE_SOURCE: Color = hex("#496EE2");
             primitive::COLOR_INDIGO_100: Color = hex("#1C0E50");
             primitive::COLOR_INDIGO_200: Color = hex("#1E1056");
             primitive::COLOR_INDIGO_300: Color = hex("#241466");
@@ -185,6 +194,7 @@ koebi_design::theme! {
             primitive::COLOR_INDIGO_1400: Color = hex("#D1D7F8");
             primitive::COLOR_INDIGO_1500: Color = hex("#EAEAFB");
             primitive::COLOR_INDIGO_1600: Color = hex("#FBFBFE");
+            primitive::COLOR_INDIGO_SOURCE: Color = hex("#7164E2");
             primitive::COLOR_PURPLE_100: Color = hex("#270C46");
             primitive::COLOR_PURPLE_200: Color = hex("#2A0E4C");
             primitive::COLOR_PURPLE_300: Color = hex("#33125A");
@@ -201,6 +211,7 @@ koebi_design::theme! {
             primitive::COLOR_PURPLE_1400: Color = hex("#E3D2F2");
             primitive::COLOR_PURPLE_1500: Color = hex("#EFE9F9");
             primitive::COLOR_PURPLE_1600: Color = hex("#FCFBFE");
+            primitive::COLOR_PURPLE_SOURCE: Color = hex("#9559CF");
             primitive::COLOR_FUCHSIA_100: Color = hex("#300A39");
             primitive::COLOR_FUCHSIA_200: Color = hex("#340C3D");
             primitive::COLOR_FUCHSIA_300: Color = hex("#3E1049");
@@ -217,6 +228,7 @@ koebi_design::theme! {
             primitive::COLOR_FUCHSIA_1400: Color = hex("#F3CBF8");
             primitive::COLOR_FUCHSIA_1500: Color = hex("#F9E5FB");
             primitive::COLOR_FUCHSIA_1600: Color = hex("#FEFAFE");
+            primitive::COLOR_FUCHSIA_SOURCE: Color = hex("#AD4FBB");
             primitive::COLOR_MAGENTA_100: Color = hex("#390917");
             primitive::COLOR_MAGENTA_200: Color = hex("#3E0B19");
             primitive::COLOR_MAGENTA_300: Color = hex("#490F1E");
@@ -233,6 +245,7 @@ koebi_design::theme! {
             primitive::COLOR_MAGENTA_1400: Color = hex("#F8CDDB");
             primitive::COLOR_MAGENTA_1500: Color = hex("#FBE6EE");
             primitive::COLOR_MAGENTA_1600: Color = hex("#FEFAFB");
+            primitive::COLOR_MAGENTA_SOURCE: Color = hex("#CC4468");
             primitive::COLOR_PINK_100: Color = hex("#370924");
             primitive::COLOR_PINK_200: Color = hex("#3B0B27");
             primitive::COLOR_PINK_300: Color = hex("#470E2F");
@@ -249,6 +262,7 @@ koebi_design::theme! {
             primitive::COLOR_PINK_1400: Color = hex("#F8CBE9");
             primitive::COLOR_PINK_1500: Color = hex("#FCE6F4");
             primitive::COLOR_PINK_1600: Color = hex("#FFFAFC");
+            primitive::COLOR_PINK_SOURCE: Color = hex("#C34790");
             primitive::COLOR_TURQUOISE_100: Color = hex("#071F21");
             primitive::COLOR_TURQUOISE_200: Color = hex("#082224");
             primitive::COLOR_TURQUOISE_300: Color = hex("#0B292D");
@@ -265,6 +279,7 @@ koebi_design::theme! {
             primitive::COLOR_TURQUOISE_1400: Color = hex("#A4E3E5");
             primitive::COLOR_TURQUOISE_1500: Color = hex("#D2F2F2");
             primitive::COLOR_TURQUOISE_1600: Color = hex("#F6FCFD");
+            primitive::COLOR_TURQUOISE_SOURCE: Color = hex("#348089");
             primitive::COLOR_CINNAMON_100: Color = hex("#2F1509");
             primitive::COLOR_CINNAMON_200: Color = hex("#33160B");
             primitive::COLOR_CINNAMON_300: Color = hex("#3E1B0E");
@@ -281,6 +296,7 @@ koebi_design::theme! {
             primitive::COLOR_CINNAMON_1400: Color = hex("#EDD3C5");
             primitive::COLOR_CINNAMON_1500: Color = hex("#F6E9E3");
             primitive::COLOR_CINNAMON_1600: Color = hex("#FEFBF9");
+            primitive::COLOR_CINNAMON_SOURCE: Color = hex("#A4674A");
             primitive::COLOR_BROWN_100: Color = hex("#231A0D");
             primitive::COLOR_BROWN_200: Color = hex("#271D0F");
             primitive::COLOR_BROWN_300: Color = hex("#2F2312");
@@ -297,6 +313,7 @@ koebi_design::theme! {
             primitive::COLOR_BROWN_1400: Color = hex("#E8D6BC");
             primitive::COLOR_BROWN_1500: Color = hex("#F4EADE");
             primitive::COLOR_BROWN_1600: Color = hex("#FDFBF9");
+            primitive::COLOR_BROWN_SOURCE: Color = hex("#8A7250");
             primitive::COLOR_SILVER_100: Color = hex("#1C1C1C");
             primitive::COLOR_SILVER_200: Color = hex("#1E1E1E");
             primitive::COLOR_SILVER_300: Color = hex("#252525");
@@ -313,6 +330,7 @@ koebi_design::theme! {
             primitive::COLOR_SILVER_1400: Color = hex("#D8D8D8");
             primitive::COLOR_SILVER_1500: Color = hex("#ECECEC");
             primitive::COLOR_SILVER_1600: Color = hex("#FBFBFB");
+            primitive::COLOR_SILVER_SOURCE: Color = hex("#767676");
             // End of the generated palettes.
         }
         aliases {

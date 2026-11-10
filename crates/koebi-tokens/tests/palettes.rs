@@ -64,6 +64,15 @@ fn palette_table(base: &ThemePalettes) -> String {
             )
             .expect("writing to a String never fails");
         }
+        writeln!(
+            out,
+            "    /// {}: the color its palette is made from, its step 900 until the color settings\n    /// make it from another (`crate::palettes::Editable`).\n    COLOR_{}_SOURCE = \"color.{}.source\": Color = hex(\"{}\");",
+            title(hue.name),
+            hue.name.to_uppercase(),
+            hue.name,
+            hex(steps[8]),
+        )
+        .expect("writing to a String never fails");
     }
     writeln!(out, "    {END}\n}}").expect("writing to a String never fails");
     out
@@ -101,10 +110,8 @@ fn theme_values(theme: &ThemePalettes) -> String {
         .expect("writing to a String never fails");
     }
     for hue in HUES {
-        for (step, color) in HUE_STEPS
-            .iter()
-            .zip(theme.hue(hue.name).expect("a known hue"))
-        {
+        let steps = theme.hue(hue.name).expect("a known hue");
+        for (step, color) in HUE_STEPS.iter().zip(steps) {
             writeln!(
                 out,
                 "            primitive::COLOR_{}_{step}: Color = hex(\"{}\");",
@@ -113,6 +120,13 @@ fn theme_values(theme: &ThemePalettes) -> String {
             )
             .expect("writing to a String never fails");
         }
+        writeln!(
+            out,
+            "            primitive::COLOR_{}_SOURCE: Color = hex(\"{}\");",
+            hue.name.to_uppercase(),
+            hex(steps[8])
+        )
+        .expect("writing to a String never fails");
     }
     out
 }
@@ -215,6 +229,78 @@ fn every_palette_step_keeps_its_contrast_in_every_theme() {
                     index <= LAST_HUE_FILL,
                 );
             }
+        }
+    }
+}
+
+#[test]
+fn a_role_made_from_a_color_changes_its_family_and_resets() {
+    use koebi_tokens::palettes::{Family, editable, is_seeded, reset, seed, source};
+    use koebi_tokens::{component, semantic};
+    let mut design = DesignSystem::new(&KOEBI).expect("Koebi's schema is valid");
+    let theme = design.active_theme();
+    let accent = editable().next().expect("the accent first");
+    assert_eq!((accent.key, accent.family), ("accent", Family::Role));
+    let before = design.get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT);
+    assert!(!is_seeded(&design, theme, &accent));
+    let orange = Color::from_hex(0xFF_88_00);
+    seed(&mut design, theme, &accent, orange).unwrap();
+    assert!(is_seeded(&design, theme, &accent));
+    assert_eq!(source(&design, theme, &accent), Some(orange));
+    // The button follows its role's step 900, an orange holding white text.
+    let fill = design.get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT);
+    assert_ne!(fill, before);
+    assert_eq!(fill, design.get(semantic::ACCENT_COLOR_900));
+    assert!(Color::WHITE.contrast_ratio(fill) >= 4.5);
+    let hue = fill.to_oklch().h;
+    assert!((40.0..80.0).contains(&hue), "an orange: {hue}");
+    reset(&mut design, theme, &accent).unwrap();
+    assert!(!is_seeded(&design, theme, &accent));
+    assert_eq!(
+        design.get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT),
+        before
+    );
+}
+
+#[test]
+fn a_tint_of_the_neutral_palette_keeps_its_lightness_and_contrasts() {
+    use koebi_tokens::palettes::{Family, editable, seed};
+    use koebi_tokens::semantic;
+    let mut design = DesignSystem::new(&KOEBI).expect("Koebi's schema is valid");
+    let theme = design.active_theme();
+    let neutral = editable()
+        .find(|palette| palette.family == Family::Neutral)
+        .expect("the neutral palette");
+    let base = design.get(semantic::BACKGROUND_BASE_DEFAULT);
+    seed(&mut design, theme, &neutral, Color::from_hex(0x2D_5A_28)).unwrap();
+    let tinted = design.get(semantic::BACKGROUND_BASE_DEFAULT);
+    assert_ne!(tinted, base);
+    assert!(
+        (tinted.to_oklch().l - base.to_oklch().l).abs() < 0.01,
+        "same lightness"
+    );
+    assert!(tinted.to_oklch().c > 0.005, "a green tint");
+    // Text keeps its contrast on the tinted surfaces.
+    let text = design.get(semantic::TEXT_COLOR_PRIMARY_DEFAULT);
+    assert!(text.contrast_ratio(design.get(semantic::BACKGROUND_APP_FRAME_HOVER)) >= 4.5);
+    // Tinting again starts from the theme's grays, not from the former tint.
+    seed(&mut design, theme, &neutral, Color::from_hex(0x2D_5A_28)).unwrap();
+    assert_eq!(design.get(semantic::BACKGROUND_BASE_DEFAULT), tinted);
+}
+
+#[test]
+fn every_palette_of_the_settings_has_its_tokens() {
+    let design = DesignSystem::new(&KOEBI).expect("Koebi's schema is valid");
+    let palettes: Vec<_> = koebi_tokens::palettes::editable().collect();
+    assert_eq!(palettes.len(), 5 + 1 + 18);
+    for palette in palettes {
+        assert!(
+            design.find(&palette.source_path()).is_some(),
+            "{}",
+            palette.key
+        );
+        for path in palette.step_paths() {
+            assert!(design.find(&path).is_some(), "{path}");
         }
     }
 }

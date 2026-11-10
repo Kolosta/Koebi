@@ -1,5 +1,6 @@
 //! The Theme page: a container whose section holds a card per theme, painted with that theme's
-//! tokens, and its name.
+//! tokens, and its name; then the color settings ([`super::colors`]): palettes made again from
+//! one color.
 
 use koebi_core::{Rect, Vec2};
 use koebi_design::DesignSystem;
@@ -8,16 +9,21 @@ use koebi_ui::{Align, ThemePreview, Ui, WidgetId};
 
 use super::Stack;
 use super::cards::Cards;
+use super::colors::ColorsSection;
 
-/// The Theme page's state: where its cards lay on the last frame.
+/// The Theme page's state: where its cards lay on the last frame, and the color settings.
 #[derive(Debug)]
 pub(super) struct ThemePage {
     cards: Option<Cards>,
+    pub(super) colors: ColorsSection,
 }
 
 impl ThemePage {
     pub(super) fn new() -> Self {
-        Self { cards: None }
+        Self {
+            cards: None,
+            colors: ColorsSection::new(),
+        }
     }
 
     pub(super) fn show(&mut self, ui: &mut Ui<'_>, stack: &mut Stack, design: &mut DesignSystem) {
@@ -38,6 +44,7 @@ impl ThemePage {
             ui.section_title(title, "Themes");
             theme_cards(ui, &cards, design);
         });
+        self.colors.show(ui, stack, design);
     }
 
     /// The card of the theme at `index`, where the last frame drew it.

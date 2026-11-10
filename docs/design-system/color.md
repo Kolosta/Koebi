@@ -174,6 +174,33 @@ few colors, each with one meaning, no faint content, every boundary drawn.
 - No meaning by color alone (1.4.1): selection keeps its fill and its text, focus its ring, an
   error its border and its message.
 
+## Color settings
+
+*Settings › Theme › Colors* sit above the tokens: they change a whole family of colors from one
+color, and the tokens stay there for finer changes (*Customisation*). Nothing in the built-in
+themes uses them.
+
+- **What can be made from a color**: the five roles (accent, informative, positive, notice,
+  negative: `semantic.<role>.color.*`), the neutral grays (`primitive.color.gray.*`, tinted:
+  the seed's hue and up to 0.06 of chroma, the theme's own lightness for the deepest surface and
+  the background), and the 18 hue palettes (`primitive.color.<hue>.*`).
+- **How**: the chosen color is the palette's source (`semantic.<role>.color.source`,
+  `semantic.neutral.color.source`, `primitive.color.<hue>.source`, tokens like the others, so
+  that the choice is saved and exported). Its scale, from black through it to white, gives each
+  step the color at that step's contrast with the theme's background
+  (`koebi_tokens::palettes::seed`), the dark themes' fills darkened for white content. A step
+  is a contrast, so every state, part and component aliasing the steps keeps its contrast,
+  whatever the color: `tests/contrast.rs` seeds every role with a pale yellow, a gray, nearly
+  black, a saturated cyan and a magenta in every theme and checks every component again.
+- **Where**: the steps become overrides of the active theme, or of every theme ("Every
+  theme"), each made for that theme's own background: one palette, its light and dark versions.
+  The reset dot removes them.
+- **What a row shows**: the palette on the theme's background, the contrast of each step with
+  it, and what its main steps hold: a fill with its content (900), text on a panel (1400), a fill
+  under the primary text (500); for the grays, text on a panel and on a field, and a border.
+
+The gallery's accent editor does the same for the accent from three OKLCH fields.
+
 ## Rules for components
 
 **Surfaces.** A surface's step says where it lies; content on it uses the text steps, which
