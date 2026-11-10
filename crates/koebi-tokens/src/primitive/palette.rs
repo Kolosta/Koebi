@@ -41,6 +41,9 @@ koebi_design::tokens! {
     COLOR_RED_1500 = "color.red.1500": Color = hex("#FFDFDA");
     /// Red, step 1600: 17.04:1 against the background.
     COLOR_RED_1600 = "color.red.1600": Color = hex("#FFF2F0");
+    /// Red: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_RED_SOURCE = "color.red.source": Color = hex("#DA3320");
     /// Orange, step 100: 1.03:1 against the background.
     COLOR_ORANGE_100 = "color.orange.100": Color = hex("#2A0E00");
     /// Orange, step 200: 1.06:1 against the background.
@@ -73,6 +76,9 @@ koebi_design::tokens! {
     COLOR_ORANGE_1500 = "color.orange.1500": Color = hex("#FFE2B4");
     /// Orange, step 1600: 17.04:1 against the background.
     COLOR_ORANGE_1600 = "color.orange.1600": Color = hex("#FFF4E2");
+    /// Orange: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_ORANGE_SOURCE = "color.orange.source": Color = hex("#C44F00");
     /// Yellow, step 100: 1.03:1 against the background.
     COLOR_YELLOW_100 = "color.yellow.100": Color = hex("#201400");
     /// Yellow, step 200: 1.06:1 against the background.
@@ -105,6 +111,9 @@ koebi_design::tokens! {
     COLOR_YELLOW_1500 = "color.yellow.1500": Color = hex("#FFE665");
     /// Yellow, step 1600: 17.04:1 against the background.
     COLOR_YELLOW_1600 = "color.yellow.1600": Color = hex("#FFF6C1");
+    /// Yellow: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_YELLOW_SOURCE = "color.yellow.source": Color = hex("#A06800");
     /// Chartreuse, step 100: 1.03:1 against the background.
     COLOR_CHARTREUSE_100 = "color.chartreuse.100": Color = hex("#141800");
     /// Chartreuse, step 200: 1.06:1 against the background.
@@ -137,6 +146,9 @@ koebi_design::tokens! {
     COLOR_CHARTREUSE_1500 = "color.chartreuse.1500": Color = hex("#DBF078");
     /// Chartreuse, step 1600: 17.04:1 against the background.
     COLOR_CHARTREUSE_1600 = "color.chartreuse.1600": Color = hex("#F2F9CE");
+    /// Chartreuse: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_CHARTREUSE_SOURCE = "color.chartreuse.source": Color = hex("#687C00");
     /// Celery, step 100: 1.03:1 against the background.
     COLOR_CELERY_100 = "color.celery.100": Color = hex("#091B00");
     /// Celery, step 200: 1.06:1 against the background.
@@ -169,6 +181,9 @@ koebi_design::tokens! {
     COLOR_CELERY_1500 = "color.celery.1500": Color = hex("#AEFA78");
     /// Celery, step 1600: 17.04:1 against the background.
     COLOR_CELERY_1600 = "color.celery.1600": Color = hex("#DFFFC7");
+    /// Celery: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_CELERY_SOURCE = "color.celery.source": Color = hex("#418311");
     /// Green, step 100: 1.03:1 against the background.
     COLOR_GREEN_100 = "color.green.100": Color = hex("#001B15");
     /// Green, step 200: 1.06:1 against the background.
@@ -201,6 +216,9 @@ koebi_design::tokens! {
     COLOR_GREEN_1500 = "color.green.1500": Color = hex("#BFF2D0");
     /// Green, step 1600: 17.04:1 against the background.
     COLOR_GREEN_1600 = "color.green.1600": Color = hex("#E5FAEB");
+    /// Green: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_GREEN_SOURCE = "color.green.source": Color = hex("#05854F");
     /// Seafoam, step 100: 1.03:1 against the background.
     COLOR_SEAFOAM_100 = "color.seafoam.100": Color = hex("#001A18");
     /// Seafoam, step 200: 1.06:1 against the background.
@@ -233,6 +251,9 @@ koebi_design::tokens! {
     COLOR_SEAFOAM_1500 = "color.seafoam.1500": Color = hex("#BCF1E0");
     /// Seafoam, step 1600: 17.04:1 against the background.
     COLOR_SEAFOAM_1600 = "color.seafoam.1600": Color = hex("#E4FAF6");
+    /// Seafoam: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_SEAFOAM_SOURCE = "color.seafoam.source": Color = hex("#07836E");
     /// Cyan, step 100: 1.03:1 against the background.
     COLOR_CYAN_100 = "color.cyan.100": Color = hex("#001923");
     /// Cyan, step 200: 1.06:1 against the background.
@@ -265,6 +286,9 @@ koebi_design::tokens! {
     COLOR_CYAN_1500 = "color.cyan.1500": Color = hex("#C4ECFC");
     /// Cyan, step 1600: 17.04:1 against the background.
     COLOR_CYAN_1600 = "color.cyan.1600": Color = hex("#E7F8FE");
+    /// Cyan: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_CYAN_SOURCE = "color.cyan.source": Color = hex("#0C7AB7");
     /// Blue, step 100: 1.03:1 against the background.
     COLOR_BLUE_100 = "color.blue.100": Color = hex("#0C1336");
     /// Blue, step 200: 1.06:1 against the background.
@@ -297,6 +321,9 @@ koebi_design::tokens! {
     COLOR_BLUE_1500 = "color.blue.1500": Color = hex("#D6E8FE");
     /// Blue, step 1600: 17.04:1 against the background.
     COLOR_BLUE_1600 = "color.blue.1600": Color = hex("#F1F5FF");
+    /// Blue: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_BLUE_SOURCE = "color.blue.source": Color = hex("#3D65FC");
     /// Indigo, step 100: 1.03:1 against the background.
     COLOR_INDIGO_100 = "color.indigo.100": Color = hex("#1A0051");
     /// Indigo, step 200: 1.06:1 against the background.
@@ -329,6 +356,9 @@ koebi_design::tokens! {
     COLOR_INDIGO_1500 = "color.indigo.1500": Color = hex("#E0E5FF");
     /// Indigo, step 1600: 17.04:1 against the background.
     COLOR_INDIGO_1600 = "color.indigo.1600": Color = hex("#F4F4FF");
+    /// Indigo: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_INDIGO_SOURCE = "color.indigo.source": Color = hex("#7257FA");
     /// Purple, step 100: 1.03:1 against the background.
     COLOR_PURPLE_100 = "color.purple.100": Color = hex("#240046");
     /// Purple, step 200: 1.06:1 against the background.
@@ -361,6 +391,9 @@ koebi_design::tokens! {
     COLOR_PURPLE_1500 = "color.purple.1500": Color = hex("#EFE1FA");
     /// Purple, step 1600: 17.04:1 against the background.
     COLOR_PURPLE_1600 = "color.purple.1600": Color = hex("#F8F3FE");
+    /// Purple: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_PURPLE_SOURCE = "color.purple.source": Color = hex("#9B4AE3");
     /// Fuchsia, step 100: 1.03:1 against the background.
     COLOR_FUCHSIA_100 = "color.fuchsia.100": Color = hex("#2D0036");
     /// Fuchsia, step 200: 1.06:1 against the background.
@@ -393,6 +426,9 @@ koebi_design::tokens! {
     COLOR_FUCHSIA_1500 = "color.fuchsia.1500": Color = hex("#FBDCFF");
     /// Fuchsia, step 1600: 17.04:1 against the background.
     COLOR_FUCHSIA_1600 = "color.fuchsia.1600": Color = hex("#FDF1FF");
+    /// Fuchsia: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_FUCHSIA_SOURCE = "color.fuchsia.source": Color = hex("#B73ACA");
     /// Magenta, step 100: 1.03:1 against the background.
     COLOR_MAGENTA_100 = "color.magenta.100": Color = hex("#360013");
     /// Magenta, step 200: 1.06:1 against the background.
@@ -425,6 +461,9 @@ koebi_design::tokens! {
     COLOR_MAGENTA_1500 = "color.magenta.1500": Color = hex("#FFDDE9");
     /// Magenta, step 1600: 17.04:1 against the background.
     COLOR_MAGENTA_1600 = "color.magenta.1600": Color = hex("#FFF2F5");
+    /// Magenta: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_MAGENTA_SOURCE = "color.magenta.source": Color = hex("#DC2463");
     /// Pink, step 100: 1.03:1 against the background.
     COLOR_PINK_100 = "color.pink.100": Color = hex("#330021");
     /// Pink, step 200: 1.06:1 against the background.
@@ -457,6 +496,9 @@ koebi_design::tokens! {
     COLOR_PINK_1500 = "color.pink.1500": Color = hex("#FFDCF3");
     /// Pink, step 1600: 17.04:1 against the background.
     COLOR_PINK_1600 = "color.pink.1600": Color = hex("#FFF1F9");
+    /// Pink: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_PINK_SOURCE = "color.pink.source": Color = hex("#D12B94");
     /// Turquoise, step 100: 1.03:1 against the background.
     COLOR_TURQUOISE_100 = "color.turquoise.100": Color = hex("#001A1D");
     /// Turquoise, step 200: 1.06:1 against the background.
@@ -489,6 +531,9 @@ koebi_design::tokens! {
     COLOR_TURQUOISE_1500 = "color.turquoise.1500": Color = hex("#BAF0F0");
     /// Turquoise, step 1600: 17.04:1 against the background.
     COLOR_TURQUOISE_1600 = "color.turquoise.1600": Color = hex("#E5F9FA");
+    /// Turquoise: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_TURQUOISE_SOURCE = "color.turquoise.source": Color = hex("#08808B");
     /// Cinnamon, step 100: 1.03:1 against the background.
     COLOR_CINNAMON_100 = "color.cinnamon.100": Color = hex("#2A0E03");
     /// Cinnamon, step 200: 1.06:1 against the background.
@@ -521,6 +566,9 @@ koebi_design::tokens! {
     COLOR_CINNAMON_1500 = "color.cinnamon.1500": Color = hex("#F6E2D7");
     /// Cinnamon, step 1600: 17.04:1 against the background.
     COLOR_CINNAMON_1600 = "color.cinnamon.1600": Color = hex("#FCF3EF");
+    /// Cinnamon: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_CINNAMON_SOURCE = "color.cinnamon.source": Color = hex("#AC603A");
     /// Brown, step 100: 1.03:1 against the background.
     COLOR_BROWN_100 = "color.brown.100": Color = hex("#1E1507");
     /// Brown, step 200: 1.06:1 against the background.
@@ -553,6 +601,9 @@ koebi_design::tokens! {
     COLOR_BROWN_1500 = "color.brown.1500": Color = hex("#F3E4CF");
     /// Brown, step 1600: 17.04:1 against the background.
     COLOR_BROWN_1600 = "color.brown.1600": Color = hex("#FAF4ED");
+    /// Brown: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_BROWN_SOURCE = "color.brown.source": Color = hex("#8D6F43");
     /// Silver, step 100: 1.03:1 against the background.
     COLOR_SILVER_100 = "color.silver.100": Color = hex("#161616");
     /// Silver, step 200: 1.06:1 against the background.
@@ -585,5 +636,8 @@ koebi_design::tokens! {
     COLOR_SILVER_1500 = "color.silver.1500": Color = hex("#E6E6E6");
     /// Silver, step 1600: 17.04:1 against the background.
     COLOR_SILVER_1600 = "color.silver.1600": Color = hex("#F5F5F5");
+    /// Silver: the color its palette is made from, its step 900 until the color settings
+    /// make it from another (`crate::palettes::Editable`).
+    COLOR_SILVER_SOURCE = "color.silver.source": Color = hex("#747474");
     // End of the generated palettes.
 }

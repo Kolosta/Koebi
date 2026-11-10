@@ -85,6 +85,37 @@ fn pairs() -> Vec<(String, String, bool)> {
     pairs
 }
 
+/// The pairs of the active theme of `design` that miss their contrast.
+fn pair_failures(
+    design: &DesignSystem,
+    key: &str,
+    pairs: &[(String, String, bool)],
+) -> Vec<String> {
+    let high = key == "high-contrast";
+    let mut failures = Vec::new();
+    // A transparent fill shows what lies below: the surface it sits on.
+    let Some(surface) = color(design, "semantic.background.raised.default") else {
+        return vec![format!("{key}: no raised background")];
+    };
+    for (content, fill, text) in pairs {
+        let (Some(ink), Some(below)) = (color(design, content), color(design, fill)) else {
+            continue;
+        };
+        let below = below.over(surface);
+        let ratio = ink.over(below).contrast_ratio(below);
+        let needed = match (text, high) {
+            (true, true) => 7.0,
+            (false, false) => 3.0,
+            // Text in a normal theme, icons in the high-contrast one.
+            _ => 4.5,
+        };
+        if ratio < needed {
+            failures.push(format!("{key}: {content} on {fill}: {ratio:.2} < {needed}"));
+        }
+    }
+    failures
+}
+
 #[test]
 fn every_component_s_content_reads_on_its_fill_in_every_theme() {
     let mut design = design();
@@ -93,23 +124,47 @@ fn every_component_s_content_reads_on_its_fill_in_every_theme() {
     let mut failures = Vec::new();
     for (id, key) in themes(&design) {
         design.set_active_theme(id).unwrap();
-        let high = key == "high-contrast";
-        for (content, fill, text) in &pairs {
-            let (Some(ink), Some(below)) = (color(&design, content), color(&design, fill)) else {
-                continue;
-            };
-            // A transparent fill shows what lies below: the surface it sits on.
-            let surface = color(&design, "semantic.background.raised.default").unwrap();
-            let below = below.over(surface);
-            let ratio = ink.over(below).contrast_ratio(below);
-            let needed = match (text, high) {
-                (true, true) => 7.0,
-                (false, false) => 3.0,
-                // Text in a normal theme, icons in the high-contrast one.
-                _ => 4.5,
-            };
-            if ratio < needed {
-                failures.push(format!("{key}: {content} on {fill}: {ratio:.2} < {needed}"));
+        failures.extend(pair_failures(&design, &key, &pairs));
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn palettes_made_from_any_color_keep_every_contrast() {
+    // The color settings make a role's palette from a color of the user's: whatever it is
+    // (a pale yellow, a gray, nearly black, a saturated cyan), every component keeps its
+    // contrast, in every theme, because the steps are contrasts.
+    let pairs = pairs();
+    let seeds = [0xFF_FF_00, 0x80_80_80, 0x10_10_10, 0x00_FF_FF, 0xFF_00_80];
+    let mut failures = Vec::new();
+    for seed in seeds.map(Color::from_hex) {
+        let mut design = design();
+        for (id, key) in themes(&design) {
+            for palette in koebi_tokens::palettes::editable()
+                .filter(|palette| palette.family == koebi_tokens::palettes::Family::Role)
+            {
+                koebi_tokens::palettes::seed(&mut design, id, &palette, seed).unwrap();
+            }
+            design.set_active_theme(id).unwrap();
+            failures.extend(
+                pair_failures(&design, &key, &pairs)
+                    .into_iter()
+                    .map(|failure| format!("seed {seed}: {failure}")),
+            );
+            let on = design.get(semantic::TEXT_COLOR_ON_ACCENT_DEFAULT);
+            let needed = if key == "high-contrast" { 7.0 } else { 4.5 };
+            for fill in [
+                semantic::BACKGROUND_ACCENT_DEFAULT,
+                semantic::BACKGROUND_NEGATIVE_DEFAULT,
+                semantic::BACKGROUND_POSITIVE_DEFAULT,
+            ] {
+                let ratio = on.contrast_ratio(design.get(fill));
+                if ratio < needed {
+                    failures.push(format!(
+                        "seed {seed}: {key}: content on {}: {ratio:.2}",
+                        name(&design, fill)
+                    ));
+                }
             }
         }
     }

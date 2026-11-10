@@ -11,11 +11,12 @@
 //!
 //! The color settings use the same data to make a palette again from a chosen color.
 
-use koebi_core::palette::{ColorScale, HUE_CONTRASTS};
+use koebi_core::palette::{ColorScale, HUE_CONTRASTS, HUE_STEPS};
 use koebi_core::{Color, Oklch};
-use koebi_design::Token;
 use koebi_design::kind;
 use koebi_design::tier::Semantic;
+use koebi_design::value::{Definition, Value};
+use koebi_design::{DesignSystem, Layers, Scope, ThemeId, Token, TokenId};
 
 use crate::semantic;
 
@@ -434,6 +435,8 @@ pub struct ColorRole {
     pub palette: &'static str,
     /// Its steps, 100 to 1600.
     pub steps: [Token<kind::Color, Semantic>; 16],
+    /// The color it is made from (`semantic.<key>.color.source`).
+    pub source: Token<kind::Color, Semantic>,
 }
 
 /// The color roles, the accent first.
@@ -441,7 +444,7 @@ pub const ROLES: [ColorRole; 5] = [
     ColorRole {
         key: "accent",
         name: "Accent",
-        description: "Selection, focus, the main action, what is on.",
+        description: "Selection, focus, main actions.",
         palette: "blue",
         steps: [
             semantic::ACCENT_COLOR_100,
@@ -461,11 +464,12 @@ pub const ROLES: [ColorRole; 5] = [
             semantic::ACCENT_COLOR_1500,
             semantic::ACCENT_COLOR_1600,
         ],
+        source: semantic::ACCENT_COLOR_SOURCE,
     },
     ColorRole {
         key: "info",
         name: "Informative",
-        description: "Information that needs no action.",
+        description: "Information needing no action.",
         palette: "blue",
         steps: [
             semantic::INFO_COLOR_100,
@@ -485,6 +489,7 @@ pub const ROLES: [ColorRole; 5] = [
             semantic::INFO_COLOR_1500,
             semantic::INFO_COLOR_1600,
         ],
+        source: semantic::INFO_COLOR_SOURCE,
     },
     ColorRole {
         key: "positive",
@@ -509,11 +514,12 @@ pub const ROLES: [ColorRole; 5] = [
             semantic::POSITIVE_COLOR_1500,
             semantic::POSITIVE_COLOR_1600,
         ],
+        source: semantic::POSITIVE_COLOR_SOURCE,
     },
     ColorRole {
         key: "notice",
         name: "Notice",
-        description: "Warnings: what may need attention.",
+        description: "Warnings, what needs attention.",
         palette: "orange",
         steps: [
             semantic::NOTICE_COLOR_100,
@@ -533,6 +539,7 @@ pub const ROLES: [ColorRole; 5] = [
             semantic::NOTICE_COLOR_1500,
             semantic::NOTICE_COLOR_1600,
         ],
+        source: semantic::NOTICE_COLOR_SOURCE,
     },
     ColorRole {
         key: "negative",
@@ -557,8 +564,242 @@ pub const ROLES: [ColorRole; 5] = [
             semantic::NEGATIVE_COLOR_1500,
             semantic::NEGATIVE_COLOR_1600,
         ],
+        source: semantic::NEGATIVE_COLOR_SOURCE,
     },
 ];
+
+/// What an editable palette is: which tokens it writes and how it is made.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Family {
+    /// A color role (`semantic.<key>.color.<step>`), made like a hue.
+    Role,
+    /// The neutral palette (`primitive.color.gray.<step>`), tinted by a color.
+    Neutral,
+    /// A hue palette (`primitive.color.<key>.<step>`).
+    Hue,
+}
+
+/// A palette the color settings can make again from one chosen color, its *source*: every
+/// state, part and component aliasing its steps follows. Written as overrides of a theme, so
+/// that the tokens stay the truth and a reset gives the theme's own palette back.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Editable {
+    /// Its key in token paths (`accent`, `gray`, `red`).
+    pub key: &'static str,
+    /// Its name in the interface.
+    pub name: &'static str,
+    /// What it colors.
+    pub description: &'static str,
+    /// Which tokens it writes.
+    pub family: Family,
+}
+
+impl Editable {
+    /// The token holding the color the palette is made from.
+    pub fn source_path(&self) -> String {
+        match self.family {
+            Family::Role => format!("semantic.{}.color.source", self.key),
+            Family::Neutral => "semantic.neutral.color.source".to_owned(),
+            Family::Hue => format!("primitive.color.{}.source", self.key),
+        }
+    }
+
+    /// The tokens of its steps, from the closest to the background.
+    pub fn step_paths(&self) -> Vec<String> {
+        match self.family {
+            Family::Role => HUE_STEPS
+                .iter()
+                .map(|step| format!("semantic.{}.color.{step}", self.key))
+                .collect(),
+            Family::Neutral => NEUTRAL_STEPS
+                .iter()
+                .map(|step| format!("primitive.color.gray.{step}"))
+                .collect(),
+            Family::Hue => HUE_STEPS
+                .iter()
+                .map(|step| format!("primitive.color.{}.{step}", self.key))
+                .collect(),
+        }
+    }
+
+    /// Its steps made from `seed` for a theme whose deepest surface is `deepest` and whose
+    /// background is `background`; a neutral palette keeps `contrasts`, its theme's.
+    pub fn generate(
+        &self,
+        seed: Color,
+        deepest: Color,
+        background: Color,
+        contrasts: &[f32; 16],
+    ) -> [Color; 16] {
+        match self.family {
+            Family::Neutral => neutral_from_seed(seed, deepest, background, contrasts),
+            Family::Role | Family::Hue => from_seed(seed, background),
+        }
+    }
+}
+
+/// The most chroma a tint gives the neutral palette: grays stay grays.
+pub const MAX_TINT: f32 = 0.06;
+
+/// The neutral palette tinted by `seed`: the hue of the seed, its chroma up to [`MAX_TINT`],
+/// the theme's own lightness for the deepest surface and the background, then each step at its
+/// contrast with the new background.
+pub fn neutral_from_seed(
+    seed: Color,
+    deepest: Color,
+    background: Color,
+    contrasts: &[f32; 16],
+) -> [Color; 16] {
+    let tint = seed.with_alpha(1.0).to_oklch();
+    let chroma = tint.c.min(MAX_TINT);
+    let keys = [
+        Oklch::new(0.08, chroma, tint.h).to_color(),
+        Oklch::new(0.5, chroma, tint.h).to_color(),
+        Oklch::new(0.96, chroma * 0.5, tint.h).to_color(),
+    ];
+    let scale = ColorScale::new(&keys).unwrap_or_else(|| ColorScale::from_seed(seed));
+    let background = scale.at(background.to_oklch().l);
+    let mut steps = contrasts.map(|ratio| scale.with_contrast(background, ratio));
+    steps[0] = scale.at(deepest.to_oklch().l);
+    steps[1] = background;
+    hold_white_content(
+        Scheme::of(background),
+        &scale,
+        &mut steps[..=LAST_NEUTRAL_FILL],
+    );
+    steps
+}
+
+/// Every palette the color settings edit: the roles, the neutral palette, then the hues.
+pub fn editable() -> impl Iterator<Item = Editable> {
+    const HUE_NAMES: [&str; 18] = [
+        "Red",
+        "Orange",
+        "Yellow",
+        "Chartreuse",
+        "Celery",
+        "Green",
+        "Seafoam",
+        "Cyan",
+        "Blue",
+        "Indigo",
+        "Purple",
+        "Fuchsia",
+        "Magenta",
+        "Pink",
+        "Turquoise",
+        "Cinnamon",
+        "Brown",
+        "Silver",
+    ];
+    let roles = ROLES.iter().map(|role| Editable {
+        key: role.key,
+        name: role.name,
+        description: role.description,
+        family: Family::Role,
+    });
+    let neutral = core::iter::once(Editable {
+        key: "gray",
+        name: "Neutral",
+        description: "A tint of every gray.",
+        family: Family::Neutral,
+    });
+    let hues = HUES.iter().zip(HUE_NAMES).map(|(hue, name)| Editable {
+        key: hue.name,
+        name,
+        description: "Tags, charts, what aliases it.",
+        family: Family::Hue,
+    });
+    roles.chain(neutral).chain(hues)
+}
+
+fn find(design: &DesignSystem, path: &str) -> Option<TokenId> {
+    design.find(path)
+}
+
+fn color_in(design: &DesignSystem, theme: ThemeId, token: TokenId) -> Option<Color> {
+    let view = design.view(theme, Layers::THEME | Layers::THEME_OVERRIDES)?;
+    match view.value(token)? {
+        Value::Color(color) => Some(color),
+        _ => None,
+    }
+}
+
+/// The color `palette` is made from in `theme`.
+pub fn source(design: &DesignSystem, theme: ThemeId, palette: &Editable) -> Option<Color> {
+    color_in(design, theme, find(design, &palette.source_path())?)
+}
+
+/// `true` when `palette` is made from a color of the user's in `theme`.
+pub fn is_seeded(design: &DesignSystem, theme: ThemeId, palette: &Editable) -> bool {
+    find(design, &palette.source_path())
+        .is_some_and(|source| design.override_of(Scope::Theme(theme), source).is_some())
+}
+
+/// Makes `palette` again from `seed` in `theme`: its source and its steps become overrides of
+/// the theme, each step at its contrast with the theme's background.
+///
+/// # Errors
+///
+/// When a token is missing from the schema or refuses its value ([`koebi_design::Error`]).
+pub fn seed(
+    design: &mut DesignSystem,
+    theme: ThemeId,
+    palette: &Editable,
+    seed: Color,
+) -> koebi_design::Result<()> {
+    let missing = |path: &str| koebi_design::Error::UnknownToken(path.to_owned());
+    let gray = |design: &DesignSystem, step: u16| {
+        let path = format!("primitive.color.gray.{step}");
+        let token = find(design, &path).ok_or_else(|| missing(&path))?;
+        color_in(design, theme, token).ok_or_else(|| missing(&path))
+    };
+    // A tinted neutral palette starts from the theme's own grays, not from a former tint.
+    let neutral_reset = palette.family == Family::Neutral && is_seeded(design, theme, palette);
+    if neutral_reset {
+        reset(design, theme, palette)?;
+    }
+    let deepest = gray(design, 25)?;
+    let background = gray(design, 50)?;
+    let key = design.theme(theme).map(|info| info.key().to_owned());
+    let contrasts = key
+        .as_deref()
+        .and_then(self::theme)
+        .map_or(NEUTRAL_CONTRASTS, |palettes| palettes.neutral_contrasts);
+    let steps = palette.generate(seed.with_alpha(1.0), deepest, background, &contrasts);
+    let scope = Scope::Theme(theme);
+    let source = palette.source_path();
+    let token = find(design, &source).ok_or_else(|| missing(&source))?;
+    design.set_override(
+        scope,
+        token,
+        Definition::Value(Value::Color(seed.with_alpha(1.0))),
+    )?;
+    for (path, color) in palette.step_paths().iter().zip(steps) {
+        let token = find(design, path).ok_or_else(|| missing(path))?;
+        design.set_override(scope, token, Definition::Value(Value::Color(color)))?;
+    }
+    Ok(())
+}
+
+/// Gives `palette` back its theme's own steps in `theme`: removes the overrides [`seed`] made.
+///
+/// # Errors
+///
+/// When the theme is unknown ([`koebi_design::Error`]).
+pub fn reset(
+    design: &mut DesignSystem,
+    theme: ThemeId,
+    palette: &Editable,
+) -> koebi_design::Result<()> {
+    let scope = Scope::Theme(theme);
+    for path in core::iter::once(palette.source_path()).chain(palette.step_paths()) {
+        if let Some(token) = find(design, &path) {
+            design.reset(scope, token)?;
+        }
+    }
+    Ok(())
+}
 
 /// The palettes of the theme `key`.
 pub fn theme(key: &str) -> Option<&'static ThemePalettes> {

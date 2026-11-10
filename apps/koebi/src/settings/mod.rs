@@ -13,6 +13,7 @@
 
 mod accessibility;
 mod cards;
+mod colors;
 mod customisation;
 mod dev;
 mod inputs;
