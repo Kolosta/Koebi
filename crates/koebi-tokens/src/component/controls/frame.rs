@@ -21,7 +21,7 @@ koebi_design::tokens! {
         semantic::RADIUS_CONTROL;
     /// Frame: border width.
     FRAME_BORDER_WIDTH_DEFAULT = "frame.border.width.default": Dimension ->
-        semantic::BORDER_WIDTH_THIN;
+        semantic::BORDER_WIDTH_CONTROL;
     /// Frame: horizontal padding.
     FRAME_PADDING_HORIZONTAL_DEFAULT = "frame.padding.horizontal.default": Dimension = px(4.0), range(0.0, 32.0);
     /// Frame: vertical padding.

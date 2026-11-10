@@ -41,130 +41,136 @@ koebi_design::tokens! {
     ACCENT_COLOR_1600 = "accent.color.1600": Color -> primitive::COLOR_BLUE_1600;
     /// Vivid accent color, for indicators and data visualization (the accent counterpart of
     /// `info.color.visual.default`).
-    ACCENT_COLOR_VISUAL_BASE = "accent.color.visual-base": Color -> ACCENT_COLOR_500;
+    ACCENT_COLOR_VISUAL_BASE = "accent.color.visual-base": Color -> ACCENT_COLOR_1300;
 
     /// Row highlight, strong tint: default variant.
-    ACCENT_COLOR_VISUAL_DEFAULT = "accent.color.visual.default": Color -> NEUTRAL_COLOR_900;
+    ACCENT_COLOR_VISUAL_DEFAULT = "accent.color.visual.default": Color -> NEUTRAL_COLOR_50;
     /// Row highlight, strong tint: positive variant.
-    ACCENT_COLOR_VISUAL_POSITIVE = "accent.color.visual.positive": Color -> POSITIVE_COLOR_1300;
+    ACCENT_COLOR_VISUAL_POSITIVE = "accent.color.visual.positive": Color -> POSITIVE_COLOR_500;
     /// Row highlight, strong tint: negative variant.
-    ACCENT_COLOR_VISUAL_NEGATIVE = "accent.color.visual.negative": Color -> NEGATIVE_COLOR_1300;
+    ACCENT_COLOR_VISUAL_NEGATIVE = "accent.color.visual.negative": Color -> NEGATIVE_COLOR_500;
     /// Row highlight, strong tint: informative variant.
-    ACCENT_COLOR_VISUAL_INFO = "accent.color.visual.info": Color -> INFO_COLOR_1300;
+    ACCENT_COLOR_VISUAL_INFO = "accent.color.visual.info": Color -> INFO_COLOR_500;
     /// Row highlight, strong tint: neutral variant.
-    ACCENT_COLOR_VISUAL_NEUTRAL = "accent.color.visual.neutral": Color -> NEUTRAL_COLOR_900;
+    ACCENT_COLOR_VISUAL_NEUTRAL = "accent.color.visual.neutral": Color -> NEUTRAL_COLOR_50;
     /// Row highlight, strong tint: notice variant.
-    ACCENT_COLOR_VISUAL_NOTICE = "accent.color.visual.notice": Color -> NOTICE_COLOR_1300;
+    ACCENT_COLOR_VISUAL_NOTICE = "accent.color.visual.notice": Color -> NOTICE_COLOR_500;
     /// Row highlight, strong tint: brand variant.
-    ACCENT_COLOR_VISUAL_BRAND = "accent.color.visual.brand": Color -> primitive::COLOR_PURPLE_1300;
+    ACCENT_COLOR_VISUAL_BRAND = "accent.color.visual.brand": Color -> primitive::COLOR_PURPLE_500;
 
     /// Row highlight, hovered: default variant.
-    ACCENT_COLOR_HOVER_DEFAULT = "accent.color.hover.default": Color -> NEUTRAL_COLOR_500;
+    ACCENT_COLOR_HOVER_DEFAULT = "accent.color.hover.default": Color -> NEUTRAL_COLOR_250;
     /// Row highlight, hovered: positive variant.
-    ACCENT_COLOR_HOVER_POSITIVE = "accent.color.hover.positive": Color -> POSITIVE_COLOR_700;
+    ACCENT_COLOR_HOVER_POSITIVE = "accent.color.hover.positive": Color -> POSITIVE_COLOR_400;
     /// Row highlight, hovered: negative variant.
-    ACCENT_COLOR_HOVER_NEGATIVE = "accent.color.hover.negative": Color -> NEGATIVE_COLOR_700;
+    ACCENT_COLOR_HOVER_NEGATIVE = "accent.color.hover.negative": Color -> NEGATIVE_COLOR_400;
     /// Row highlight, hovered: informative variant.
-    ACCENT_COLOR_HOVER_INFO = "accent.color.hover.info": Color -> INFO_COLOR_700;
+    ACCENT_COLOR_HOVER_INFO = "accent.color.hover.info": Color -> INFO_COLOR_400;
     /// Row highlight, hovered: neutral variant.
-    ACCENT_COLOR_HOVER_NEUTRAL = "accent.color.hover.neutral": Color -> NEUTRAL_COLOR_500;
+    ACCENT_COLOR_HOVER_NEUTRAL = "accent.color.hover.neutral": Color -> NEUTRAL_COLOR_250;
     /// Row highlight, hovered: notice variant.
-    ACCENT_COLOR_HOVER_NOTICE = "accent.color.hover.notice": Color -> NOTICE_COLOR_700;
+    ACCENT_COLOR_HOVER_NOTICE = "accent.color.hover.notice": Color -> NOTICE_COLOR_400;
     /// Row highlight, hovered: brand variant.
-    ACCENT_COLOR_HOVER_BRAND = "accent.color.hover.brand": Color -> primitive::COLOR_PURPLE_700;
+    ACCENT_COLOR_HOVER_BRAND = "accent.color.hover.brand": Color -> primitive::COLOR_PURPLE_400;
 
     /// Row highlight, text on a highlighted row: default variant.
-    ACCENT_COLOR_TEXT_DEFAULT = "accent.color.text.default": Color -> NEUTRAL_COLOR_300;
+    ACCENT_COLOR_TEXT_DEFAULT = "accent.color.text.default": Color -> NEUTRAL_COLOR_800;
     /// Row highlight, text on a highlighted row: positive variant.
-    ACCENT_COLOR_TEXT_POSITIVE = "accent.color.text.positive": Color -> POSITIVE_COLOR_300;
+    ACCENT_COLOR_TEXT_POSITIVE = "accent.color.text.positive": Color -> POSITIVE_COLOR_1500;
     /// Row highlight, text on a highlighted row: negative variant.
-    ACCENT_COLOR_TEXT_NEGATIVE = "accent.color.text.negative": Color -> NEGATIVE_COLOR_300;
+    ACCENT_COLOR_TEXT_NEGATIVE = "accent.color.text.negative": Color -> NEGATIVE_COLOR_1500;
     /// Row highlight, text on a highlighted row: informative variant.
-    ACCENT_COLOR_TEXT_INFO = "accent.color.text.info": Color -> INFO_COLOR_300;
+    ACCENT_COLOR_TEXT_INFO = "accent.color.text.info": Color -> INFO_COLOR_1500;
     /// Row highlight, text on a highlighted row: neutral variant.
-    ACCENT_COLOR_TEXT_NEUTRAL = "accent.color.text.neutral": Color -> NEUTRAL_COLOR_300;
+    ACCENT_COLOR_TEXT_NEUTRAL = "accent.color.text.neutral": Color -> NEUTRAL_COLOR_800;
     /// Row highlight, text on a highlighted row: notice variant.
-    ACCENT_COLOR_TEXT_NOTICE = "accent.color.text.notice": Color -> NOTICE_COLOR_300;
+    ACCENT_COLOR_TEXT_NOTICE = "accent.color.text.notice": Color -> NOTICE_COLOR_1500;
     /// Row highlight, text on a highlighted row: brand variant.
-    ACCENT_COLOR_TEXT_BRAND = "accent.color.text.brand": Color -> primitive::COLOR_PURPLE_300;
+    ACCENT_COLOR_TEXT_BRAND = "accent.color.text.brand": Color -> primitive::COLOR_PURPLE_1500;
 
     /// Row highlight, selected: default variant.
-    ACCENT_COLOR_SELECTED_DEFAULT = "accent.color.selected.default": Color -> ACCENT_COLOR_800;
+    ACCENT_COLOR_SELECTED_DEFAULT = "accent.color.selected.default": Color -> ACCENT_COLOR_500;
     /// Row highlight, selected: positive variant.
-    ACCENT_COLOR_SELECTED_POSITIVE = "accent.color.selected.positive": Color -> POSITIVE_COLOR_800;
+    ACCENT_COLOR_SELECTED_POSITIVE = "accent.color.selected.positive": Color -> POSITIVE_COLOR_500;
     /// Row highlight, selected: negative variant.
-    ACCENT_COLOR_SELECTED_NEGATIVE = "accent.color.selected.negative": Color -> NEGATIVE_COLOR_800;
+    ACCENT_COLOR_SELECTED_NEGATIVE = "accent.color.selected.negative": Color -> NEGATIVE_COLOR_500;
     /// Row highlight, selected: informative variant.
-    ACCENT_COLOR_SELECTED_INFO = "accent.color.selected.info": Color -> INFO_COLOR_800;
+    ACCENT_COLOR_SELECTED_INFO = "accent.color.selected.info": Color -> INFO_COLOR_500;
     /// Row highlight, selected: neutral variant.
-    ACCENT_COLOR_SELECTED_NEUTRAL = "accent.color.selected.neutral": Color -> NEUTRAL_COLOR_800;
+    ACCENT_COLOR_SELECTED_NEUTRAL = "accent.color.selected.neutral": Color -> NEUTRAL_COLOR_150;
     /// Row highlight, selected: notice variant.
-    ACCENT_COLOR_SELECTED_NOTICE = "accent.color.selected.notice": Color -> NOTICE_COLOR_800;
+    ACCENT_COLOR_SELECTED_NOTICE = "accent.color.selected.notice": Color -> NOTICE_COLOR_500;
     /// Row highlight, selected: brand variant.
     ACCENT_COLOR_SELECTED_BRAND = "accent.color.selected.brand": Color ->
-        primitive::COLOR_PURPLE_800;
+        primitive::COLOR_PURPLE_500;
 
     /// Row highlight, hovered while selected: default variant.
     ACCENT_COLOR_HOVER_SELECTED_DEFAULT = "accent.color.hover-selected.default": Color ->
-        ACCENT_COLOR_700;
+        ACCENT_COLOR_600;
     /// Row highlight, hovered while selected: positive variant.
     ACCENT_COLOR_HOVER_SELECTED_POSITIVE = "accent.color.hover-selected.positive": Color ->
-        POSITIVE_COLOR_700;
+        POSITIVE_COLOR_600;
     /// Row highlight, hovered while selected: negative variant.
     ACCENT_COLOR_HOVER_SELECTED_NEGATIVE = "accent.color.hover-selected.negative": Color ->
-        NEGATIVE_COLOR_700;
+        NEGATIVE_COLOR_600;
     /// Row highlight, hovered while selected: informative variant.
-    ACCENT_COLOR_HOVER_SELECTED_INFO = "accent.color.hover-selected.info": Color -> INFO_COLOR_700;
+    ACCENT_COLOR_HOVER_SELECTED_INFO = "accent.color.hover-selected.info": Color -> INFO_COLOR_600;
     /// Row highlight, hovered while selected: neutral variant.
     ACCENT_COLOR_HOVER_SELECTED_NEUTRAL = "accent.color.hover-selected.neutral": Color ->
-        NEUTRAL_COLOR_700;
+        NEUTRAL_COLOR_300;
     /// Row highlight, hovered while selected: notice variant.
     ACCENT_COLOR_HOVER_SELECTED_NOTICE = "accent.color.hover-selected.notice": Color ->
-        NOTICE_COLOR_700;
+        NOTICE_COLOR_600;
     /// Row highlight, hovered while selected: brand variant.
     ACCENT_COLOR_HOVER_SELECTED_BRAND = "accent.color.hover-selected.brand": Color ->
-        primitive::COLOR_PURPLE_700;
+        primitive::COLOR_PURPLE_600;
 
     /// Row highlight, active: default variant.
-    ACCENT_COLOR_ACTIVE_DEFAULT = "accent.color.active.default": Color -> ACCENT_COLOR_600;
+    ACCENT_COLOR_ACTIVE_DEFAULT = "accent.color.active.default": Color -> ACCENT_COLOR_700;
     /// Row highlight, active: positive variant.
-    ACCENT_COLOR_ACTIVE_POSITIVE = "accent.color.active.positive": Color -> POSITIVE_COLOR_600;
+    ACCENT_COLOR_ACTIVE_POSITIVE = "accent.color.active.positive": Color -> POSITIVE_COLOR_700;
     /// Row highlight, active: negative variant.
-    ACCENT_COLOR_ACTIVE_NEGATIVE = "accent.color.active.negative": Color -> NEGATIVE_COLOR_600;
+    ACCENT_COLOR_ACTIVE_NEGATIVE = "accent.color.active.negative": Color -> NEGATIVE_COLOR_700;
     /// Row highlight, active: informative variant.
-    ACCENT_COLOR_ACTIVE_INFO = "accent.color.active.info": Color -> INFO_COLOR_600;
+    ACCENT_COLOR_ACTIVE_INFO = "accent.color.active.info": Color -> INFO_COLOR_700;
     /// Row highlight, active: neutral variant.
-    ACCENT_COLOR_ACTIVE_NEUTRAL = "accent.color.active.neutral": Color -> NEUTRAL_COLOR_600;
+    ACCENT_COLOR_ACTIVE_NEUTRAL = "accent.color.active.neutral": Color -> NEUTRAL_COLOR_350;
     /// Row highlight, active: notice variant.
-    ACCENT_COLOR_ACTIVE_NOTICE = "accent.color.active.notice": Color -> NOTICE_COLOR_600;
+    ACCENT_COLOR_ACTIVE_NOTICE = "accent.color.active.notice": Color -> NOTICE_COLOR_700;
     /// Row highlight, active: brand variant.
-    ACCENT_COLOR_ACTIVE_BRAND = "accent.color.active.brand": Color -> primitive::COLOR_PURPLE_600;
+    ACCENT_COLOR_ACTIVE_BRAND = "accent.color.active.brand": Color -> primitive::COLOR_PURPLE_700;
 
-    /// Neutral role, palette step 25 (default UI chrome).
+    /// Neutral, step 25: `color.gray.25`.
     NEUTRAL_COLOR_25 = "neutral.color.25": Color -> primitive::COLOR_GRAY_25;
-    /// Neutral role, palette step 50 (default UI chrome).
+    /// Neutral, step 50: `color.gray.50`.
     NEUTRAL_COLOR_50 = "neutral.color.50": Color -> primitive::COLOR_GRAY_50;
-    /// Neutral role, palette step 75 (default UI chrome).
+    /// Neutral, step 75: `color.gray.75`.
     NEUTRAL_COLOR_75 = "neutral.color.75": Color -> primitive::COLOR_GRAY_75;
-    /// Neutral role, palette step 100 (default UI chrome).
+    /// Neutral, step 100: `color.gray.100`.
     NEUTRAL_COLOR_100 = "neutral.color.100": Color -> primitive::COLOR_GRAY_100;
-    /// Neutral role, palette step 200 (default UI chrome).
+    /// Neutral, step 150: `color.gray.150`.
+    NEUTRAL_COLOR_150 = "neutral.color.150": Color -> primitive::COLOR_GRAY_150;
+    /// Neutral, step 200: `color.gray.200`.
     NEUTRAL_COLOR_200 = "neutral.color.200": Color -> primitive::COLOR_GRAY_200;
-    /// Neutral role, palette step 300 (default UI chrome).
+    /// Neutral, step 250: `color.gray.250`.
+    NEUTRAL_COLOR_250 = "neutral.color.250": Color -> primitive::COLOR_GRAY_250;
+    /// Neutral, step 300: `color.gray.300`.
     NEUTRAL_COLOR_300 = "neutral.color.300": Color -> primitive::COLOR_GRAY_300;
-    /// Neutral role, palette step 400 (default UI chrome).
+    /// Neutral, step 350: `color.gray.350`.
+    NEUTRAL_COLOR_350 = "neutral.color.350": Color -> primitive::COLOR_GRAY_350;
+    /// Neutral, step 400: `color.gray.400`.
     NEUTRAL_COLOR_400 = "neutral.color.400": Color -> primitive::COLOR_GRAY_400;
-    /// Neutral role, palette step 500 (default UI chrome).
+    /// Neutral, step 500: `color.gray.500`.
     NEUTRAL_COLOR_500 = "neutral.color.500": Color -> primitive::COLOR_GRAY_500;
-    /// Neutral role, palette step 600 (default UI chrome).
+    /// Neutral, step 600: `color.gray.600`.
     NEUTRAL_COLOR_600 = "neutral.color.600": Color -> primitive::COLOR_GRAY_600;
-    /// Neutral role, palette step 700 (default UI chrome).
+    /// Neutral, step 700: `color.gray.700`.
     NEUTRAL_COLOR_700 = "neutral.color.700": Color -> primitive::COLOR_GRAY_700;
-    /// Neutral role, palette step 800 (default UI chrome).
+    /// Neutral, step 800: `color.gray.800`.
     NEUTRAL_COLOR_800 = "neutral.color.800": Color -> primitive::COLOR_GRAY_800;
-    /// Neutral role, palette step 900 (default UI chrome).
+    /// Neutral, step 900: `color.gray.900`.
     NEUTRAL_COLOR_900 = "neutral.color.900": Color -> primitive::COLOR_GRAY_900;
-    /// Neutral role, palette step 1000 (default UI chrome).
+    /// Neutral, step 1000: `color.gray.1000`.
     NEUTRAL_COLOR_1000 = "neutral.color.1000": Color -> primitive::COLOR_GRAY_1000;
 
     /// Vivid neutral color, for indicators and data visualization.
@@ -205,7 +211,7 @@ koebi_design::tokens! {
     NEGATIVE_COLOR_1600 = "negative.color.1600": Color -> primitive::COLOR_RED_1600;
 
     /// Vivid negative color, for indicators and data visualization.
-    NEGATIVE_COLOR_VISUAL_DEFAULT = "negative.color.visual.default": Color -> NEGATIVE_COLOR_500;
+    NEGATIVE_COLOR_VISUAL_DEFAULT = "negative.color.visual.default": Color -> NEGATIVE_COLOR_1300;
 
     /// Positive role, palette step 100 (success and validation).
     POSITIVE_COLOR_100 = "positive.color.100": Color -> primitive::COLOR_GREEN_100;
@@ -241,7 +247,7 @@ koebi_design::tokens! {
     POSITIVE_COLOR_1600 = "positive.color.1600": Color -> primitive::COLOR_GREEN_1600;
 
     /// Vivid positive color, for indicators and data visualization.
-    POSITIVE_COLOR_VISUAL_DEFAULT = "positive.color.visual.default": Color -> POSITIVE_COLOR_500;
+    POSITIVE_COLOR_VISUAL_DEFAULT = "positive.color.visual.default": Color -> POSITIVE_COLOR_1300;
 
     /// Informative role, palette step 100 (information).
     INFO_COLOR_100 = "info.color.100": Color -> primitive::COLOR_BLUE_100;
@@ -277,7 +283,7 @@ koebi_design::tokens! {
     INFO_COLOR_1600 = "info.color.1600": Color -> primitive::COLOR_BLUE_1600;
 
     /// Vivid informative color, for indicators and data visualization.
-    INFO_COLOR_VISUAL_DEFAULT = "info.color.visual.default": Color -> INFO_COLOR_500;
+    INFO_COLOR_VISUAL_DEFAULT = "info.color.visual.default": Color -> INFO_COLOR_1300;
 
     /// Notice role, palette step 100 (warnings).
     NOTICE_COLOR_100 = "notice.color.100": Color -> primitive::COLOR_ORANGE_100;
@@ -313,5 +319,5 @@ koebi_design::tokens! {
     NOTICE_COLOR_1600 = "notice.color.1600": Color -> primitive::COLOR_ORANGE_1600;
 
     /// Vivid notice color, for indicators and data visualization.
-    NOTICE_COLOR_VISUAL_DEFAULT = "notice.color.visual.default": Color -> NOTICE_COLOR_500;
+    NOTICE_COLOR_VISUAL_DEFAULT = "notice.color.visual.default": Color -> NOTICE_COLOR_1300;
 }

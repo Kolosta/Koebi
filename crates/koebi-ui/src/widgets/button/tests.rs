@@ -524,7 +524,12 @@ fn groups_draw_a_fill_and_an_outline_per_cell() {
         GroupCell::new(Button::new(WidgetId::new("b")).label("B")),
     ];
     let at = Rect::from_origin_size(Vec2::ZERO, Vec2::new(80.0, 40.0));
-    let (_, scene) = harness.frame(|ui| ButtonGroup::vertical().show(ui, at, &mut cells));
+    // Outlined: the base theme's controls have no border.
+    let (_, scene) = harness.frame(|ui| {
+        ButtonGroup::vertical()
+            .border_width(1.0)
+            .show(ui, at, &mut cells)
+    });
     assert_eq!(scene.rect_count(), 4);
 }
 

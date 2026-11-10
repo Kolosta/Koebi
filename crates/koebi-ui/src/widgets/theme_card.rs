@@ -459,7 +459,7 @@ mod tests {
     #[test]
     fn previews_read_the_theme_they_show() {
         let design = DesignSystem::new(&KOEBI).expect("Koebi's schema is valid");
-        let light = design.find_theme("light").expect("built-in theme");
+        let light = design.find_theme("snow").expect("built-in theme");
         let preview = ThemePreview::of(&design, light).expect("live theme");
         let view = design.view(light, Layers::ALL).expect("live theme");
         assert_eq!(

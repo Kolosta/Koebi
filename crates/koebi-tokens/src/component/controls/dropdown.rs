@@ -44,20 +44,20 @@ koebi_design::tokens! {
         semantic::RADIUS_CONTROL;
     /// Dropdown: border color.
     DROPDOWN_BORDER_COLOR_DEFAULT = "dropdown.border.color.default": Color ->
-        semantic::NEUTRAL_COLOR_700;
+        semantic::BORDER_COLOR_DEFAULT;
     /// Dropdown: border color, hovered.
     DROPDOWN_BORDER_COLOR_HOVER = "dropdown.border.color.hover": Color ->
-        semantic::NEUTRAL_COLOR_600;
+        semantic::BORDER_COLOR_STRONG_DEFAULT;
     /// Dropdown: border width.
     DROPDOWN_BORDER_WIDTH_DEFAULT = "dropdown.border.width.default": Dimension ->
-        semantic::BORDER_WIDTH_THIN;
+        semantic::BORDER_WIDTH_CONTROL;
 
     /// Dropdown: background color, disabled.
     DROPDOWN_BACKGROUND_COLOR_DISABLED = "dropdown.background.color.disabled": Color ->
         semantic::BACKGROUND_APP_DISABLED;
     /// Dropdown: border color, open.
     DROPDOWN_BORDER_COLOR_OPEN = "dropdown.border.color.open": Color ->
-        semantic::NEUTRAL_COLOR_600;
+        semantic::BORDER_COLOR_STRONG_DEFAULT;
     /// Dropdown: border color, disabled.
     DROPDOWN_BORDER_COLOR_DISABLED = "dropdown.border.color.disabled": Color ->
         semantic::BORDER_COLOR_DISABLED_DEFAULT;

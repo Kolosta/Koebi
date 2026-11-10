@@ -13,7 +13,7 @@ koebi_design::tokens! {
         semantic::NEUTRAL_COLOR_500;
     /// Color field: outline color, hovered.
     COLOR_FIELD_OUTLINE_COLOR_HOVER = "color-field.outline.color.hover": Color ->
-        semantic::NEUTRAL_COLOR_300;
+        semantic::NEUTRAL_COLOR_800;
     /// Color field: outline width, its own: the field keeps its outline when the borders of
     /// the interface go.
     COLOR_FIELD_OUTLINE_WIDTH_DEFAULT = "color-field.outline.width.default": Dimension =

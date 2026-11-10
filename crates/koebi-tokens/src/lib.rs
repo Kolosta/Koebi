@@ -6,8 +6,10 @@
 //!   (`semantic::TEXT_BODY_M`).
 //! - [`component`]: the properties of each component, aliasing semantic tokens or holding
 //!   their own value (`component::BUTTON_BACKGROUND_COLOR_DEFAULT`).
-//! - [`themes`]: the built-in themes, one module each: Dark (the base theme), Light,
-//!   Muted green and High contrast.
+//! - [`themes`]: the built-in themes, one module each: Dark (the base theme), Dark pink,
+//!   Muted green, Snow, Arctic and High contrast.
+//! - [`palettes`]: what the themes' palettes are made of, and how a palette is made from one
+//!   color.
 //!
 //! [`KOEBI`] puts everything together; it is checked while compiling.
 //!
@@ -17,7 +19,7 @@
 //!
 //! let design = DesignSystem::new(&KOEBI)?;
 //! let background = design.get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT);
-//! assert_eq!(background.to_string(), "#5d89ff");
+//! assert_eq!(background.to_string(), "#3d65fc");
 //! # Ok::<(), koebi_design::Error>(())
 //! ```
 //!
@@ -30,6 +32,7 @@
 )]
 
 pub mod component;
+pub mod palettes;
 pub mod primitive;
 pub mod semantic;
 pub mod themes;

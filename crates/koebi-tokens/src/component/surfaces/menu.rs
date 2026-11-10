@@ -46,7 +46,7 @@ koebi_design::tokens! {
         semantic::BORDER_COLOR_DEFAULT;
     /// Menu: border width.
     MENU_BORDER_WIDTH_DEFAULT = "menu.border.width.default": Dimension ->
-        semantic::BORDER_WIDTH_THIN;
+        semantic::BORDER_WIDTH_FLOATING;
     /// Menu: item horizontal padding.
     MENU_ITEM_PADDING_HORIZONTAL = "menu.item.padding.horizontal": Dimension =
         px(6.0), range(0.0, 24.0);
@@ -68,10 +68,10 @@ koebi_design::tokens! {
         semantic::TEXT_COLOR_PRIMARY_DEFAULT;
     /// Menu: label color of the current choice.
     MENU_ITEM_LABEL_COLOR_SELECTED = "menu.item.label.color.selected": Color ->
-        semantic::STATIC_TEXT_COLOR_WHITE;
+        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
     /// Menu: label color of the current choice, hovered.
     MENU_ITEM_LABEL_COLOR_SELECTED_HOVER = "menu.item.label.color.selected-hover": Color ->
-        semantic::STATIC_TEXT_COLOR_WHITE;
+        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
     /// Menu: label color of a disabled item.
     MENU_ITEM_LABEL_COLOR_DISABLED = "menu.item.label.color.disabled": Color ->
         semantic::TEXT_COLOR_DISABLED_DEFAULT;

@@ -26,6 +26,19 @@ fn design() -> DesignSystem {
     DesignSystem::new(&KOEBI).expect("Koebi's schema is valid")
 }
 
+/// The base theme with outlined controls: the base theme draws none, tests of borders need them.
+fn outlined() -> DesignSystem {
+    let mut design = design();
+    design
+        .set_alias(
+            Scope::Global,
+            semantic::BORDER_WIDTH_CONTROL,
+            semantic::BORDER_WIDTH_THIN,
+        )
+        .expect("a valid alias");
+    design
+}
+
 fn rect(x: f32, y: f32, width: f32, height: f32) -> Rect {
     Rect::from_origin_size(Vec2::new(x, y), Vec2::new(width, height))
 }
@@ -114,7 +127,7 @@ fn theme_switches_restyle_components() {
             .to_rgba8(),
     );
 
-    let light = design.find_theme("light").expect("built-in theme");
+    let light = design.find_theme("snow").expect("built-in theme");
     design.set_active_theme(light).unwrap();
     let expected = design.get(component::PANEL_BODY_BACKGROUND_COLOR_LEVEL_1);
     assert_ne!(expected, dark);
@@ -253,7 +266,7 @@ fn theme_cards_paint_other_themes() {
         return;
     };
     let design = design();
-    let light = design.find_theme("light").expect("built-in theme");
+    let light = design.find_theme("snow").expect("built-in theme");
     let preview = ThemePreview::of(&design, light).expect("live theme");
     let scene = draw(&design, |ui| {
         ui.theme_card(
@@ -307,7 +320,7 @@ fn step_buttons_lie_inside_the_border_and_let_the_bar_show_through() {
     else {
         return;
     };
-    let design = design();
+    let design = outlined();
     let styles = Styles::resolve(&design);
     let style = styles.number_field;
     let pointer = Vec2::new(8.0, 12.0);

@@ -38,7 +38,7 @@ koebi_design::tokens! {
     COMBO_CORNER_RADIUS_DEFAULT = "combo.corner-radius.default": Dimension -> semantic::RADIUS_M;
     /// Combo: border width.
     COMBO_BORDER_WIDTH_DEFAULT = "combo.border.width.default": Dimension ->
-        semantic::BORDER_WIDTH_THIN;
+        semantic::BORDER_WIDTH_CONTROL;
     /// Combo: horizontal padding.
     COMBO_PADDING_HORIZONTAL_DEFAULT = "combo.padding.horizontal.default": Dimension = px(4.0), range(0.0, 32.0);
     /// Combo: vertical padding.

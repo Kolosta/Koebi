@@ -113,12 +113,12 @@ application starts:
 
 ```sh
 cargo run -p koebi -- --import sunset.tokens.json     # a theme from a Design Tokens file
-cargo run -p koebi -- --theme light
+cargo run -p koebi -- --theme snow
 cargo run -p koebi -- --override semantic.radius.control=6 --override component.button.background.color.default=#ff8800
 cargo run -p koebi -- --override "semantic.accent.color.700={primitive.color.green.700}"
 cargo run -p koebi -- --color-vision simulate-deutan
 cargo run -p koebi -- --data-dir target/design-state   # keep the state somewhere else
-cargo run -p koebi -- --export light.tokens.json --export-schema koebi.tokens.json
+cargo run -p koebi -- --export snow.tokens.json --export-schema koebi.tokens.json
 ```
 
 `--import` reads a theme in the [Design Tokens format](README.md#import-and-export), refuses

@@ -204,7 +204,7 @@ fn design_changes_survive_a_restart() {
             "--data-dir",
             dir_arg,
             "--theme",
-            "light",
+            "snow",
             "--override",
             "semantic.radius.control=7",
             "--override",
@@ -233,7 +233,7 @@ fn design_changes_survive_a_restart() {
     );
     assert_eq!(second.code, Some(exit_code::SUCCESS), "{}", second.stderr);
     let expected = concat!(
-        "design: theme light, 2 global override(s), 0 theme override(s), ",
+        "design: theme snow, 2 global override(s), 0 theme override(s), ",
         "color vision simulate-deutan"
     );
     assert!(
@@ -436,7 +436,7 @@ fn an_untitled_instance_shares_the_design_state_but_keeps_its_own_workspace() {
             "--data-dir",
             dir_arg,
             "--theme",
-            "light",
+            "snow",
         ],
         Duration::from_secs(120),
     );
@@ -455,7 +455,7 @@ fn an_untitled_instance_shares_the_design_state_but_keeps_its_own_workspace() {
     );
     assert_eq!(third.code, Some(exit_code::SUCCESS), "{}", third.stderr);
     assert!(
-        third.stderr.contains("design: theme light"),
+        third.stderr.contains("design: theme snow"),
         "{}",
         third.stderr
     );

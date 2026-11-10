@@ -414,6 +414,7 @@ const fn assert_theme(schema: &Schema, theme: &ThemeInfo) {
         fail(problem, TierId::Primitive, theme.key());
     }
     let entries = theme.entries();
+    let mut seen = [0_u64; (u16::MAX as usize).div_ceil(64)];
     let mut e = 0;
     while e < entries.len() {
         let entry = &entries[e];
@@ -433,19 +434,22 @@ const fn assert_theme(schema: &Schema, theme: &ThemeInfo) {
         if let Some(problem) = problem {
             fail(problem, info.tier(), info.path());
         }
-        let mut other = 0;
-        while other < e {
-            if entries[other].token().index() == entry.token().index() {
-                fail("token defined twice by a theme", info.tier(), info.path());
-            }
-            other += 1;
+        // One bit per token: linear in the entries, a theme redefining whole palettes holds
+        // hundreds of them.
+        let index = entry.token().index();
+        let (word, bit) = (index / 64, 1_u64 << (index % 64));
+        if seen[word] & bit != 0 {
+            fail("token defined twice by a theme", info.tier(), info.path());
         }
+        seen[word] |= bit;
         e += 1;
     }
     let mut e = 0;
     while e < entries.len() {
         let index = entries[e].token().index();
-        if has_cycle(schema, Some(theme), index) {
+        // A value ends every chain through it: only aliases can close a cycle.
+        if matches!(entries[e].definition(), Def::Alias(_)) && has_cycle(schema, Some(theme), index)
+        {
             match info_at(schema, index) {
                 Some(info) => fail("alias cycle in a theme", info.tier(), info.path()),
                 None => fail("alias cycle in a theme", TierId::Primitive, theme.key()),

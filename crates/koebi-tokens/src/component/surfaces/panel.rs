@@ -42,7 +42,7 @@ koebi_design::tokens! {
         semantic::RADIUS_CONTROL;
     /// Panel: border width.
     PANEL_BORDER_WIDTH_DEFAULT = "panel.border.width.default": Dimension ->
-        semantic::BORDER_WIDTH_THIN;
+        semantic::BORDER_WIDTH_SURFACE;
     /// Panel: space between the border and the content.
     PANEL_PADDING_DEFAULT = "panel.padding.default": Dimension = px(8.0), range(0.0, 32.0);
     /// Collapsible panel: height of what a header holds (its title, the controls at its end),

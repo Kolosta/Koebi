@@ -488,7 +488,7 @@ Blender's rules:
   `tooltip.max-width` (360 px), never wider than the window. Tooltips never take the pointer.
 
 [`crates/koebi-ui/tests/golden/`](../../crates/koebi-ui/tests/golden/) shows every component
-in the dark and light themes, and the application shows them all in its
+in every built-in theme, and the application shows them all in its
 [gallery](gallery.md).
 
 ## The workspace

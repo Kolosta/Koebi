@@ -22,10 +22,20 @@ fn hex(rgb: u32) -> Color {
 #[test]
 fn schema_passes_the_run_time_validation() {
     assert_eq!(KOEBI.validate(), Ok(()));
-    assert_eq!(KOEBI.len(), 1905);
+    assert_eq!(KOEBI.len(), 1912);
     assert_eq!(KOEBI.composites().count(), 21);
     let keys: Vec<_> = design().themes().map(|(_, t)| t.key().to_owned()).collect();
-    assert_eq!(keys, ["dark", "light", "muted-green", "high-contrast"]);
+    assert_eq!(
+        keys,
+        [
+            "dark",
+            "dark-pink",
+            "muted-green",
+            "snow",
+            "arctic",
+            "high-contrast"
+        ]
+    );
 }
 
 #[test]
@@ -159,8 +169,22 @@ fn every_token_resolves_in_every_theme() {
 #[test]
 fn primitive_values_are_ported() {
     let design = design();
-    assert_eq!(design.get(primitive::COLOR_BLUE_700), hex(0x5D_89_FF));
-    assert_eq!(design.get(primitive::COLOR_GRAY_875), hex(0x23_23_23));
+    // The grays of the dark theme keep their values on the contrast-ordered steps.
+    for (token, value) in [
+        (primitive::COLOR_GRAY_50, 0x13_13_13),
+        (primitive::COLOR_GRAY_100, 0x23_23_23),
+        (primitive::COLOR_GRAY_150, 0x29_29_29),
+        (primitive::COLOR_GRAY_300, 0x48_48_48),
+        (primitive::COLOR_GRAY_900, 0xE9_E9_E9),
+    ] {
+        assert_eq!(design.get(token), hex(value), "{token:?}");
+    }
+    // Spectrum's palettes are the keys of the hues' scales.
+    let blue = koebi_tokens::palettes::HUES
+        .iter()
+        .find(|hue| hue.name == "blue")
+        .unwrap();
+    assert_eq!(blue.keys[6], 0x5D_89_FF);
     assert_eq!(
         design.get(primitive::COLOR_TRANSPARENT_BLACK_500),
         Color::from_hex_rgba(0x00_00_00_70)
@@ -189,6 +213,10 @@ fn renamed_tokens_keep_their_values() {
     assert!(design.find("primitive.font-size.60").is_none());
     // `border-width` joined the `border` family.
     assert_eq!(design.get(semantic::BORDER_WIDTH_THIN), 1.0);
+    // Controls and surfaces have no border in the base theme; floating surfaces keep it.
+    assert_eq!(design.get(semantic::BORDER_WIDTH_CONTROL), 0.0);
+    assert_eq!(design.get(semantic::BORDER_WIDTH_SURFACE), 0.0);
+    assert_eq!(design.get(semantic::BORDER_WIDTH_FLOATING), 1.0);
     // `down` became `pressed` (the button's own value changed later: its default variant is a
     // neutral control, see the porting report).
     assert_eq!(
@@ -203,16 +231,17 @@ fn renamed_tokens_keep_their_values() {
     // `accent.color.visual` moved beside the `accent.color.visual.*` group.
     assert_eq!(
         design.get(semantic::ACCENT_COLOR_VISUAL_BASE),
-        design.get(semantic::ACCENT_COLOR_500)
+        design.get(semantic::ACCENT_COLOR_1300)
     );
 }
 
 #[test]
 fn semantic_aliases_follow_the_source() {
     let design = design();
+    // Accent fills hold white text (#60): step 900.
     assert_eq!(
         design.get(semantic::BACKGROUND_ACCENT_DEFAULT),
-        hex(0x5D_89_FF)
+        design.get(primitive::COLOR_BLUE_900)
     );
     assert_eq!(
         design.get(semantic::BACKGROUND_BASE_DEFAULT),
@@ -225,7 +254,7 @@ fn semantic_aliases_follow_the_source() {
     // The row highlight family is ported as is.
     assert_eq!(
         design.get(semantic::ACCENT_COLOR_HOVER_POSITIVE),
-        design.get(semantic::POSITIVE_COLOR_700)
+        design.get(semantic::POSITIVE_COLOR_400)
     );
     let body = design.typography(semantic::TEXT_BODY_M);
     assert_eq!(
@@ -283,22 +312,43 @@ fn imgui_residues_are_not_ported() {
 #[test]
 fn themes_redefine_what_differs_from_the_base() {
     let mut design = design();
-    let light = theme(&design, "light");
-    design.set_active_theme(light).unwrap();
+    let snow = theme(&design, "snow");
+    design.set_active_theme(snow).unwrap();
     assert_eq!(
         design.get(semantic::BACKGROUND_BASE_DEFAULT),
-        hex(0xF8_F8_F8)
+        hex(0xF8_F5_F3)
     );
+    // The same step, the theme's own color: dark text on the light background.
+    assert!(
+        design
+            .get(semantic::TEXT_COLOR_PRIMARY_DEFAULT)
+            .relative_luminance()
+            < 0.05
+    );
+    assert_eq!(design.get(semantic::BORDER_WIDTH_CONTROL), 1.0);
     assert_eq!(
-        design.get(component::BUTTON_LABEL_COLOR_DEFAULT),
-        hex(0x13_13_13)
+        design.get(semantic::BACKGROUND_ACCENT_DEFAULT),
+        design.get(primitive::COLOR_CINNAMON_900)
     );
 
     let muted = theme(&design, "muted-green");
     design.set_active_theme(muted).unwrap();
     assert_eq!(
         design.get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT),
-        design.get(primitive::COLOR_GREEN_700)
+        design.get(primitive::COLOR_CELERY_900)
+    );
+    assert_eq!(
+        design.get(semantic::BACKGROUND_BASE_DEFAULT),
+        hex(0x16_1A_14)
+    );
+    // Outlined controls, as before the base theme dropped them.
+    assert_eq!(design.get(semantic::BORDER_WIDTH_CONTROL), 1.0);
+
+    let pink = theme(&design, "dark-pink");
+    design.set_active_theme(pink).unwrap();
+    assert_eq!(
+        design.get(semantic::BACKGROUND_ACCENT_DEFAULT),
+        design.get(primitive::COLOR_PINK_900)
     );
     assert_eq!(
         design.get(semantic::BACKGROUND_BASE_DEFAULT),
@@ -312,11 +362,15 @@ fn themes_redefine_what_differs_from_the_base() {
         hex(0x00_00_00)
     );
     assert_eq!(design.get(semantic::BORDER_WIDTH_THIN), 2.0);
+    assert_eq!(design.get(semantic::BORDER_WIDTH_CONTROL), 2.0);
     assert_eq!(design.get(component::CHECKBOX_BORDER_WIDTH_DEFAULT), 1.0);
 
+    let arctic = theme(&design, "arctic");
     for (info, id) in [
-        (themes::LIGHT, light),
+        (themes::SNOW, snow),
+        (themes::ARCTIC, arctic),
         (themes::MUTED_GREEN, muted),
+        (themes::DARK_PINK, pink),
         (themes::HIGH_CONTRAST, high),
     ] {
         let view = design.view(id, Layers::THEME).unwrap();
@@ -324,14 +378,9 @@ fn themes_redefine_what_differs_from_the_base() {
             assert_eq!(view.origin(entry.token()), Origin::Theme);
         }
     }
-    assert_eq!(
-        (
-            themes::LIGHT.entries().len(),
-            themes::MUTED_GREEN.entries().len()
-        ),
-        (23, 16)
-    );
-    assert_eq!(themes::HIGH_CONTRAST.entries().len(), 27);
+    // Dark pink changes the accent only; the others their palettes too.
+    assert_eq!(themes::DARK_PINK.entries().len(), 16);
+    assert!(themes::SNOW.entries().len() > 16 + 18 * 16);
 }
 
 #[test]

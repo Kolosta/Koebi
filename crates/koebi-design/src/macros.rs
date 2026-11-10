@@ -353,7 +353,9 @@ macro_rules! __typography_field {
     };
 }
 
-/// Defines themes: each lists the tokens it changes, as aliases, on top of the base theme.
+/// Defines themes: each lists the tokens it changes on top of the base theme, values in a
+/// `values` block (`token: Kind = value;`, a palette redefined for the theme), then aliases in
+/// an `aliases` block (`token => target;`). Both blocks are optional.
 ///
 /// ```
 /// mod tokens {
@@ -373,12 +375,21 @@ macro_rules! __typography_field {
 ///     koebi_design::theme! {
 ///         /// Light theme.
 ///         LIGHT = "light", "Light" {
-///             BACKGROUND_BASE_DEFAULT => COLOR_GRAY_50;
+///             aliases {
+///                 BACKGROUND_BASE_DEFAULT => COLOR_GRAY_50;
+///             }
+///         }
+///         /// Darker still: the palette itself changes.
+///         DEEP = "deep", "Deep" {
+///             values {
+///                 COLOR_GRAY_900: Color = hex("#000000");
+///             }
 ///         }
 ///     }
 /// }
 /// fn main() {
 ///     assert_eq!(tokens::LIGHT.entries().len(), 1);
+///     assert_eq!(tokens::DEEP.entries().len(), 1);
 /// }
 /// ```
 #[macro_export]
@@ -387,7 +398,12 @@ macro_rules! theme {
         $(
             $(#[doc = $doc:literal])*
             $name:ident = $key:literal, $label:literal {
-                $($token:expr => $target:expr;)*
+                $(values {
+                    $($value_token:path: $kind:ident = $value:expr;)*
+                })?
+                $(aliases {
+                    $($token:expr => $target:expr;)*
+                })?
             }
         )*
     ) => {
@@ -397,7 +413,13 @@ macro_rules! theme {
                 $key,
                 $label,
                 concat!($($doc),*),
-                &[$($crate::schema::ThemeEntry::alias($token, $target),)*],
+                &[
+                    $($($crate::schema::ThemeEntry::literal(
+                        $value_token,
+                        $crate::__token_definition!(=, $kind, Primitive, $value),
+                    ),)*)?
+                    $($($crate::schema::ThemeEntry::alias($token, $target),)*)?
+                ],
             );
         )*
     };

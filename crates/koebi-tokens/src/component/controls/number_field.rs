@@ -67,7 +67,7 @@ koebi_design::tokens! {
         semantic::BORDER_COLOR_DEFAULT;
     /// Number field: border color, hovered.
     NUMBER_FIELD_BORDER_COLOR_HOVER = "number-field.border.color.hover": Color ->
-        semantic::NEUTRAL_COLOR_600;
+        semantic::BORDER_COLOR_STRONG_DEFAULT;
     /// Number field: border color, while dragging.
     NUMBER_FIELD_BORDER_COLOR_DRAG = "number-field.border.color.drag": Color ->
         semantic::BORDER_COLOR_ACTIVE;
@@ -79,19 +79,19 @@ koebi_design::tokens! {
         semantic::BORDER_COLOR_NEGATIVE_FOCUS;
     /// Number field: border width.
     NUMBER_FIELD_BORDER_WIDTH_DEFAULT = "number-field.border.width.default": Dimension ->
-        semantic::BORDER_WIDTH_THIN;
+        semantic::BORDER_WIDTH_CONTROL;
     /// Number field: corner radius.
     NUMBER_FIELD_CORNER_RADIUS_DEFAULT = "number-field.corner-radius.default": Dimension ->
         semantic::RADIUS_CONTROL;
     /// Number field: bar showing where the value lies in its range.
     NUMBER_FIELD_FILL_COLOR_DEFAULT = "number-field.fill.color.default": Color ->
-        semantic::BACKGROUND_ACCENT_DEFAULT;
+        semantic::BACKGROUND_ACCENT_MUTED_DEFAULT;
     /// Number field: bar, hovered or dragged.
     NUMBER_FIELD_FILL_COLOR_HOVER = "number-field.fill.color.hover": Color ->
-        semantic::BACKGROUND_ACCENT_HOVER;
+        semantic::BACKGROUND_ACCENT_MUTED_HOVER;
     /// Number field: bar, disabled.
     NUMBER_FIELD_FILL_COLOR_DISABLED = "number-field.fill.color.disabled": Color ->
-        semantic::NEUTRAL_COLOR_600;
+        semantic::NEUTRAL_COLOR_400;
     /// Number field: pointer travel that changes an unbounded value by one step.
     NUMBER_FIELD_DRAG_STEP_DISTANCE = "number-field.drag.step-distance": Dimension = px(8.0),
         range(1.0, 200.0);

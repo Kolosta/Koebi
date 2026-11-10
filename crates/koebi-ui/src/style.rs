@@ -705,7 +705,7 @@ mod tests {
     #[test]
     fn styles_of_another_theme_come_from_its_view() {
         let design = design();
-        let light = design.find_theme("light").expect("built-in theme");
+        let light = design.find_theme("snow").expect("built-in theme");
         let view = design.view(light, Layers::ALL).expect("live theme");
         let styles = Styles::resolve(&view);
         assert_eq!(
