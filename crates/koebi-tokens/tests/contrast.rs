@@ -12,6 +12,10 @@
 //!
 //! Disabled content is exempt (WCAG), and stays in the high-contrast theme's 4.5:1 for icons.
 
+// Token constants of the last groups sit at the end of a chain of group starts: evaluating
+// them goes deeper than the default limit on some hosts.
+#![recursion_limit = "256"]
+
 use koebi_core::Color;
 use koebi_design::kind::KindId;
 use koebi_design::schema::TokenInfo;
