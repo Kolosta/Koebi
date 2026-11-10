@@ -4,6 +4,7 @@
 
 use koebi_core::Rect;
 use koebi_core::expr::MILLIMETER;
+use koebi_i18n::tr;
 use koebi_ui::{
     Align, BarMapping, EditEnd, NumberField, PanelLevel, SelectOnFocus, TextField, Ui, WidgetId,
 };
@@ -39,10 +40,10 @@ impl Fields {
         Self {
             name: "Cube.001".to_owned(),
             search: String::new(),
-            centered: "Centered".to_owned(),
+            centered: tr("Centered").to_owned(),
             digits: "2026".to_owned(),
-            long: "A name far too long for its field, which scrolls while editing".to_owned(),
-            disabled: "Disabled".to_owned(),
+            long: tr("A name far too long for its field, which scrolls while editing").to_owned(),
+            disabled: tr("Disabled").to_owned(),
             width: 12.5,
             opacity: 0.8,
             frequency: 440.0,
@@ -50,7 +51,7 @@ impl Fields {
             locked: 1.0,
             bar_with_buttons: 0.5,
             plain_without_buttons: 3.5,
-            last: "Click a field to edit it; Tab moves to the next one",
+            last: tr("Click a field to edit it; Tab moves to the next one"),
         }
     }
 
@@ -67,7 +68,7 @@ impl Fields {
             .show(ui, cut_left(&mut line, sixth, gap))
             .ended;
         ended[1] = TextField::new(ID.with(1), &mut self.search)
-            .placeholder("Search")
+            .placeholder(tr("Search"))
             .icon(koebi_icons::interface::SEARCH)
             .select_on_focus(SelectOnFocus::End)
             .show(ui, cut_left(&mut line, sixth, gap))
@@ -94,18 +95,18 @@ impl Fields {
         let fifth = ((line.width() - 4.0 * gap) / 5.0).floor();
         let numbers = [
             NumberField::new(ID.with(10), &mut self.width)
-                .label("Width")
+                .label(tr("Width"))
                 .unit(&MILLIMETER)
                 .show(ui, cut_left(&mut line, fifth, gap))
                 .ended,
             NumberField::new(ID.with(11), &mut self.opacity)
-                .label("Opacity")
+                .label(tr("Opacity"))
                 .range(0.0, 1.0)
                 .bar(BarMapping::Linear)
                 .show(ui, cut_left(&mut line, fifth, gap))
                 .ended,
             NumberField::new(ID.with(12), &mut self.frequency)
-                .label("Frequency")
+                .label(tr("Frequency"))
                 .range(20.0, 20_000.0)
                 .decimals(0)
                 .step(10.0)
@@ -113,12 +114,12 @@ impl Fields {
                 .show(ui, cut_left(&mut line, fifth, gap))
                 .ended,
             NumberField::new(ID.with(13), &mut self.samples)
-                .label("Samples")
+                .label(tr("Samples"))
                 .range(1, 256)
                 .show(ui, cut_left(&mut line, fifth, gap))
                 .ended,
             NumberField::new(ID.with(14), &mut self.locked)
-                .label("Locked")
+                .label(tr("Locked"))
                 .enabled(false)
                 .show(ui, line)
                 .ended,
@@ -127,18 +128,18 @@ impl Fields {
         let mut line = cut_top(&mut content, row, gap);
         let half = ((line.width() - gap) * 0.5).floor();
         NumberField::new(ID.with(15), &mut self.bar_with_buttons)
-            .label("Bar with step buttons")
+            .label(tr("Bar with step buttons"))
             .range(0.0, 1.0)
             .bar(BarMapping::Linear)
             .step_buttons(true)
             .show(ui, cut_left(&mut line, half, gap));
         NumberField::new(ID.with(16), &mut self.plain_without_buttons)
-            .label("Without step buttons")
+            .label(tr("Without step buttons"))
             .step_buttons(false)
             .show(ui, line);
         match ended.into_iter().chain(numbers).flatten().next() {
-            Some(EditEnd::Confirmed) => self.last = "Kept the text",
-            Some(EditEnd::Cancelled) => self.last = "Restored the text",
+            Some(EditEnd::Confirmed) => self.last = tr("Kept the text"),
+            Some(EditEnd::Cancelled) => self.last = tr("Restored the text"),
             None => {}
         }
 

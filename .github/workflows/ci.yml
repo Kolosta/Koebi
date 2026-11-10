@@ -116,6 +116,18 @@ jobs:
           cache-key: xtask
       - run: cargo xtask shaders --check
 
+  translations:
+    name: Translations (catalogs up to date)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        with:
+          cache-key: xtask
+      - run: cargo xtask i18n check
+
   test:
     name: Test (${{ matrix.name }})
     needs: changes
@@ -297,7 +309,7 @@ jobs:
   ci-result:
     name: CI result
     if: always()
-    needs: [changes, fmt, lint, deny, typos, shaders, test, android, ios, package]
+    needs: [changes, fmt, lint, deny, typos, shaders, translations, test, android, ios, package]
     runs-on: ubuntu-24.04
     defaults:
       run:

@@ -7,6 +7,7 @@
 use koebi_core::input::Key;
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::DesignSystem;
+use koebi_i18n::n_;
 use koebi_input::{ActionDef, ActionGroup, ActionKind, Context, Hint, Shortcut};
 use koebi_render::RectPrimitive;
 use koebi_tokens::component;
@@ -18,8 +19,8 @@ pub(crate) const VIEWPORT: Context = Context::new("viewport");
 /// Frames the page.
 pub(crate) static VIEW_ALL: ActionDef = ActionDef {
     id: "viewport.view-all",
-    label: "Frame all",
-    description: "Zooms and pans so that the whole page shows.",
+    label: n_!("Frame all"),
+    description: n_!("Zooms and pans so that the whole page shows."),
     context: VIEWPORT,
     defaults: &[Shortcut::key(Key::Home)],
     repeats: false,
@@ -30,8 +31,8 @@ pub(crate) static VIEW_ALL: ActionDef = ActionDef {
 /// Zooms in on the middle of the view.
 pub(crate) static ZOOM_IN: ActionDef = ActionDef {
     id: "viewport.zoom-in",
-    label: "Zoom in",
-    description: "Zooms in by one step on the middle of the view.",
+    label: n_!("Zoom in"),
+    description: n_!("Zooms in by one step on the middle of the view."),
     context: VIEWPORT,
     defaults: &[Shortcut::key(Key::KeypadPlus)],
     repeats: true,
@@ -42,8 +43,8 @@ pub(crate) static ZOOM_IN: ActionDef = ActionDef {
 /// Zooms out from the middle of the view.
 pub(crate) static ZOOM_OUT: ActionDef = ActionDef {
     id: "viewport.zoom-out",
-    label: "Zoom out",
-    description: "Zooms out by one step from the middle of the view.",
+    label: n_!("Zoom out"),
+    description: n_!("Zooms out by one step from the middle of the view."),
     context: VIEWPORT,
     defaults: &[Shortcut::key(Key::KeypadMinus)],
     repeats: true,
@@ -54,8 +55,8 @@ pub(crate) static ZOOM_OUT: ActionDef = ActionDef {
 /// Shows the canvas at its real size.
 pub(crate) static ACTUAL_SIZE: ActionDef = ActionDef {
     id: "viewport.actual-size",
-    label: "Actual size",
-    description: "Zooms to 100 %: one canvas unit per logical pixel.",
+    label: n_!("Actual size"),
+    description: n_!("Zooms to 100 %: one canvas unit per logical pixel."),
     context: VIEWPORT,
     defaults: &[Shortcut::key(Key::Keypad1)],
     repeats: false,
@@ -66,8 +67,8 @@ pub(crate) static ACTUAL_SIZE: ActionDef = ActionDef {
 /// Shows or hides the rulers.
 pub(crate) static TOGGLE_RULERS: ActionDef = ActionDef {
     id: "viewport.toggle-rulers",
-    label: "Toggle rulers",
-    description: "Hides every ruler, or shows the top and left ones.",
+    label: n_!("Toggle rulers"),
+    description: n_!("Hides every ruler, or shows the top and left ones."),
     context: VIEWPORT,
     defaults: &[Shortcut::key(Key::R).primary()],
     repeats: false,
@@ -77,7 +78,7 @@ pub(crate) static TOGGLE_RULERS: ActionDef = ActionDef {
 
 /// The viewport's actions, for the keymap.
 pub(crate) static ACTIONS: ActionGroup = ActionGroup {
-    name: "Viewport",
+    name: n_!("Viewport"),
     actions: &[&VIEW_ALL, &ZOOM_IN, &ZOOM_OUT, &ACTUAL_SIZE, &TOGGLE_RULERS],
 };
 

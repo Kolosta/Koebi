@@ -15,6 +15,7 @@ pub(crate) mod viewport;
 
 use koebi_core::Rect;
 use koebi_design::DesignSystem;
+use koebi_i18n::tr;
 use koebi_ui::{BarLayout, EditorHost, ListItem, ListState, Ui, WidgetId};
 use koebi_workspace::{EditorId, GRID, Orientation, Workspace};
 
@@ -62,25 +63,20 @@ impl EditorKind {
         Self::Timeline,
     ];
 
-    /// The titles of [`EditorKind::ALL`], for the dropdown.
-    const TITLES: [&'static str; 6] = [
-        "Gallery",
-        "Viewport",
-        "Outliner",
-        "Properties",
-        "Info",
-        "Timeline",
-    ];
+    /// The titles of [`EditorKind::ALL`] in the current language, for the dropdown.
+    pub(crate) fn titles() -> [&'static str; 6] {
+        Self::ALL.map(Self::title)
+    }
 
     /// The title shown in the editor's tab and type dropdown.
     pub(crate) fn title(self) -> &'static str {
         match self {
-            Self::Gallery => "Gallery",
-            Self::Viewport => "Viewport",
-            Self::Outliner => "Outliner",
-            Self::Info => "Info",
-            Self::Timeline => "Timeline",
-            Self::Properties => "Properties",
+            Self::Gallery => tr("Gallery"),
+            Self::Viewport => tr("Viewport"),
+            Self::Outliner => tr("Outliner"),
+            Self::Info => tr("Info"),
+            Self::Timeline => tr("Timeline"),
+            Self::Properties => tr("Properties"),
         }
     }
 }
@@ -262,6 +258,8 @@ pub(crate) struct Host<'a> {
     pub(crate) design: &'a mut DesignSystem,
     /// The window, where the editors' menus may open.
     pub(crate) window: Rect,
+    /// [`EditorKind::titles`], read once a frame.
+    pub(crate) titles: [&'static str; 6],
 }
 
 impl EditorHost for Host<'_> {
@@ -270,7 +268,7 @@ impl EditorHost for Host<'_> {
     }
 
     fn kinds(&self) -> &[&str] {
-        &EditorKind::TITLES
+        &self.titles
     }
 
     fn kind(&self, editor: EditorId) -> usize {
@@ -379,7 +377,7 @@ mod tests {
         assert!(
             EditorKind::ALL
                 .iter()
-                .zip(EditorKind::TITLES)
+                .zip(EditorKind::titles())
                 .all(|(kind, title)| kind.title() == title)
         );
     }
@@ -396,6 +394,7 @@ mod tests {
             content: &mut content,
             design: &mut design,
             window: Rect::ZERO,
+            titles: EditorKind::titles(),
         };
         host.copied(a, b);
         assert_eq!(host.title(b), "Outliner");

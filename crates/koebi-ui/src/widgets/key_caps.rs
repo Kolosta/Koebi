@@ -8,6 +8,7 @@
 
 use crate::icon::icon_bounds;
 use core::fmt::Write as _;
+use koebi_i18n::trc;
 
 use koebi_core::input::{Key, KeyName, ModifierKey, MouseButton};
 use koebi_core::{Color, Rect, Vec2};
@@ -105,20 +106,55 @@ impl Keyboard {
     };
 
     /// The names of `family`'s keys: either, the left one, the right one, either or none.
-    const fn names(self, family: ModifierKey) -> [&'static str; 4] {
+    fn names(self, family: ModifierKey) -> [&'static str; 4] {
         match (family, self) {
-            (ModifierKey::Ctrl, _) => ["Ctrl", "L Ctrl", "R Ctrl", "Any Ctrl"],
-            (ModifierKey::Shift, _) => ["Shift", "L Shift", "R Shift", "Any Shift"],
-            (ModifierKey::Alt, Self::Apple) => ["Option", "L Option", "R Option", "Any Option"],
-            (ModifierKey::Alt, _) => ["Alt", "L Alt", "R Alt", "Any Alt"],
-            (ModifierKey::Gui, Self::Apple) => ["Cmd", "L Cmd", "R Cmd", "Any Cmd"],
-            (ModifierKey::Gui, Self::Windows) => ["Win", "L Win", "R Win", "Any Win"],
-            (ModifierKey::Gui, Self::Other) => ["Super", "L Super", "R Super", "Any Super"],
+            (ModifierKey::Ctrl, _) => [
+                trc("key", "Ctrl"),
+                trc("key", "L Ctrl"),
+                trc("key", "R Ctrl"),
+                trc("key", "Any Ctrl"),
+            ],
+            (ModifierKey::Shift, _) => [
+                trc("key", "Shift"),
+                trc("key", "L Shift"),
+                trc("key", "R Shift"),
+                trc("key", "Any Shift"),
+            ],
+            (ModifierKey::Alt, Self::Apple) => [
+                trc("key", "Option"),
+                trc("key", "L Option"),
+                trc("key", "R Option"),
+                trc("key", "Any Option"),
+            ],
+            (ModifierKey::Alt, _) => [
+                trc("key", "Alt"),
+                trc("key", "L Alt"),
+                trc("key", "R Alt"),
+                trc("key", "Any Alt"),
+            ],
+            (ModifierKey::Gui, Self::Apple) => [
+                trc("key", "Cmd"),
+                trc("key", "L Cmd"),
+                trc("key", "R Cmd"),
+                trc("key", "Any Cmd"),
+            ],
+            (ModifierKey::Gui, Self::Windows) => [
+                trc("key", "Win"),
+                trc("key", "L Win"),
+                trc("key", "R Win"),
+                trc("key", "Any Win"),
+            ],
+            (ModifierKey::Gui, Self::Other) => [
+                trc("key", "Super"),
+                trc("key", "L Super"),
+                trc("key", "R Super"),
+                trc("key", "Any Super"),
+            ],
         }
     }
 
     /// The name of `family`'s keys: `Ctrl`, `Option`, `Win`...
-    pub const fn modifier_name(self, family: ModifierKey) -> &'static str {
+    pub fn modifier_name(self, family: ModifierKey) -> &'static str {
         self.names(family)[0]
     }
 
@@ -212,7 +248,7 @@ impl ShortcutCaps {
             .iter()
             .all(|(_, state)| *state == ModifierState::Any)
         {
-            caps.push(Cap::text("Any"));
+            caps.push(Cap::text(trc("key", "Any")));
         } else {
             for (family, state) in families {
                 if let Some(cap) = modifier_cap(keyboard, family, state) {
@@ -273,37 +309,39 @@ fn modifier_cap(keyboard: Keyboard, family: ModifierKey, state: ModifierState) -
 /// The cap of a keyboard key.
 pub fn key_cap(key: Key) -> Cap {
     let friendly = match key {
-        Key::Tab => return Cap::icon(koebi_icons::input::TAB, Some("Tab")),
-        Key::LeftShift => return Cap::icon(koebi_icons::input::SHIFT, Some("L Shift")),
-        Key::RightShift => return Cap::icon(koebi_icons::input::SHIFT, Some("R Shift")),
-        Key::Escape => Some("Esc"),
-        Key::PageUp => Some("Page Up"),
-        Key::PageDown => Some("Page Down"),
-        Key::LeftCtrl => Some("L Ctrl"),
-        Key::RightCtrl => Some("R Ctrl"),
-        Key::LeftAlt => Some("L Alt"),
-        Key::RightAlt => Some("R Alt"),
+        Key::Tab => return Cap::icon(koebi_icons::input::TAB, Some(trc("key", "Tab"))),
+        Key::LeftShift => return Cap::icon(koebi_icons::input::SHIFT, Some(trc("key", "L Shift"))),
+        Key::RightShift => {
+            return Cap::icon(koebi_icons::input::SHIFT, Some(trc("key", "R Shift")));
+        }
+        Key::Escape => Some(trc("key", "Esc")),
+        Key::PageUp => Some(trc("key", "Page Up")),
+        Key::PageDown => Some(trc("key", "Page Down")),
+        Key::LeftCtrl => Some(trc("key", "L Ctrl")),
+        Key::RightCtrl => Some(trc("key", "R Ctrl")),
+        Key::LeftAlt => Some(trc("key", "L Alt")),
+        Key::RightAlt => Some(trc("key", "R Alt")),
         // The keypad, as its keys are printed, with what tells them from the others.
-        Key::Keypad0 => Some("Num 0"),
-        Key::Keypad1 => Some("Num 1"),
-        Key::Keypad2 => Some("Num 2"),
-        Key::Keypad3 => Some("Num 3"),
-        Key::Keypad4 => Some("Num 4"),
-        Key::Keypad5 => Some("Num 5"),
-        Key::Keypad6 => Some("Num 6"),
-        Key::Keypad7 => Some("Num 7"),
-        Key::Keypad8 => Some("Num 8"),
-        Key::Keypad9 => Some("Num 9"),
-        Key::KeypadPlus => Some("Num +"),
-        Key::KeypadMinus => Some("Num -"),
-        Key::KeypadMultiply => Some("Num *"),
-        Key::KeypadDivide => Some("Num /"),
-        Key::KeypadPeriod => Some("Num ."),
-        Key::KeypadEnter => Some("Num Enter"),
-        Key::NumLock => Some("Num Lock"),
-        Key::CapsLock => Some("Caps Lock"),
-        Key::ScrollLock => Some("Scroll Lock"),
-        Key::PrintScreen => Some("Print Screen"),
+        Key::Keypad0 => Some(trc("key", "Num 0")),
+        Key::Keypad1 => Some(trc("key", "Num 1")),
+        Key::Keypad2 => Some(trc("key", "Num 2")),
+        Key::Keypad3 => Some(trc("key", "Num 3")),
+        Key::Keypad4 => Some(trc("key", "Num 4")),
+        Key::Keypad5 => Some(trc("key", "Num 5")),
+        Key::Keypad6 => Some(trc("key", "Num 6")),
+        Key::Keypad7 => Some(trc("key", "Num 7")),
+        Key::Keypad8 => Some(trc("key", "Num 8")),
+        Key::Keypad9 => Some(trc("key", "Num 9")),
+        Key::KeypadPlus => Some(trc("key", "Num +")),
+        Key::KeypadMinus => Some(trc("key", "Num -")),
+        Key::KeypadMultiply => Some(trc("key", "Num *")),
+        Key::KeypadDivide => Some(trc("key", "Num /")),
+        Key::KeypadPeriod => Some(trc("key", "Num .")),
+        Key::KeypadEnter => Some(trc("key", "Num Enter")),
+        Key::NumLock => Some(trc("key", "Num Lock")),
+        Key::CapsLock => Some(trc("key", "Caps Lock")),
+        Key::ScrollLock => Some(trc("key", "Scroll Lock")),
+        Key::PrintScreen => Some(trc("key", "Print Screen")),
         _ => None,
     };
     if let Some(text) = friendly {
@@ -331,11 +369,11 @@ fn trigger_cap(trigger: Trigger) -> (Cap, Option<&'static str>) {
         Trigger::Key { key, when, repeat } => (
             key_cap(key),
             match when {
-                KeyTrigger::Press if repeat => Some("repeat"),
+                KeyTrigger::Press if repeat => Some(trc("shortcut", "repeat")),
                 KeyTrigger::Press => None,
-                KeyTrigger::Release => Some("release"),
-                KeyTrigger::Click => Some("click"),
-                KeyTrigger::DoubleClick => Some("double click"),
+                KeyTrigger::Release => Some(trc("shortcut", "release")),
+                KeyTrigger::Click => Some(trc("shortcut", "click")),
+                KeyTrigger::DoubleClick => Some(trc("shortcut", "double click")),
             },
         ),
         Trigger::Button { button, when } => {
@@ -350,45 +388,45 @@ fn trigger_cap(trigger: Trigger) -> (Cap, Option<&'static str>) {
             };
             let phase = match when {
                 ButtonTrigger::Press => None,
-                ButtonTrigger::Release => Some("release"),
-                ButtonTrigger::Click => Some("click"),
-                ButtonTrigger::DoubleClick(_) => Some("double click"),
+                ButtonTrigger::Release => Some(trc("shortcut", "release")),
+                ButtonTrigger::Click => Some(trc("shortcut", "click")),
+                ButtonTrigger::DoubleClick(_) => Some(trc("shortcut", "double click")),
                 ButtonTrigger::Drag(drag) => Some(drag_phase(drag.direction)),
             };
             (cap, phase)
         }
         Trigger::Wheel(direction) => (
             Cap::text(match direction {
-                WheelDirection::Up => "Wheel up",
-                WheelDirection::Down => "Wheel down",
-                WheelDirection::Left => "Wheel left",
-                WheelDirection::Right => "Wheel right",
+                WheelDirection::Up => trc("shortcut", "Wheel up"),
+                WheelDirection::Down => trc("shortcut", "Wheel down"),
+                WheelDirection::Left => trc("shortcut", "Wheel left"),
+                WheelDirection::Right => trc("shortcut", "Wheel right"),
             }),
             None,
         ),
         Trigger::Pinch(direction) => (
             Cap::text(match direction {
-                PinchDirection::In => "Pinch in",
-                PinchDirection::Out => "Pinch out",
+                PinchDirection::In => trc("shortcut", "Pinch in"),
+                PinchDirection::Out => trc("shortcut", "Pinch out"),
             }),
             None,
         ),
-        Trigger::PointerMove => (Cap::text("Move"), None),
+        Trigger::PointerMove => (Cap::text(trc("shortcut", "Move")), None),
     }
 }
 
 /// What a drag in `direction` shows after its button.
-const fn drag_phase(direction: DragDirection) -> &'static str {
+fn drag_phase(direction: DragDirection) -> &'static str {
     match direction {
-        DragDirection::Any => "drag",
-        DragDirection::North => "drag up",
-        DragDirection::NorthEast => "drag up right",
-        DragDirection::East => "drag right",
-        DragDirection::SouthEast => "drag down right",
-        DragDirection::South => "drag down",
-        DragDirection::SouthWest => "drag down left",
-        DragDirection::West => "drag left",
-        DragDirection::NorthWest => "drag up left",
+        DragDirection::Any => trc("shortcut", "drag"),
+        DragDirection::North => trc("shortcut", "drag up"),
+        DragDirection::NorthEast => trc("shortcut", "drag up right"),
+        DragDirection::East => trc("shortcut", "drag right"),
+        DragDirection::SouthEast => trc("shortcut", "drag down right"),
+        DragDirection::South => trc("shortcut", "drag down"),
+        DragDirection::SouthWest => trc("shortcut", "drag down left"),
+        DragDirection::West => trc("shortcut", "drag left"),
+        DragDirection::NorthWest => trc("shortcut", "drag up left"),
     }
 }
 
@@ -407,7 +445,11 @@ fn label_text(label: CapLabel, buffer: &mut LabelBuffer) -> &str {
             let _infallible = write!(buffer, "#{code}");
         }
         CapLabel::Button(number) => {
-            let _infallible = write!(buffer, "Mouse {number}");
+            let _infallible = koebi_i18n::write_filled(
+                buffer,
+                trc("key", "Mouse {number}"),
+                &[("number", &number)],
+            );
         }
     }
     buffer.as_str()

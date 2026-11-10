@@ -4,6 +4,7 @@
 //! and the order of its parts.
 
 use koebi_core::{Color, Rect, Vec2};
+use koebi_i18n::tr;
 use koebi_render::HueModel;
 use koebi_ui::{
     Align, Checkbox, ColorField, ColorFieldState, ColorPicker, ColorPickerState, ColorStrip,
@@ -121,19 +122,19 @@ impl Colors {
             let tip = if index == 0 {
                 "How the left half of the fields shows transparency"
             } else {
-                "How the right half of the fields shows transparency"
+                tr("How the right half of the fields shows transparency")
             };
             ui.tooltip(id, tip, at);
         }
         let third = ((line.width() - 2.0 * gap) / 3.0).floor();
         Checkbox::new(ID.with(4), &mut self.titled)
-            .label("Title")
+            .label(tr("Title"))
             .show(ui, cut_left(&mut line, third, gap));
         Checkbox::new(ID.with(5), &mut self.palette)
-            .label("Palette")
+            .label(tr("Palette"))
             .show(ui, cut_left(&mut line, third, gap));
         Checkbox::new(ID.with(6), &mut self.values_first)
-            .label("Values first")
+            .label(tr("Values first"))
             .show(ui, line);
 
         // A field opening its picker as a dropdown, one as a panel, a horizontal strip.
@@ -143,8 +144,8 @@ impl Colors {
         let secondary = ui.styles().text.secondary;
         let (left, right) = (self.left.0, self.right.0);
         for (index, ((color, state), label)) in [
-            (&mut self.dropdown, "As a dropdown"),
-            (&mut self.panel, "As a panel"),
+            (&mut self.dropdown, tr("As a dropdown")),
+            (&mut self.panel, tr("As a panel")),
         ]
         .into_iter()
         .enumerate()
@@ -167,7 +168,7 @@ impl Colors {
         let mut strip = line;
         let caption = cut_left(&mut strip, quarter * 0.45, gap);
         ui.label(
-            "A horizontal strip",
+            tr("A horizontal strip"),
             caption,
             &font,
             secondary,
@@ -217,7 +218,7 @@ fn configured(
 ) -> ColorPicker<'_> {
     let mut picker = picker.shape(shape).original(Color::from_hex(0x3D_8B_E0));
     if titled {
-        picker = picker.title("Accent");
+        picker = picker.title(tr("Accent"));
     }
     if palette {
         picker = picker.palette(&PALETTE);

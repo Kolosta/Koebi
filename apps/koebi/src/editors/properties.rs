@@ -7,6 +7,8 @@
 use koebi_core::expr::{DEGREE, MILLIMETER, Unit};
 use koebi_core::{Rect, Vec2};
 use koebi_design::DesignSystem;
+use koebi_i18n::n_;
+use koebi_i18n::tr;
 use koebi_tokens::component;
 use koebi_ui::{
     BarMapping, Button, ButtonGroup, Checkbox, CollapsiblePanel, CollapsiblePanelState, Dropdown,
@@ -15,7 +17,7 @@ use koebi_ui::{
 };
 
 /// The shading modes of the object, for its dropdown.
-const SHADINGS: [&str; 3] = ["Smooth", "Flat", "Auto smooth"];
+const SHADINGS: [&str; 3] = [n_!("Smooth"), n_!("Flat"), n_!("Auto smooth")];
 
 /// The object the Properties editors edit: a template document's.
 #[derive(Clone, Debug, PartialEq)]
@@ -38,7 +40,7 @@ impl Object {
     /// The template's object.
     pub(crate) fn template() -> Self {
         Self {
-            name: "Cube".to_owned(),
+            name: tr("Cube").to_owned(),
             description: String::new(),
             location: [0.0, 0.0, 1000.0],
             rotation: [0.0, 0.0, 45.0],
@@ -188,28 +190,28 @@ pub(crate) fn show(
             };
             stack.panel(
                 ui,
-                CollapsiblePanel::new(id.with(1), &mut view.object, "Object"),
+                CollapsiblePanel::new(id.with(1), &mut view.object, tr("Object")),
                 |ui, rect| {
                     let mut rows = group(ui, rect);
-                    let name = rows.row(ui, "Name");
+                    let name = rows.row(ui, tr("Name"));
                     TextField::new(id.with(10), &mut object.name).show(ui, name);
-                    let description = rows.row(ui, "Notes");
+                    let description = rows.row(ui, tr("Notes"));
                     TextField::new(id.with(11), &mut object.description)
-                        .placeholder("What the object is for")
+                        .placeholder(tr("What the object is for"))
                         .show(ui, description);
                     rows.height()
                 },
             );
             stack.panel(
                 ui,
-                CollapsiblePanel::new(id.with(2), &mut view.transform, "Transform"),
+                CollapsiblePanel::new(id.with(2), &mut view.transform, tr("Transform")),
                 |ui, rect| {
                     let mut rows = group(ui, rect);
                     vector(
                         ui,
                         &mut rows,
                         id.with(20),
-                        "Location",
+                        tr("Location"),
                         &mut object.location,
                         Some(&MILLIMETER),
                         2,
@@ -218,7 +220,7 @@ pub(crate) fn show(
                         ui,
                         &mut rows,
                         id.with(21),
-                        "Rotation",
+                        tr("Rotation"),
                         &mut object.rotation,
                         Some(&DEGREE),
                         1,
@@ -227,15 +229,15 @@ pub(crate) fn show(
                         ui,
                         &mut rows,
                         id.with(22),
-                        "Scale",
+                        tr("Scale"),
                         &mut object.scale,
                         None,
                         3,
                     );
                     let buttons = rows.wide_row();
                     let mut cells = [
-                        GroupCell::new(Button::new(id.with(23)).label("Reset")),
-                        GroupCell::new(Button::new(id.with(24)).label("Apply delta")),
+                        GroupCell::new(Button::new(id.with(23)).label(tr("Reset"))),
+                        GroupCell::new(Button::new(id.with(24)).label(tr("Apply delta"))),
                     ];
                     let clicked = ButtonGroup::horizontal()
                         .columns(&[Track::Share(1.0), Track::Share(1.0)])
@@ -251,7 +253,7 @@ pub(crate) fn show(
                     let below = rect.min.y + rows.height() + gap;
                     let nested = Rect::from_min_max(Vec2::new(rect.min.x, below), rect.max);
                     let delta =
-                        CollapsiblePanel::new(id.with(25), &mut view.delta, "Delta transform")
+                        CollapsiblePanel::new(id.with(25), &mut view.delta, tr("Delta transform"))
                             .level(PanelLevel::Second)
                             .show(ui, nested, |ui, rect| {
                                 let mut rows = group(ui, rect);
@@ -259,7 +261,7 @@ pub(crate) fn show(
                                     ui,
                                     &mut rows,
                                     id.with(26),
-                                    "Location",
+                                    tr("Location"),
                                     &mut object.delta,
                                     Some(&MILLIMETER),
                                     2,
@@ -271,13 +273,13 @@ pub(crate) fn show(
             );
             stack.panel(
                 ui,
-                CollapsiblePanel::new(id.with(3), &mut view.visibility, "Visibility"),
+                CollapsiblePanel::new(id.with(3), &mut view.visibility, tr("Visibility")),
                 |ui, rect| {
                     let mut rows = group(ui, rect);
                     let boxes = [
-                        (&mut object.in_viewport, "Show in viewport"),
-                        (&mut object.in_renders, "Show in renders"),
-                        (&mut object.selectable, "Selectable"),
+                        (&mut object.in_viewport, tr("Show in viewport")),
+                        (&mut object.in_renders, tr("Show in renders")),
+                        (&mut object.selectable, tr("Selectable")),
                     ];
                     for ((checked, label), key) in boxes.into_iter().zip(30_u64..) {
                         Checkbox::new(id.with(key), checked)
@@ -285,7 +287,7 @@ pub(crate) fn show(
                             .show(ui, rows.unlabeled_row());
                     }
                     rows.start_group();
-                    let opacity = rows.row(ui, "Opacity");
+                    let opacity = rows.row(ui, tr("Opacity"));
                     NumberField::new(id.with(33), &mut object.opacity)
                         .range(0.0, 1.0)
                         .bar(BarMapping::Linear)
@@ -295,25 +297,25 @@ pub(crate) fn show(
             );
             stack.panel(
                 ui,
-                CollapsiblePanel::new(id.with(4), &mut view.shading, "Shading"),
+                CollapsiblePanel::new(id.with(4), &mut view.shading, tr("Shading")),
                 |ui, rect| {
                     let mut rows = group(ui, rect);
                     let current = object.shading;
                     let mut index = 0;
                     let marked = SHADINGS.map(|label| {
-                        let item = MenuItem::action(label).selected(index == current);
+                        let item = MenuItem::action(tr(label)).selected(index == current);
                         index += 1;
                         item
                     });
-                    let shading = rows.row(ui, "Shading");
+                    let shading = rows.row(ui, tr("Shading"));
                     if let Some(choice) =
                         Dropdown::new(id.with(40), &mut view.shading_menu, &marked)
-                            .label(SHADINGS[object.shading.min(SHADINGS.len() - 1)])
+                            .label(tr(SHADINGS[object.shading.min(SHADINGS.len() - 1)]))
                             .show(ui, shading, window)
                     {
                         object.shading = choice.index();
                     }
-                    let samples = rows.row(ui, "Samples");
+                    let samples = rows.row(ui, tr("Samples"));
                     NumberField::new(id.with(41), &mut object.samples)
                         .range(1, 1024)
                         .show(ui, samples);

@@ -4,6 +4,7 @@
 //! Each window has its own frames: its input, its scene and its [`UiState`]. What they show comes
 //! from the [`Interface`] all windows share.
 
+use koebi_i18n::tr;
 use std::time::{Duration, Instant};
 
 use koebi_core::{Rect, Vec2};
@@ -14,7 +15,7 @@ use koebi_workspace::Workspace;
 
 use crate::actions;
 use crate::chrome::{AppChrome, AppCommand, WindowView};
-use crate::editors::{Editors, Host};
+use crate::editors::{EditorKind, Editors, Host};
 use crate::frame_times::FrameTimes;
 use crate::gpu::WindowGpu;
 use crate::interface::Interface;
@@ -255,6 +256,7 @@ impl AppWindow {
                         content: shown,
                         design,
                         window: area,
+                        titles: EditorKind::titles(),
                     };
                     view.set_window(area);
                     // The status bar along the bottom, the workspace above it.
@@ -437,7 +439,7 @@ impl AppWindow {
     /// The title of the window.
     fn title(&self) -> &'static str {
         match self.content {
-            WindowContent::Settings(_) => "Settings",
+            WindowContent::Settings(_) => tr("Settings"),
             WindowContent::Workspace { .. } => "Koebi",
         }
     }

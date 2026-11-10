@@ -4,6 +4,8 @@
 //! key, one side never goes alone), and the lists the editor offers, keys by section.
 
 use koebi_core::input::{Key, ModifierKey, MouseButton};
+use koebi_i18n::n_;
+use koebi_i18n::tr;
 use koebi_input::{
     ActionDef, ButtonTrigger, Drag, DragDirection, KeyTrigger, ModifierRule, ModifierState,
     PinchDirection, Side, Trigger, WheelDirection,
@@ -22,12 +24,12 @@ pub(super) enum Device {
 impl Device {
     pub(super) const ALL: [Self; 4] = [Self::Keyboard, Self::Mouse, Self::Touchpad, Self::Pointer];
 
-    pub(super) const fn label(self) -> &'static str {
+    pub(super) fn label(self) -> &'static str {
         match self {
-            Self::Keyboard => "Keyboard",
-            Self::Mouse => "Mouse",
-            Self::Touchpad => "Touchpad",
-            Self::Pointer => "Pointer move",
+            Self::Keyboard => tr("Keyboard"),
+            Self::Mouse => tr("Mouse"),
+            Self::Touchpad => tr("Touchpad"),
+            Self::Pointer => tr("Pointer move"),
         }
     }
 
@@ -119,13 +121,13 @@ impl Event {
         Self::Drag,
     ];
 
-    pub(super) const fn label(self) -> &'static str {
+    pub(super) fn label(self) -> &'static str {
         match self {
-            Self::Press => "Press",
-            Self::Release => "Release",
-            Self::Click => "Click",
-            Self::DoubleClick => "Double click",
-            Self::Drag => "Click and drag",
+            Self::Press => tr("Press"),
+            Self::Release => tr("Release"),
+            Self::Click => tr("Click"),
+            Self::DoubleClick => tr("Double click"),
+            Self::Drag => tr("Click and drag"),
         }
     }
 
@@ -261,7 +263,7 @@ pub(super) struct Section<T: 'static> {
 /// in one.
 pub(super) const KEY_SECTIONS: [Section<Key>; 8] = [
     Section {
-        name: "Letters",
+        name: n_!("Letters"),
         inputs: &[
             (Key::A, "A"),
             (Key::B, "B"),
@@ -292,7 +294,7 @@ pub(super) const KEY_SECTIONS: [Section<Key>; 8] = [
         ],
     },
     Section {
-        name: "Digits",
+        name: n_!("Digits"),
         inputs: &[
             (Key::Digit0, "0"),
             (Key::Digit1, "1"),
@@ -307,7 +309,7 @@ pub(super) const KEY_SECTIONS: [Section<Key>; 8] = [
         ],
     },
     Section {
-        name: "Function keys",
+        name: n_!("Function keys"),
         inputs: &[
             (Key::F1, "F1"),
             (Key::F2, "F2"),
@@ -336,76 +338,76 @@ pub(super) const KEY_SECTIONS: [Section<Key>; 8] = [
         ],
     },
     Section {
-        name: "Navigation",
+        name: n_!("Navigation"),
         inputs: &[
-            (Key::Up, "Up"),
-            (Key::Down, "Down"),
-            (Key::Left, "Left"),
-            (Key::Right, "Right"),
-            (Key::Home, "Home"),
-            (Key::End, "End"),
-            (Key::PageUp, "Page up"),
-            (Key::PageDown, "Page down"),
+            (Key::Up, n_!("Up")),
+            (Key::Down, n_!("Down")),
+            (Key::Left, n_!("Left")),
+            (Key::Right, n_!("Right")),
+            (Key::Home, n_!("Home")),
+            (Key::End, n_!("End")),
+            (Key::PageUp, n_!("Page up")),
+            (Key::PageDown, n_!("Page down")),
         ],
     },
     Section {
-        name: "Editing",
+        name: n_!("Editing"),
         inputs: &[
-            (Key::Space, "Space"),
-            (Key::Enter, "Enter"),
-            (Key::Tab, "Tab"),
-            (Key::Backspace, "Backspace"),
-            (Key::Delete, "Delete"),
-            (Key::Insert, "Insert"),
-            (Key::Escape, "Escape"),
+            (Key::Space, n_!("Space")),
+            (Key::Enter, n_!("Enter")),
+            (Key::Tab, n_!("Tab")),
+            (Key::Backspace, n_!("Backspace")),
+            (Key::Delete, n_!("Delete")),
+            (Key::Insert, n_!("Insert")),
+            (Key::Escape, n_!("Escape")),
         ],
     },
     Section {
-        name: "Punctuation",
+        name: n_!("Punctuation"),
         inputs: &[
-            (Key::Minus, "Minus"),
-            (Key::Equals, "Equals"),
-            (Key::LeftBracket, "Left bracket"),
-            (Key::RightBracket, "Right bracket"),
-            (Key::Backslash, "Backslash"),
-            (Key::Semicolon, "Semicolon"),
-            (Key::Apostrophe, "Apostrophe"),
-            (Key::Grave, "Grave accent"),
-            (Key::Comma, "Comma"),
-            (Key::Period, "Period"),
-            (Key::Slash, "Slash"),
+            (Key::Minus, n_!("Minus")),
+            (Key::Equals, n_!("Equals")),
+            (Key::LeftBracket, n_!("Left bracket")),
+            (Key::RightBracket, n_!("Right bracket")),
+            (Key::Backslash, n_!("Backslash")),
+            (Key::Semicolon, n_!("Semicolon")),
+            (Key::Apostrophe, n_!("Apostrophe")),
+            (Key::Grave, n_!("Grave accent")),
+            (Key::Comma, n_!("Comma")),
+            (Key::Period, n_!("Period")),
+            (Key::Slash, n_!("Slash")),
         ],
     },
     Section {
-        name: "Numeric keypad",
+        name: n_!("Numeric keypad"),
         inputs: &[
-            (Key::Keypad0, "Keypad 0"),
-            (Key::Keypad1, "Keypad 1"),
-            (Key::Keypad2, "Keypad 2"),
-            (Key::Keypad3, "Keypad 3"),
-            (Key::Keypad4, "Keypad 4"),
-            (Key::Keypad5, "Keypad 5"),
-            (Key::Keypad6, "Keypad 6"),
-            (Key::Keypad7, "Keypad 7"),
-            (Key::Keypad8, "Keypad 8"),
-            (Key::Keypad9, "Keypad 9"),
-            (Key::KeypadDivide, "Keypad divide"),
-            (Key::KeypadMultiply, "Keypad multiply"),
-            (Key::KeypadMinus, "Keypad minus"),
-            (Key::KeypadPlus, "Keypad plus"),
-            (Key::KeypadEnter, "Keypad enter"),
-            (Key::KeypadPeriod, "Keypad period"),
-            (Key::NumLock, "Num lock"),
+            (Key::Keypad0, n_!("Keypad 0")),
+            (Key::Keypad1, n_!("Keypad 1")),
+            (Key::Keypad2, n_!("Keypad 2")),
+            (Key::Keypad3, n_!("Keypad 3")),
+            (Key::Keypad4, n_!("Keypad 4")),
+            (Key::Keypad5, n_!("Keypad 5")),
+            (Key::Keypad6, n_!("Keypad 6")),
+            (Key::Keypad7, n_!("Keypad 7")),
+            (Key::Keypad8, n_!("Keypad 8")),
+            (Key::Keypad9, n_!("Keypad 9")),
+            (Key::KeypadDivide, n_!("Keypad divide")),
+            (Key::KeypadMultiply, n_!("Keypad multiply")),
+            (Key::KeypadMinus, n_!("Keypad minus")),
+            (Key::KeypadPlus, n_!("Keypad plus")),
+            (Key::KeypadEnter, n_!("Keypad enter")),
+            (Key::KeypadPeriod, n_!("Keypad period")),
+            (Key::NumLock, n_!("Num lock")),
         ],
     },
     Section {
-        name: "System",
+        name: n_!("System"),
         inputs: &[
-            (Key::CapsLock, "Caps lock"),
-            (Key::PrintScreen, "Print screen"),
-            (Key::ScrollLock, "Scroll lock"),
-            (Key::Pause, "Pause"),
-            (Key::Menu, "Menu"),
+            (Key::CapsLock, n_!("Caps lock")),
+            (Key::PrintScreen, n_!("Print screen")),
+            (Key::ScrollLock, n_!("Scroll lock")),
+            (Key::Pause, n_!("Pause")),
+            (Key::Menu, n_!("Menu")),
         ],
     },
 ];
@@ -443,46 +445,52 @@ impl MouseInput {
 /// included, and the wheel turned or tilted.
 pub(super) const MOUSE_SECTIONS: [Section<MouseInput>; 2] = [
     Section {
-        name: "Buttons",
+        name: n_!("Buttons"),
         inputs: &[
-            (MouseInput::Button(MouseButton::Left), "Left button"),
-            (MouseInput::Button(MouseButton::Middle), "Middle button"),
-            (MouseInput::Button(MouseButton::Right), "Right button"),
-            (MouseInput::Button(MouseButton::Back), "Back button"),
-            (MouseInput::Button(MouseButton::Forward), "Forward button"),
-            (MouseInput::Button(MouseButton::Other(6)), "Button 6"),
-            (MouseInput::Button(MouseButton::Other(7)), "Button 7"),
-            (MouseInput::Button(MouseButton::Other(8)), "Button 8"),
+            (MouseInput::Button(MouseButton::Left), n_!("Left button")),
+            (
+                MouseInput::Button(MouseButton::Middle),
+                n_!("Middle button"),
+            ),
+            (MouseInput::Button(MouseButton::Right), n_!("Right button")),
+            (MouseInput::Button(MouseButton::Back), n_!("Back button")),
+            (
+                MouseInput::Button(MouseButton::Forward),
+                n_!("Forward button"),
+            ),
+            (MouseInput::Button(MouseButton::Other(6)), n_!("Button 6")),
+            (MouseInput::Button(MouseButton::Other(7)), n_!("Button 7")),
+            (MouseInput::Button(MouseButton::Other(8)), n_!("Button 8")),
         ],
     },
     Section {
-        name: "Wheel",
+        name: n_!("Wheel"),
         inputs: &[
-            (MouseInput::Wheel(WheelDirection::Up), "Wheel up"),
-            (MouseInput::Wheel(WheelDirection::Down), "Wheel down"),
-            (MouseInput::Wheel(WheelDirection::Left), "Wheel left"),
-            (MouseInput::Wheel(WheelDirection::Right), "Wheel right"),
+            (MouseInput::Wheel(WheelDirection::Up), n_!("Wheel up")),
+            (MouseInput::Wheel(WheelDirection::Down), n_!("Wheel down")),
+            (MouseInput::Wheel(WheelDirection::Left), n_!("Wheel left")),
+            (MouseInput::Wheel(WheelDirection::Right), n_!("Wheel right")),
         ],
     },
 ];
 
 /// The pinches offered.
 pub(super) const PINCHES: [(PinchDirection, &str); 2] = [
-    (PinchDirection::In, "Pinch in"),
-    (PinchDirection::Out, "Pinch out"),
+    (PinchDirection::In, n_!("Pinch in")),
+    (PinchDirection::Out, n_!("Pinch out")),
 ];
 
 /// The drag directions offered.
 pub(super) const DIRECTIONS: [(DragDirection, &str); 9] = [
-    (DragDirection::Any, "Any direction"),
-    (DragDirection::North, "Up"),
-    (DragDirection::NorthEast, "Up right"),
-    (DragDirection::East, "Right"),
-    (DragDirection::SouthEast, "Down right"),
-    (DragDirection::South, "Down"),
-    (DragDirection::SouthWest, "Down left"),
-    (DragDirection::West, "Left"),
-    (DragDirection::NorthWest, "Up left"),
+    (DragDirection::Any, n_!("Any direction")),
+    (DragDirection::North, n_!("Up")),
+    (DragDirection::NorthEast, n_!("Up right")),
+    (DragDirection::East, n_!("Right")),
+    (DragDirection::SouthEast, n_!("Down right")),
+    (DragDirection::South, n_!("Down")),
+    (DragDirection::SouthWest, n_!("Down left")),
+    (DragDirection::West, n_!("Left")),
+    (DragDirection::NorthWest, n_!("Up left")),
 ];
 
 /// The name of `input` in `sections`, if it lies in one.

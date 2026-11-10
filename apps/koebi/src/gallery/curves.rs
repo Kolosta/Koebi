@@ -5,6 +5,8 @@
 
 use koebi_core::{Rect, Vec2};
 use koebi_design::value::{CubicBezier, Curve, CurveKey};
+use koebi_i18n::n_;
+use koebi_i18n::tr;
 use koebi_render::RectPrimitive;
 use koebi_ui::{
     Align, Button, ButtonGroup, CurveEditor, CurveEditorState, GroupCell, PanelLevel, Ui, WidgetId,
@@ -24,21 +26,21 @@ const STEPS: usize = 11;
 /// Curves to start from: their name and their keys.
 const PRESETS: [(&str, &[CurveKey]); 4] = [
     (
-        "Linear",
+        n_!("Linear"),
         &[
             CurveKey::new(0.0, 0.0, CubicBezier::LINEAR),
             CurveKey::new(1.0, 1.0, CubicBezier::LINEAR),
         ],
     ),
     (
-        "Ease in and out",
+        n_!("Ease in and out"),
         &[
             CurveKey::new(0.0, 0.0, CubicBezier::new(0.42, 0.0, 0.58, 1.0)),
             CurveKey::new(1.0, 1.0, CubicBezier::LINEAR),
         ],
     ),
     (
-        "Overshoot",
+        n_!("Overshoot"),
         &[
             CurveKey::new(0.0, 0.0, CubicBezier::new(0.3, 0.0, 0.6, 1.0)),
             CurveKey::new(0.6, 1.15, CubicBezier::new(0.4, 0.0, 0.6, 1.0)),
@@ -46,7 +48,7 @@ const PRESETS: [(&str, &[CurveKey]); 4] = [
         ],
     ),
     (
-        "Bounce",
+        n_!("Bounce"),
         &[
             CurveKey::new(0.0, 0.0, CubicBezier::new(0.5, 0.0, 1.0, 1.0)),
             CurveKey::new(0.55, 1.0, CubicBezier::new(0.0, 0.0, 0.5, 1.0)),
@@ -94,7 +96,7 @@ impl Curves {
         let mut line = cut_top(&mut content, row, gap);
         let title = cut_left(&mut line, EDITOR_WIDTH, gap);
         ui.label(
-            "Curve editor (temporary)",
+            tr("Curve editor (temporary)"),
             title,
             &font,
             secondary,
@@ -126,7 +128,7 @@ impl Curves {
         CurveEditor::new(ID.with(10), &mut self.curve, &mut self.editor).show(ui, editor);
         let caption = cut_top(&mut content, row, gap);
         ui.label(
-            "Where a square moving by the curve lies at equal times",
+            tr("Where a square moving by the curve lies at equal times"),
             caption,
             &font,
             secondary,

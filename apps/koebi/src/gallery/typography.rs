@@ -6,6 +6,8 @@
 //! every change, from the same glyph curves at any size and angle.
 
 use koebi_core::{Rect, Vec2};
+use koebi_i18n::n_;
+use koebi_i18n::tr;
 use koebi_render::RectPrimitive;
 use koebi_text::system::SystemFont;
 use koebi_text::{Align as TextAlign, Features, Paragraph, TextBlock, TextStyle};
@@ -23,26 +25,26 @@ const PREVIEW_ROWS: f32 = 11.0;
 /// The samples: their name and their text.
 pub(super) const SAMPLES: [(&str, &str); 5] = [
     (
-        "Latin",
+        n_!("Latin"),
         "Typography: kerning in AV, To and Wa, ligatures in office, affluent and fjord. The quick \
          brown fox jumps over the lazy dog. Été, Жук, 12,5 €.",
     ),
     (
-        "Japanese",
+        n_!("Japanese"),
         "吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。何でも薄暗いじめじめした所で\
          ニャーニャー泣いていた事だけは記憶している。",
     ),
     (
-        "Korean",
+        n_!("Korean"),
         "모든 인간은 태어날 때부터 자유로우며 그 존엄과 권리에 있어 동등하다. 인간은 천부적으로 이성과 \
          양심을 부여받았으며 서로 형제애의 정신으로 행동하여야 한다.",
     ),
     (
-        "Chinese",
+        n_!("Chinese"),
         "人人生而自由，在尊严和权利上一律平等。他们赋有理性和良心，并应以兄弟关系的精神相对待。",
     ),
     (
-        "Mixed",
+        n_!("Mixed"),
         "Koebi は日本語、English, 한국어 and 中文 in one paragraph: each character takes the font \
          of its script.",
     ),
@@ -145,9 +147,9 @@ impl Typography {
         }
         let listed = self.system.as_ref().map_or(0, Vec::len);
         let label = if self.system.is_some() {
-            "System fonts listed"
+            tr("System fonts listed")
         } else {
-            "List system fonts"
+            tr("List system fonts")
         };
         if Button::new(ID.with(2))
             .label(label)
@@ -160,16 +162,16 @@ impl Typography {
         ui.tooltip(
             ID.with(2),
             if listed > 0 {
-                "TrueType fonts of the system: pick one in the family menu to load it"
+                tr("TrueType fonts of the system: pick one in the family menu to load it")
             } else {
-                "Reads the headers of the system's fonts; fonts with CFF outlines are not read yet"
+                tr("Reads the headers of the system's fonts; fonts with CFF outlines are not read yet")
             },
             rect,
         );
         let fields = [
-            (3, "Weight", &mut self.weight, (100.0, 900.0), 100.0, 0),
-            (4, "Size", &mut self.size, (4.0, 240.0), 1.0, 1),
-            (5, "Turn", &mut self.rotation, (-180.0, 180.0), 1.0, 0),
+            (3, tr("Weight"), &mut self.weight, (100.0, 900.0), 100.0, 0),
+            (4, tr("Size"), &mut self.size, (4.0, 240.0), 1.0, 1),
+            (5, tr("Turn"), &mut self.rotation, (-180.0, 180.0), 1.0, 0),
         ];
         let width = ((line.width() - 2.0 * gap) / 3.0).max(0.0);
         for (index, name, value, (low, high), step, decimals) in fields {
@@ -187,14 +189,21 @@ impl Typography {
         let fields = [
             (
                 6,
-                "Letter spacing",
+                tr("Letter spacing"),
                 &mut self.tracking,
                 (-0.1, 0.5),
                 0.01,
                 2,
             ),
-            (7, "Line height", &mut self.line_height, (0.8, 3.0), 0.05, 2),
-            (8, "Width", &mut self.width, (40.0, 1200.0), 1.0, 0),
+            (
+                7,
+                tr("Line height"),
+                &mut self.line_height,
+                (0.8, 3.0),
+                0.05,
+                2,
+            ),
+            (8, tr("Width"), &mut self.width, (40.0, 1200.0), 1.0, 0),
         ];
         let width = ((line.width() - 9.0 * row - 3.0 * gap) / 3.0).max(0.0);
         for (index, name, value, (low, high), step, decimals) in fields {
@@ -209,9 +218,19 @@ impl Typography {
         let aligns = [TextAlign::Start, TextAlign::Center, TextAlign::End];
         let align = |index: usize| self.align == aligns[index];
         let mut cells = [
-            GroupCell::new(Button::new(ID.with(21)).label("Start").selected(align(0))).at(0, 0),
-            GroupCell::new(Button::new(ID.with(22)).label("Center").selected(align(1))).at(1, 0),
-            GroupCell::new(Button::new(ID.with(23)).label("End").selected(align(2))).at(2, 0),
+            GroupCell::new(
+                Button::new(ID.with(21))
+                    .label(tr("Start"))
+                    .selected(align(0)),
+            )
+            .at(0, 0),
+            GroupCell::new(
+                Button::new(ID.with(22))
+                    .label(tr("Center"))
+                    .selected(align(1)),
+            )
+            .at(1, 0),
+            GroupCell::new(Button::new(ID.with(23)).label(tr("End")).selected(align(2))).at(2, 0),
         ];
         let columns = [Track::Share(1.0); 3];
         if let Some(index) = ButtonGroup::horizontal()
@@ -225,8 +244,8 @@ impl Typography {
         // Features and the sample.
         let mut line = cut_top(&mut content, row, gap);
         for (index, label, on) in [
-            (9, "Kerning", &mut self.kerning),
-            (10, "Ligatures", &mut self.ligatures),
+            (9, tr("Kerning"), &mut self.kerning),
+            (10, tr("Ligatures"), &mut self.ligatures),
         ] {
             if Button::new(ID.with(index))
                 .label(label)
@@ -240,10 +259,10 @@ impl Typography {
         let items: Vec<MenuItem<'_>> = SAMPLES
             .iter()
             .enumerate()
-            .map(|(index, (name, _))| MenuItem::action(name).radio(index == self.sample))
+            .map(|(index, (name, _))| MenuItem::action(tr(name)).radio(index == self.sample))
             .collect();
         if let Some(choice) = Dropdown::new(ID.with(11), &mut self.sample_menu, &items)
-            .label(SAMPLES[self.sample].0)
+            .label(tr(SAMPLES[self.sample].0))
             .show(ui, cut_left(&mut line, 7.0 * row, gap), window)
         {
             self.sample = choice.index().min(SAMPLES.len() - 1);
@@ -251,7 +270,7 @@ impl Typography {
         let secondary = ui.styles().text.secondary;
         let detail = ui.styles().text.detail.clone();
         ui.label(
-            "Drawn from the glyphs' curves: any size, any turn.",
+            tr("Drawn from the glyphs' curves: any size, any turn."),
             line,
             &detail,
             secondary,

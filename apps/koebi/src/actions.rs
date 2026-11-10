@@ -2,6 +2,7 @@
 
 use koebi_core::Vec2;
 use koebi_core::input::Key;
+use koebi_i18n::n_;
 use koebi_input::{
     ActionDef, ActionGroup, ActionKind, Context, ContextInfo, Hint, InputEvent, Shortcut, Within,
     Zones,
@@ -15,8 +16,8 @@ pub(crate) const APP: Context = Context::new("app");
 /// Shows or hides the frame-time overlay.
 pub(crate) static FRAME_TIMES: ActionDef = ActionDef {
     id: "app.frame-times",
-    label: "Frame times",
-    description: "Shows or hides the frame rate and the CPU and GPU time of a frame.",
+    label: n_!("Frame times"),
+    description: n_!("Shows or hides the frame rate and the CPU and GPU time of a frame."),
     context: APP,
     defaults: &[Shortcut::key(Key::F12)],
     repeats: false,
@@ -27,8 +28,8 @@ pub(crate) static FRAME_TIMES: ActionDef = ActionDef {
 /// Quits the application.
 pub(crate) static QUIT: ActionDef = ActionDef {
     id: "app.quit",
-    label: "Quit",
-    description: "Closes every window and quits.",
+    label: n_!("Quit"),
+    description: n_!("Closes every window and quits."),
     context: APP,
     defaults: &[Shortcut::key(Key::Q).primary()],
     repeats: false,
@@ -39,8 +40,8 @@ pub(crate) static QUIT: ActionDef = ActionDef {
 /// Enters or leaves fullscreen.
 pub(crate) static FULLSCREEN: ActionDef = ActionDef {
     id: "app.fullscreen",
-    label: "Fullscreen",
-    description: "Shows the window alone on its display, or brings it back.",
+    label: n_!("Fullscreen"),
+    description: n_!("Shows the window alone on its display, or brings it back."),
     context: APP,
     defaults: &[Shortcut::key(Key::F11)],
     repeats: false,
@@ -51,8 +52,8 @@ pub(crate) static FULLSCREEN: ActionDef = ActionDef {
 /// Opens the settings.
 pub(crate) static SETTINGS: ActionDef = ActionDef {
     id: "app.settings",
-    label: "Settings",
-    description: "Opens the settings window, or brings it to the front.",
+    label: n_!("Settings"),
+    description: n_!("Opens the settings window, or brings it to the front."),
     context: APP,
     defaults: &[Shortcut::key(Key::Comma).primary()],
     repeats: false,
@@ -62,7 +63,7 @@ pub(crate) static SETTINGS: ActionDef = ActionDef {
 
 /// The application's actions.
 pub(crate) static GROUP: ActionGroup = ActionGroup {
-    name: "Application",
+    name: n_!("Application"),
     actions: &[&FRAME_TIMES, &QUIT, &FULLSCREEN, &SETTINGS],
 };
 
@@ -85,52 +86,52 @@ pub(crate) static GROUPS: [&ActionGroup; 9] = [
 pub(crate) static CONTEXTS: [ContextInfo; 10] = [
     ContextInfo {
         context: APP,
-        label: "Application",
+        label: n_!("Application"),
         within: Within::Root,
     },
     ContextInfo {
         context: koebi_ui::WORKSPACE,
-        label: "Workspace",
+        label: n_!("Workspace"),
         within: Within::Zone(APP),
     },
     ContextInfo {
         context: crate::editors::viewport::VIEWPORT,
-        label: "Viewport",
+        label: n_!("Viewport"),
         within: Within::Zone(koebi_ui::WORKSPACE),
     },
     ContextInfo {
         context: crate::editors::outliner::OUTLINER,
-        label: "Outliner",
+        label: n_!("Outliner"),
         within: Within::Zone(koebi_ui::WORKSPACE),
     },
     ContextInfo {
         context: crate::editors::timeline::TIMELINE,
-        label: "Timeline",
+        label: n_!("Timeline"),
         within: Within::Zone(koebi_ui::WORKSPACE),
     },
     ContextInfo {
         context: crate::editors::info::INFO,
-        label: "Info",
+        label: n_!("Info"),
         within: Within::Zone(koebi_ui::WORKSPACE),
     },
     ContextInfo {
         context: koebi_ui::LIST,
-        label: "Lists",
+        label: n_!("Lists"),
         within: Within::AnyZone,
     },
     ContextInfo {
         context: koebi_ui::MENU,
-        label: "Open menus",
+        label: n_!("Open menus"),
         within: Within::Root,
     },
     ContextInfo {
         context: koebi_ui::TEXT,
-        label: "Editing text",
+        label: n_!("Editing text"),
         within: Within::Root,
     },
     ContextInfo {
         context: koebi_ui::OPERATION,
-        label: "Operations in progress (drags, resizes, picks)",
+        label: n_!("Operations in progress (drags, resizes, picks)"),
         within: Within::Root,
     },
 ];

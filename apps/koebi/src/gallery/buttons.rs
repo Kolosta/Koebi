@@ -2,6 +2,8 @@
 //! behaviours (press, double press, repeat), and checkboxes with descriptions.
 
 use core::fmt::Write as _;
+use koebi_i18n::n_;
+use koebi_i18n::tr;
 
 use koebi_core::{Color, Rect};
 use koebi_ui::{
@@ -17,29 +19,29 @@ pub(super) const ROWS: u16 = 8;
 
 /// The variants and their labels.
 const VARIANTS: [(Variant, &str); 7] = [
-    (Variant::Default, "Default"),
-    (Variant::Accent, "Accent"),
-    (Variant::Positive, "Positive"),
-    (Variant::Negative, "Negative"),
-    (Variant::Info, "Info"),
-    (Variant::Neutral, "Neutral"),
-    (Variant::Notice, "Notice"),
+    (Variant::Default, n_!("Default")),
+    (Variant::Accent, n_!("Accent")),
+    (Variant::Positive, n_!("Positive")),
+    (Variant::Negative, n_!("Negative")),
+    (Variant::Info, n_!("Info")),
+    (Variant::Neutral, n_!("Neutral")),
+    (Variant::Notice, n_!("Notice")),
 ];
 
 /// The color families and their labels.
 const HUES: [(Hue, &str); 8] = [
-    (Hue::Blue, "Blue"),
-    (Hue::Cyan, "Cyan"),
-    (Hue::Green, "Green"),
-    (Hue::Yellow, "Yellow"),
-    (Hue::Orange, "Orange"),
-    (Hue::Red, "Red"),
-    (Hue::Magenta, "Magenta"),
-    (Hue::Purple, "Purple"),
+    (Hue::Blue, n_!("Blue")),
+    (Hue::Cyan, n_!("Cyan")),
+    (Hue::Green, n_!("Green")),
+    (Hue::Yellow, n_!("Yellow")),
+    (Hue::Orange, n_!("Orange")),
+    (Hue::Red, n_!("Red")),
+    (Hue::Magenta, n_!("Magenta")),
+    (Hue::Purple, n_!("Purple")),
 ];
 
 /// The choices of the segmented group.
-const MODES: [&str; 3] = ["Object", "Edit", "Sculpt"];
+const MODES: [&str; 3] = [n_!("Object"), n_!("Edit"), n_!("Sculpt")];
 
 /// The values the panel edits.
 #[derive(Debug)]
@@ -89,7 +91,7 @@ impl Buttons {
         let mut line = cut_top(&mut content, row, gap);
         for (index, (variant, label)) in VARIANTS.into_iter().enumerate() {
             let button = Button::new(ID.with(index as u64))
-                .label(label)
+                .label(tr(label))
                 .tone(Tone::new(variant));
             place(ui, &mut line, gap, button);
         }
@@ -97,20 +99,20 @@ impl Buttons {
             ui,
             &mut line,
             gap,
-            Button::new(ID.with(7)).label("Disabled").enabled(false),
+            Button::new(ID.with(7)).label(tr("Disabled")).enabled(false),
         );
 
         let mut line = cut_top(&mut content, row, gap);
         for (index, (hue, label)) in HUES.into_iter().enumerate() {
             let button = Button::new(ID.with(10 + index as u64))
-                .label(label)
+                .label(tr(label))
                 .tone(Tone::ACCENT.with_hue(hue));
             place(ui, &mut line, gap, button);
         }
         let mut line = cut_top(&mut content, row, gap);
         for (index, ((hue, label), on)) in HUES.into_iter().zip(&mut self.families).enumerate() {
             let button = Button::new(ID.with(20 + index as u64))
-                .label(label)
+                .label(tr(label))
                 .tone(Tone::DEFAULT.with_hue(hue))
                 .toggle(on);
             place(ui, &mut line, gap, button);
@@ -132,7 +134,7 @@ impl Buttons {
         let mut modes: [GroupCell<'_>; 3] = core::array::from_fn(|index| {
             GroupCell::new(
                 Button::new(ID.with(index as u64))
-                    .label(MODES[index])
+                    .label(tr(MODES[index]))
                     .selected(self.mode == index),
             )
         });
@@ -163,7 +165,7 @@ impl Buttons {
             gap,
             Button::new(ID.with(20))
                 .leading_icon(koebi_icons::interface::PLUS)
-                .label("Add")
+                .label(tr("Add"))
                 .status_dot(Color::from_hex(0x27_AE_60))
                 .trailing_icon(koebi_icons::interface::CHEVRON_DOWN),
         );
@@ -175,7 +177,7 @@ impl Buttons {
         const ID: WidgetId = WidgetId::new("buttons-behaviours");
         let [left, right] = &mut self.sides;
         let mut modifiers = [
-            GroupCell::new(Button::new(ID.with(0)).label("Ctrl"))
+            GroupCell::new(Button::new(ID.with(0)).label(tr("Ctrl")))
                 .at(0, 0)
                 .span(2, 1),
             GroupCell::new(Button::new(ID.with(1)).label("L").toggle(left)).at(0, 1),
@@ -221,10 +223,10 @@ impl Buttons {
 
         // Two buttons stacked, as wide as the wider.
         let more = Button::new(ID.with(5))
-            .label("+10 on press")
+            .label(tr("+10 on press"))
             .activation(Activation::Press);
         let reset = Button::new(ID.with(6))
-            .label("Reset on double click")
+            .label(tr("Reset on double click"))
             .tone(Tone::NEGATIVE)
             .activation(Activation::DoublePress);
         let width = more.size(ui).x.max(reset.size(ui).x);
@@ -250,21 +252,21 @@ impl Buttons {
     fn checkboxes(&mut self, ui: &mut Ui<'_>, mut band: Rect, gap: f32) {
         const ID: WidgetId = WidgetId::new("buttons-checkboxes");
         let snap = Checkbox::new(ID.with(0), &mut self.snap)
-            .label("Snap to grid")
-            .description("Moves items by whole cells");
+            .label(tr("Snap to grid"))
+            .description(tr("Moves items by whole cells"));
         let width = snap.size(ui).x;
         snap.show(ui, cut_left(&mut band, width, 2.0 * gap));
         let mixed = !self.overlays;
         let overlays = Checkbox::new(ID.with(1), &mut self.overlays)
-            .label("Overlays")
-            .description("Some guides are shown")
+            .label(tr("Overlays"))
+            .description(tr("Some guides are shown"))
             .mixed(mixed);
         let width = overlays.size(ui).x;
         overlays.show(ui, cut_left(&mut band, width, 2.0 * gap));
         let mut locked = true;
         let locked = Checkbox::new(ID.with(2), &mut locked)
-            .label("Locked")
-            .description("Cannot change here")
+            .label(tr("Locked"))
+            .description(tr("Cannot change here"))
             .enabled(false);
         let width = locked.size(ui).x;
         locked.show(ui, cut_left(&mut band, width, 2.0 * gap));

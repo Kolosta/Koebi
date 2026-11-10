@@ -7,6 +7,7 @@
 use koebi_core::input::{Key, ModifierKey};
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::DesignSystem;
+use koebi_i18n::n_;
 use koebi_input::{
     ActionDef, ActionGroup, ActionKind, Context, Hint, KeyTrigger, Shortcut, Trigger,
 };
@@ -28,8 +29,8 @@ const fn repeating(key: Key) -> Shortcut {
 /// Goes to the next frame.
 pub(crate) static NEXT_FRAME: ActionDef = ActionDef {
     id: "timeline.next-frame",
-    label: "Next frame",
-    description: "Makes the next frame current.",
+    label: n_!("Next frame"),
+    description: n_!("Makes the next frame current."),
     context: TIMELINE,
     defaults: &[repeating(Key::Right)],
     repeats: true,
@@ -40,8 +41,8 @@ pub(crate) static NEXT_FRAME: ActionDef = ActionDef {
 /// Goes to the previous frame.
 pub(crate) static PREVIOUS_FRAME: ActionDef = ActionDef {
     id: "timeline.previous-frame",
-    label: "Previous frame",
-    description: "Makes the previous frame current.",
+    label: n_!("Previous frame"),
+    description: n_!("Makes the previous frame current."),
     context: TIMELINE,
     defaults: &[repeating(Key::Left)],
     repeats: true,
@@ -52,8 +53,8 @@ pub(crate) static PREVIOUS_FRAME: ActionDef = ActionDef {
 /// Goes to the first frame of the scene.
 pub(crate) static FIRST_FRAME: ActionDef = ActionDef {
     id: "timeline.first-frame",
-    label: "First frame",
-    description: "Makes the first frame of the scene current.",
+    label: n_!("First frame"),
+    description: n_!("Makes the first frame of the scene current."),
     context: TIMELINE,
     defaults: &[Shortcut::key(Key::Left).with(ModifierKey::Shift)],
     repeats: false,
@@ -64,8 +65,8 @@ pub(crate) static FIRST_FRAME: ActionDef = ActionDef {
 /// Goes to the last frame of the scene.
 pub(crate) static LAST_FRAME: ActionDef = ActionDef {
     id: "timeline.last-frame",
-    label: "Last frame",
-    description: "Makes the last frame of the scene current.",
+    label: n_!("Last frame"),
+    description: n_!("Makes the last frame of the scene current."),
     context: TIMELINE,
     defaults: &[Shortcut::key(Key::Right).with(ModifierKey::Shift)],
     repeats: false,
@@ -76,8 +77,8 @@ pub(crate) static LAST_FRAME: ActionDef = ActionDef {
 /// Widens the frames.
 pub(crate) static ZOOM_IN: ActionDef = ActionDef {
     id: "timeline.zoom-in",
-    label: "Zoom in",
-    description: "Widens the frames, around the current one.",
+    label: n_!("Zoom in"),
+    description: n_!("Widens the frames, around the current one."),
     context: TIMELINE,
     defaults: &[Shortcut::key(Key::KeypadPlus)],
     repeats: true,
@@ -88,8 +89,8 @@ pub(crate) static ZOOM_IN: ActionDef = ActionDef {
 /// Narrows the frames.
 pub(crate) static ZOOM_OUT: ActionDef = ActionDef {
     id: "timeline.zoom-out",
-    label: "Zoom out",
-    description: "Narrows the frames, around the current one.",
+    label: n_!("Zoom out"),
+    description: n_!("Narrows the frames, around the current one."),
     context: TIMELINE,
     defaults: &[Shortcut::key(Key::KeypadMinus)],
     repeats: true,
@@ -100,8 +101,8 @@ pub(crate) static ZOOM_OUT: ActionDef = ActionDef {
 /// Shows the whole scene.
 pub(crate) static VIEW_ALL: ActionDef = ActionDef {
     id: "timeline.view-all",
-    label: "Frame all",
-    description: "Zooms so that every frame of the scene shows.",
+    label: n_!("Frame all"),
+    description: n_!("Zooms so that every frame of the scene shows."),
     context: TIMELINE,
     defaults: &[Shortcut::key(Key::Home)],
     repeats: false,
@@ -111,7 +112,7 @@ pub(crate) static VIEW_ALL: ActionDef = ActionDef {
 
 /// The timeline's actions, for the keymap.
 pub(crate) static ACTIONS: ActionGroup = ActionGroup {
-    name: "Timeline",
+    name: n_!("Timeline"),
     actions: &[
         &NEXT_FRAME,
         &PREVIOUS_FRAME,

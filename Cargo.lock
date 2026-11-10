@@ -40,6 +40,7 @@ dependencies = [
  "koebi-core",
  "koebi-design",
  "koebi-gpu",
+ "koebi-i18n",
  "koebi-icons",
  "koebi-input",
  "koebi-platform",
@@ -71,6 +72,10 @@ dependencies = [
  "koebi-core",
  "koebi-testkit",
 ]
+
+[[package]]
+name = "koebi-i18n"
+version = "0.1.0"
 
 [[package]]
 name = "koebi-icons"
@@ -140,6 +145,7 @@ dependencies = [
  "koebi-core",
  "koebi-design",
  "koebi-gpu",
+ "koebi-i18n",
  "koebi-icons",
  "koebi-input",
  "koebi-render",

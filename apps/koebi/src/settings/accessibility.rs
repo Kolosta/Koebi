@@ -9,6 +9,8 @@
 
 use koebi_core::{Rect, Vec2};
 use koebi_design::{ColorVision, Deficiency, DesignSystem, Layers};
+use koebi_i18n::n_;
+use koebi_i18n::tr;
 use koebi_tokens::semantic;
 use koebi_ui::{Align, BarMapping, NumberField, ThemePreview, Ui, WidgetId};
 
@@ -42,52 +44,52 @@ const fn correct(deficiency: Deficiency) -> ColorVision {
 /// Every mode, in the order of their groups ([`GROUPS`]).
 const MODES: [Mode; 8] = [
     Mode {
-        label: "Normal vision",
-        detail: "Colors as the theme defines them",
+        label: n_!("Normal vision"),
+        detail: n_!("Colors as the theme defines them"),
         vision: ColorVision::Normal,
     },
     Mode {
-        label: "Protanopia",
-        detail: "No red cones",
+        label: n_!("Protanopia"),
+        detail: n_!("No red cones"),
         vision: simulate(Deficiency::Protan),
     },
     Mode {
-        label: "Deuteranopia",
-        detail: "No green cones",
+        label: n_!("Deuteranopia"),
+        detail: n_!("No green cones"),
         vision: simulate(Deficiency::Deutan),
     },
     Mode {
-        label: "Tritanopia",
-        detail: "No blue cones",
+        label: n_!("Tritanopia"),
+        detail: n_!("No blue cones"),
         vision: simulate(Deficiency::Tritan),
     },
     Mode {
-        label: "Achromatopsia",
-        detail: "No colors",
+        label: n_!("Achromatopsia"),
+        detail: n_!("No colors"),
         vision: ColorVision::SimulateAchromatopsia { severity: 1.0 },
     },
     Mode {
-        label: "Protan correction",
-        detail: "Separates reds from greens",
+        label: n_!("Protan correction"),
+        detail: n_!("Separates reds from greens"),
         vision: correct(Deficiency::Protan),
     },
     Mode {
-        label: "Deutan correction",
-        detail: "Separates greens from reds",
+        label: n_!("Deutan correction"),
+        detail: n_!("Separates greens from reds"),
         vision: correct(Deficiency::Deutan),
     },
     Mode {
-        label: "Tritan correction",
-        detail: "Separates blues from yellows",
+        label: n_!("Tritan correction"),
+        detail: n_!("Separates blues from yellows"),
         vision: correct(Deficiency::Tritan),
     },
 ];
 
 /// The groups of modes: their titles and the range of [`MODES`] they hold.
 const GROUPS: [(&str, core::ops::Range<usize>); 3] = [
-    ("No transformation", 0..1),
-    ("See as someone with a color deficiency", 1..5),
-    ("Correct a color deficiency", 5..8),
+    (n_!("No transformation"), 0..1),
+    (n_!("See as someone with a color deficiency"), 1..5),
+    (n_!("Correct a color deficiency"), 5..8),
 ];
 
 /// `true` when `current` is `mode`, at any strength.
@@ -268,7 +270,7 @@ impl AccessibilityPage {
                 let Some(section) = section else {
                     continue;
                 };
-                ui.section_title(section.title, title);
+                ui.section_title(section.title, tr(title));
                 let id = ID.with(index as u64 + 1);
                 if let Some(vision) = mode_cards(ui, id, section, previews, current, modes) {
                     chosen = Some(vision);
@@ -318,10 +320,10 @@ fn mode_cards(
         if ui.vision_card(key, card, preview, selected).clicked {
             chosen = Some(mode.vision);
         }
-        ui.tooltip(key, mode.detail, card);
+        ui.tooltip(key, tr(mode.detail), card);
         let color = if selected { primary } else { secondary };
         ui.label(
-            mode.label,
+            tr(mode.label),
             section.cards.name(index),
             &font,
             color,
@@ -333,7 +335,7 @@ fn mode_cards(
         && let Some(strength) = strength_of(current)
     {
         let label = Rect::from_origin_size(at.min, Vec2::new(at.width() * 0.3, at.height()));
-        ui.label("Strength", label, &font, primary, Align::Start);
+        ui.label(tr("Strength"), label, &font, primary, Align::Start);
         let field = Rect::from_min_max(Vec2::new(label.max.x, at.min.y), at.max);
         let mut percent = f64::from(strength) * 100.0;
         if NumberField::new(id.with(100), &mut percent)

@@ -17,6 +17,7 @@ mod features;
 
 use koebi_core::{Rect, Vec2};
 use koebi_design::DesignSystem;
+use koebi_i18n::tr;
 use koebi_input::Keymap;
 use koebi_ui::{Align, Button, ButtonGroup, GroupCell, Ui, WidgetId};
 
@@ -37,21 +38,21 @@ pub(crate) enum View {
 impl View {
     const ALL: [Self; 2] = [Self::ByFeature, Self::ByComponent];
 
-    const fn title(self) -> &'static str {
+    fn title(self) -> &'static str {
         match self {
-            Self::ByFeature => "By feature",
-            Self::ByComponent => "By component",
+            Self::ByFeature => tr("By feature"),
+            Self::ByComponent => tr("By component"),
         }
     }
 
-    const fn description(self) -> &'static str {
+    fn description(self) -> &'static str {
         match self {
             Self::ByFeature => {
-                "Every token, from the parts of the interface down. A dot marks what changed."
+                tr("Every token, from the parts of the interface down. A dot marks what changed.")
             }
-            Self::ByComponent => {
-                "Each component: what it does, its states, one to try, its shortcuts and tokens."
-            }
+            Self::ByComponent => tr(
+                "Each component: what it does, its states, one to try, its shortcuts and tokens.",
+            ),
         }
     }
 }

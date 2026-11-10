@@ -5,6 +5,8 @@
 //! ([`Layers::DEFINITIONS`]), so that editing never bakes a simulation into a value.
 
 use core::ops::RangeInclusive;
+use koebi_i18n::n_;
+use koebi_i18n::tr;
 
 use koebi_core::expr::PIXEL;
 use koebi_core::{Color, Oklch, Rect, Vec2};
@@ -121,7 +123,7 @@ impl Channel {
 /// The override marker at the start of a row: a reset dot when the row's token is overridden
 /// in the editor's scope. Clicking the dot removes the override.
 fn badge(ui: &mut Ui<'_>, id: WidgetId, area: Rect, overridden: bool) -> bool {
-    overridden && ui.reset_dot(id, area, "Reset").clicked
+    overridden && ui.reset_dot(id, area, tr("Reset")).clicked
 }
 
 /// The icon of a scope toggle: four squares for every theme, one for the active theme.
@@ -372,21 +374,21 @@ fn accent_rows(
 
 /// Readable names of the color vision modes, in the order of [`COLOR_VISION_MODES`].
 const COLOR_VISION_LABELS: [&str; 8] = [
-    "Normal vision",
-    "Protanopia",
-    "Deuteranopia",
-    "Tritanopia",
-    "Achromatopsia",
-    "Protan correction",
-    "Deutan correction",
-    "Tritan correction",
+    n_!("Normal vision"),
+    n_!("Protanopia"),
+    n_!("Deuteranopia"),
+    n_!("Tritanopia"),
+    n_!("Achromatopsia"),
+    n_!("Protan correction"),
+    n_!("Deutan correction"),
+    n_!("Tritan correction"),
 ];
 
 /// The entries of the modes `first..first + N`, the current one marked.
 fn vision_items<const N: usize>(first: usize, current: Option<usize>) -> [MenuItem<'static>; N] {
     core::array::from_fn(|index| {
         let mode = first + index;
-        MenuItem::action(COLOR_VISION_LABELS[mode]).radio(current == Some(mode))
+        MenuItem::action(tr(COLOR_VISION_LABELS[mode])).radio(current == Some(mode))
     })
 }
 
@@ -422,12 +424,12 @@ pub(super) fn color_vision(
     let simulations: [MenuItem<'_>; 4] = vision_items(1, current_index);
     let corrections: [MenuItem<'_>; 3] = vision_items(5, current_index);
     let items = [
-        MenuItem::action(COLOR_VISION_LABELS[0]).radio(current_index == Some(0)),
+        MenuItem::action(tr(COLOR_VISION_LABELS[0])).radio(current_index == Some(0)),
         MenuItem::Separator,
-        MenuItem::submenu("Simulate", &simulations),
-        MenuItem::submenu("Correct", &corrections),
+        MenuItem::submenu(tr("Simulate"), &simulations),
+        MenuItem::submenu(tr("Correct"), &corrections),
     ];
-    let label = current_index.map_or("Custom", |index| COLOR_VISION_LABELS[index]);
+    let label = current_index.map_or(tr("Custom"), |index| tr(COLOR_VISION_LABELS[index]));
     let dropdown = cut_left(&mut content, (row * 8.0).round(), gap);
     let picked = Dropdown::new(ID.with(100), menu, &items)
         .label(label)

@@ -24,6 +24,7 @@ mod values;
 
 use koebi_core::{Rect, Vec2};
 use koebi_design::DesignSystem;
+use koebi_i18n::tr;
 use koebi_input::Keymap;
 use koebi_tokens::{component, semantic};
 use koebi_ui::{
@@ -53,18 +54,18 @@ pub(crate) enum Page {
 
 impl Page {
     /// The title of the page, in its button.
-    const fn title(self) -> &'static str {
+    fn title(self) -> &'static str {
         match self {
-            Self::General => "General",
-            Self::Language => "Language",
-            Self::Theme => "Theme",
-            Self::Customisation => "Customisation",
-            Self::Accessibility => "Accessibility",
-            Self::Inputs => "Inputs",
-            Self::Keymaps => "Keymaps",
-            Self::Navigation => "Navigation",
-            Self::Icons => "Icons",
-            Self::Dev => "Dev",
+            Self::General => tr("General"),
+            Self::Language => tr("Language"),
+            Self::Theme => tr("Theme"),
+            Self::Customisation => tr("Customisation"),
+            Self::Accessibility => tr("Accessibility"),
+            Self::Inputs => tr("Inputs"),
+            Self::Keymaps => tr("Keymaps"),
+            Self::Navigation => tr("Navigation"),
+            Self::Icons => tr("Icons"),
+            Self::Dev => tr("Dev"),
         }
     }
 }
@@ -295,7 +296,13 @@ impl SettingsView {
 fn empty_page(ui: &mut Ui<'_>, rect: Rect, design: &DesignSystem) {
     let font = ui.styles().text.label.clone();
     let color = design.get(semantic::TEXT_COLOR_SECONDARY_DEFAULT);
-    ui.label("Nothing to set here yet", rect, &font, color, Align::Center);
+    ui.label(
+        tr("Nothing to set here yet"),
+        rect,
+        &font,
+        color,
+        Align::Center,
+    );
 }
 
 #[cfg(test)]

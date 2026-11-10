@@ -12,6 +12,7 @@
 //! and the current theme; the secondary button opens a menu bringing back those of one scope.
 
 use core::fmt::Write as _;
+use koebi_i18n::tr;
 
 use koebi_core::expr::{MILLISECOND, PIXEL, Unit};
 use koebi_core::{Color, Rect, Vec2};
@@ -227,12 +228,12 @@ impl Reset {
 }
 
 /// The items of a header's dot's menu, those with nothing to bring back disabled.
-const fn reset_items(application: bool, theme: bool) -> [MenuItem<'static>; 4] {
+fn reset_items(application: bool, theme: bool) -> [MenuItem<'static>; 4] {
     [
-        MenuItem::action("Reset for the application").enabled(application),
-        MenuItem::action("Reset for the current theme").enabled(theme),
+        MenuItem::action(tr("Reset for the application")).enabled(application),
+        MenuItem::action(tr("Reset for the current theme")).enabled(theme),
         MenuItem::Separator,
-        MenuItem::action("Reset both").enabled(application || theme),
+        MenuItem::action(tr("Reset both")).enabled(application || theme),
     ]
 }
 
@@ -274,7 +275,7 @@ pub(super) fn header_dot(
     let (application, theme) = changes(design, tokens);
     let mut chosen = None;
     if application || theme {
-        let hint = "Reset what changed below; right-click to choose for what";
+        let hint = tr("Reset what changed below; right-click to choose for what");
         let response = ui.reset_dot(id, area, hint);
         if response.clicked {
             chosen = Some(Reset::Both);
@@ -437,7 +438,7 @@ fn option_body(
     let gap = ui.styles().collapsible_panel.gap;
     let below = top + row + height + gap;
     let panel = Rect::from_min_max(Vec2::new(rect.min.x, below), rect.max);
-    let shown = CollapsiblePanel::new(id.with(30), chain, "Resolution chain").show(
+    let shown = CollapsiblePanel::new(id.with(30), chain, tr("Resolution chain")).show(
         ui,
         panel,
         |ui, inner| {
@@ -463,8 +464,8 @@ fn scope_dot(
         return;
     }
     let hint = match scope {
-        Scope::Global => "Reset for the application",
-        Scope::ActiveTheme | Scope::Theme(_) => "Reset for the current theme",
+        Scope::Global => tr("Reset for the application"),
+        Scope::ActiveTheme | Scope::Theme(_) => tr("Reset for the current theme"),
     };
     if ui.reset_dot(id, area, hint).clicked
         && let Err(error) = design.reset(scope, desc.token)
@@ -494,12 +495,12 @@ fn write_value(text: &mut String, value: Option<&Value>, desc: OptionDesc) {
 }
 
 /// What the origin of a token's definition is called, where it is not the token tables.
-const fn origin_label(origin: Origin) -> Option<&'static str> {
+fn origin_label(origin: Origin) -> Option<&'static str> {
     match origin {
         Origin::Base => None,
-        Origin::Theme => Some("Theme"),
-        Origin::ThemeOverride => Some("Current theme"),
-        Origin::GlobalOverride => Some("Application"),
+        Origin::Theme => Some(tr("Theme")),
+        Origin::ThemeOverride => Some(tr("Current theme")),
+        Origin::GlobalOverride => Some(tr("Application")),
     }
 }
 

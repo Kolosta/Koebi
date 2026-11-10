@@ -6,6 +6,7 @@
 //! Wheels and rings put hue 0 (red) at the top, growing clockwise.
 
 use core::f32::consts::TAU;
+use koebi_i18n::tr;
 
 use koebi_core::{Hsl, Hsv, Oklch, Vec2};
 use koebi_render::HueModel;
@@ -54,15 +55,15 @@ impl PickerShape {
     ];
 
     /// Its name, for a list.
-    pub const fn label(self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
-            Self::SquareSv => "Square: saturation and value",
-            Self::SquareHs => "Square: hue and saturation",
-            Self::WheelHsv => "Wheel: HSV",
-            Self::WheelHsl => "Wheel: HSL",
-            Self::WheelOklch => "Wheel: OKLCH, perceptual",
-            Self::RingTriangle => "Ring and triangle",
-            Self::RingSquare => "Ring and square",
+            Self::SquareSv => tr("Square: saturation and value"),
+            Self::SquareHs => tr("Square: hue and saturation"),
+            Self::WheelHsv => tr("Wheel: HSV"),
+            Self::WheelHsl => tr("Wheel: HSL"),
+            Self::WheelOklch => tr("Wheel: OKLCH, perceptual"),
+            Self::RingTriangle => tr("Ring and triangle"),
+            Self::RingSquare => tr("Ring and square"),
         }
     }
 

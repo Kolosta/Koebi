@@ -10,6 +10,7 @@
 use koebi_core::input::{Key, ModifierKey, Modifiers};
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
+use koebi_i18n::tr;
 use koebi_input::{
     ButtonTrigger, Context, ModifierRule, ModifierState, Shortcut, Side, Trigger, WheelDirection,
 };
@@ -164,8 +165,8 @@ impl<'a> CaptureField<'a> {
             state,
             shortcut,
             capture: Capture::Any,
-            hint: "None",
-            recording_hint: "Press a key",
+            hint: tr("None"),
+            recording_hint: tr("Press a key"),
             enabled: true,
         }
     }

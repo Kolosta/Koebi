@@ -22,6 +22,7 @@ mod analysis;
 mod binding;
 mod rules;
 
+use koebi_i18n::tr;
 use std::collections::HashMap;
 
 use koebi_core::{Rect, Vec2};
@@ -234,7 +235,7 @@ impl KeymapsPage {
         let half = ((clear.min.x - gap - rect.min.x - gap) * 0.5).max(0.0);
         let name = Rect::from_origin_size(rect.min, Vec2::new(half, row));
         TextField::new(ID.with(1), &mut self.search)
-            .placeholder("Search by name")
+            .placeholder(tr("Search by name"))
             .show(ui, name);
         let by_shortcut = Rect::from_origin_size(
             Vec2::new(name.max.x + gap, rect.min.y),
@@ -243,7 +244,7 @@ impl KeymapsPage {
         let recorded =
             CaptureField::new(ID.with(2), &mut self.search_capture, self.search_shortcut)
                 .capture(Capture::Any)
-                .hints("Search by shortcut", "Press the shortcut to find")
+                .hints(tr("Search by shortcut"), tr("Press the shortcut to find"))
                 .show(ui, by_shortcut);
         if let Some(shortcut) = recorded.captured {
             self.search_shortcut = Some(shortcut);
@@ -258,7 +259,7 @@ impl KeymapsPage {
             self.search.clear();
             self.search_shortcut = None;
         }
-        ui.tooltip(ID.with(3), "Clear the search", clear);
+        ui.tooltip(ID.with(3), tr("Clear the search"), clear);
         stack.y += row + stack.gap;
     }
 
@@ -487,7 +488,7 @@ impl KeymapsPage {
             }
             if keymap.is_modified(action.id)
                 && ui
-                    .reset_dot(id.with(9), dot, "Bring back the default shortcuts")
+                    .reset_dot(id.with(9), dot, tr("Bring back the default shortcuts"))
                     .clicked
                 && let Err(error) = keymap.reset(action.id)
             {
@@ -617,7 +618,7 @@ impl KeymapsPage {
         );
         if Button::new(ID.with(name_key(action.id)).with(99))
             .leading_icon(koebi_icons::interface::PLUS)
-            .label("Add a shortcut")
+            .label(tr("Add a shortcut"))
             .show(ui, at)
             .clicked
         {

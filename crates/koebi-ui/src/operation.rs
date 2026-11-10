@@ -8,6 +8,7 @@
 //! from it how the user ended it.
 
 use koebi_core::input::{Key, MouseButton};
+use koebi_i18n::n_;
 use koebi_input::{ActionDef, ActionGroup, ActionKind, ButtonTrigger, Context, Hint, Shortcut};
 
 use crate::ui::Ui;
@@ -19,7 +20,7 @@ pub const OPERATION: Context = Context::new("operation");
 /// Cancels the operation in progress, bringing back what it changed.
 pub static OPERATION_CANCEL: ActionDef = ActionDef {
     id: "operation.cancel",
-    label: "Cancel",
+    label: n_!("Cancel"),
     description: "Cancels the operation in progress (a drag, a resize, a pick) and brings back \
         what it changed.",
     context: OPERATION,
@@ -36,7 +37,7 @@ pub static OPERATION_CANCEL: ActionDef = ActionDef {
 /// Ends the operation in progress, keeping what it does.
 pub static OPERATION_CONFIRM: ActionDef = ActionDef {
     id: "operation.confirm",
-    label: "Confirm",
+    label: n_!("Confirm"),
     description: "Ends the operation in progress and keeps what it does: the value dragged, the \
         split or join previewed, the color under the pointer.",
     context: OPERATION,
@@ -48,7 +49,7 @@ pub static OPERATION_CONFIRM: ActionDef = ActionDef {
 
 /// The actions of operations, for the keymap.
 pub static OPERATION_ACTIONS: ActionGroup = ActionGroup {
-    name: "Operations",
+    name: n_!("Operations"),
     actions: &[&OPERATION_CANCEL, &OPERATION_CONFIRM],
 };
 

@@ -2,6 +2,7 @@
 
 use koebi_core::expr::{MILLISECOND, PIXEL};
 use koebi_design::{DesignSystem, TokenId};
+use koebi_i18n::tr;
 use koebi_tokens::{component, semantic};
 use koebi_ui::{Ui, WidgetId};
 
@@ -49,73 +50,82 @@ impl InputsPage {
         use semantic as s;
         let groups = vec![
             OptionGroup::new(
-                "Pointer",
+                tr("Pointer"),
                 &[
-                    pixels(s::INPUT_DRAG_THRESHOLD.id(), "Drag start distance"),
-                    millis(s::INPUT_DOUBLE_CLICK_TIME.id(), "Double click time"),
+                    pixels(s::INPUT_DRAG_THRESHOLD.id(), tr("Drag start distance")),
+                    millis(s::INPUT_DOUBLE_CLICK_TIME.id(), tr("Double click time")),
                 ],
             ),
             OptionGroup::new(
-                "Hovering",
+                tr("Hovering"),
                 &[
-                    millis(s::INPUT_TOOLTIP_DELAY_SHORT.id(), "Tooltip delay, short"),
-                    millis(s::INPUT_TOOLTIP_DELAY.id(), "Tooltip delay, normal"),
+                    millis(
+                        s::INPUT_TOOLTIP_DELAY_SHORT.id(),
+                        tr("Tooltip delay, short"),
+                    ),
+                    millis(s::INPUT_TOOLTIP_DELAY.id(), tr("Tooltip delay, normal")),
                     millis(
                         s::INPUT_TOOLTIP_DELAY_STATIONARY.id(),
-                        "Tooltip delay, long",
+                        tr("Tooltip delay, long"),
                     ),
-                    millis(s::INPUT_HOVER_DELAY.id(), "Hover delay"),
+                    millis(s::INPUT_HOVER_DELAY.id(), tr("Hover delay")),
                 ],
             ),
             OptionGroup::new(
-                "Holding",
+                tr("Holding"),
                 &[
-                    millis(s::INPUT_REPEAT_DELAY.id(), "Repeat delay"),
-                    millis(s::INPUT_REPEAT_INTERVAL.id(), "Repeat interval"),
+                    millis(s::INPUT_REPEAT_DELAY.id(), tr("Repeat delay")),
+                    millis(s::INPUT_REPEAT_INTERVAL.id(), tr("Repeat interval")),
                 ],
             ),
             OptionGroup::new(
-                "Number fields",
+                tr("Number fields"),
                 &[
                     pixels(
                         c::NUMBER_FIELD_DRAG_STEP_DISTANCE.id(),
-                        "Drag distance of a step",
+                        tr("Drag distance of a step"),
                     ),
                     factor(
                         c::NUMBER_FIELD_DRAG_FINE_FACTOR.id(),
-                        "Shift, without a bar",
+                        tr("Shift, without a bar"),
                     ),
                     factor(
                         c::NUMBER_FIELD_DRAG_BAR_FINE_FACTOR.id(),
-                        "Shift, with a bar",
+                        tr("Shift, with a bar"),
                     ),
-                    factor(c::NUMBER_FIELD_DRAG_COARSE_FACTOR.id(), "Steps in a unit"),
+                    factor(
+                        c::NUMBER_FIELD_DRAG_COARSE_FACTOR.id(),
+                        tr("Steps in a unit"),
+                    ),
                 ],
             ),
             OptionGroup::new(
-                "Menus",
+                tr("Menus"),
                 &[
-                    millis(s::INPUT_SUBMENU_DELAY.id(), "Submenu delay"),
-                    millis(s::INPUT_SUBMENU_GRACE.id(), "Submenu grace"),
-                    pixels(s::INPUT_MENU_CLOSE_DISTANCE.id(), "Closing distance"),
+                    millis(s::INPUT_SUBMENU_DELAY.id(), tr("Submenu delay")),
+                    millis(s::INPUT_SUBMENU_GRACE.id(), tr("Submenu grace")),
+                    pixels(s::INPUT_MENU_CLOSE_DISTANCE.id(), tr("Closing distance")),
                 ],
             ),
             OptionGroup::new(
-                "Scrolling",
-                &[pixels(c::SCROLLBAR_WHEEL_STEP_DEFAULT.id(), "Wheel step")],
+                tr("Scrolling"),
+                &[pixels(
+                    c::SCROLLBAR_WHEEL_STEP_DEFAULT.id(),
+                    tr("Wheel step"),
+                )],
             ),
             OptionGroup::new(
-                "Docking",
+                tr("Docking"),
                 &[
                     pixels(
                         c::ZONE_TAB_DRAG_THRESHOLD.id(),
-                        "Drag start distance of a tab",
+                        tr("Drag start distance of a tab"),
                     ),
-                    millis(c::ZONE_TAB_REVEAL_DELAY.id(), "Tab bar delay"),
-                    millis(c::ZONE_TAB_REVEAL_GRACE.id(), "Tab bar grace"),
+                    millis(c::ZONE_TAB_REVEAL_DELAY.id(), tr("Tab bar delay")),
+                    millis(c::ZONE_TAB_REVEAL_GRACE.id(), tr("Tab bar grace")),
                     millis(
                         c::ZONE_TAB_DROP_PREVIEW_ANIM_DURATION.id(),
-                        "Drop preview glide",
+                        tr("Drop preview glide"),
                     ),
                 ],
             ),
