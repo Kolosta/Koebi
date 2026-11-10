@@ -401,7 +401,7 @@ msgstr[1] "{count} fichiers"
 msgid ""
 "A long message "
 "on two lines."
-msgstr "Un long message sur deux lignes."
+msgstr "Un long message en deux lignes."
 
 #~ msgid "Gone"
 #~ msgstr "Parti"
@@ -425,6 +425,10 @@ msgstr "Un long message sur deux lignes."
         assert!(catalog.entries[1].is_fuzzy() && !catalog.entries[1].is_translated());
         assert_eq!(catalog.entries[2].strings.len(), 2);
         assert_eq!(catalog.entries[3].id, "A long message on two lines.");
+        assert_eq!(
+            catalog.entries[3].strings,
+            ["Un long message en deux lignes."]
+        );
         assert!(catalog.entries[4].obsolete);
     }
 

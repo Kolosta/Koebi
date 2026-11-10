@@ -275,6 +275,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_language_is_one_koebi_shows() {
+        let options = Options::parse(["--lang", "FR"]).unwrap();
+        assert_eq!(options.language.as_deref(), Some("fr"));
+        assert!(matches!(
+            Options::parse(["--lang", "xx"]),
+            Err(ParseError::InvalidValue {
+                option: "--lang",
+                ..
+            })
+        ));
+        assert_eq!(
+            Options::parse(["--lang"]),
+            Err(ParseError::MissingValue("--lang"))
+        );
+        assert!(Options::USAGE.contains("--lang"));
+    }
+
+    #[test]
     fn windows_to_open_are_options() {
         let parsed = Options::parse(["--open-window", "floating"]).unwrap();
         assert_eq!(parsed.open_window, Some(StartWindow::Floating));

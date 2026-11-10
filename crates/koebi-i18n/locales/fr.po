@@ -13,66 +13,68 @@ msgstr ""
 
 #: apps/koebi/src/actions.rs
 msgid "Frame times"
-msgstr ""
+msgstr "Temps de rendu"
 
 #: apps/koebi/src/actions.rs
 msgid "Shows or hides the frame rate and the CPU and GPU time of a frame."
 msgstr ""
+"Affiche ou masque la fréquence d'images et le temps CPU et GPU "
+"d'une image."
 
 #: apps/koebi/src/actions.rs
 #: apps/koebi/src/chrome.rs
 msgid "Quit"
-msgstr ""
+msgstr "Quitter"
 
 #: apps/koebi/src/actions.rs
 msgid "Closes every window and quits."
-msgstr ""
+msgstr "Ferme toutes les fenêtres et quitte."
 
 #: apps/koebi/src/actions.rs
 #: apps/koebi/src/chrome.rs
 msgid "Fullscreen"
-msgstr ""
+msgstr "Plein écran"
 
 #: apps/koebi/src/actions.rs
 msgid "Shows the window alone on its display, or brings it back."
-msgstr ""
+msgstr "Affiche la fenêtre seule sur son écran, ou la rétablit."
 
 #: apps/koebi/src/actions.rs
 #: apps/koebi/src/chrome.rs
 #: apps/koebi/src/window.rs
 msgid "Settings"
-msgstr ""
+msgstr "Paramètres"
 
 #: apps/koebi/src/actions.rs
 msgid "Opens the settings window, or brings it to the front."
-msgstr ""
+msgstr "Ouvre la fenêtre des paramètres, ou la passe au premier plan."
 
 #: apps/koebi/src/actions.rs
 #: apps/koebi/src/settings/options.rs
 msgid "Application"
-msgstr ""
+msgstr "Application"
 
 #: apps/koebi/src/actions.rs
 msgid "Workspace"
-msgstr ""
+msgstr "Espace de travail"
 
 #: apps/koebi/src/actions.rs
 #: apps/koebi/src/editors/mod.rs
 #: apps/koebi/src/editors/viewport.rs
 msgid "Viewport"
-msgstr ""
+msgstr "Vue"
 
 #: apps/koebi/src/actions.rs
 #: apps/koebi/src/editors/mod.rs
 #: apps/koebi/src/editors/outliner.rs
 msgid "Outliner"
-msgstr ""
+msgstr "Arborescence"
 
 #: apps/koebi/src/actions.rs
 #: apps/koebi/src/editors/mod.rs
 #: apps/koebi/src/editors/timeline.rs
 msgid "Timeline"
-msgstr ""
+msgstr "Chronologie"
 
 #: apps/koebi/src/actions.rs
 #: apps/koebi/src/editors/info.rs
@@ -80,1221 +82,1235 @@ msgstr ""
 #: apps/koebi/src/gallery/buttons.rs
 #: crates/koebi-ui/src/widgets/theme_card.rs
 msgid "Info"
-msgstr ""
+msgstr "Infos"
 
 #: apps/koebi/src/actions.rs
 msgid "Lists"
-msgstr ""
+msgstr "Listes"
 
 #: apps/koebi/src/actions.rs
 msgid "Open menus"
-msgstr ""
+msgstr "Menus ouverts"
 
 #: apps/koebi/src/actions.rs
 msgid "Editing text"
-msgstr ""
+msgstr "Édition de texte"
 
 #: apps/koebi/src/actions.rs
 msgid "Operations in progress (drags, resizes, picks)"
-msgstr ""
+msgstr "Opérations en cours (glissements, redimensionnements, pipettes)"
 
 #: apps/koebi/src/chrome.rs
 msgid "New"
-msgstr ""
+msgstr "Nouveau"
 
 #: apps/koebi/src/chrome.rs
 msgid "Open"
-msgstr ""
+msgstr "Ouvrir"
 
 #: apps/koebi/src/chrome.rs
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Save"
-msgstr ""
+msgstr "Enregistrer"
 
 #: apps/koebi/src/chrome.rs
 msgid "Save As"
-msgstr ""
+msgstr "Enregistrer sous"
 
 #: apps/koebi/src/chrome.rs
 msgid "File"
-msgstr ""
+msgstr "Fichier"
 
 #: apps/koebi/src/chrome.rs
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/gallery/menus.rs
 msgid "Edit"
-msgstr ""
+msgstr "Édition"
 
 #: apps/koebi/src/chrome.rs
 msgid "Window"
-msgstr ""
+msgstr "Fenêtre"
 
 #: apps/koebi/src/chrome.rs
 msgid "New Window"
-msgstr ""
+msgstr "Nouvelle fenêtre"
 
 #: apps/koebi/src/chrome.rs
 msgid "New Main Window"
-msgstr ""
+msgstr "Nouvelle fenêtre principale"
 
 #: apps/koebi/src/chrome.rs
 msgid "New Instance"
-msgstr ""
+msgstr "Nouvelle instance"
 
 #: apps/koebi/src/editors/info.rs
 msgid "Delete messages"
-msgstr ""
+msgstr "Supprimer les messages"
 
 #: apps/koebi/src/editors/info.rs
 msgid "Deletes the selected messages."
-msgstr ""
+msgstr "Supprime les messages sélectionnés."
 
 #: apps/koebi/src/editors/info.rs
 msgid "Clear messages"
-msgstr ""
+msgstr "Effacer les messages"
 
 #: apps/koebi/src/editors/info.rs
 msgid "Deletes every message."
-msgstr ""
+msgstr "Supprime tous les messages."
 
 #: apps/koebi/src/editors/mod.rs
 msgid "Gallery"
-msgstr ""
+msgstr "Galerie"
 
 #: apps/koebi/src/editors/mod.rs
 msgid "Properties"
-msgstr ""
+msgstr "Propriétés"
 
 #: apps/koebi/src/editors/outliner.rs
 #: apps/koebi/src/gallery/menus.rs
 msgid "Delete"
-msgstr ""
+msgstr "Supprimer"
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "Deletes the selected rows and what they hold."
-msgstr ""
+msgstr "Supprime les lignes sélectionnées et ce qu'elles contiennent."
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "Group"
-msgstr ""
+msgstr "Grouper"
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "Puts the selected rows in a new group, where the first of them was."
 msgstr ""
+"Place les lignes sélectionnées dans un nouveau groupe, à la "
+"place de la première."
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "Unfold all"
-msgstr ""
+msgstr "Tout déplier"
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "Unfolds every group of the outliner, when all are folded."
-msgstr ""
+msgstr "Déplie tous les groupes de l'arborescence, quand tous sont repliés."
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "when every group is folded"
-msgstr ""
+msgstr "quand tous les groupes sont repliés"
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "Fold all"
-msgstr ""
+msgstr "Tout replier"
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "Folds every group of the outliner, when one is unfolded."
-msgstr ""
+msgstr "Replie tous les groupes de l'arborescence, quand l'un d'eux est déplié."
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "when a group is unfolded"
-msgstr ""
+msgstr "quand un groupe est déplié"
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "Document"
-msgstr ""
+msgstr "Document"
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "Background"
-msgstr ""
+msgstr "Arrière-plan"
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "Sketch"
-msgstr ""
+msgstr "Esquisse"
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "Construction"
-msgstr ""
+msgstr "Construction"
 
 #: apps/koebi/src/editors/outliner.rs
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Gesture"
-msgstr ""
+msgstr "Geste"
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "Ink"
-msgstr ""
+msgstr "Encrage"
 
 #: apps/koebi/src/editors/outliner.rs
 #: apps/koebi/src/settings/colors.rs
 msgid "Colors"
-msgstr ""
+msgstr "Couleurs"
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "Flats"
-msgstr ""
+msgstr "Aplats"
 
 #: apps/koebi/src/editors/outliner.rs
 msgid "Shadows"
-msgstr ""
+msgstr "Ombres"
 
 #: apps/koebi/src/editors/outliner.rs
 #: apps/koebi/src/editors/properties.rs
 msgid "Notes"
-msgstr ""
+msgstr "Notes"
 
 #. TRANSLATORS: the name of a new group of layers, a noun.
 #: apps/koebi/src/editors/outliner.rs
 msgctxt "layer"
 msgid "Group"
-msgstr ""
+msgstr "Groupe"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "Smooth"
-msgstr ""
+msgstr "Lisse"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "Flat"
-msgstr ""
+msgstr "Plat"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "Auto smooth"
-msgstr ""
+msgstr "Lissage automatique"
 
 #: apps/koebi/src/editors/properties.rs
 #: apps/koebi/src/gallery/menus.rs
 msgid "Cube"
-msgstr ""
+msgstr "Cube"
 
 #: apps/koebi/src/editors/properties.rs
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/gallery/menus.rs
 msgid "Object"
-msgstr ""
+msgstr "Objet"
 
 #: apps/koebi/src/editors/properties.rs
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Name"
-msgstr ""
+msgstr "Nom"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "What the object is for"
-msgstr ""
+msgstr "À quoi sert l'objet"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "Transform"
-msgstr ""
+msgstr "Transformation"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "Location"
-msgstr ""
+msgstr "Position"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "Rotation"
-msgstr ""
+msgstr "Rotation"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "Scale"
-msgstr ""
+msgstr "Échelle"
 
 #: apps/koebi/src/editors/properties.rs
 #: apps/koebi/src/gallery/editor.rs
 msgid "Reset"
-msgstr ""
+msgstr "Réinitialiser"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "Apply delta"
-msgstr ""
+msgstr "Appliquer le delta"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "Delta transform"
-msgstr ""
+msgstr "Transformation delta"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "Visibility"
-msgstr ""
+msgstr "Visibilité"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "Show in viewport"
-msgstr ""
+msgstr "Afficher dans la vue"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "Show in renders"
-msgstr ""
+msgstr "Afficher dans les rendus"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "Selectable"
-msgstr ""
+msgstr "Sélectionnable"
 
 #: apps/koebi/src/editors/properties.rs
 #: apps/koebi/src/gallery/fields.rs
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Opacity"
-msgstr ""
+msgstr "Opacité"
 
 #: apps/koebi/src/editors/properties.rs
 msgid "Shading"
-msgstr ""
+msgstr "Ombrage"
 
 #: apps/koebi/src/editors/properties.rs
 #: apps/koebi/src/gallery/fields.rs
 msgid "Samples"
-msgstr ""
+msgstr "Échantillons"
 
 #: apps/koebi/src/editors/timeline.rs
 msgid "Next frame"
-msgstr ""
+msgstr "Image suivante"
 
 #: apps/koebi/src/editors/timeline.rs
 msgid "Makes the next frame current."
-msgstr ""
+msgstr "Passe à l'image suivante."
 
 #: apps/koebi/src/editors/timeline.rs
 msgid "Previous frame"
-msgstr ""
+msgstr "Image précédente"
 
 #: apps/koebi/src/editors/timeline.rs
 msgid "Makes the previous frame current."
-msgstr ""
+msgstr "Passe à l'image précédente."
 
 #: apps/koebi/src/editors/timeline.rs
 msgid "First frame"
-msgstr ""
+msgstr "Première image"
 
 #: apps/koebi/src/editors/timeline.rs
 msgid "Makes the first frame of the scene current."
-msgstr ""
+msgstr "Passe à la première image de la scène."
 
 #: apps/koebi/src/editors/timeline.rs
 msgid "Last frame"
-msgstr ""
+msgstr "Dernière image"
 
 #: apps/koebi/src/editors/timeline.rs
 msgid "Makes the last frame of the scene current."
-msgstr ""
+msgstr "Passe à la dernière image de la scène."
 
 #: apps/koebi/src/editors/timeline.rs
 #: apps/koebi/src/editors/viewport.rs
 msgid "Zoom in"
-msgstr ""
+msgstr "Zoom avant"
 
 #: apps/koebi/src/editors/timeline.rs
 msgid "Widens the frames, around the current one."
-msgstr ""
+msgstr "Élargit les images, autour de l'image courante."
 
 #: apps/koebi/src/editors/timeline.rs
 #: apps/koebi/src/editors/viewport.rs
 msgid "Zoom out"
-msgstr ""
+msgstr "Zoom arrière"
 
 #: apps/koebi/src/editors/timeline.rs
 msgid "Narrows the frames, around the current one."
-msgstr ""
+msgstr "Rétrécit les images, autour de l'image courante."
 
 #: apps/koebi/src/editors/timeline.rs
 #: apps/koebi/src/editors/viewport.rs
 msgid "Frame all"
-msgstr ""
+msgstr "Tout cadrer"
 
 #: apps/koebi/src/editors/timeline.rs
 msgid "Zooms so that every frame of the scene shows."
-msgstr ""
+msgstr "Zoome pour afficher toutes les images de la scène."
 
 #: apps/koebi/src/editors/viewport.rs
 msgid "Zooms and pans so that the whole page shows."
-msgstr ""
+msgstr "Zoome et déplace la vue pour afficher toute la page."
 
 #: apps/koebi/src/editors/viewport.rs
 msgid "Zooms in by one step on the middle of the view."
-msgstr ""
+msgstr "Zoome d'un cran sur le centre de la vue."
 
 #: apps/koebi/src/editors/viewport.rs
 msgid "Zooms out by one step from the middle of the view."
-msgstr ""
+msgstr "Dézoome d'un cran depuis le centre de la vue."
 
 #: apps/koebi/src/editors/viewport.rs
 msgid "Actual size"
-msgstr ""
+msgstr "Taille réelle"
 
 #: apps/koebi/src/editors/viewport.rs
 msgid "Zooms to 100 %: one canvas unit per logical pixel."
-msgstr ""
+msgstr "Zoome à 100 % : une unité du canevas par pixel logique."
 
 #: apps/koebi/src/editors/viewport.rs
 msgid "Toggle rulers"
-msgstr ""
+msgstr "Afficher les règles"
 
 #: apps/koebi/src/editors/viewport.rs
 msgid "Hides every ruler, or shows the top and left ones."
-msgstr ""
+msgstr "Masque toutes les règles, ou affiche celles du haut et de gauche."
 
 #: apps/koebi/src/gallery/buttons.rs
 msgid "Default"
-msgstr ""
+msgstr "Par défaut"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/gallery/colors.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Accent"
-msgstr ""
+msgstr "Accent"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Positive"
-msgstr ""
+msgstr "Positif"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Negative"
-msgstr ""
+msgstr "Négatif"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Neutral"
-msgstr ""
+msgstr "Neutre"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Notice"
-msgstr ""
+msgstr "Avertissement"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Blue"
-msgstr ""
+msgstr "Bleu"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Cyan"
-msgstr ""
+msgstr "Cyan"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Green"
-msgstr ""
+msgstr "Vert"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Yellow"
-msgstr ""
+msgstr "Jaune"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Orange"
-msgstr ""
+msgstr "Orange"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Red"
-msgstr ""
+msgstr "Rouge"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Magenta"
-msgstr ""
+msgstr "Magenta"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Purple"
-msgstr ""
+msgstr "Violet"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/gallery/menus.rs
 msgid "Sculpt"
-msgstr ""
+msgstr "Sculpture"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/gallery/fields.rs
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Disabled"
-msgstr ""
+msgstr "Désactivé"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/gallery/menus.rs
 msgid "Add"
-msgstr ""
+msgstr "Ajouter"
 
 #: apps/koebi/src/gallery/buttons.rs
 msgid "Ctrl"
-msgstr ""
+msgstr "Ctrl"
 
 #: apps/koebi/src/gallery/buttons.rs
 msgid "+10 on press"
-msgstr ""
+msgstr "+10 par appui"
 
 #: apps/koebi/src/gallery/buttons.rs
 msgid "Reset on double click"
-msgstr ""
+msgstr "Réinitialiser au double-clic"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Snap to grid"
-msgstr ""
+msgstr "Aimanter à la grille"
 
 #: apps/koebi/src/gallery/buttons.rs
 msgid "Moves items by whole cells"
-msgstr ""
+msgstr "Déplace les éléments par cellules entières"
 
 #: apps/koebi/src/gallery/buttons.rs
 msgid "Overlays"
-msgstr ""
+msgstr "Superpositions"
 
 #: apps/koebi/src/gallery/buttons.rs
 msgid "Some guides are shown"
-msgstr ""
+msgstr "Certains guides sont affichés"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/gallery/fields.rs
 msgid "Locked"
-msgstr ""
+msgstr "Verrouillé"
 
 #: apps/koebi/src/gallery/buttons.rs
 msgid "Cannot change here"
-msgstr ""
+msgstr "Non modifiable ici"
 
 #: apps/koebi/src/gallery/colors.rs
 msgid "How the left half of the fields shows transparency"
-msgstr ""
+msgstr "Comment la moitié gauche des champs montre la transparence"
 
 #: apps/koebi/src/gallery/colors.rs
 msgid "How the right half of the fields shows transparency"
-msgstr ""
+msgstr "Comment la moitié droite des champs montre la transparence"
 
 #: apps/koebi/src/gallery/colors.rs
 msgid "Title"
-msgstr ""
+msgstr "Titre"
 
 #: apps/koebi/src/gallery/colors.rs
 msgid "Palette"
-msgstr ""
+msgstr "Palette"
 
 #: apps/koebi/src/gallery/colors.rs
 msgid "Values first"
-msgstr ""
+msgstr "Valeurs d'abord"
 
 #: apps/koebi/src/gallery/colors.rs
 msgid "As a dropdown"
-msgstr ""
+msgstr "En liste déroulante"
 
 #: apps/koebi/src/gallery/colors.rs
 msgid "As a panel"
-msgstr ""
+msgstr "En panneau"
 
 #: apps/koebi/src/gallery/colors.rs
 msgid "A horizontal strip"
-msgstr ""
+msgstr "Une bande horizontale"
 
 #: apps/koebi/src/gallery/curves.rs
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Linear"
-msgstr ""
+msgstr "Linéaire"
 
 #: apps/koebi/src/gallery/curves.rs
 msgid "Ease in and out"
-msgstr ""
+msgstr "Accélération et décélération"
 
 #: apps/koebi/src/gallery/curves.rs
 msgid "Overshoot"
-msgstr ""
+msgstr "Dépassement"
 
 #: apps/koebi/src/gallery/curves.rs
 msgid "Bounce"
-msgstr ""
+msgstr "Rebond"
 
 #: apps/koebi/src/gallery/curves.rs
 msgid "Curve editor (temporary)"
-msgstr ""
+msgstr "Éditeur de courbes (provisoire)"
 
 #: apps/koebi/src/gallery/curves.rs
 msgid "Where a square moving by the curve lies at equal times"
-msgstr ""
+msgstr "Où se trouve un carré qui suit la courbe, à intervalles égaux"
 
 #: apps/koebi/src/gallery/editor.rs
 #: apps/koebi/src/settings/accessibility.rs
 msgid "Normal vision"
-msgstr ""
+msgstr "Vision normale"
 
 #: apps/koebi/src/gallery/editor.rs
 #: apps/koebi/src/settings/accessibility.rs
 msgid "Protanopia"
-msgstr ""
+msgstr "Protanopie"
 
 #: apps/koebi/src/gallery/editor.rs
 #: apps/koebi/src/settings/accessibility.rs
 msgid "Deuteranopia"
-msgstr ""
+msgstr "Deutéranopie"
 
 #: apps/koebi/src/gallery/editor.rs
 #: apps/koebi/src/settings/accessibility.rs
 msgid "Tritanopia"
-msgstr ""
+msgstr "Tritanopie"
 
 #: apps/koebi/src/gallery/editor.rs
 #: apps/koebi/src/settings/accessibility.rs
 msgid "Achromatopsia"
-msgstr ""
+msgstr "Achromatopsie"
 
 #: apps/koebi/src/gallery/editor.rs
 #: apps/koebi/src/settings/accessibility.rs
 msgid "Protan correction"
-msgstr ""
+msgstr "Correction protan"
 
 #: apps/koebi/src/gallery/editor.rs
 #: apps/koebi/src/settings/accessibility.rs
 msgid "Deutan correction"
-msgstr ""
+msgstr "Correction deutan"
 
 #: apps/koebi/src/gallery/editor.rs
 #: apps/koebi/src/settings/accessibility.rs
 msgid "Tritan correction"
-msgstr ""
+msgstr "Correction tritan"
 
 #: apps/koebi/src/gallery/editor.rs
 msgid "Simulate"
-msgstr ""
+msgstr "Simuler"
 
 #: apps/koebi/src/gallery/editor.rs
 msgid "Correct"
-msgstr ""
+msgstr "Corriger"
 
 #: apps/koebi/src/gallery/editor.rs
 msgid "Custom"
-msgstr ""
+msgstr "Personnalisé"
 
 #: apps/koebi/src/gallery/fields.rs
 msgid "Centered"
-msgstr ""
+msgstr "Centré"
 
 #: apps/koebi/src/gallery/fields.rs
 msgid "A name far too long for its field, which scrolls while editing"
-msgstr ""
+msgstr "Un nom bien trop long pour son champ, qui défile pendant l'édition"
 
 #: apps/koebi/src/gallery/fields.rs
 msgid "Click a field to edit it; Tab moves to the next one"
-msgstr ""
+msgstr "Cliquez sur un champ pour le modifier ; Tab passe au suivant"
 
 #: apps/koebi/src/gallery/fields.rs
 msgid "Search"
-msgstr ""
+msgstr "Rechercher"
 
 #: apps/koebi/src/gallery/fields.rs
 #: apps/koebi/src/gallery/typography.rs
 msgid "Width"
-msgstr ""
+msgstr "Largeur"
 
 #: apps/koebi/src/gallery/fields.rs
 msgid "Frequency"
-msgstr ""
+msgstr "Fréquence"
 
 #: apps/koebi/src/gallery/fields.rs
 msgid "Bar with step buttons"
-msgstr ""
+msgstr "Barre avec boutons de pas"
 
 #: apps/koebi/src/gallery/fields.rs
 msgid "Without step buttons"
-msgstr ""
+msgstr "Sans boutons de pas"
 
 #: apps/koebi/src/gallery/fields.rs
 msgid "Kept the text"
-msgstr ""
+msgstr "Texte conservé"
 
 #: apps/koebi/src/gallery/fields.rs
 msgid "Restored the text"
-msgstr ""
+msgstr "Texte rétabli"
 
 #: apps/koebi/src/gallery/icons.rs
 msgid "Vector icons"
-msgstr ""
+msgstr "Icônes vectorielles"
 
 #: apps/koebi/src/gallery/icons.rs
 #: apps/koebi/src/gallery/typography.rs
 msgid "Size"
-msgstr ""
+msgstr "Taille"
 
 #: apps/koebi/src/gallery/icons.rs
 msgid "Original colors"
-msgstr ""
+msgstr "Couleurs d'origine"
 
 #: apps/koebi/src/gallery/icons.rs
 msgid "Two tones"
-msgstr ""
+msgstr "Deux tons"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Solid"
-msgstr ""
+msgstr "Solide"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Wireframe"
-msgstr ""
+msgstr "Fil de fer"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Rendered"
-msgstr ""
+msgstr "Rendu"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Median point"
-msgstr ""
+msgstr "Point médian"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Cursor"
-msgstr ""
+msgstr "Curseur"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Active element"
-msgstr ""
+msgstr "Élément actif"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Nothing chosen yet"
-msgstr ""
+msgstr "Rien de choisi pour l'instant"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "How the viewport draws the scene"
-msgstr ""
+msgstr "Comment la vue dessine la scène"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Previous mode"
-msgstr ""
+msgstr "Mode précédent"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Next mode"
-msgstr ""
+msgstr "Mode suivant"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Right-click here for a context menu with submenus"
-msgstr ""
+msgstr "Clic droit ici pour un menu contextuel avec sous-menus"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Sphere"
-msgstr ""
+msgstr "Sphère"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Plane"
-msgstr ""
+msgstr "Plan"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Point"
-msgstr ""
+msgstr "Ponctuelle"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Sun"
-msgstr ""
+msgstr "Soleil"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Mesh"
-msgstr ""
+msgstr "Maillage"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Light"
-msgstr ""
+msgstr "Lumière"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Camera"
-msgstr ""
+msgstr "Caméra"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Duplicate"
-msgstr ""
+msgstr "Dupliquer"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Join"
-msgstr ""
+msgstr "Joindre"
 
 #: apps/koebi/src/gallery/menus.rs
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Snap"
-msgstr ""
+msgstr "Aimanter"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Pivot point"
-msgstr ""
+msgstr "Point de pivot"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Added a mesh"
-msgstr ""
+msgstr "Maillage ajouté"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Added a light"
-msgstr ""
+msgstr "Lumière ajoutée"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Added a camera"
-msgstr ""
+msgstr "Caméra ajoutée"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Duplicated"
-msgstr ""
+msgstr "Dupliqué"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Deleted"
-msgstr ""
+msgstr "Supprimé"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Toggled snapping"
-msgstr ""
+msgstr "Aimantation basculée"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Changed the pivot point"
-msgstr ""
+msgstr "Point de pivot changé"
 
 #: apps/koebi/src/gallery/menus.rs
 msgid "Chose an item"
-msgstr ""
+msgstr "Élément choisi"
 
 #: apps/koebi/src/gallery/mod.rs
 #: apps/koebi/src/settings/customisation/components.rs
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Button"
-msgstr ""
+msgstr "Bouton"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "Latin"
-msgstr ""
+msgstr "Latin"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "Japanese"
-msgstr ""
+msgstr "Japonais"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "Korean"
-msgstr ""
+msgstr "Coréen"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "Chinese"
-msgstr ""
+msgstr "Chinois"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "Mixed"
-msgstr ""
+msgstr "Mélangé"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "System fonts listed"
-msgstr ""
+msgstr "Polices du système listées"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "List system fonts"
-msgstr ""
+msgstr "Lister les polices du système"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "TrueType fonts of the system: pick one in the family menu to load it"
 msgstr ""
+"Polices TrueType du système : choisissez-en une dans le menu "
+"des familles pour la charger"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid ""
 "Reads the headers of the system's fonts; fonts with CFF outlines "
 "are not read yet"
 msgstr ""
+"Lit les en-têtes des polices du système ; les polices à contours "
+"CFF ne sont pas encore lues"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "Weight"
-msgstr ""
+msgstr "Graisse"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "Turn"
-msgstr ""
+msgstr "Rotation"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "Letter spacing"
-msgstr ""
+msgstr "Interlettrage"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "Line height"
-msgstr ""
+msgstr "Interligne"
 
 #: apps/koebi/src/gallery/typography.rs
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Start"
-msgstr ""
+msgstr "Début"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "Center"
-msgstr ""
+msgstr "Centre"
 
 #: apps/koebi/src/gallery/typography.rs
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "End"
-msgstr ""
+msgstr "Fin"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "Kerning"
-msgstr ""
+msgstr "Crénage"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "Ligatures"
-msgstr ""
+msgstr "Ligatures"
 
 #: apps/koebi/src/gallery/typography.rs
 msgid "Drawn from the glyphs' curves: any size, any turn."
 msgstr ""
+"Dessiné à partir des courbes des glyphes : toutes tailles, toutes "
+"rotations."
 
 #: apps/koebi/src/settings/accessibility.rs
 msgid "Colors as the theme defines them"
-msgstr ""
+msgstr "Les couleurs telles que le thème les définit"
 
 #: apps/koebi/src/settings/accessibility.rs
 msgid "No red cones"
-msgstr ""
+msgstr "Pas de cônes rouges"
 
 #: apps/koebi/src/settings/accessibility.rs
 msgid "No green cones"
-msgstr ""
+msgstr "Pas de cônes verts"
 
 #: apps/koebi/src/settings/accessibility.rs
 msgid "No blue cones"
-msgstr ""
+msgstr "Pas de cônes bleus"
 
 #: apps/koebi/src/settings/accessibility.rs
 msgid "No colors"
-msgstr ""
+msgstr "Pas de couleurs"
 
 #: apps/koebi/src/settings/accessibility.rs
 msgid "Separates reds from greens"
-msgstr ""
+msgstr "Sépare les rouges des verts"
 
 #: apps/koebi/src/settings/accessibility.rs
 msgid "Separates greens from reds"
-msgstr ""
+msgstr "Sépare les verts des rouges"
 
 #: apps/koebi/src/settings/accessibility.rs
 msgid "Separates blues from yellows"
-msgstr ""
+msgstr "Sépare les bleus des jaunes"
 
 #: apps/koebi/src/settings/accessibility.rs
 msgid "No transformation"
-msgstr ""
+msgstr "Aucune transformation"
 
 #: apps/koebi/src/settings/accessibility.rs
 msgid "See as someone with a color deficiency"
-msgstr ""
+msgstr "Voir comme une personne ayant une déficience des couleurs"
 
 #: apps/koebi/src/settings/accessibility.rs
 msgid "Correct a color deficiency"
-msgstr ""
+msgstr "Corriger une déficience des couleurs"
 
 #: apps/koebi/src/settings/accessibility.rs
 msgid "Strength"
-msgstr ""
+msgstr "Intensité"
 
 #: apps/koebi/src/settings/colors.rs
 msgid "Hue palettes"
-msgstr ""
+msgstr "Palettes de teintes"
 
 #: apps/koebi/src/settings/colors.rs
 msgid "One color makes a palette: its steps keep their contrast."
-msgstr ""
+msgstr "Une couleur donne une palette : ses paliers gardent leur contraste."
 
 #: apps/koebi/src/settings/colors.rs
 msgid "This theme"
-msgstr ""
+msgstr "Ce thème"
 
 #: apps/koebi/src/settings/colors.rs
 msgid "Every theme"
-msgstr ""
+msgstr "Tous les thèmes"
 
 #: apps/koebi/src/settings/colors.rs
 msgid "Back to the theme's own palette"
-msgstr ""
+msgstr "Revenir à la palette du thème"
 
 #: apps/koebi/src/settings/colors.rs
 #: crates/koebi-ui/src/widgets/theme_card.rs
 msgid "Aa"
-msgstr ""
+msgstr "Aa"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Actions"
-msgstr ""
+msgstr "Actions"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Checkbox"
-msgstr ""
+msgstr "Case à cocher"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Values"
-msgstr ""
+msgstr "Valeurs"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Number field"
-msgstr ""
+msgstr "Champ numérique"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Text field"
-msgstr ""
+msgstr "Champ de texte"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Dropdown"
-msgstr ""
+msgstr "Liste déroulante"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Color field and picker"
-msgstr ""
+msgstr "Champ et sélecteur de couleur"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Curve editor"
-msgstr ""
+msgstr "Éditeur de courbes"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Containers"
-msgstr ""
+msgstr "Conteneurs"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Panel"
-msgstr ""
+msgstr "Panneau"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Tooltip"
-msgstr ""
+msgstr "Info-bulle"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Status bar"
-msgstr ""
+msgstr "Barre d'état"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Shortcuts"
-msgstr ""
+msgstr "Raccourcis"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Key caps"
-msgstr ""
+msgstr "Touches"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Normal"
-msgstr ""
+msgstr "Normal"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Hovered"
-msgstr ""
+msgstr "Survolé"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Pressed"
-msgstr ""
+msgstr "Enfoncé"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Selected"
-msgstr ""
+msgstr "Sélectionné"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Selected, hovered"
-msgstr ""
+msgstr "Sélectionné, survolé"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Selected, pressed"
-msgstr ""
+msgstr "Sélectionné, enfoncé"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Active"
-msgstr ""
+msgstr "Actif"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Selected, disabled"
-msgstr ""
+msgstr "Sélectionné, désactivé"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Dragged"
-msgstr ""
+msgstr "Glissé"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Logarithmic"
-msgstr ""
+msgstr "Logarithmique"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Stepped"
-msgstr ""
+msgstr "Par paliers"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Untitled"
-msgstr ""
+msgstr "Sans titre"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "States"
-msgstr ""
+msgstr "États"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Try it"
-msgstr ""
+msgstr "Essayer"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "What it does"
-msgstr ""
+msgstr "Ce qu'il fait"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Every token"
-msgstr ""
+msgstr "Tous les jetons"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Mix"
-msgstr ""
+msgstr "Mélange"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "On"
-msgstr ""
+msgstr "Activé"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Off"
-msgstr ""
+msgstr "Désactivé"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Rest here"
-msgstr ""
+msgstr "Survolez ici"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "A tooltip names what lies under the pointer"
-msgstr ""
+msgstr "Une info-bulle nomme ce qui se trouve sous le pointeur"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "A nested panel"
-msgstr ""
+msgstr "Un panneau imbriqué"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "What it holds"
-msgstr ""
+msgstr "Ce qu'il contient"
 
 #: apps/koebi/src/settings/customisation/mod.rs
 msgid "By feature"
-msgstr ""
+msgstr "Par fonction"
 
 #: apps/koebi/src/settings/customisation/mod.rs
 msgid "By component"
-msgstr ""
+msgstr "Par composant"
 
 #: apps/koebi/src/settings/customisation/mod.rs
 msgid ""
 "Every token, from the parts of the interface down. A dot marks "
 "what changed."
 msgstr ""
+"Tous les jetons, des parties de l'interface jusqu'aux bases. "
+"Un point marque ce qui a changé."
 
 #: apps/koebi/src/settings/customisation/mod.rs
 msgid ""
 "Each component: what it does, its states, one to try, its shortcuts "
 "and tokens."
 msgstr ""
+"Chaque composant : ce qu'il fait, ses états, un exemplaire à "
+"essayer, ses raccourcis et ses jetons."
 
 #: apps/koebi/src/settings/dev.rs
 msgid "Diagnostics"
-msgstr ""
+msgstr "Diagnostic"
 
 #: apps/koebi/src/settings/dev.rs
 msgid "Show the frame times"
-msgstr ""
+msgstr "Afficher les temps de rendu"
 
 #: apps/koebi/src/settings/dev.rs
 msgid ""
 "Frames per second, CPU and GPU time of a frame, above the status "
 "bar. F12 too."
 msgstr ""
+"Images par seconde, temps CPU et GPU d'une image, au-dessus "
+"de la barre d'état. F12 aussi."
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Pointer"
-msgstr ""
+msgstr "Pointeur"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Drag start distance"
-msgstr ""
+msgstr "Distance de début de glissement"
 
 #: apps/koebi/src/settings/inputs.rs
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Double click time"
-msgstr ""
+msgstr "Délai du double-clic"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Hovering"
-msgstr ""
+msgstr "Survol"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Tooltip delay, short"
-msgstr ""
+msgstr "Délai des info-bulles, court"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Tooltip delay, normal"
-msgstr ""
+msgstr "Délai des info-bulles, normal"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Tooltip delay, long"
-msgstr ""
+msgstr "Délai des info-bulles, long"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Hover delay"
-msgstr ""
+msgstr "Délai de survol"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Holding"
-msgstr ""
+msgstr "Maintien"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Repeat delay"
-msgstr ""
+msgstr "Délai avant répétition"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Repeat interval"
-msgstr ""
+msgstr "Intervalle de répétition"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Number fields"
-msgstr ""
+msgstr "Champs numériques"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Drag distance of a step"
-msgstr ""
+msgstr "Distance de glissement d'un pas"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Shift, without a bar"
-msgstr ""
+msgstr "Maj, sans barre"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Shift, with a bar"
-msgstr ""
+msgstr "Maj, avec barre"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Steps in a unit"
-msgstr ""
+msgstr "Pas par unité"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Menus"
-msgstr ""
+msgstr "Menus"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Submenu delay"
-msgstr ""
+msgstr "Délai des sous-menus"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Submenu grace"
-msgstr ""
+msgstr "Tolérance des sous-menus"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Closing distance"
-msgstr ""
+msgstr "Distance de fermeture"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Scrolling"
-msgstr ""
+msgstr "Défilement"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Wheel step"
-msgstr ""
+msgstr "Pas de la molette"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Docking"
-msgstr ""
+msgstr "Ancrage"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Drag start distance of a tab"
-msgstr ""
+msgstr "Distance de début de glissement d'un onglet"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Tab bar delay"
-msgstr ""
+msgstr "Délai de la barre d'onglets"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Tab bar grace"
-msgstr ""
+msgstr "Tolérance de la barre d'onglets"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Drop preview glide"
-msgstr ""
+msgstr "Glissement de l'aperçu de dépôt"
 
 #. TRANSLATORS: {shortcut} is a shortcut (Ctrl+S), {action} an action, {place} a part of the interface (Outliner).
 #: apps/koebi/src/settings/keymaps/analysis.rs
@@ -1302,1531 +1318,1561 @@ msgid ""
 "{shortcut} is already a shortcut of {action} in {place}: it "
 "stays off until one of them changes."
 msgstr ""
+"{shortcut} est déjà un raccourci de {action} dans {place} : "
+"il reste inactif tant que l'un des deux ne change pas."
 
 #: apps/koebi/src/settings/keymaps/analysis.rs
 msgid "In {place}, inside {here}, {shortcut} does {action} instead."
 msgstr ""
+"Dans {place}, à l'intérieur de {here}, {shortcut} fait {action} "
+"à la place."
 
 #: apps/koebi/src/settings/keymaps/analysis.rs
 msgid ""
 "In {here}, {shortcut} wins over {action} of {place}, which it "
 "lies inside."
 msgstr ""
+"Dans {here}, {shortcut} l'emporte sur {action} de {place}, qui "
+"le contient."
 
 #: apps/koebi/src/settings/keymaps/analysis.rs
 msgid ""
 "{other} does {action} in {place}: one movement does both, or "
 "one instead of the other."
 msgstr ""
+"{other} fait {action} dans {place} : un même geste fait les "
+"deux, ou l'un à la place de l'autre."
 
 #. TRANSLATORS: {condition} tells when the other action applies ("when a group is folded").
 #: apps/koebi/src/settings/keymaps/analysis.rs
 msgid "Also {action} {condition}: the two never apply at once."
 msgstr ""
+"Aussi {action} {condition} : les deux ne s'appliquent jamais "
+"en même temps."
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Click to record a button"
-msgstr ""
+msgstr "Cliquez pour enregistrer un bouton"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Click to record a key"
-msgstr ""
+msgstr "Cliquez pour enregistrer une touche"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Choose it below"
-msgstr ""
+msgstr "Choisissez-le ci-dessous"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Hold modifiers, then press"
-msgstr ""
+msgstr "Maintenez les modificateurs, puis appuyez"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Remove this shortcut"
-msgstr ""
+msgstr "Retirer ce raccourci"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid ""
 "Record its key or button above, or choose it: the shortcut works "
 "from then on."
 msgstr ""
+"Enregistrez sa touche ou son bouton ci-dessus, ou choisissez-le : "
+"le raccourci fonctionne dès lors."
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Event"
-msgstr ""
+msgstr "Événement"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Repeat"
-msgstr ""
+msgstr "Répétition"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "While the key is held"
-msgstr ""
+msgstr "Tant que la touche est maintenue"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Direction"
-msgstr ""
+msgstr "Direction"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Distance"
-msgstr ""
+msgstr "Distance"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Modifiers"
-msgstr ""
+msgstr "Modificateurs"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Key held"
-msgstr ""
+msgstr "Touche maintenue"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 #: crates/koebi-ui/src/widgets/capture_field.rs
 msgid "None"
-msgstr ""
+msgstr "Aucune"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Press the key to hold"
-msgstr ""
+msgstr "Appuyez sur la touche à maintenir"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "A key held as a modifier: the shortcut triggers only while it is down"
 msgstr ""
+"Une touche maintenue comme modificateur : le raccourci ne se "
+"déclenche que tant qu'elle est enfoncée"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Its own"
-msgstr ""
+msgstr "Le sien"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "The application's value, unless this shortcut has its own"
-msgstr ""
+msgstr "La valeur de l'application, sauf si ce raccourci a la sienne"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Key"
-msgstr ""
+msgstr "Touche"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Input"
-msgstr ""
+msgstr "Entrée"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Choose a key"
-msgstr ""
+msgstr "Choisir une touche"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Other key"
-msgstr ""
+msgstr "Autre touche"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Choose a button"
-msgstr ""
+msgstr "Choisir un bouton"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Other button"
-msgstr ""
+msgstr "Autre bouton"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Any movement"
-msgstr ""
+msgstr "Tout mouvement"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Any"
-msgstr ""
+msgstr "Indifférent"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
 msgid ""
 "Any modifiers held or not; the others keep their values for "
 "when it goes off"
 msgstr ""
+"Tous les modificateurs, enfoncés ou non ; les autres gardent "
+"leur valeur pour quand ce choix est désactivé"
 
 #: apps/koebi/src/settings/keymaps/mod.rs
 msgid "Search by name"
-msgstr ""
+msgstr "Rechercher par nom"
 
 #: apps/koebi/src/settings/keymaps/mod.rs
 msgid "Search by shortcut"
-msgstr ""
+msgstr "Rechercher par raccourci"
 
 #: apps/koebi/src/settings/keymaps/mod.rs
 msgid "Press the shortcut to find"
-msgstr ""
+msgstr "Appuyez sur le raccourci à trouver"
 
 #: apps/koebi/src/settings/keymaps/mod.rs
 msgid "Clear the search"
-msgstr ""
+msgstr "Effacer la recherche"
 
 #: apps/koebi/src/settings/keymaps/mod.rs
 msgid "Bring back the default shortcuts"
-msgstr ""
+msgstr "Rétablir les raccourcis par défaut"
 
 #: apps/koebi/src/settings/keymaps/mod.rs
 msgid "Add a shortcut"
-msgstr ""
+msgstr "Ajouter un raccourci"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Keyboard"
-msgstr ""
+msgstr "Clavier"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Mouse"
-msgstr ""
+msgstr "Souris"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Touchpad"
-msgstr ""
+msgstr "Pavé tactile"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Pointer move"
-msgstr ""
+msgstr "Déplacement du pointeur"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Press"
-msgstr ""
+msgstr "Appui"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Release"
-msgstr ""
+msgstr "Relâchement"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Click"
-msgstr ""
+msgstr "Clic"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Double click"
-msgstr ""
+msgstr "Double-clic"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Click and drag"
-msgstr ""
+msgstr "Cliquer-glisser"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Letters"
-msgstr ""
+msgstr "Lettres"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Digits"
-msgstr ""
+msgstr "Chiffres"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Function keys"
-msgstr ""
+msgstr "Touches de fonction"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 #: apps/koebi/src/settings/mod.rs
 msgid "Navigation"
-msgstr ""
+msgstr "Navigation"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Up"
-msgstr ""
+msgstr "Haut"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Down"
-msgstr ""
+msgstr "Bas"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Left"
-msgstr ""
+msgstr "Gauche"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Right"
-msgstr ""
+msgstr "Droite"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Home"
-msgstr ""
+msgstr "Origine"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "End"
-msgstr ""
+msgstr "Fin"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Page up"
-msgstr ""
+msgstr "Page précédente"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Page down"
-msgstr ""
+msgstr "Page suivante"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Editing"
-msgstr ""
+msgstr "Édition"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Space"
-msgstr ""
+msgstr "Espace"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Enter"
-msgstr ""
+msgstr "Entrée"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Tab"
-msgstr ""
+msgstr "Tab"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Backspace"
-msgstr ""
+msgstr "Retour arrière"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Delete"
-msgstr ""
+msgstr "Suppr"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Insert"
-msgstr ""
+msgstr "Inser"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Escape"
-msgstr ""
+msgstr "Échap"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Punctuation"
-msgstr ""
+msgstr "Ponctuation"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Minus"
-msgstr ""
+msgstr "Moins"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Equals"
-msgstr ""
+msgstr "Égal"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Left bracket"
-msgstr ""
+msgstr "Crochet ouvrant"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Right bracket"
-msgstr ""
+msgstr "Crochet fermant"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Backslash"
-msgstr ""
+msgstr "Barre oblique inverse"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Semicolon"
-msgstr ""
+msgstr "Point-virgule"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Apostrophe"
-msgstr ""
+msgstr "Apostrophe"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Grave accent"
-msgstr ""
+msgstr "Accent grave"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Comma"
-msgstr ""
+msgstr "Virgule"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Period"
-msgstr ""
+msgstr "Point"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Slash"
-msgstr ""
+msgstr "Barre oblique"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Numeric keypad"
-msgstr ""
+msgstr "Pavé numérique"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad 0"
-msgstr ""
+msgstr "Pavé num. 0"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad 1"
-msgstr ""
+msgstr "Pavé num. 1"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad 2"
-msgstr ""
+msgstr "Pavé num. 2"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad 3"
-msgstr ""
+msgstr "Pavé num. 3"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad 4"
-msgstr ""
+msgstr "Pavé num. 4"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad 5"
-msgstr ""
+msgstr "Pavé num. 5"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad 6"
-msgstr ""
+msgstr "Pavé num. 6"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad 7"
-msgstr ""
+msgstr "Pavé num. 7"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad 8"
-msgstr ""
+msgstr "Pavé num. 8"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad 9"
-msgstr ""
+msgstr "Pavé num. 9"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad divide"
-msgstr ""
+msgstr "Pavé num. diviser"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad multiply"
-msgstr ""
+msgstr "Pavé num. multiplier"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad minus"
-msgstr ""
+msgstr "Pavé num. moins"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad plus"
-msgstr ""
+msgstr "Pavé num. plus"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad enter"
-msgstr ""
+msgstr "Pavé num. Entrée"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Keypad period"
-msgstr ""
+msgstr "Pavé num. point"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Num lock"
-msgstr ""
+msgstr "Verr. num."
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "System"
-msgstr ""
+msgstr "Système"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Caps lock"
-msgstr ""
+msgstr "Verr. maj."
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Print screen"
-msgstr ""
+msgstr "Impr. écran"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Scroll lock"
-msgstr ""
+msgstr "Arrêt défil."
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Pause"
-msgstr ""
+msgstr "Pause"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
 msgid "Menu"
-msgstr ""
+msgstr "Menu"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Buttons"
-msgstr ""
+msgstr "Boutons"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Left button"
-msgstr ""
+msgstr "Bouton gauche"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Middle button"
-msgstr ""
+msgstr "Bouton du milieu"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Right button"
-msgstr ""
+msgstr "Bouton droit"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Back button"
-msgstr ""
+msgstr "Bouton précédent"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Forward button"
-msgstr ""
+msgstr "Bouton suivant"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Button 6"
-msgstr ""
+msgstr "Bouton 6"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Button 7"
-msgstr ""
+msgstr "Bouton 7"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Button 8"
-msgstr ""
+msgstr "Bouton 8"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Wheel"
-msgstr ""
+msgstr "Molette"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Wheel up"
-msgstr ""
+msgstr "Molette vers le haut"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Wheel down"
-msgstr ""
+msgstr "Molette vers le bas"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Wheel left"
-msgstr ""
+msgstr "Molette vers la gauche"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Wheel right"
-msgstr ""
+msgstr "Molette vers la droite"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Pinch in"
-msgstr ""
+msgstr "Pincer"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Pinch out"
-msgstr ""
+msgstr "Écarter"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Any direction"
-msgstr ""
+msgstr "Toute direction"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Up"
-msgstr ""
+msgstr "Haut"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Up right"
-msgstr ""
+msgstr "Haut droite"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Right"
-msgstr ""
+msgstr "Droite"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Down right"
-msgstr ""
+msgstr "Bas droite"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Down"
-msgstr ""
+msgstr "Bas"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Down left"
-msgstr ""
+msgstr "Bas gauche"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Left"
-msgstr ""
+msgstr "Gauche"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Up left"
-msgstr ""
+msgstr "Haut gauche"
 
 #: apps/koebi/src/settings/language.rs
 msgid "{language}: {percent} % translated"
-msgstr ""
+msgstr "{language} : traduit à {percent} %"
 
 #: apps/koebi/src/settings/language.rs
 msgid "The system's: {language}"
-msgstr ""
+msgstr "Celle du système : {language}"
 
 #: apps/koebi/src/settings/language.rs
 msgid "Language of the interface"
-msgstr ""
+msgstr "Langue de l'interface"
 
 #: apps/koebi/src/settings/language.rs
 msgid ""
 "Koebi is written in English; the other languages come from translators. "
 "A message not translated yet shows in English."
 msgstr ""
+"Koebi est écrit en anglais ; les autres langues viennent de "
+"traducteurs. Un message pas encore traduit s'affiche en anglais."
 
 #: apps/koebi/src/settings/mod.rs
 msgid "General"
-msgstr ""
+msgstr "Général"
 
 #: apps/koebi/src/settings/mod.rs
 msgid "Language"
-msgstr ""
+msgstr "Langue"
 
 #: apps/koebi/src/settings/mod.rs
 #: apps/koebi/src/settings/options.rs
 msgid "Theme"
-msgstr ""
+msgstr "Thème"
 
 #: apps/koebi/src/settings/mod.rs
 msgid "Customisation"
-msgstr ""
+msgstr "Personnalisation"
 
 #: apps/koebi/src/settings/mod.rs
 msgid "Accessibility"
-msgstr ""
+msgstr "Accessibilité"
 
 #: apps/koebi/src/settings/mod.rs
 msgid "Inputs"
-msgstr ""
+msgstr "Entrées"
 
 #: apps/koebi/src/settings/mod.rs
 msgid "Keymaps"
-msgstr ""
+msgstr "Raccourcis"
 
 #: apps/koebi/src/settings/mod.rs
 msgid "Icons"
-msgstr ""
+msgstr "Icônes"
 
 #: apps/koebi/src/settings/mod.rs
 msgid "Dev"
-msgstr ""
+msgstr "Dév."
 
 #: apps/koebi/src/settings/mod.rs
 msgid "Nothing to set here yet"
-msgstr ""
+msgstr "Rien à régler ici pour l'instant"
 
 #: apps/koebi/src/settings/options.rs
 msgid "Reset for the application"
-msgstr ""
+msgstr "Réinitialiser pour l'application"
 
 #: apps/koebi/src/settings/options.rs
 msgid "Reset for the current theme"
-msgstr ""
+msgstr "Réinitialiser pour le thème actuel"
 
 #: apps/koebi/src/settings/options.rs
 msgid "Reset both"
-msgstr ""
+msgstr "Réinitialiser les deux"
 
 #: apps/koebi/src/settings/options.rs
 msgid "Reset what changed below; right-click to choose for what"
 msgstr ""
+"Réinitialiser ce qui a changé ci-dessous ; clic droit pour choisir "
+"pour quoi"
 
 #: apps/koebi/src/settings/options.rs
 msgid "Current theme: {name}"
-msgstr ""
+msgstr "Thème actuel : {name}"
 
 #: apps/koebi/src/settings/options.rs
 msgid "Resolution chain"
-msgstr ""
+msgstr "Chaîne de résolution"
 
 #: apps/koebi/src/settings/options.rs
 msgid "Current theme"
-msgstr ""
+msgstr "Thème actuel"
 
 #: apps/koebi/src/settings/theme.rs
 msgid "Themes"
-msgstr ""
+msgstr "Thèmes"
 
 #: crates/koebi-tokens/src/lib.rs
 msgid "Controls"
-msgstr ""
+msgstr "Contrôles"
 
 #: crates/koebi-tokens/src/lib.rs
 msgid "Buttons, toggles, fields, dropdowns, pickers and the other controls."
 msgstr ""
+"Boutons, bascules, champs, listes déroulantes, sélecteurs et "
+"les autres contrôles."
 
 #: crates/koebi-tokens/src/lib.rs
 msgid "Surfaces"
-msgstr ""
+msgstr "Surfaces"
 
 #: crates/koebi-tokens/src/lib.rs
 msgid "Windows, panels, menus, tooltips, the status bar and what they hold."
 msgstr ""
+"Fenêtres, panneaux, menus, info-bulles, la barre d'état et ce "
+"qu'ils contiennent."
 
 #: crates/koebi-tokens/src/lib.rs
 msgid "Editors"
-msgstr ""
+msgstr "Éditeurs"
 
 #: crates/koebi-tokens/src/lib.rs
 msgid "The workspace's areas and tabs, and the editors inside them."
 msgstr ""
+"Les zones et les onglets de l'espace de travail, et les éditeurs "
+"qu'ils contiennent."
 
 #: crates/koebi-tokens/src/lib.rs
 msgid "Intents"
-msgstr ""
+msgstr "Intentions"
 
 #: crates/koebi-tokens/src/lib.rs
 msgid ""
 "Semantic tokens: the roles, backgrounds, text, sizes and motion "
 "components alias."
 msgstr ""
+"Jetons sémantiques : les rôles, fonds, textes, tailles et mouvements "
+"que les composants reprennent."
 
 #: crates/koebi-tokens/src/lib.rs
 msgid "Palettes and scales"
-msgstr ""
+msgstr "Palettes et échelles"
 
 #: crates/koebi-tokens/src/lib.rs
 msgid ""
 "Primitive tokens: the raw colors, sizes, fonts and durations "
 "beneath everything."
 msgstr ""
+"Jetons primitifs : les couleurs, tailles, polices et durées "
+"brutes sous tout le reste."
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Selection, focus, main actions."
-msgstr ""
+msgstr "Sélection, focus, actions principales."
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Informative"
-msgstr ""
+msgstr "Information"
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Information needing no action."
-msgstr ""
+msgstr "Informations ne demandant aucune action."
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Success, what is valid or added."
-msgstr ""
+msgstr "Réussite, ce qui est valide ou ajouté."
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Warnings, what needs attention."
-msgstr ""
+msgstr "Avertissements, ce qui demande de l'attention."
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Errors and destructive actions."
-msgstr ""
+msgstr "Erreurs et actions destructrices."
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Chartreuse"
-msgstr ""
+msgstr "Chartreuse"
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Celery"
-msgstr ""
+msgstr "Céleri"
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Seafoam"
-msgstr ""
+msgstr "Écume"
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Indigo"
-msgstr ""
+msgstr "Indigo"
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Fuchsia"
-msgstr ""
+msgstr "Fuchsia"
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Pink"
-msgstr ""
+msgstr "Rose"
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Turquoise"
-msgstr ""
+msgstr "Turquoise"
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Cinnamon"
-msgstr ""
+msgstr "Cannelle"
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Brown"
-msgstr ""
+msgstr "Brun"
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Silver"
-msgstr ""
+msgstr "Argent"
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "A tint of every gray."
-msgstr ""
+msgstr "Une teinte de tous les gris."
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Tags, charts, what aliases it."
-msgstr ""
+msgstr "Étiquettes, graphiques, ce qui y renvoie."
 
 #: crates/koebi-tokens/src/themes/mod.rs
 msgid "Dark"
-msgstr ""
+msgstr "Sombre"
 
 #: crates/koebi-tokens/src/themes/mod.rs
 msgid "Dark pink"
-msgstr ""
+msgstr "Sombre rose"
 
 #: crates/koebi-tokens/src/themes/mod.rs
 msgid "Muted green"
-msgstr ""
+msgstr "Vert doux"
 
 #: crates/koebi-tokens/src/themes/mod.rs
 msgid "Snow"
-msgstr ""
+msgstr "Neige"
 
 #: crates/koebi-tokens/src/themes/mod.rs
 msgid "Arctic"
-msgstr ""
+msgstr "Arctique"
 
 #: crates/koebi-tokens/src/themes/mod.rs
 msgid "High contrast"
-msgstr ""
+msgstr "Contraste élevé"
 
 #: crates/koebi-ui/src/operation.rs
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Cancel"
-msgstr ""
+msgstr "Annuler"
 
 #: crates/koebi-ui/src/operation.rs
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Confirm"
-msgstr ""
+msgstr "Valider"
 
 #: crates/koebi-ui/src/operation.rs
 msgid "Operations"
-msgstr ""
+msgstr "Opérations"
 
 #: crates/koebi-ui/src/widgets/capture_field.rs
 msgid "Press a key"
-msgstr ""
+msgstr "Appuyez sur une touche"
 
 #: crates/koebi-ui/src/widgets/color/field.rs
 msgid "Opaque"
-msgstr ""
+msgstr "Opaque"
 
 #: crates/koebi-ui/src/widgets/color/field.rs
 msgid "Over the background"
-msgstr ""
+msgstr "Sur l'arrière-plan"
 
 #: crates/koebi-ui/src/widgets/color/field.rs
 msgid "Over white"
-msgstr ""
+msgstr "Sur du blanc"
 
 #: crates/koebi-ui/src/widgets/color/field.rs
 msgid "Over black"
-msgstr ""
+msgstr "Sur du noir"
 
 #: crates/koebi-ui/src/widgets/color/field.rs
 msgid "Over a checkerboard"
-msgstr ""
+msgstr "Sur un damier"
 
 #: crates/koebi-ui/src/widgets/color/picker.rs
 msgid "Hex"
-msgstr ""
+msgstr "Hex"
 
 #: crates/koebi-ui/src/widgets/color/picker.rs
 msgid "Pick a color on the screen"
-msgstr ""
+msgstr "Prélever une couleur à l'écran"
 
 #: crates/koebi-ui/src/widgets/color/picker.rs
 msgid "The current color"
-msgstr ""
+msgstr "La couleur actuelle"
 
 #: crates/koebi-ui/src/widgets/color/picker.rs
 msgid "The color before the picker opened"
-msgstr ""
+msgstr "La couleur avant l'ouverture du sélecteur"
 
 #: crates/koebi-ui/src/widgets/color/picker.rs
 msgid "The color without any change"
-msgstr ""
+msgstr "La couleur sans aucun changement"
 
 #: crates/koebi-ui/src/widgets/color/shape.rs
 msgid "Square: saturation and value"
-msgstr ""
+msgstr "Carré : saturation et valeur"
 
 #: crates/koebi-ui/src/widgets/color/shape.rs
 msgid "Square: hue and saturation"
-msgstr ""
+msgstr "Carré : teinte et saturation"
 
 #: crates/koebi-ui/src/widgets/color/shape.rs
 msgid "Wheel: HSV"
-msgstr ""
+msgstr "Roue : TSV"
 
 #: crates/koebi-ui/src/widgets/color/shape.rs
 msgid "Wheel: HSL"
-msgstr ""
+msgstr "Roue : TSL"
 
 #: crates/koebi-ui/src/widgets/color/shape.rs
 msgid "Wheel: OKLCH, perceptual"
-msgstr ""
+msgstr "Roue : OKLCH, perceptuelle"
 
 #: crates/koebi-ui/src/widgets/color/shape.rs
 msgid "Ring and triangle"
-msgstr ""
+msgstr "Anneau et triangle"
 
 #: crates/koebi-ui/src/widgets/color/shape.rs
 msgid "Ring and square"
-msgstr ""
+msgstr "Anneau et carré"
 
 #: crates/koebi-ui/src/widgets/curve_editor.rs
 msgid "The easing's first control point: its time"
-msgstr ""
+msgstr "Premier point de contrôle de l'accélération : son temps"
 
 #: crates/koebi-ui/src/widgets/curve_editor.rs
 msgid "The easing's first control point: its value"
-msgstr ""
+msgstr "Premier point de contrôle de l'accélération : sa valeur"
 
 #: crates/koebi-ui/src/widgets/curve_editor.rs
 msgid "The easing's second control point: its time"
-msgstr ""
+msgstr "Second point de contrôle de l'accélération : son temps"
 
 #: crates/koebi-ui/src/widgets/curve_editor.rs
 msgid "The easing's second control point: its value"
-msgstr ""
+msgstr "Second point de contrôle de l'accélération : sa valeur"
 
 #: crates/koebi-ui/src/widgets/curve_editor.rs
 msgid "Add key"
-msgstr ""
+msgstr "Ajouter une clé"
 
 #: crates/koebi-ui/src/widgets/curve_editor.rs
 msgid "Remove key"
-msgstr ""
+msgstr "Retirer la clé"
 
 #: crates/koebi-ui/src/widgets/curve_editor.rs
 msgid "The selected key's time"
-msgstr ""
+msgstr "Le temps de la clé sélectionnée"
 
 #: crates/koebi-ui/src/widgets/curve_editor.rs
 msgid "The selected key's value"
-msgstr ""
+msgstr "La valeur de la clé sélectionnée"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Ctrl"
-msgstr ""
+msgstr "Ctrl"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "L Ctrl"
-msgstr ""
+msgstr "Ctrl gauche"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "R Ctrl"
-msgstr ""
+msgstr "Ctrl droit"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Any Ctrl"
-msgstr ""
+msgstr "Ctrl indifférent"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Shift"
-msgstr ""
+msgstr "Maj"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "L Shift"
-msgstr ""
+msgstr "Maj gauche"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "R Shift"
-msgstr ""
+msgstr "Maj droite"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Any Shift"
-msgstr ""
+msgstr "Maj indifférente"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Option"
-msgstr ""
+msgstr "Option"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "L Option"
-msgstr ""
+msgstr "Option gauche"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "R Option"
-msgstr ""
+msgstr "Option droite"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Any Option"
-msgstr ""
+msgstr "Option indifférente"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Alt"
-msgstr ""
+msgstr "Alt"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "L Alt"
-msgstr ""
+msgstr "Alt gauche"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "R Alt"
-msgstr ""
+msgstr "Alt Gr"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Any Alt"
-msgstr ""
+msgstr "Alt indifférent"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Cmd"
-msgstr ""
+msgstr "Cmd"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "L Cmd"
-msgstr ""
+msgstr "Cmd gauche"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "R Cmd"
-msgstr ""
+msgstr "Cmd droite"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Any Cmd"
-msgstr ""
+msgstr "Cmd indifférente"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Win"
-msgstr ""
+msgstr "Win"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "L Win"
-msgstr ""
+msgstr "Win gauche"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "R Win"
-msgstr ""
+msgstr "Win droite"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Any Win"
-msgstr ""
+msgstr "Win indifférente"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Super"
-msgstr ""
+msgstr "Super"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "L Super"
-msgstr ""
+msgstr "Super gauche"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "R Super"
-msgstr ""
+msgstr "Super droite"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Any Super"
-msgstr ""
+msgstr "Super indifférente"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Any"
-msgstr ""
+msgstr "Indifférent"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Esc"
-msgstr ""
+msgstr "Échap"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Page Up"
-msgstr ""
+msgstr "Pg préc"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Page Down"
-msgstr ""
+msgstr "Pg suiv"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num 0"
-msgstr ""
+msgstr "Num 0"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num 1"
-msgstr ""
+msgstr "Num 1"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num 2"
-msgstr ""
+msgstr "Num 2"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num 3"
-msgstr ""
+msgstr "Num 3"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num 4"
-msgstr ""
+msgstr "Num 4"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num 5"
-msgstr ""
+msgstr "Num 5"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num 6"
-msgstr ""
+msgstr "Num 6"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num 7"
-msgstr ""
+msgstr "Num 7"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num 8"
-msgstr ""
+msgstr "Num 8"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num 9"
-msgstr ""
+msgstr "Num 9"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num +"
-msgstr ""
+msgstr "Num +"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num -"
-msgstr ""
+msgstr "Num -"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num *"
-msgstr ""
+msgstr "Num *"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num /"
-msgstr ""
+msgstr "Num /"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num ."
-msgstr ""
+msgstr "Num ."
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num Enter"
-msgstr ""
+msgstr "Num Entrée"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Num Lock"
-msgstr ""
+msgstr "Verr Num"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Caps Lock"
-msgstr ""
+msgstr "Verr Maj"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Scroll Lock"
-msgstr ""
+msgstr "Arrêt défil"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Print Screen"
-msgstr ""
+msgstr "Impr écran"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "repeat"
-msgstr ""
+msgstr "répétée"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "release"
-msgstr ""
+msgstr "au relâchement"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "click"
-msgstr ""
+msgstr "clic"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "double click"
-msgstr ""
+msgstr "double-clic"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "Wheel up"
-msgstr ""
+msgstr "Molette haut"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "Wheel down"
-msgstr ""
+msgstr "Molette bas"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "Wheel left"
-msgstr ""
+msgstr "Molette gauche"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "Wheel right"
-msgstr ""
+msgstr "Molette droite"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "Pinch in"
-msgstr ""
+msgstr "Pincer"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "Pinch out"
-msgstr ""
+msgstr "Écarter"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "Move"
-msgstr ""
+msgstr "Déplacement"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "drag"
-msgstr ""
+msgstr "glisser"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "drag up"
-msgstr ""
+msgstr "glisser vers le haut"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "drag up right"
-msgstr ""
+msgstr "glisser en haut à droite"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "drag right"
-msgstr ""
+msgstr "glisser vers la droite"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "drag down right"
-msgstr ""
+msgstr "glisser en bas à droite"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "drag down"
-msgstr ""
+msgstr "glisser vers le bas"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "drag down left"
-msgstr ""
+msgstr "glisser en bas à gauche"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "drag left"
-msgstr ""
+msgstr "glisser vers la gauche"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "shortcut"
 msgid "drag up left"
-msgstr ""
+msgstr "glisser en haut à gauche"
 
 #: crates/koebi-ui/src/widgets/key_caps.rs
 msgctxt "key"
 msgid "Mouse {number}"
-msgstr ""
+msgstr "Souris {number}"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Text editing"
-msgstr ""
+msgstr "Édition de texte"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Ends the edit and keeps the text."
-msgstr ""
+msgstr "Termine l'édition et garde le texte."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Ends the edit and restores the text it started with."
-msgstr ""
+msgstr "Termine l'édition et rétablit le texte du début."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Next field"
-msgstr ""
+msgstr "Champ suivant"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Keeps the text and edits the next field."
-msgstr ""
+msgstr "Garde le texte et passe au champ suivant."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Previous field"
-msgstr ""
+msgstr "Champ précédent"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Keeps the text and edits the previous field."
-msgstr ""
+msgstr "Garde le texte et passe au champ précédent."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Moves the caret one character left."
-msgstr ""
+msgstr "Déplace le curseur d'un caractère vers la gauche."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Moves the caret one character right."
-msgstr ""
+msgstr "Déplace le curseur d'un caractère vers la droite."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Word left"
-msgstr ""
+msgstr "Mot à gauche"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Moves the caret to the start of the word before it."
-msgstr ""
+msgstr "Déplace le curseur au début du mot précédent."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Word right"
-msgstr ""
+msgstr "Mot à droite"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Moves the caret to the end of the word after it."
-msgstr ""
+msgstr "Déplace le curseur à la fin du mot suivant."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Moves the caret to the start of the text."
-msgstr ""
+msgstr "Déplace le curseur au début du texte."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Moves the caret to the end of the text."
-msgstr ""
+msgstr "Déplace le curseur à la fin du texte."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Select left"
-msgstr ""
+msgstr "Sélectionner à gauche"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Extends the selection one character left."
-msgstr ""
+msgstr "Étend la sélection d'un caractère vers la gauche."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Select right"
-msgstr ""
+msgstr "Sélectionner à droite"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Extends the selection one character right."
-msgstr ""
+msgstr "Étend la sélection d'un caractère vers la droite."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Select word left"
-msgstr ""
+msgstr "Sélectionner le mot à gauche"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Extends the selection to the start of the word before the caret."
-msgstr ""
+msgstr "Étend la sélection jusqu'au début du mot avant le curseur."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Select word right"
-msgstr ""
+msgstr "Sélectionner le mot à droite"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Extends the selection to the end of the word after the caret."
-msgstr ""
+msgstr "Étend la sélection jusqu'à la fin du mot après le curseur."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Select to start"
-msgstr ""
+msgstr "Sélectionner jusqu'au début"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Extends the selection to the start of the text."
-msgstr ""
+msgstr "Étend la sélection jusqu'au début du texte."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Select to end"
-msgstr ""
+msgstr "Sélectionner jusqu'à la fin"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Extends the selection to the end of the text."
-msgstr ""
+msgstr "Étend la sélection jusqu'à la fin du texte."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Select all"
-msgstr ""
+msgstr "Tout sélectionner"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Selects the whole text."
-msgstr ""
+msgstr "Sélectionne tout le texte."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Delete backward"
-msgstr ""
+msgstr "Supprimer en arrière"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Deletes the selection, or the character before the caret."
-msgstr ""
+msgstr "Supprime la sélection, ou le caractère avant le curseur."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Delete forward"
-msgstr ""
+msgstr "Supprimer en avant"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Deletes the selection, or the character after the caret."
-msgstr ""
+msgstr "Supprime la sélection, ou le caractère après le curseur."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Delete word backward"
-msgstr ""
+msgstr "Supprimer le mot précédent"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Deletes the selection, or the word before the caret."
-msgstr ""
+msgstr "Supprime la sélection, ou le mot avant le curseur."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Delete word forward"
-msgstr ""
+msgstr "Supprimer le mot suivant"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Deletes the selection, or the word after the caret."
-msgstr ""
+msgstr "Supprime la sélection, ou le mot après le curseur."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Copy"
-msgstr ""
+msgstr "Copier"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Copies the selected text to the clipboard."
-msgstr ""
+msgstr "Copie le texte sélectionné dans le presse-papiers."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Cut"
-msgstr ""
+msgstr "Couper"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Copies the selected text to the clipboard and deletes it."
-msgstr ""
+msgstr "Copie le texte sélectionné dans le presse-papiers et le supprime."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Paste"
-msgstr ""
+msgstr "Coller"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Replaces the selection with the clipboard's text."
-msgstr ""
+msgstr "Remplace la sélection par le texte du presse-papiers."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Undo"
-msgstr ""
+msgstr "Annuler"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Undoes the last change to the text being edited."
-msgstr ""
+msgstr "Annule la dernière modification du texte en cours d'édition."
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Redo"
-msgstr ""
+msgstr "Rétablir"
 
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Redoes the last change undone in the text being edited."
-msgstr ""
+msgstr "Rétablit la dernière modification annulée du texte en cours d'édition."
 
 #: crates/koebi-ui/src/widgets/theme_card.rs
 msgid "Ready"
-msgstr ""
+msgstr "Prêt"
 
 #: crates/koebi-ui/src/widgets/theme_card.rs
 msgid "Scene"
-msgstr ""
+msgstr "Scène"
 
 #: crates/koebi-ui/src/widgets/theme_card.rs
 msgid "Layer"
-msgstr ""
+msgstr "Calque"
 
 #: crates/koebi-ui/src/widgets/theme_card.rs
 msgid "Shape"
-msgstr ""
+msgstr "Forme"
 
 #: crates/koebi-ui/src/widgets/theme_card.rs
 msgid "Aa Title"
-msgstr ""
+msgstr "Aa Titre"
 
 #: crates/koebi-ui/src/widgets/theme_card.rs
 msgid "Text over the theme"
-msgstr ""
+msgstr "Du texte sur le thème"
 
 #: crates/koebi-ui/src/widgets/theme_card.rs
 msgid "No"
-msgstr ""
+msgstr "Non"
 
 #: crates/koebi-ui/src/widgets/theme_card.rs
 msgid "Done"
-msgstr ""
+msgstr "Terminé"
 
 #: crates/koebi-ui/src/widgets/theme_card.rs
 msgid "Error"
-msgstr ""
+msgstr "Erreur"
 
 #: crates/koebi-ui/src/widgets/theme_card.rs
 msgid "Note"
-msgstr ""
+msgstr "Note"
 
 #: crates/koebi-ui/src/workspace/mod.rs
 msgid "Swap areas"
-msgstr ""
+msgstr "Échanger les zones"
 
 #: crates/koebi-ui/src/workspace/mod.rs
 msgid "Join areas"
-msgstr ""
+msgstr "Joindre les zones"
 
 #: crates/koebi-ui/src/workspace/mod.rs
 msgid "Vertical split"
-msgstr ""
+msgstr "Division verticale"
 
 #: crates/koebi-ui/src/workspace/mod.rs
 msgid "Horizontal split"
-msgstr ""
+msgstr "Division horizontale"

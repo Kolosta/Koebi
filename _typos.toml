@@ -7,6 +7,8 @@ extend-exclude = [
     "Cargo.lock",
     "platform/android/gradlew",
     "platform/android/gradlew.bat",
+    # Translations: French and Japanese, not English with typos.
+    "crates/koebi-i18n/locales/*.po",
 ]
 
 [default.extend-words]
@@ -20,6 +22,8 @@ lod = "lod"
 loca = "loca"
 # Win32 flags of `TrackMouseEvent` (`TME_LEAVE`).
 tme = "tme"
+# French key names in the translation guide (docs/development/translation.md).
+espace = "espace"
 
 [default.extend-identifiers]
 PNGs = "PNGs"

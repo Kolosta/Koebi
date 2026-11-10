@@ -18,6 +18,7 @@ flowchart TD
     svg["koebi-svg<br/>SVG subset → curves per color zone"]
     icons["koebi-icons<br/>SVG icons compiled at build time"]
     workspace["koebi-workspace<br/>areas, lines, joins, editor stacks"]
+    i18n["koebi-i18n<br/>translations compiled from catalogs"]
     core["koebi-core<br/>geometry, color science, logging"]
     app --> ui --> render --> gpu --> core
     render --> text
@@ -29,6 +30,9 @@ flowchart TD
     ui --> tokens --> design --> core
     text --> core
     workspace --> core
+    app --> i18n
+    ui --> i18n
+    tokens --> i18n
 ```
 
 | Crate | Responsibility | Depends on |
@@ -43,6 +47,7 @@ flowchart TD
 | `koebi-input` | Actions and shortcuts: keymap, contexts, gestures, conflicts, overrides ([ADR 0012](../adr/0012-actions-and-shortcuts.md)) | core |
 | `koebi-workspace` | Workspace model: areas tiling an integer grid, linked lines, splits, joins and closes that fill gaps, editor stacks and docking ([ADR 0015](../adr/0015-workspace-layout.md)) | core |
 | `koebi-text` | TrueType reading, glyph rasterization to coverage, single-line layout with ellipsis, embedded Noto Sans ([ADR 0014](../adr/0014-text-basics.md)) | core |
+| `koebi-i18n` | Translations: GNU gettext catalogs (`locales/*.po`) checked and compiled into static tables by its build script, `tr`/`trc`/`trn` lookups, placeholders, the language chosen ([ADR 0023](../adr/0023-translations.md), [translation guide](../development/translation.md)) | nothing |
 | `koebi-svg` | Icon compiler: a checked SVG subset compiled into quadratic curves per color zone, packed for the GPU, and a CPU rasterizer of the shader's coverage ([ADR 0020](../adr/0020-vector-icons.md)) | nothing |
 | `koebi-icons` | The SVG icons of `icons/<category>/`, checked and compiled by its build script into constants and the packed set ([icons](../development/icons.md)) | svg |
 | `koebi-testkit` | Headless GPU, offscreen readback, PNG golden images (tests only) | gpu, core |
@@ -59,6 +64,8 @@ Rules that keep the graph clean:
 
 - `koebi-svg` depends on nothing: the build script of `koebi-icons` runs it, the renderer only
   reads the layout of its packed icons.
+- `koebi-i18n` depends on nothing: every crate that shows text marks its messages with it, and
+  `cargo xtask i18n` reads the same PO modules its build script compiles.
 - `koebi-text` and `koebi-workspace` are pure models: fonts and glyph bitmaps, areas and editor
   stacks. The renderer draws the glyphs; the interface draws the areas and turns gestures into
   workspace operations.

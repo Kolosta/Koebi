@@ -488,6 +488,57 @@ mod tests {
         gpu.assert_no_validation_errors();
     }
 
+    /// `page` drawn with the interface in `code`, on this thread only.
+    fn translated_page(
+        gpu: &koebi_testkit::HeadlessGpu,
+        page: Page,
+        code: &str,
+    ) -> koebi_testkit::Image {
+        let language = koebi_i18n::find(code).expect("the catalog ships with Koebi");
+        koebi_i18n::with_language(language, || {
+            let mut harness = Harness::new();
+            harness.settings.page = page;
+            page_image(gpu, &mut harness)
+        })
+    }
+
+    #[test]
+    fn the_language_page_lists_every_language_in_french() {
+        let Some(gpu) =
+            koebi_testkit::gpu_or_skip("the_language_page_lists_every_language_in_french")
+        else {
+            return;
+        };
+        let image = translated_page(&gpu, Page::Language, "fr");
+        assert_page(&image, "settings_language_fr");
+        gpu.assert_no_validation_errors();
+    }
+
+    #[test]
+    fn the_keymaps_page_reads_in_japanese() {
+        let Some(gpu) = koebi_testkit::gpu_or_skip("the_keymaps_page_reads_in_japanese") else {
+            return;
+        };
+        let image = translated_page(&gpu, Page::Keymaps, "ja");
+        assert_page(&image, "settings_keymaps_ja");
+        gpu.assert_no_validation_errors();
+    }
+
+    #[test]
+    fn the_page_titles_follow_the_language() {
+        let french = koebi_i18n::find("fr").unwrap();
+        let japanese = koebi_i18n::find("ja").unwrap();
+        assert_eq!(
+            koebi_i18n::with_language(french, || Page::Theme.title()),
+            "Thème"
+        );
+        assert_eq!(
+            koebi_i18n::with_language(japanese, || Page::Keymaps.title()),
+            "キーマップ"
+        );
+        assert_eq!(Page::Theme.title(), "Theme");
+    }
+
     #[test]
     fn the_accessibility_page_matches_golden() {
         let Some(gpu) = koebi_testkit::gpu_or_skip("the_accessibility_page_matches_golden") else {
