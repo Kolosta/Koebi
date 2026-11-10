@@ -28,12 +28,21 @@ by `koebi-text`, std only.
   y in the unit square of its bounds, filed by bands: each horizontal band holds the curves its
   rightward rays may cross, each vertical band those of the downward rays (up to 16 bands each
   way, about 4 curves per band). The record goes into a data texture of `vec4` texels that keeps
-  every glyph drawn, appended through a staging buffer per frame in flight; the texture grows by
-  doubling to 1024 rows of 4096 texels and is cleared when full. An instance is the pen position
-  and the em's two axes on screen: any size, any angle. The fragment shader covers a pixel from
-  the curves of its two bands with the icons' coverage (`shaders/curves.glsl`), so a pixel reads
-  a few curves, not all of a kanji's. Upright glyphs keep their baseline on a whole pixel; their
+  every glyph drawn. Only the records stored since the last upload stay on the CPU; they go up
+  through a staging buffer per frame in flight, as at most three rectangles and the header
+  texel. The texture grows by doubling to 1024 rows of 4096 texels, its content copied on the
+  GPU, and is cleared when full. Every fallible step runs before the store changes, so a failure
+  leaves the texture as it was and ready to be sampled. An instance is the pen position and the
+  em's two axes on screen: any size, any angle. The fragment shader covers a pixel from the
+  curves of its two bands with the icons' coverage (`shaders/curves.glsl`), so a pixel reads a
+  few curves, not all of a kanji's. Upright glyphs keep their baseline on a whole pixel; their
   pen keeps its exact place across.
+- **The same pixels on every driver**. The fragment shader finds the pixel's point in the glyph
+  from `gl_FragCoord` and values flat across the quad (the inverse of the em's axes), never from
+  an interpolated coordinate: rasterizers interpolate with their own precision, and a point a
+  rounding away from a curve's end may be covered differently. With interpolation, lavapipe and
+  an NVIDIA GPU disagreed on a few pixels of every page, by up to 78/255; with the exact point,
+  every golden image blessed on one matches on the other.
 - **Shaping** (`shape.rs`, `otl.rs`). Each character takes the style's font, else the first
   fallback that has it in the closest weight (Noto Sans JP is embedded; the system's Korean and
   Chinese fonts are loaded on a thread at start-up). Ligatures (`GSUB` `liga`, `clig`) join
