@@ -61,6 +61,15 @@ koebi_design::tokens! {
     BORDER_WIDTH_THICK = "border.width.thick": Dimension -> primitive::STROKE_WIDTH_300;
     /// Width of focus rings.
     BORDER_WIDTH_FOCUS = "border.width.focus": Dimension -> primitive::STROKE_WIDTH_200;
+    /// Border width of controls (fields, button groups, toggles): none in the base theme,
+    /// whose controls stand out by their fill; themes with outlined controls alias the thin
+    /// width.
+    BORDER_WIDTH_CONTROL = "border.width.control": Dimension -> BORDER_WIDTH_NONE;
+    /// Border width of surfaces (panels, nested surfaces): none in the base theme.
+    BORDER_WIDTH_SURFACE = "border.width.surface": Dimension -> BORDER_WIDTH_NONE;
+    /// Border width of floating surfaces (menus, tooltips, popups): their edge over what they
+    /// cover.
+    BORDER_WIDTH_FLOATING = "border.width.floating": Dimension -> BORDER_WIDTH_THIN;
 
     /// Barely visible opacity.
     OPACITY_GHOST = "opacity.ghost": Number -> primitive::OPACITY_200;

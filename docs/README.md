@@ -36,6 +36,8 @@ you work on.
 
 - [Design system](design-system/README.md): tokens, tiers, themes, overrides, views, color
   vision, and how to define and read tokens.
+- [Color](design-system/color.md): palettes ordered by contrast, the step for each use, the
+  themes, and the contrast every theme guarantees.
 - [Components](design-system/components.md): how `koebi-ui` components read their tokens,
   and how to write one.
 - [Gallery](design-system/gallery.md): what the application's window shows, where the design

@@ -117,8 +117,8 @@ fn draw_sheet(ui: &mut Ui<'_>, design: &DesignSystem) {
         );
     }
 
-    // Theme cards: the active theme, selected, and the light one.
-    let previews = ["dark", "light"].map(|key| {
+    // Theme cards: the dark theme, selected, and a light one.
+    let previews = ["dark", "snow"].map(|key| {
         let theme = design.find_theme(key).expect("built-in theme");
         ThemePreview::of(design, theme).expect("live theme")
     });
@@ -145,15 +145,23 @@ fn components_match_golden_in_the_dark_theme() {
 }
 
 #[test]
-fn components_match_golden_in_the_light_theme() {
-    let Some(gpu) = gpu_or_skip("components_match_golden_in_the_light_theme") else {
+fn components_match_golden_in_every_other_theme() {
+    let Some(gpu) = gpu_or_skip("components_match_golden_in_every_other_theme") else {
         return;
     };
-    let mut design = DesignSystem::new(&KOEBI).expect("Koebi's schema is valid");
-    let light = design.find_theme("light").expect("built-in theme");
-    design.set_active_theme(light).expect("built-in theme");
-    let image = render(&gpu, Extent::new(320, 184), &component_sheet(&design));
-    assert_golden!(image, "components_light", CROSS_DRIVER);
+    for key in [
+        "dark-pink",
+        "muted-green",
+        "snow",
+        "arctic",
+        "high-contrast",
+    ] {
+        let mut design = DesignSystem::new(&KOEBI).expect("Koebi's schema is valid");
+        let theme = design.find_theme(key).expect("built-in theme");
+        design.set_active_theme(theme).expect("built-in theme");
+        let image = render(&gpu, Extent::new(320, 184), &component_sheet(&design));
+        assert_golden!(image, &format!("components_{key}"), CROSS_DRIVER);
+    }
     gpu.assert_no_validation_errors();
 }
 

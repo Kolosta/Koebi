@@ -4,6 +4,6 @@
 //! what it changes compared with this one.
 
 koebi_design::theme! {
-    /// Default theme: light content on dark gray surfaces.
+    /// Default theme: light content on dark gray surfaces, controls told apart by their fill.
     DARK = "dark", "Dark" {}
 }

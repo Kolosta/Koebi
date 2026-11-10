@@ -33,7 +33,7 @@ koebi_design::tokens! {
     TAB_BORDER_WIDTH_DEFAULT = "tab.border.width.default": Dimension -> semantic::BORDER_WIDTH_NONE;
     /// Tab: bar border width.
     TAB_BAR_BORDER_WIDTH_DEFAULT = "tab.bar.border.width.default": Dimension ->
-        semantic::BORDER_WIDTH_THIN;
+        semantic::BORDER_WIDTH_CONTROL;
     /// Tab: bar overline width.
     TAB_BAR_OVERLINE_WIDTH_DEFAULT = "tab.bar.overline.width.default": Dimension =
         px(1.0), range(0.0, 8.0);

@@ -16,5 +16,5 @@ koebi_design::tokens! {
     CHILD_CORNER_RADIUS_DEFAULT = "child.corner-radius.default": Dimension -> semantic::RADIUS_M;
     /// Child: border width.
     CHILD_BORDER_WIDTH_DEFAULT = "child.border.width.default": Dimension ->
-        semantic::BORDER_WIDTH_THIN;
+        semantic::BORDER_WIDTH_SURFACE;
 }

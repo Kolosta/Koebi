@@ -620,3 +620,28 @@ are drawn in their SVG files ([icons](../development/icons.md)).
   (0.72), `.label.color.default` → `semantic.text.color.primary.default`,
   `.corner-radius.default` → `semantic.radius.control`, `.padding.horizontal.default` (8 px) and
   `.padding.vertical.default` (6 px).
+- **Palettes ordered by contrast** (#60, [ADR 0021](../adr/0021-contrast-ordered-palettes.md),
+  [color](color.md)). Palette steps are contrasts with the theme's background, and each theme
+  has its own palette values; the dark theme keeps its look.
+  - Gray steps: 16 contrast steps. Old → new: 25 → 1000, 50 and 75 → 1000, 100 → 900,
+    200 and 300 → 800, 400 → 700, 500 → 500, 600 → 400, 700 → 350, 740 → 300, 760 → 250,
+    780 → 200, 800 → 150, 850 → 75, 875 → 100, 900 → 50, 1000 → 25. `color.gray.740`, `.760`,
+    `.780`, `.850` and `.875` are removed; `.150`, `.250` and `.350` are new. The neutral role
+    (`semantic.neutral.color.*`) follows the same steps.
+  - Hue steps in the dark base theme are now dark-theme values; references moved to the step of
+    the same contrast against #131313: 100 and 200 → 1600, 300 → 1500, 400 → 1400, 500 → 1300,
+    600 → 1200, 700 → 1100, 800 → 1000, 900 → 900, 1000 → 800, 1100 → 700, 1200 → 600,
+    1300 → 500, 1400 → 400, 1500 and 1600 → 200.
+  - Contrast decisions (#60): accent, positive, negative, informative and notice fills on step
+    900 (hover 800, pressed 700) under the new `semantic.text.color.on-accent.default` (white);
+    neutral fills on gray 400; `semantic.background.accent.muted.default` and `.hover` (500, 600)
+    for the number field's bar and selected text; row highlights (`semantic.accent.color.hover.*`,
+    `.selected.*`, `.hover-selected.*`, `.active.*`) on 400, 500, 600 and 700; placeholder text on
+    gray 700; accent text and links on 1400; text field and dropdown outlines on
+    `semantic.border.color.default`; the toggle's selected label on the accent content color.
+  - Border widths by role: `semantic.border.width.control` and `.surface` (none in the base
+    theme), `.floating` (thin) for menus, tooltips and popups.
+  - Static black and white (`semantic.static.*`) alias the opaque transparent-black and white
+    primitives, the same in every theme.
+  - Themes: Light is replaced by Snow and Arctic; Dark pink is new; Muted green and High
+    contrast are made again with their own palettes.

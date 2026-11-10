@@ -142,17 +142,25 @@ pub(crate) mod component {
 
 pub(crate) mod themes {
     use super::{primitive, semantic};
+    use koebi_design::define::*;
 
     koebi_design::theme! {
         /// Light surfaces.
         LIGHT = "light", "Light" {
-            semantic::BACKGROUND_BASE => primitive::COLOR_GRAY_50;
-            semantic::TEXT_PRIMARY => primitive::COLOR_GRAY_900;
+            aliases {
+                semantic::BACKGROUND_BASE => primitive::COLOR_GRAY_50;
+                semantic::TEXT_PRIMARY => primitive::COLOR_GRAY_900;
+            }
         }
 
-        /// Green accent.
+        /// Green accent, and a deeper brand color.
         GREEN = "green", "Green" {
-            semantic::ACCENT_COLOR_700 => primitive::COLOR_GREEN_700;
+            values {
+                primitive::COLOR_PURPLE_500: Color = hex("#7A3FD0");
+            }
+            aliases {
+                semantic::ACCENT_COLOR_700 => primitive::COLOR_GREEN_700;
+            }
         }
     }
 }

@@ -49,7 +49,7 @@ koebi_design::tokens! {
     /// Button: background color, selected and pressed: darker than selected, as pressed is
     /// darker than at rest.
     BUTTON_BACKGROUND_COLOR_SELECTED_PRESSED = "button.background.color.selected-pressed":
-        Color -> semantic::ACCENT_COLOR_800;
+        Color -> semantic::BACKGROUND_ACCENT_PRESSED;
     /// Button: background color, active (its menu open).
     BUTTON_BACKGROUND_COLOR_ACTIVE = "button.background.color.active": Color ->
         semantic::BACKGROUND_ACCENT_DEFAULT;
@@ -58,10 +58,10 @@ koebi_design::tokens! {
         semantic::BORDER_COLOR_ACCENT_DEFAULT;
     /// Button: label color, active (its menu open).
     BUTTON_LABEL_COLOR_ACTIVE = "button.label.color.active": Color ->
-        semantic::STATIC_TEXT_COLOR_WHITE;
+        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
     /// Button: label color, selected.
     BUTTON_LABEL_COLOR_SELECTED = "button.label.color.selected": Color ->
-        semantic::STATIC_TEXT_COLOR_WHITE;
+        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
     /// Button: border color, selected.
     BUTTON_BORDER_COLOR_SELECTED = "button.border.color.selected": Color ->
         semantic::BORDER_COLOR_ACCENT_DEFAULT;
@@ -97,10 +97,10 @@ koebi_design::tokens! {
         semantic::BACKGROUND_ACCENT_HOVER;
     /// Accent button: background color, pressed.
     BUTTON_ACCENT_BACKGROUND_COLOR_PRESSED = "button.accent.background.color.pressed": Color ->
-        semantic::ACCENT_COLOR_800;
+        semantic::BACKGROUND_ACCENT_PRESSED;
     /// Accent button: label color.
     BUTTON_ACCENT_LABEL_COLOR_DEFAULT = "button.accent.label.color.default": Color ->
-        semantic::STATIC_TEXT_COLOR_WHITE;
+        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
     /// Accent button: border color.
     BUTTON_ACCENT_BORDER_COLOR_DEFAULT = "button.accent.border.color.default": Color ->
         semantic::BORDER_COLOR_ACCENT_DEFAULT;
@@ -113,13 +113,13 @@ koebi_design::tokens! {
         semantic::BACKGROUND_POSITIVE_HOVER;
     /// Positive button: background color, pressed.
     BUTTON_POSITIVE_BACKGROUND_COLOR_PRESSED = "button.positive.background.color.pressed": Color ->
-        semantic::POSITIVE_COLOR_800;
+        semantic::BACKGROUND_POSITIVE_PRESSED;
     /// Positive button: label color.
     BUTTON_POSITIVE_LABEL_COLOR_DEFAULT = "button.positive.label.color.default": Color ->
-        semantic::STATIC_TEXT_COLOR_WHITE;
+        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
     /// Positive button: border color.
     BUTTON_POSITIVE_BORDER_COLOR_DEFAULT = "button.positive.border.color.default": Color ->
-        semantic::POSITIVE_COLOR_500;
+        semantic::POSITIVE_COLOR_1300;
 
     /// Negative button: background color.
     BUTTON_NEGATIVE_BACKGROUND_COLOR_DEFAULT = "button.negative.background.color.default": Color ->
@@ -129,10 +129,10 @@ koebi_design::tokens! {
         semantic::BACKGROUND_NEGATIVE_HOVER;
     /// Negative button: background color, pressed.
     BUTTON_NEGATIVE_BACKGROUND_COLOR_PRESSED = "button.negative.background.color.pressed": Color ->
-        semantic::NEGATIVE_COLOR_800;
+        semantic::BACKGROUND_NEGATIVE_PRESSED;
     /// Negative button: label color.
     BUTTON_NEGATIVE_LABEL_COLOR_DEFAULT = "button.negative.label.color.default": Color ->
-        semantic::STATIC_TEXT_COLOR_WHITE;
+        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
     /// Negative button: border color.
     BUTTON_NEGATIVE_BORDER_COLOR_DEFAULT = "button.negative.border.color.default": Color ->
         semantic::BORDER_COLOR_NEGATIVE_DEFAULT;
@@ -145,13 +145,13 @@ koebi_design::tokens! {
         semantic::BACKGROUND_INFO_HOVER;
     /// Info button: background color, pressed.
     BUTTON_INFO_BACKGROUND_COLOR_PRESSED = "button.info.background.color.pressed": Color ->
-        semantic::INFO_COLOR_800;
+        semantic::BACKGROUND_INFO_PRESSED;
     /// Info button: label color.
     BUTTON_INFO_LABEL_COLOR_DEFAULT = "button.info.label.color.default": Color ->
-        semantic::STATIC_TEXT_COLOR_WHITE;
+        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
     /// Info button: border color.
     BUTTON_INFO_BORDER_COLOR_DEFAULT = "button.info.border.color.default": Color ->
-        semantic::INFO_COLOR_500;
+        semantic::INFO_COLOR_1300;
 
     /// Neutral button: background color.
     BUTTON_NEUTRAL_BACKGROUND_COLOR_DEFAULT = "button.neutral.background.color.default": Color ->
@@ -161,10 +161,10 @@ koebi_design::tokens! {
         semantic::BACKGROUND_NEUTRAL_HOVER;
     /// Neutral button: background color, pressed.
     BUTTON_NEUTRAL_BACKGROUND_COLOR_PRESSED = "button.neutral.background.color.pressed": Color ->
-        semantic::NEUTRAL_COLOR_600;
+        semantic::BACKGROUND_NEUTRAL_PRESSED;
     /// Neutral button: label color.
     BUTTON_NEUTRAL_LABEL_COLOR_DEFAULT = "button.neutral.label.color.default": Color ->
-        semantic::STATIC_TEXT_COLOR_WHITE;
+        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
     /// Neutral button: border color.
     BUTTON_NEUTRAL_BORDER_COLOR_DEFAULT = "button.neutral.border.color.default": Color ->
         semantic::BORDER_COLOR_STRONG_DEFAULT;
@@ -174,16 +174,16 @@ koebi_design::tokens! {
         semantic::BACKGROUND_NOTICE_DEFAULT;
     /// Notice button: background color, hovered.
     BUTTON_NOTICE_BACKGROUND_COLOR_HOVER = "button.notice.background.color.hover": Color ->
-        semantic::NOTICE_COLOR_500;
+        semantic::NOTICE_COLOR_800;
     /// Notice button: background color, pressed.
     BUTTON_NOTICE_BACKGROUND_COLOR_PRESSED = "button.notice.background.color.pressed": Color ->
         semantic::NOTICE_COLOR_700;
     /// Notice button: label color.
     BUTTON_NOTICE_LABEL_COLOR_DEFAULT = "button.notice.label.color.default": Color ->
-        semantic::STATIC_TEXT_COLOR_BLACK;
+        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
     /// Notice button: border color.
     BUTTON_NOTICE_BORDER_COLOR_DEFAULT = "button.notice.border.color.default": Color ->
-        semantic::NOTICE_COLOR_500;
+        semantic::NOTICE_COLOR_1300;
 
     /// Button shaded from one color (a color family, a selected filled variant): lightness
     /// added to the color when hovered (OKLCH).
@@ -266,5 +266,5 @@ koebi_design::tokens! {
 
     /// Button group: width of the borders around and between grouped buttons.
     BUTTON_GROUP_BORDER_WIDTH_DEFAULT = "button.group.border.width.default": Dimension ->
-        semantic::BORDER_WIDTH_THIN;
+        semantic::BORDER_WIDTH_CONTROL;
 }

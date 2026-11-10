@@ -263,7 +263,7 @@ mod tests {
         let mut design = design();
         let args = options(&[
             "--theme",
-            "light",
+            "snow",
             "--override",
             "semantic.radius.control=7px",
             "--override",
@@ -274,7 +274,7 @@ mod tests {
             "correct-tritan",
         ]);
         apply(&mut design, &args).unwrap();
-        assert_eq!(design.theme(design.active_theme()).unwrap().key(), "light");
+        assert_eq!(design.theme(design.active_theme()).unwrap().key(), "snow");
         assert_eq!(design.get(semantic::RADIUS_CONTROL), 7.0);
         assert_eq!(
             design.override_of(Scope::Global, component::BUTTON_BACKGROUND_COLOR_DEFAULT),
@@ -284,7 +284,7 @@ mod tests {
         );
         assert_eq!(
             summary(&design),
-            "design: theme light, 3 global override(s), 0 theme override(s), color vision \
+            "design: theme snow, 3 global override(s), 0 theme override(s), color vision \
              correct-tritan"
         );
     }

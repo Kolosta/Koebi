@@ -5,9 +5,12 @@ This guide explains the concepts and how to use them. [ADR 0008](../adr/0008-des
 explains why the system works this way.
 
 - `crates/koebi-design`: the engine (tokens, tables, themes, overrides, views, color vision).
-- `crates/koebi-tokens`: Koebi's tokens (`primitive`, `semantic`, `component`) and built-in
-  themes (Dark, Light, Muted green, High contrast). They come from the previous C++
-  application; the [porting report](porting.md) lists every difference.
+- `crates/koebi-tokens`: Koebi's tokens (`primitive`, `semantic`, `component`), the palettes'
+  data (`palettes`) and the built-in themes (Dark, Dark pink, Muted green, Snow, Arctic, High
+  contrast). They come from the previous C++ application; the [porting report](porting.md)
+  lists every difference.
+- [Color](color.md): palettes ordered by contrast, which step for which use, how a theme's
+  palettes are made, and the contrast every theme guarantees.
 
 ## Tokens and tiers
 
@@ -165,14 +168,18 @@ and its group in `lib.rs`. A new theme gets its file and its place in `BUILT_IN`
 ## Themes
 
 The base theme is the token tables themselves: it defines every token. A theme only lists the
-tokens it changes, as aliases:
+tokens it changes: values in a `values` block (its palettes, made for its background, see
+[color](color.md)), then aliases in an `aliases` block:
 
 ```rust
-// crates/koebi-tokens/src/themes/light.rs
+// crates/koebi-tokens/src/themes/dark_pink.rs
 koebi_design::theme! {
-    /// Light theme: dark content on light surfaces.
-    LIGHT = "light", "Light" {
-        semantic::BACKGROUND_BASE_DEFAULT => primitive::COLOR_GRAY_50;
+    /// The dark theme with a pink accent.
+    DARK_PINK = "dark-pink", "Dark pink" {
+        aliases {
+            semantic::ACCENT_COLOR_100 => primitive::COLOR_PINK_100;
+            // ... every step of the accent role
+        }
     }
 }
 ```
@@ -192,7 +199,7 @@ use koebi_design::Scope;
 
 design.set_value(Scope::ActiveTheme, semantic::RADIUS_CONTROL, 6.0)?;
 design.set_value(Scope::Global, primitive::COLOR_BLUE_700, Color::from_hex(0x2D_6A_FF))?;
-design.set_alias(Scope::Theme(light), semantic::ACCENT_COLOR_700, primitive::COLOR_PURPLE_700)?;
+design.set_alias(Scope::Theme(snow), semantic::ACCENT_COLOR_900, primitive::COLOR_PURPLE_900)?;
 design.reset(Scope::ActiveTheme, semantic::RADIUS_CONTROL)?;
 ```
 

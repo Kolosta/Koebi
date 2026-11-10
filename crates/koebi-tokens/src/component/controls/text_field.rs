@@ -33,10 +33,10 @@ koebi_design::tokens! {
         semantic::BACKGROUND_APP_DISABLED;
     /// Text field: border color.
     TEXT_FIELD_BORDER_COLOR_DEFAULT = "text-field.border.color.default": Color ->
-        semantic::NEUTRAL_COLOR_700;
+        semantic::BORDER_COLOR_DEFAULT;
     /// Text field: border color, hovered.
     TEXT_FIELD_BORDER_COLOR_HOVER = "text-field.border.color.hover": Color ->
-        semantic::NEUTRAL_COLOR_600;
+        semantic::BORDER_COLOR_STRONG_DEFAULT;
     /// Text field: border color, while editing.
     TEXT_FIELD_BORDER_COLOR_EDITING = "text-field.border.color.editing": Color ->
         semantic::BORDER_COLOR_ACTIVE;
@@ -45,7 +45,7 @@ koebi_design::tokens! {
         semantic::BORDER_COLOR_DISABLED_DEFAULT;
     /// Text field: border width.
     TEXT_FIELD_BORDER_WIDTH_DEFAULT = "text-field.border.width.default": Dimension ->
-        semantic::BORDER_WIDTH_THIN;
+        semantic::BORDER_WIDTH_CONTROL;
     /// Text field: corner radius.
     TEXT_FIELD_CORNER_RADIUS_DEFAULT = "text-field.corner-radius.default": Dimension ->
         semantic::RADIUS_CONTROL;

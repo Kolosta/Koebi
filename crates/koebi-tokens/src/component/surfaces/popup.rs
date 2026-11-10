@@ -13,7 +13,7 @@ koebi_design::tokens! {
     POPUP_CORNER_RADIUS_DEFAULT = "popup.corner-radius.default": Dimension -> semantic::RADIUS_M;
     /// Popup: border width.
     POPUP_BORDER_WIDTH_DEFAULT = "popup.border.width.default": Dimension ->
-        semantic::BORDER_WIDTH_THIN;
+        semantic::BORDER_WIDTH_FLOATING;
     /// Popup: menu bar background color.
     POPUP_MENU_BAR_BACKGROUND_COLOR_DEFAULT = "popup.menu-bar.background.color.default": Color ->
         semantic::BACKGROUND_SUNKEN_DEFAULT;

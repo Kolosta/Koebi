@@ -27,12 +27,12 @@ koebi_design::tokens! {
         semantic::TEXT_COLOR_SECONDARY_DEFAULT;
     /// Toggle: label color, selected.
     TOGGLE_LABEL_COLOR_SELECTED = "toggle.label.color.selected": Color ->
-        semantic::TEXT_COLOR_PRIMARY_DEFAULT;
+        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
     /// Toggle: corner radius.
     TOGGLE_CORNER_RADIUS_DEFAULT = "toggle.corner-radius.default": Dimension -> semantic::RADIUS_S;
     /// Toggle: border width, the theme's thin border like the button groups beside toggles.
     TOGGLE_BORDER_WIDTH_DEFAULT = "toggle.border.width.default": Dimension ->
-        semantic::BORDER_WIDTH_THIN;
+        semantic::BORDER_WIDTH_CONTROL;
 
     /// Toggle: background color, pressed.
     TOGGLE_BACKGROUND_COLOR_PRESSED = "toggle.background.color.pressed": Color ->
@@ -42,7 +42,7 @@ koebi_design::tokens! {
         semantic::BACKGROUND_ACCENT_HOVER;
     /// Toggle: background color, selected and pressed.
     TOGGLE_BACKGROUND_COLOR_SELECTED_PRESSED = "toggle.background.color.selected-pressed":
-        Color -> semantic::ACCENT_COLOR_800;
+        Color -> semantic::BACKGROUND_ACCENT_PRESSED;
     /// Toggle: background color, disabled.
     TOGGLE_BACKGROUND_COLOR_DISABLED = "toggle.background.color.disabled": Color ->
         semantic::BACKGROUND_APP_DISABLED;

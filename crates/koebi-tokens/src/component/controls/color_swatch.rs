@@ -30,7 +30,7 @@ koebi_design::tokens! {
         semantic::NEUTRAL_COLOR_500;
     /// Color swatch: dark squares of the checkerboard behind translucent colors.
     COLOR_SWATCH_CHECKER_COLOR_DARK = "color-swatch.checker.color.dark": Color ->
-        semantic::NEUTRAL_COLOR_700;
+        semantic::NEUTRAL_COLOR_350;
     /// Color swatch: size of the checkerboard squares.
     COLOR_SWATCH_CHECKER_SIZE_DEFAULT = "color-swatch.checker.size.default": Dimension =
         px(6.0), range(2.0, 32.0);

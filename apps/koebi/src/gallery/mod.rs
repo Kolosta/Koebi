@@ -569,7 +569,7 @@ mod tests {
     fn a_click_on_a_theme_card_activates_the_theme() {
         let mut design = design();
         let mut gallery = Gallery::new();
-        // The second card (light) starts after the first card and the gap.
+        // The second card (dark pink) starts after the first card and the gap.
         let metrics = Metrics::resolve(&design);
         let height = (metrics.row * 4.5).round();
         let x = metrics.gap + height * 1.6 + metrics.gap + 20.0;
@@ -579,6 +579,6 @@ mod tests {
         input.primary_button(false, at);
         frame(&mut gallery, &mut design, &input, Vec2::new(1280.0, 800.0));
         let active = design.theme(design.active_theme()).expect("live theme");
-        assert_eq!(active.key(), "light");
+        assert_eq!(active.key(), "dark-pink");
     }
 }

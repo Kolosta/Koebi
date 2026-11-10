@@ -14,5 +14,5 @@ koebi_design::tokens! {
         semantic::BACKGROUND_ACCENT_DEFAULT;
     /// Splash: version text color.
     SPLASH_VERSION_TEXT_COLOR_DEFAULT = "splash.version-text.color.default": Color ->
-        semantic::NEUTRAL_COLOR_900;
+        semantic::NEUTRAL_COLOR_50;
 }

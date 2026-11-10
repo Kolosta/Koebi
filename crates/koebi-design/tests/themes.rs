@@ -195,3 +195,17 @@ fn switching_to_the_active_theme_changes_nothing() {
     design.set_active_theme(ThemeId::BASE).unwrap();
     assert_eq!(design.revision(), 0);
 }
+
+#[test]
+fn a_theme_redefines_a_palette_value_and_what_aliases_it_follows() {
+    let mut design = design();
+    let base = design.get(primitive::COLOR_PURPLE_500);
+    let green = design.find_theme("green").unwrap();
+    design.set_active_theme(green).unwrap();
+    assert_eq!(design.get(primitive::COLOR_PURPLE_500), hex(0x7A_3F_D0));
+    assert_ne!(base, hex(0x7A_3F_D0));
+    assert_eq!(design.origin(primitive::COLOR_PURPLE_500), Origin::Theme);
+    // Back in the base theme, the table's value.
+    design.set_active_theme(ThemeId::BASE).unwrap();
+    assert_eq!(design.get(primitive::COLOR_PURPLE_500), base);
+}

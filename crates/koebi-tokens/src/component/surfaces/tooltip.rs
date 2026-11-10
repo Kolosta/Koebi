@@ -20,7 +20,7 @@ koebi_design::tokens! {
         semantic::BORDER_COLOR_SUBTLE_DEFAULT;
     /// Tooltip: border width.
     TOOLTIP_BORDER_WIDTH_DEFAULT = "tooltip.border.width.default": Dimension ->
-        semantic::BORDER_WIDTH_THIN;
+        semantic::BORDER_WIDTH_FLOATING;
     /// Tooltip: corner radius.
     TOOLTIP_CORNER_RADIUS_DEFAULT = "tooltip.corner-radius.default": Dimension ->
         semantic::RADIUS_CONTROL;

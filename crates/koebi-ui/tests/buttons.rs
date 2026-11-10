@@ -32,6 +32,19 @@ fn design() -> DesignSystem {
     DesignSystem::new(&KOEBI).expect("Koebi's schema is valid")
 }
 
+/// The base theme with outlined controls: the base theme draws none, tests of borders need them.
+fn outlined() -> DesignSystem {
+    let mut design = design();
+    design
+        .set_alias(
+            Scope::Global,
+            koebi_tokens::semantic::BORDER_WIDTH_CONTROL,
+            koebi_tokens::semantic::BORDER_WIDTH_THIN,
+        )
+        .expect("a valid alias");
+    design
+}
+
 fn rect(x: f32, y: f32, width: f32, height: f32) -> Rect {
     Rect::from_origin_size(Vec2::new(x, y), Vec2::new(width, height))
 }
@@ -553,7 +566,7 @@ fn shared_borders_take_the_color_of_the_cell_of_highest_priority() {
     else {
         return;
     };
-    let styles = Styles::resolve(&design());
+    let styles = Styles::resolve(&outlined());
     let colors = styles.button.colors(Tone::DEFAULT);
     let (hovered, selected) = (colors.border.hovered, colors.border.selected);
     assert_ne!(hovered, selected);
@@ -589,7 +602,7 @@ fn only_the_outer_corners_of_a_group_are_rounded_wherever_it_lies() {
     else {
         return;
     };
-    let styles = Styles::resolve(&design());
+    let styles = Styles::resolve(&outlined());
     // "A" is selected: its outline, drawn last, owns the line the cells share.
     let border = styles
         .button

@@ -318,6 +318,16 @@ impl ThemeEntry {
         }
     }
 
+    /// In this theme, `token` holds a value of its own (`definition`, a literal of the token's
+    /// kind made by `kind::<Kind>::literal`): a palette redefined for the theme's background.
+    /// The kind and the range are checked at compile time like table values.
+    pub const fn literal<K, T>(token: Token<K, T>, definition: Def) -> Self {
+        Self {
+            token: token.id(),
+            definition,
+        }
+    }
+
     /// The token this entry defines.
     pub const fn token(&self) -> TokenId {
         self.token

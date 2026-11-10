@@ -57,7 +57,9 @@
 //!     koebi_design::theme! {
 //!         /// The same, with a green accent.
 //!         GREEN = "green", "Green" {
-//!             BACKGROUND_ACCENT_DEFAULT => COLOR_GREEN_700;
+//!             aliases {
+//!                 BACKGROUND_ACCENT_DEFAULT => COLOR_GREEN_700;
+//!             }
 //!         }
 //!     }
 //!     pub const SCHEMA: koebi_design::schema::Schema = koebi_design::schema::Schema::new(

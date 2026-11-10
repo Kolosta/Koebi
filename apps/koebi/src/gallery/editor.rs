@@ -24,10 +24,6 @@ use crate::design_options::COLOR_VISION_MODES;
 /// Rows of the token editor: the scope, three accent channels, three dimensions.
 pub(super) const ROWS: u16 = 7;
 
-/// The hovered and pressed accent (`accent.color.600`) is this much lighter than the accent
-/// (`accent.color.700`), in OKLCH lightness, as in the built-in themes.
-const ACCENT_STATE_LIGHTNESS: f32 = 0.05;
-
 /// The value of `token` in the active theme, without the color vision transformation.
 fn definition<K: Kind, T: Tier>(design: &DesignSystem, token: Token<K, T>) -> K::Value {
     match design.view(design.active_theme(), Layers::DEFINITIONS) {
@@ -319,8 +315,9 @@ pub(super) fn tokens(
     dimension_row(ui, design, scope, line, size, Preview::Checkbox, metrics);
 }
 
-/// Three number fields editing the accent in OKLCH: hue, chroma and lightness. They write
-/// `accent.color.700` and its lighter state color `accent.color.600`.
+/// Three number fields editing the accent in OKLCH: hue, chroma and lightness. The color is
+/// the seed of the whole accent palette: its 16 steps are made again from it for the theme's
+/// background (`koebi_tokens::palettes::from_seed`), so that every state keeps its contrast.
 fn accent_rows(
     gallery: &mut Gallery,
     ui: &mut Ui<'_>,
@@ -331,14 +328,14 @@ fn accent_rows(
     const ID: WidgetId = WidgetId::new("accent");
     let (row, gap) = (metrics.row, metrics.row_gap());
     // Follow changes made elsewhere: a theme switch, a reset.
-    let current = definition(design, semantic::ACCENT_COLOR_700);
+    let current = definition(design, semantic::ACCENT_COLOR_900);
     if gallery.accent_source != Some(current) {
         gallery.accent = current.to_oklch();
         gallery.accent_source = Some(current);
     }
     let scope = gallery.scope;
     let overridden = design
-        .override_of(scope, semantic::ACCENT_COLOR_700)
+        .override_of(scope, semantic::ACCENT_COLOR_900)
         .is_some();
     let frame = design.get(semantic::BORDER_COLOR_DEFAULT);
     let mut accent = gallery.accent;
@@ -357,24 +354,19 @@ fn accent_rows(
             .show(ui, line)
             .changed;
     }
+    let steps = koebi_tokens::palettes::ROLES[0].steps;
     if cleared {
-        reset(design, scope, semantic::ACCENT_COLOR_700);
-        reset(design, scope, semantic::ACCENT_COLOR_600);
+        for step in steps {
+            reset(design, scope, step);
+        }
     } else if changed {
         gallery.accent = accent;
-        let color = accent.to_color();
-        let lighter = Oklch {
-            l: (accent.l + ACCENT_STATE_LIGHTNESS).min(1.0),
-            ..accent
-        };
-        set(design, scope, semantic::ACCENT_COLOR_700, color);
-        set(
-            design,
-            scope,
-            semantic::ACCENT_COLOR_600,
-            lighter.to_color(),
-        );
-        gallery.accent_source = Some(color);
+        let background = definition(design, semantic::BACKGROUND_BASE_DEFAULT);
+        let palette = koebi_tokens::palettes::from_seed(accent.to_color(), background);
+        for (step, color) in steps.into_iter().zip(palette) {
+            set(design, scope, step, color);
+        }
+        gallery.accent_source = Some(palette[8]);
     }
 }
 

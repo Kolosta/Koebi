@@ -183,7 +183,7 @@ fn number_fields_match_golden() {
 #[test]
 fn number_fields_match_golden_in_the_light_theme() {
     let mut design = design();
-    let light = design.find_theme("light").expect("built-in theme");
+    let light = design.find_theme("snow").expect("built-in theme");
     design
         .set_active_theme(light)
         .expect("a theme of the design");

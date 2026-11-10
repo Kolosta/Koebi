@@ -25,6 +25,19 @@ fn design() -> DesignSystem {
     DesignSystem::new(&KOEBI).expect("Koebi's schema is valid")
 }
 
+/// The base theme with outlined controls: the base theme draws none, tests of borders need them.
+fn outlined() -> DesignSystem {
+    let mut design = design();
+    design
+        .set_alias(
+            koebi_design::Scope::Global,
+            koebi_tokens::semantic::BORDER_WIDTH_CONTROL,
+            koebi_tokens::semantic::BORDER_WIDTH_THIN,
+        )
+        .expect("a valid alias");
+    design
+}
+
 fn rect(x: f32, y: f32, width: f32, height: f32) -> Rect {
     Rect::from_origin_size(Vec2::new(x, y), Vec2::new(width, height))
 }
@@ -163,7 +176,7 @@ fn a_dropdown_and_its_menu_square_the_corners_where_they_meet() {
     else {
         return;
     };
-    let design = design();
+    let design = outlined();
     let styles = Styles::resolve(&design);
     let mut scene = Scene::new();
     scene.set_clear_color(styles.background);

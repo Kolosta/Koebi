@@ -101,7 +101,8 @@ Options:
   --frames <N>             Render N frames continuously, then exit (0 on success)
   --present-mode <MODE>    fifo (vsync, default), mailbox or immediate
   --data-dir <DIR>         Keep the design state in DIR (default: the user's preferences)
-  --theme <KEY>            Activate a theme: dark, light, muted-green, high-contrast
+  --theme <KEY>            Activate a theme: dark, dark-pink, muted-green, snow, arctic,
+                           high-contrast
   --override <PATH=VALUE>  Override a token in every theme, for instance
                            semantic.radius.control=6,
                            component.button.background.color.default=#ff8800 or
@@ -321,7 +322,7 @@ mod tests {
             "--data-dir",
             "state",
             "--theme",
-            "light",
+            "snow",
             "--override",
             "semantic.radius.control = 6",
             "--override",
@@ -331,7 +332,7 @@ mod tests {
         ])
         .unwrap();
         assert_eq!(options.data_dir, Some(PathBuf::from("state")));
-        assert_eq!(options.theme.as_deref(), Some("light"));
+        assert_eq!(options.theme.as_deref(), Some("snow"));
         assert_eq!(
             options.overrides,
             [
