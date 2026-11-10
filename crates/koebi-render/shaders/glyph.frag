@@ -38,7 +38,9 @@ vec4 fetch(int index) {
 }
 
 void main() {
-    g_length = int(texelFetch(glyphs, ivec2(0, 0), 0).y);
+    // Never past the texture, whatever the header holds.
+    ivec2 size = textureSize(glyphs, 0);
+    g_length = clamp(int(texelFetch(glyphs, ivec2(0, 0), 0).y), 1, size.x * size.y);
     int record = int(v_record + 0.5);
     // An empty quad, or past the store: nothing (no discard, which slows tiled GPUs down).
     if (record <= 0 || record >= g_length) {
@@ -48,6 +50,8 @@ void main() {
     vec4 head = fetch(record);
     int rows = clamp(int(head.x), 1, MAX_BANDS);
     int columns = clamp(int(head.y), 1, MAX_BANDS);
+    // A band holds some of the glyph's curves, never more.
+    int curves = clamp(int(head.z), 0, MAX_BAND_CURVES);
     vec2 p = v_unit;
     int row = clamp(int(floor(p.y * float(rows))), 0, rows - 1);
     int column = clamp(int(floor(p.x * float(columns))), 0, columns - 1);
@@ -57,7 +61,7 @@ void main() {
     float across = 0.0;
     float across_weight = 0.0;
     int first = int(across_band.x);
-    int count = min(int(across_band.y), MAX_BAND_CURVES);
+    int count = min(int(across_band.y), curves);
     for (int k = 0; k < count; ++k) {
         vec4 ab = fetch(first + 2 * k);
         vec2 a = ab.xy;
@@ -73,7 +77,7 @@ void main() {
     float down = 0.0;
     float down_weight = 0.0;
     first = int(down_band.x);
-    count = min(int(down_band.y), MAX_BAND_CURVES);
+    count = min(int(down_band.y), curves);
     for (int k = 0; k < count; ++k) {
         vec4 ab = fetch(first + 2 * k);
         vec2 a = ab.xy;

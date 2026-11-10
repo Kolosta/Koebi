@@ -643,3 +643,47 @@ fn float_data_textures_are_sampled_never_rendered_to() {
     assert!(matches!(pipeline, Err(Error::InvalidArgument(_))));
     gpu.assert_no_validation_errors();
 }
+
+#[test]
+fn a_texture_region_copies_into_a_larger_texture() {
+    let Some(gpu) = gpu_or_skip("a_texture_region_copies_into_a_larger_texture") else {
+        return;
+    };
+    // A store that grows: the old rows go over on the GPU, the new ones stay as they were.
+    let small = texture(&gpu.device, Extent::new(4, 2), TextureFormat::R8Unorm);
+    upload_whole(&gpu, &small, &[1, 2, 3, 4, 5, 6, 7, 8]);
+    let large = texture(&gpu.device, Extent::new(4, 4), TextureFormat::R8Unorm);
+    let other = texture(&gpu.device, Extent::new(4, 4), TextureFormat::Rgba8Unorm);
+    gpu.device
+        .submit_and_wait(|encoder| {
+            encoder.texture_barrier(&small, TextureState::ShaderRead, TextureState::TransferSrc);
+            encoder.texture_barrier(&large, TextureState::Undefined, TextureState::TransferDst);
+            encoder.clear_texture(&large, [0.0; 4])?;
+            // Two writes of the same texture: the second waits for the first.
+            encoder.texture_barrier(&large, TextureState::TransferDst, TextureState::TransferDst);
+            let rows = TextureRegion::new(0, 0, 4, 2);
+            encoder.copy_texture_to_texture(&small, &large, rows)?;
+            // Formats must match, and the region lie inside both.
+            assert!(
+                encoder
+                    .copy_texture_to_texture(&small, &other, rows)
+                    .is_err()
+            );
+            let tall = TextureRegion::new(0, 0, 4, 3);
+            assert!(
+                encoder
+                    .copy_texture_to_texture(&small, &large, tall)
+                    .is_err()
+            );
+            encoder.texture_barrier(&large, TextureState::TransferDst, TextureState::ShaderRead);
+            encoder.texture_barrier(&small, TextureState::TransferSrc, TextureState::ShaderRead);
+            Ok::<_, Error>(())
+        })
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        read_back(&gpu, &large),
+        [1, 2, 3, 4, 5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0]
+    );
+    gpu.assert_no_validation_errors();
+}

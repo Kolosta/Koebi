@@ -163,22 +163,36 @@ impl GlyphInstance {
 }
 
 /// Every glyph drawn so far, in a data texture of `vec4` texels.
+///
+/// The texture holds the header, then the records in the order glyphs were first drawn; only
+/// the records stored since the last upload stay on the CPU. A texture that grows copies what
+/// it held to the larger one on the GPU. Every upload leaves the texture ready to be sampled,
+/// even when a step fails: the store changes only once what it needs exists.
 pub(crate) struct GlyphStore {
     layout: BindGroupLayout,
     sampler: Sampler,
     texture: Option<Texture>,
     bind_group: Option<BindGroup>,
     rows: u32,
-    /// What the texture holds, and what it will once this frame's texels are uploaded.
-    data: Vec<[f32; 4]>,
-    /// Texels on the GPU already; past them, they wait for [`Self::record_uploads`].
+    /// Texels the store holds, the header included: where the next record starts.
+    length: usize,
+    /// Texels on the GPU already; past them, `pending` holds the records to upload.
     uploaded: usize,
+    /// The records stored since the last upload.
+    pending: Vec<[f32; 4]>,
+    /// Glyphs stored with curves.
+    stored: usize,
     entries: HashMap<(FontId, GlyphId), Option<StoredGlyph>>,
     fonts: Fonts,
     outline: Outline,
     curves: Vec<Curve>,
     staging: Vec<Option<Buffer>>,
+    /// The copies of an upload and where their texels start in the staging buffer: reused.
+    regions: Vec<(TextureRegion, u64)>,
 }
+
+/// Bytes of a texel.
+const TEXEL: u64 = 16;
 
 impl GlyphStore {
     pub(crate) fn new(device: &Device) -> Result<Self> {
@@ -196,13 +210,16 @@ impl GlyphStore {
             texture: None,
             bind_group: None,
             rows: INITIAL_ROWS,
-            data: vec![[0.0; 4]; HEADER],
-            uploaded: 0,
+            length: HEADER,
+            uploaded: HEADER,
+            pending: Vec::new(),
+            stored: 0,
             entries: HashMap::new(),
             fonts: Fonts::new(),
             outline: Outline::new(),
             curves: Vec::new(),
             staging: (0..FRAMES_IN_FLIGHT).map(|_| None).collect(),
+            regions: Vec::with_capacity(4),
         })
     }
 
@@ -239,12 +256,14 @@ impl GlyphStore {
         };
         let capacity = (MAX_ROWS * DATA_WIDTH) as usize;
         #[allow(clippy::cast_possible_truncation, reason = "below the capacity, 2^22")]
-        let offset = self.data.len() as u32;
+        let offset = self.length as u32;
         let texels = record(&self.curves, bounds, offset);
-        if self.data.len() + texels.len() > capacity {
+        if self.length + texels.len() > capacity {
             return Lookup::Full;
         }
-        self.data.extend(texels);
+        self.length += texels.len();
+        self.pending.extend(texels);
+        self.stored += 1;
         let stored = StoredGlyph { offset, bounds };
         self.entries.insert((font, glyph), Some(stored));
         Lookup::Found(Some(stored))
@@ -257,129 +276,211 @@ impl GlyphStore {
         self.forget();
     }
 
+    /// Forgets every record: the texture keeps its texels, which the next header puts out of
+    /// reach until new records cover them.
     fn forget(&mut self) {
         self.entries.clear();
-        self.data.truncate(HEADER);
-        self.uploaded = 0;
+        self.pending.clear();
+        self.length = HEADER;
+        self.uploaded = HEADER;
+        self.stored = 0;
     }
 
-    /// Records the upload of the texels stored since the last one, creating or growing the
-    /// texture first if needed. Call before the render pass, with the frame slot the staging
-    /// buffer may be rewritten for.
+    /// Records the upload of the header and of the records stored since the last upload,
+    /// creating or growing the texture first if needed. Call before the render pass, with the
+    /// frame slot whose staging buffer may be rewritten.
+    ///
+    /// # Errors
+    ///
+    /// A texture, bind group or staging buffer that cannot be created, or a copy refused. The
+    /// store keeps what it has not uploaded, and its texture is left ready to be sampled.
     pub(crate) fn record_uploads(
         &mut self,
         device: &Device,
         encoder: &mut CommandEncoder<'_>,
         frame_index: usize,
     ) -> Result<()> {
-        let needed = self.data.len().div_ceil(DATA_WIDTH as usize);
+        let needed = self.length.div_ceil(DATA_WIDTH as usize);
         let mut rows = self.rows;
         while (rows as usize) < needed && rows < MAX_ROWS {
             rows *= 2;
         }
-        let created = self.texture.is_none() || rows != self.rows;
-        if created {
-            self.rows = rows;
-            // Frames in flight keep the old texture alive through their bind group.
+        let creates = self.texture.is_none() || rows != self.rows;
+        if !creates && self.pending.is_empty() {
+            return Ok(());
+        }
+        // What may fail comes first, so that a failure leaves the store as it was.
+        let created = if creates {
             let texture = device.create_texture(&TextureDesc {
                 label: "glyph curves",
                 extent: Extent::new(DATA_WIDTH, rows),
                 format: TextureFormat::Rgba32Float,
-                usage: TextureUsage::SAMPLED | TextureUsage::TRANSFER_DST,
+                usage: TextureUsage::SAMPLED
+                    | TextureUsage::TRANSFER_DST
+                    | TextureUsage::TRANSFER_SRC,
             })?;
-            self.bind_group = Some(device.create_bind_group(&BindGroupDesc {
+            let bind_group = device.create_bind_group(&BindGroupDesc {
                 label: "glyph curves",
                 layout: &self.layout,
                 entries: &[BindingResource::SampledTexture {
                     texture: &texture,
                     sampler: &self.sampler,
                 }],
-            })?);
-            self.texture = Some(texture);
-            self.uploaded = 0;
-        }
-        if !created && self.uploaded == self.data.len() {
-            return Ok(());
-        }
+            })?;
+            Some((texture, bind_group))
+        } else {
+            None
+        };
+        let bytes = TEXEL * (HEADER + self.pending.len()) as u64;
+        let buffer = staging_buffer(&mut self.staging, device, frame_index, bytes)?;
+        #[allow(clippy::cast_precision_loss, reason = "counts below 2^22")]
+        let header = [self.stored as f32, self.length as f32, 0.0, 0.0];
+        buffer.write(0, &[header])?;
+        buffer.write(TEXEL * HEADER as u64, &self.pending)?;
+        self.regions.clear();
+        self.regions.push((TextureRegion::new(0, 0, 1, 1), 0));
+        regions_of(
+            self.uploaded,
+            self.length,
+            TEXEL * HEADER as u64,
+            &mut self.regions,
+        );
+
+        // Past this point only a refused copy fails, and the texture still goes back to being
+        // sampled.
+        let replaced = created.map(|(texture, bind_group)| {
+            // Frames in flight keep the old texture alive through their bind group.
+            self.bind_group = Some(bind_group);
+            self.rows = rows;
+            self.texture.replace(texture)
+        });
         let Some(texture) = self.texture.as_ref() else {
             return Ok(());
         };
-        #[allow(clippy::cast_precision_loss, reason = "texel counts below 2^22")]
-        let glyphs = self.entries.values().flatten().count() as f32;
-        #[allow(clippy::cast_precision_loss, reason = "texel counts below 2^22")]
-        let length = self.data.len() as f32;
-        self.data[0] = [glyphs, length, 0.0, 0.0];
-        // Whole rows from the header's to the last stored texel's: two copies at most.
-        let width = DATA_WIDTH as usize;
-        let first_row = self.uploaded / width;
-        let last_row = (self.data.len() - 1) / width;
-        let mut staged: Vec<[f32; 4]> = Vec::new();
-        let mut regions = Vec::new();
-        let mut copy = |from_row: usize, to_row: usize, staged: &mut Vec<[f32; 4]>| {
-            let offset = (staged.len() * 16) as u64;
-            for row in from_row..=to_row {
-                let start = row * width;
-                let end = ((row + 1) * width).min(self.data.len());
-                staged.extend_from_slice(&self.data[start..end]);
-                // Whole rows: the row past the last texel is padded.
-                staged.resize(staged.len().next_multiple_of(width), [0.0; 4]);
+        let mut copied = Ok(());
+        match replaced {
+            Some(old) => {
+                encoder.texture_barrier(
+                    texture,
+                    TextureState::Undefined,
+                    TextureState::TransferDst,
+                );
+                // What the old texture holds goes over on the GPU: the CPU no longer has it.
+                if let Some(old) = old.filter(|_| self.uploaded > HEADER) {
+                    #[allow(clippy::cast_possible_truncation, reason = "rows below MAX_ROWS")]
+                    let held = self.uploaded.div_ceil(DATA_WIDTH as usize) as u32;
+                    encoder.texture_barrier(
+                        &old,
+                        TextureState::ShaderRead,
+                        TextureState::TransferSrc,
+                    );
+                    copied = encoder.copy_texture_to_texture(
+                        &old,
+                        texture,
+                        TextureRegion::new(0, 0, DATA_WIDTH, held),
+                    );
+                    // The header and the end of the last row held are written again below.
+                    encoder.texture_barrier(
+                        texture,
+                        TextureState::TransferDst,
+                        TextureState::TransferDst,
+                    );
+                }
             }
-            #[allow(clippy::cast_possible_truncation, reason = "rows below MAX_ROWS")]
-            regions.push((
-                TextureRegion::new(
-                    0,
-                    from_row as u32,
-                    DATA_WIDTH,
-                    (to_row + 1 - from_row) as u32,
-                ),
-                offset,
+            None => {
+                encoder.texture_barrier(
+                    texture,
+                    TextureState::ShaderRead,
+                    TextureState::TransferDst,
+                );
+            }
+        }
+        let Some(buffer) = self.staging.get(frame_index).and_then(Option::as_ref) else {
+            return Err(Error::InvalidArgument(
+                "glyph staging buffer missing".into(),
             ));
         };
-        if first_row > 0 {
-            copy(0, 0, &mut staged);
-        }
-        copy(first_row, last_row, &mut staged);
-        let slot = self
-            .staging
-            .get_mut(frame_index)
-            .ok_or_else(|| Error::InvalidArgument(format!("frame index {frame_index}")))?;
-        let bytes = (staged.len() * 16) as u64;
-        if slot.as_ref().is_none_or(|buffer| buffer.size() < bytes) {
-            *slot = Some(device.create_buffer(&BufferDesc {
-                label: "glyph curves staging",
-                size: bytes.next_power_of_two().max(MIN_STAGING),
-                usage: BufferUsage::TRANSFER_SRC,
-                location: MemoryLocation::CpuToGpu,
-            })?);
-        }
-        let buffer = slot
-            .as_mut()
-            .ok_or_else(|| Error::InvalidArgument("glyph staging buffer missing".into()))?;
-        buffer.write(0, &staged)?;
-        let from = if created {
-            TextureState::Undefined
-        } else {
-            TextureState::ShaderRead
-        };
-        encoder.texture_barrier(texture, from, TextureState::TransferDst);
-        for (region, offset) in &regions {
-            let texels = BufferTexels {
-                offset: *offset,
-                bytes_per_row: DATA_WIDTH * 16,
-            };
-            encoder.copy_buffer_to_texture(buffer, texels, texture, *region)?;
+        for &(region, offset) in &self.regions {
+            if copied.is_ok() {
+                let texels = BufferTexels {
+                    offset,
+                    bytes_per_row: DATA_WIDTH * 16,
+                };
+                copied = encoder.copy_buffer_to_texture(buffer, texels, texture, region);
+            }
         }
         encoder.texture_barrier(texture, TextureState::TransferDst, TextureState::ShaderRead);
-        self.uploaded = self.data.len();
+        copied?;
+        self.uploaded = self.length;
+        self.pending.clear();
         Ok(())
+    }
+}
+
+/// The staging buffer of `frame_index`, of at least `bytes`; one grown for a large upload
+/// shrinks back once uploads are small again.
+fn staging_buffer<'a>(
+    staging: &'a mut [Option<Buffer>],
+    device: &Device,
+    frame_index: usize,
+    bytes: u64,
+) -> Result<&'a mut Buffer> {
+    let size = bytes.next_power_of_two().max(MIN_STAGING);
+    let slot = staging
+        .get_mut(frame_index)
+        .ok_or_else(|| Error::InvalidArgument(format!("frame index {frame_index}")))?;
+    if slot
+        .as_ref()
+        .is_none_or(|buffer| buffer.size() < bytes || buffer.size() > 4 * size)
+    {
+        *slot = Some(device.create_buffer(&BufferDesc {
+            label: "glyph curves staging",
+            size,
+            usage: BufferUsage::TRANSFER_SRC,
+            location: MemoryLocation::CpuToGpu,
+        })?);
+    }
+    slot.as_mut()
+        .ok_or_else(|| Error::InvalidArgument("glyph staging buffer missing".into()))
+}
+
+/// The copies of texels `start..end` of the store, which lie one after the other in the staging
+/// buffer from `offset`: the end of a first row, whole rows, the start of a last row.
+fn regions_of(start: usize, end: usize, mut offset: u64, out: &mut Vec<(TextureRegion, u64)>) {
+    let width = DATA_WIDTH as usize;
+    let mut push = |at: usize, len: usize, rows: usize| {
+        #[allow(clippy::cast_possible_truncation, reason = "texels below 2^22")]
+        let (x, y, len32) = ((at % width) as u32, (at / width) as u32, len as u32);
+        let region = if rows == 0 {
+            TextureRegion::new(x, y, len32, 1)
+        } else {
+            #[allow(clippy::cast_possible_truncation, reason = "rows below 2^10")]
+            TextureRegion::new(0, y, DATA_WIDTH, rows as u32)
+        };
+        out.push((region, offset));
+        offset += TEXEL * len as u64;
+    };
+    let mut at = start;
+    if !at.is_multiple_of(width) && at < end {
+        let stop = end.min(at.next_multiple_of(width));
+        push(at, stop - at, 0);
+        at = stop;
+    }
+    let whole = end.saturating_sub(at) / width;
+    if whole > 0 {
+        push(at, whole * width, whole);
+        at += whole * width;
+    }
+    if at < end {
+        push(at, end - at, 0);
     }
 }
 
 impl std::fmt::Debug for GlyphStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GlyphStore")
-            .field("glyphs", &self.entries.len())
-            .field("texels", &self.data.len())
+            .field("glyphs", &self.stored)
+            .field("texels", &self.length)
             .field("rows", &self.rows)
             .finish_non_exhaustive()
     }
@@ -388,6 +489,35 @@ impl std::fmt::Debug for GlyphStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn regions(start: usize, end: usize) -> Vec<(u32, u32, u32, u32, u64)> {
+        let mut out = Vec::new();
+        regions_of(start, end, 16, &mut out);
+        out.into_iter()
+            .map(|(r, offset)| (r.x, r.y, r.width, r.height, offset))
+            .collect()
+    }
+
+    #[test]
+    fn uploads_copy_the_new_texels_only_in_three_rectangles_at_most() {
+        let w = DATA_WIDTH;
+        let width = DATA_WIDTH as usize;
+        // Inside one row.
+        assert_eq!(regions(10, 30), [(10, 0, 20, 1, 16)]);
+        // The end of a row, whole rows, the start of another; offsets follow one another.
+        let texels = |n: u32| 16 + 16 * u64::from(n);
+        assert_eq!(
+            regions(width - 6, 3 * width + 5),
+            [
+                (w - 6, 0, 6, 1, 16),
+                (0, 1, w, 2, texels(6)),
+                (0, 3, 5, 1, texels(6 + 2 * w)),
+            ]
+        );
+        // Whole rows only, and nothing at all.
+        assert_eq!(regions(width, 3 * width), [(0, 1, w, 2, 16)]);
+        assert_eq!(regions(40, 40), []);
+    }
 
     fn line(a: Vec2, c: Vec2) -> Curve {
         [a, (a + c) * 0.5, c]

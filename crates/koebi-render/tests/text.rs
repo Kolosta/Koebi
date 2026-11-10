@@ -283,6 +283,51 @@ fn stored_glyphs_last_across_frames_beside_new_ones() {
 }
 
 #[test]
+fn the_store_grows_and_clears_without_losing_a_glyph() {
+    let Some(gpu) = gpu_or_skip("the_store_grows_and_clears_without_losing_a_glyph") else {
+        return;
+    };
+    let (fonts, regular) = fonts();
+    let japanese = fonts
+        .select(koebi_text::embedded::NOTO_SANS_JP, 400)
+        .expect("Noto Sans JP is embedded");
+    let latin = fonts.get(regular).unwrap();
+    let count = fonts.get(japanese).unwrap().glyph_count();
+    let extent = Extent::new(256, 48);
+    let word: Vec<GlyphPrimitive> = (0_u16..)
+        .zip("Hamburgefonstiv".chars())
+        .map(|(i, c)| {
+            let id = latin.glyph_index(c).unwrap();
+            glyph(regular, id, 22.0, 4.0 + f32::from(i) * 16.0, 34.0)
+        })
+        .collect();
+    let reference = glyph_scene(&word);
+    let expected = Frames::new(&gpu, fonts.clone()).render(extent, 1.0, &reference);
+    // Japanese glyphs, a few thousand at a time: the store grows from its first rows to its
+    // last, uploads start inside a row, and the store fills, clears and starts again (about
+    // 4500 glyphs fill it). After each batch, the word draws as a fresh renderer draws it.
+    let mut frames = Frames::new(&gpu, fonts.clone());
+    frames.render(extent, 1.0, &glyph_scene(&word[..1]));
+    let mut start = 1_u16;
+    let last = count.min(7000);
+    while start < last {
+        let end = start.saturating_add(2500).min(last);
+        let batch: Vec<GlyphPrimitive> = (start..end)
+            .map(|id| {
+                let (x, y) = (f32::from(id % 64) * 4.0, 8.0 + f32::from(id / 64 % 8) * 4.0);
+                glyph(japanese, GlyphId(id), 3.0, x, y)
+            })
+            .collect();
+        frames.render(extent, 1.0, &glyph_scene(&batch));
+        let image = frames.render(extent, 1.0, &reference);
+        let diff = image.diff(&expected, 0);
+        assert_eq!(diff.differing_pixels, 0, "after glyphs {start}..{end}");
+        start = end;
+    }
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
 fn text_blends_its_color_with_coverage_in_painters_order() {
     let Some(gpu) = gpu_or_skip("text_blends_its_color_with_coverage_in_painters_order") else {
         return;
