@@ -251,11 +251,12 @@ impl LinePrimitive {
     }
 }
 
-/// One glyph, drawn from the renderer's glyph atlas at its physical size.
+/// One glyph, drawn from its curves at any size and angle.
 ///
-/// The renderer rasterizes it from its fonts ([`crate::Renderer2D::set_fonts`]) and places its
-/// bitmap on whole physical pixels, its pen position rounded to a quarter pixel horizontally
-/// and its baseline to a whole pixel, so text stays crisp at every scale factor.
+/// The renderer reads its outline from its fonts ([`crate::Renderer2D::set_fonts`]) once, and
+/// covers its pixels from the curves in the fragment shader. An upright glyph's baseline goes to
+/// a whole physical pixel, so that horizontal stems stay crisp; its pen keeps its exact place
+/// across.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GlyphPrimitive {
     /// The glyph's font, in the renderer's fonts.
@@ -266,6 +267,8 @@ pub struct GlyphPrimitive {
     pub size: f32,
     /// Pen position on the baseline, in logical pixels.
     pub origin: Vec2,
+    /// Turn about the pen position, clockwise, in radians.
+    pub rotation: f32,
     /// Color.
     pub color: Color,
 }
@@ -605,7 +608,7 @@ impl Scene {
     /// Appends a glyph. Glyphs without size or color, or with a non-finite position, are
     /// culled.
     pub fn push_glyph(&mut self, glyph: &GlyphPrimitive) {
-        let finite = [glyph.origin.x, glyph.origin.y, glyph.size]
+        let finite = [glyph.origin.x, glyph.origin.y, glyph.size, glyph.rotation]
             .iter()
             .all(|v| v.is_finite());
         if !finite || glyph.size <= 0.0 || glyph.color.a <= 0.0 {
@@ -624,6 +627,7 @@ impl Scene {
                 glyph: placed.glyph,
                 size: line.size(),
                 origin: Vec2::new(origin.x + placed.x, origin.y),
+                rotation: 0.0,
                 color,
             });
         }
@@ -884,6 +888,7 @@ mod tests {
             glyph: GlyphId(36),
             size: 14.0,
             origin: Vec2::new(4.0, 12.0),
+            rotation: 0.0,
             color: Color::WHITE,
         }
     }

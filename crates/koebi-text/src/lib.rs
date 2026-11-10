@@ -44,6 +44,6 @@ pub use error::{Error, Result};
 pub use font::{Font, FontMetrics, GlyphId};
 pub use fonts::{FontId, Fonts, embedded};
 pub use line::{PlacedGlyph, TextLine, TextStyle};
-pub use outline::{Outline, PathCommand};
+pub use outline::{MonotonicCurve, Outline, PathCommand};
 pub use raster::{GlyphBitmap, MAX_GLYPH_SIZE, Rasterizer};
 pub use read::Tag;

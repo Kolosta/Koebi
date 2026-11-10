@@ -20,14 +20,14 @@
 //! - **Icons**: vector icons compiled by `koebi-svg` are drawn from their curves in the fragment
 //!   shader, sharp at every size and recolored zone by zone per instance; the set lives in a
 //!   data texture uploaded once (`docs/adr/0020-vector-icons.md`).
-//! - **Text**: glyphs of `koebi_text` lines are rasterized on the CPU at their physical size,
-//!   cached in a glyph atlas texture and drawn one texel per pixel
-//!   (`docs/adr/0014-text-basics.md`).
+//! - **Text**: glyphs of `koebi_text` lines are drawn from their curves like icons, at any size
+//!   and angle: each glyph's outline is filed by bands in a data texture the first time a frame
+//!   draws it (`docs/adr/0022-text-on-the-gpu.md`).
 //! - **Shaders**: GLSL in `shaders/`, compiled ahead of time to `shaders/spirv/` by
 //!   `cargo xtask shaders` and embedded in the binary.
 
-mod atlas;
 mod fill;
+mod glyphs;
 mod icon;
 mod renderer;
 mod scene;

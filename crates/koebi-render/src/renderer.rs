@@ -10,14 +10,14 @@ use koebi_gpu::{
 use koebi_svg::pack::Packed;
 use koebi_text::Fonts;
 
-use crate::atlas::{GlyphAtlas, GlyphInstance, GlyphKey, Lookup};
 use crate::fill::FillInstance;
+use crate::glyphs::{GlyphInstance, GlyphStore, Lookup};
 use crate::icon::{IconInstance, IconStore};
 use crate::scene::{Corners, LineInstance, PrimitiveKind, RectInstance, Scene};
 use crate::shaders;
 
 /// Times a frame's glyphs may make room in the atlas (grow, grow, clear) before giving up.
-const ATLAS_ATTEMPTS: usize = 4;
+const STORE_ATTEMPTS: usize = 2;
 
 /// Instances an instance buffer holds when first created.
 const MIN_INSTANCES_PER_BUFFER: u64 = 256;
@@ -255,7 +255,7 @@ pub struct Renderer2D {
     icons: PrimitivePipeline,
     icon_store: IconStore,
     glyphs: PrimitivePipeline,
-    atlas: GlyphAtlas,
+    glyph_store: GlyphStore,
     /// This frame's glyph quads, rebuilt by every `prepare`.
     glyph_instances: Vec<GlyphInstance>,
     target_format: TextureFormat,
@@ -297,13 +297,13 @@ impl Renderer2D {
             stride: IconInstance::STRIDE,
             bind_group_layouts: &[icon_store.layout()],
         };
-        let atlas = GlyphAtlas::new(device)?;
+        let glyph_store = GlyphStore::new(device)?;
         let glyphs = PipelineDesc {
             label: "glyph",
             vertex: ("glyph.vert", shaders::GLYPH_VERT),
             fragment: ("glyph.frag", shaders::GLYPH_FRAG),
             stride: GlyphInstance::STRIDE,
-            bind_group_layouts: &[atlas.layout()],
+            bind_group_layouts: &[glyph_store.layout()],
         };
         Ok(Self {
             device: device.clone(),
@@ -313,7 +313,7 @@ impl Renderer2D {
             icons: PrimitivePipeline::new(device, &icons, target_format)?,
             icon_store,
             glyphs: PrimitivePipeline::new(device, &glyphs, target_format)?,
-            atlas,
+            glyph_store,
             glyph_instances: Vec::new(),
             target_format,
         })
@@ -322,7 +322,7 @@ impl Renderer2D {
     /// Sets the fonts glyphs are rasterized from: the collection the scene's
     /// [`koebi_text::FontId`]s refer to. Cached glyphs are forgotten.
     pub fn set_fonts(&mut self, fonts: Fonts) {
-        self.atlas.set_fonts(fonts);
+        self.glyph_store.set_fonts(fonts);
     }
 
     /// Sets the icons [`crate::IconPrimitive::icon`] numbers refer to: `koebi_svg` icons packed
@@ -378,49 +378,51 @@ impl Renderer2D {
             return Ok(());
         }
         self.place_glyphs(scene, scale_factor);
-        self.atlas
+        self.glyph_store
             .record_uploads(&self.device, encoder, frame_index)?;
         self.glyphs
             .upload(&self.device, &self.glyph_instances, frame_index)
     }
 
-    /// Builds one quad per glyph of the scene, rasterizing new glyphs into the atlas. Glyphs
-    /// that draw nothing get an empty quad, so quads stay aligned with the scene's batches.
+    /// Builds one instance per glyph of the scene, storing the curves of glyphs drawn for the
+    /// first time. Upright glyphs keep their baseline on a whole physical pixel, so that
+    /// horizontal stems stay crisp; their pen keeps its exact position across. Glyphs that draw
+    /// nothing get an empty instance, so instances stay aligned with the scene's batches.
     fn place_glyphs(&mut self, scene: &Scene, scale_factor: f32) {
-        self.atlas.begin_frame();
-        for attempt in 1..=ATLAS_ATTEMPTS {
+        for attempt in 1..=STORE_ATTEMPTS {
             self.glyph_instances.clear();
             let mut full = false;
             for glyph in scene.glyphs() {
-                let snapped = GlyphKey::snap(glyph, scale_factor);
-                let entry = match snapped.map(|(key, ..)| self.atlas.glyph(key)) {
-                    Some(Lookup::Found(entry)) => entry,
-                    Some(Lookup::Full) => {
+                let stored = match self.glyph_store.glyph(glyph.font, glyph.glyph) {
+                    Lookup::Found(stored) => stored,
+                    Lookup::Full => {
                         full = true;
                         None
                     }
-                    None => None,
                 };
-                let instance = match (entry, snapped) {
-                    (Some(entry), Some((_, x, baseline))) => GlyphInstance::new(
-                        entry,
-                        x,
-                        baseline,
-                        self.atlas.size(),
+                let mut origin = glyph.origin * scale_factor;
+                if glyph.rotation == 0.0 {
+                    origin.y = origin.y.round();
+                }
+                let instance = stored.map_or_else(GlyphInstance::default, |stored| {
+                    GlyphInstance::new(
+                        stored,
+                        origin,
+                        glyph.size * scale_factor,
+                        glyph.rotation,
                         glyph.color.premultiplied(),
-                    ),
-                    _ => GlyphInstance::default(),
-                };
+                    )
+                });
                 self.glyph_instances.push(instance);
             }
             if !full {
                 return;
             }
-            if attempt == ATLAS_ATTEMPTS {
-                koebi_core::warn!("the glyph atlas cannot hold this frame's glyphs");
+            if attempt == STORE_ATTEMPTS {
+                koebi_core::warn!("the glyph store cannot hold this frame's glyphs");
                 return;
             }
-            self.atlas.make_room();
+            self.glyph_store.make_room();
         }
     }
 
@@ -483,11 +485,11 @@ impl Renderer2D {
             let rounded = batch.clip.and_then(|clip| clip.rounded);
             pass.set_push_constants(&primitives.pipeline, &constants.with_clip(rounded))?;
             if batch.kind == PrimitiveKind::Glyph {
-                // Prepared glyphs always have an atlas.
-                let Some(atlas) = self.atlas.bind_group() else {
+                // Prepared glyphs always have a store.
+                let Some(store) = self.glyph_store.bind_group() else {
                     continue;
                 };
-                pass.set_bind_group(&primitives.pipeline, 0, atlas)?;
+                pass.set_bind_group(&primitives.pipeline, 0, store)?;
             }
             if batch.kind == PrimitiveKind::Icon {
                 // Without a set, icons draw nothing.
