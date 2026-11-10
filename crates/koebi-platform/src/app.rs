@@ -21,6 +21,7 @@ use sdl3_sys::init::{
 use sdl3_sys::keyboard::{
     SDL_GetModState, SDL_SetTextInputArea, SDL_StartTextInput, SDL_StopTextInput,
 };
+use sdl3_sys::locale::{SDL_GetPreferredLocales, SDL_Locale};
 use sdl3_sys::main::{SDL_EnterAppMainCallbacks, SDL_RunApp};
 use sdl3_sys::mouse::{
     SDL_GetGlobalMouseState, SDL_SetWindowRelativeMouseMode, SDL_WarpMouseInWindow,
@@ -189,6 +190,45 @@ impl AppContext {
         // SAFETY: the string was allocated by SDL for the caller and is not used afterwards.
         unsafe { SDL_free(raw.cast()) };
         Ok(PathBuf::from(path))
+    }
+
+    /// The languages the user prefers, best first, as the system lists them: `fr-FR`, `en`.
+    /// Empty when the system tells none. Asking may be slow: read them once, at start-up.
+    pub fn preferred_locales(&self) -> Vec<String> {
+        let mut count = 0;
+        // SAFETY: `count` is a valid pointer; SDL returns null or a null-terminated array of
+        // `count` locale pointers in one allocation.
+        let list = unsafe { SDL_GetPreferredLocales(&raw mut count) };
+        if list.is_null() {
+            return Vec::new();
+        }
+        let mut locales = Vec::with_capacity(usize::try_from(count).unwrap_or(0));
+        for index in 0..usize::try_from(count).unwrap_or(0) {
+            // SAFETY: `index` is below the count SDL returned, so the slot is in the array.
+            let locale = unsafe { *list.add(index) };
+            if locale.is_null() {
+                break;
+            }
+            // SAFETY: a non-null locale of the array, valid until the array is freed.
+            let SDL_Locale { language, country } = unsafe { *locale };
+            if language.is_null() {
+                continue;
+            }
+            // SAFETY: SDL's locale strings are NUL-terminated and live as long as the array.
+            let mut code = unsafe { CStr::from_ptr(language) }
+                .to_string_lossy()
+                .into_owned();
+            if !country.is_null() {
+                // SAFETY: as above.
+                let region = unsafe { CStr::from_ptr(country) }.to_string_lossy();
+                code.push('-');
+                code.push_str(&region);
+            }
+            locales.push(code);
+        }
+        // SAFETY: the array was allocated by SDL for the caller and is not used afterwards.
+        unsafe { SDL_free(list.cast()) };
+        locales
     }
 
     /// Shows `cursor` over the application's windows. Setting the cursor already shown costs

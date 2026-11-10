@@ -221,6 +221,7 @@ impl AppWindow {
             fonts,
             labels,
             keymap,
+            language,
             ..
         } = interface;
         scene.clear();
@@ -241,7 +242,7 @@ impl AppWindow {
             }
             match (settings_in_place.as_mut(), content) {
                 (Some(settings), _) | (None, WindowContent::Settings(settings)) => {
-                    settings.show(ui, rest, design, keymap, &mut frame_times);
+                    settings.show(ui, rest, design, keymap, &mut frame_times, language);
                 }
                 (
                     None,

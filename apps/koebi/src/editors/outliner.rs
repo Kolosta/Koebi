@@ -8,7 +8,7 @@
 use koebi_core::input::Key;
 use koebi_core::{Color, Rect};
 use koebi_i18n::n_;
-use koebi_i18n::tr;
+use koebi_i18n::{tr, trc};
 use koebi_input::{ActionDef, ActionGroup, ActionKind, Condition, Context, Hint, Shortcut};
 use koebi_ui::{
     DropPlace, ListDelegate, ListItem, ListOptions, ListState, TreeGuide, Ui, WidgetId,
@@ -246,7 +246,8 @@ impl Tree {
             index,
             Node {
                 id,
-                name: tr("Group").to_owned(),
+                // TRANSLATORS: the name of a new group of layers, a noun.
+                name: trc("layer", "Group").to_owned(),
                 depth,
                 group: true,
                 color: None,

@@ -11,7 +11,7 @@
 use koebi_core::input::{Key, ModifierKey};
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::DesignSystem;
-use koebi_i18n::tr;
+use koebi_i18n::{tr, trc};
 use koebi_input::{
     ActionDef, Binding, ButtonTrigger, ConflictKind, DoubleClick, Drag, KeyTrigger, ModifierRule,
     ModifierState, Shortcut, Side, Trigger,
@@ -139,8 +139,8 @@ pub(super) fn conflict_color(design: &DesignSystem, kind: ConflictKind) -> Color
     }
 }
 
-/// The lists the details choose from, built once: the items of each section, each with the
-/// caps of its key or button.
+/// The lists the details choose from, built once per language: the items of each section, each
+/// with the caps of its key or button.
 #[derive(Debug)]
 pub(super) struct Choices {
     keys: Vec<Vec<MenuItem<'static>>>,
@@ -155,7 +155,7 @@ impl Choices {
                 section
                     .inputs
                     .iter()
-                    .map(|(key, name)| MenuItem::action(name).caps(Shortcut::key(*key)))
+                    .map(|(key, name)| MenuItem::action(trc("key", name)).caps(Shortcut::key(*key)))
                     .collect()
             })
             .collect();
@@ -168,7 +168,7 @@ impl Choices {
                     .map(|(input, name)| {
                         let trigger =
                             input.apply(Trigger::button(koebi_core::input::MouseButton::Left));
-                        MenuItem::action(name).caps(Shortcut::new(trigger))
+                        MenuItem::action(tr(name)).caps(Shortcut::new(trigger))
                     })
                     .collect()
             })
@@ -464,11 +464,11 @@ pub(super) fn details(
             when: ButtonTrigger::Drag(drag),
         } => {
             let at = rows.labeled(ui, tr("Direction"), 1.0);
-            let items = DIRECTIONS.map(|(_, name)| MenuItem::action(name));
+            let items = DIRECTIONS.map(|(_, name)| MenuItem::action(tr(name)));
             let current = DIRECTIONS
                 .iter()
                 .find(|(direction, _)| *direction == drag.direction)
-                .map_or("", |(_, name)| name);
+                .map_or("", |(_, name)| tr(name));
             if let Some(choice) = Dropdown::new(id.with(13), &mut state.direction, &items)
                 .label(current)
                 .show(ui, at, bounds)
@@ -696,7 +696,7 @@ fn input_choice(
             let current = if draft {
                 tr("Choose a key")
             } else {
-                name_in(&KEY_SECTIONS, key).unwrap_or(tr("Other key"))
+                name_in(&KEY_SECTIONS, key).map_or(tr("Other key"), |name| trc("key", name))
             };
             let key = sectioned(
                 ui,
@@ -716,7 +716,7 @@ fn input_choice(
             } else {
                 MouseInput::of(trigger)
                     .and_then(|input| name_in(&MOUSE_SECTIONS, input))
-                    .unwrap_or(tr("Other button"))
+                    .map_or(tr("Other button"), tr)
             };
             let input = sectioned(
                 ui,
@@ -731,11 +731,11 @@ fn input_choice(
             Some(input.apply(trigger))
         }
         Trigger::Pinch(direction) => {
-            let items = PINCHES.map(|(_, name)| MenuItem::action(name));
+            let items = PINCHES.map(|(_, name)| MenuItem::action(tr(name)));
             let current = PINCHES
                 .iter()
                 .find(|(chosen, _)| *chosen == direction)
-                .map_or("", |(_, name)| name);
+                .map_or("", |(_, name)| tr(name));
             let choice = Dropdown::new(id, menu, &items)
                 .label(current)
                 .show(ui, rect, bounds)?;
@@ -767,7 +767,7 @@ fn sectioned<T: Copy>(
     let mut top: [MenuItem<'_>; 8] = [MenuItem::Separator; 8];
     let count = sections.len().min(top.len());
     for (slot, (section, items)) in top.iter_mut().zip(sections.iter().zip(items)) {
-        *slot = MenuItem::submenu(section.name, items);
+        *slot = MenuItem::submenu(tr(section.name), items);
     }
     let choice = Dropdown::new(id, menu, &top[..count])
         .label(current)

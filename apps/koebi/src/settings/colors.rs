@@ -213,13 +213,13 @@ impl ColorsSection {
             Vec2::new(dot.max.x + gap, rect.min.y),
             Vec2::new(names, row),
         );
-        ui.label(palette.name, name, &label, primary, Align::Start);
+        ui.label(tr(palette.name), name, &label, primary, Align::Start);
         let description = Rect::from_origin_size(
             Vec2::new(name.min.x, name.max.y + gap),
             Vec2::new(names, row),
         );
         ui.label(
-            palette.description,
+            tr(palette.description),
             description,
             &detail,
             secondary,
@@ -247,7 +247,7 @@ impl ColorsSection {
         if ColorField::new(id.with(2), &mut color, &mut self.fields[index])
             .dropdown(true)
             .original(own)
-            .title(palette.name)
+            .title(tr(palette.name))
             .show(ui, field, bounds)
             .changed
         {

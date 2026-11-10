@@ -9,6 +9,8 @@
 
 use std::collections::HashMap;
 
+use koebi_i18n::tr;
+
 use koebi_input::{Conflict, ConflictKind, Context, Keymap, Shortcut, Zones};
 
 /// The conflicts of one shortcut of an action.
@@ -105,32 +107,41 @@ impl Analysis {
 /// What a conflict of `shortcut`, a shortcut of an action in `context`, says.
 fn message(zones: &Zones, context: Context, shortcut: Shortcut, conflict: &Conflict) -> String {
     let other = conflict.other;
-    let place = zones.label(other.context);
-    let here = zones.label(context);
-    match conflict.kind {
-        ConflictKind::Total => format!(
-            "{shortcut} is already a shortcut of {} in {place}: it stays off until one of them \
-             changes.",
-            other.label
+    let place = tr(zones.label(other.context));
+    let here = tr(zones.label(context));
+    let action = tr(other.label);
+    let (shortcut, theirs) = (shortcut.to_string(), conflict.shortcut.to_string());
+    let values: [(&str, &dyn core::fmt::Display); 6] = [
+        ("shortcut", &shortcut),
+        ("other", &theirs),
+        ("action", &action),
+        ("place", &place),
+        ("here", &here),
+        ("condition", &other.when.map_or("", |when| tr(when.state))),
+    ];
+    let text = match conflict.kind {
+        // TRANSLATORS: {shortcut} is a shortcut (Ctrl+S), {action} an action, {place} a part of
+        // the interface (Outliner).
+        ConflictKind::Total => tr(
+            "{shortcut} is already a shortcut of {action} in {place}: it stays off until one of \
+             them changes.",
         ),
-        ConflictKind::Shadowed => format!(
-            "In {place}, inside {here}, {shortcut} does {} instead.",
-            other.label
+        // TRANSLATORS: {place} lies inside {here}; {action} is what {shortcut} does there.
+        ConflictKind::Shadowed => {
+            tr("In {place}, inside {here}, {shortcut} does {action} instead.")
+        }
+        ConflictKind::Shadows => {
+            tr("In {here}, {shortcut} wins over {action} of {place}, which it lies inside.")
+        }
+        ConflictKind::Similar => tr(
+            "{other} does {action} in {place}: one movement does both, or one instead of the \
+             other.",
         ),
-        ConflictKind::Shadows => format!(
-            "In {here}, {shortcut} wins over {} of {place}, which it lies inside.",
-            other.label
-        ),
-        ConflictKind::Similar => format!(
-            "{} does {} in {place}: one movement does both, or one instead of the other.",
-            conflict.shortcut, other.label
-        ),
-        ConflictKind::Shared => format!(
-            "Also {} {}: the two never apply at once.",
-            other.label,
-            other.when.map_or("", |when| when.state)
-        ),
-    }
+        // TRANSLATORS: {condition} tells when the other action applies ("when a group is
+        // folded").
+        ConflictKind::Shared => tr("Also {action} {condition}: the two never apply at once."),
+    };
+    koebi_i18n::fill(text, &values)
 }
 
 /// `true` when `text` holds `needle`, letters compared without their case. Searches run when

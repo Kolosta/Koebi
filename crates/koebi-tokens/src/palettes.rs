@@ -17,6 +17,7 @@ use koebi_design::kind;
 use koebi_design::tier::Semantic;
 use koebi_design::value::{Definition, Value};
 use koebi_design::{DesignSystem, Layers, Scope, ThemeId, Token, TokenId};
+use koebi_i18n::n_;
 
 use crate::semantic;
 
@@ -443,8 +444,8 @@ pub struct ColorRole {
 pub const ROLES: [ColorRole; 5] = [
     ColorRole {
         key: "accent",
-        name: "Accent",
-        description: "Selection, focus, main actions.",
+        name: n_!("Accent"),
+        description: n_!("Selection, focus, main actions."),
         palette: "blue",
         steps: [
             semantic::ACCENT_COLOR_100,
@@ -468,8 +469,8 @@ pub const ROLES: [ColorRole; 5] = [
     },
     ColorRole {
         key: "info",
-        name: "Informative",
-        description: "Information needing no action.",
+        name: n_!("Informative"),
+        description: n_!("Information needing no action."),
         palette: "blue",
         steps: [
             semantic::INFO_COLOR_100,
@@ -493,8 +494,8 @@ pub const ROLES: [ColorRole; 5] = [
     },
     ColorRole {
         key: "positive",
-        name: "Positive",
-        description: "Success, what is valid or added.",
+        name: n_!("Positive"),
+        description: n_!("Success, what is valid or added."),
         palette: "green",
         steps: [
             semantic::POSITIVE_COLOR_100,
@@ -518,8 +519,8 @@ pub const ROLES: [ColorRole; 5] = [
     },
     ColorRole {
         key: "notice",
-        name: "Notice",
-        description: "Warnings, what needs attention.",
+        name: n_!("Notice"),
+        description: n_!("Warnings, what needs attention."),
         palette: "orange",
         steps: [
             semantic::NOTICE_COLOR_100,
@@ -543,8 +544,8 @@ pub const ROLES: [ColorRole; 5] = [
     },
     ColorRole {
         key: "negative",
-        name: "Negative",
-        description: "Errors and destructive actions.",
+        name: n_!("Negative"),
+        description: n_!("Errors and destructive actions."),
         palette: "red",
         steps: [
             semantic::NEGATIVE_COLOR_100,
@@ -586,9 +587,9 @@ pub enum Family {
 pub struct Editable {
     /// Its key in token paths (`accent`, `gray`, `red`).
     pub key: &'static str,
-    /// Its name in the interface.
+    /// Its name in the interface, in English: shown with `koebi_i18n::tr`.
     pub name: &'static str,
-    /// What it colors.
+    /// What it colors, in English.
     pub description: &'static str,
     /// Which tokens it writes.
     pub family: Family,
@@ -673,24 +674,24 @@ pub fn neutral_from_seed(
 /// Every palette the color settings edit: the roles, the neutral palette, then the hues.
 pub fn editable() -> impl Iterator<Item = Editable> {
     const HUE_NAMES: [&str; 18] = [
-        "Red",
-        "Orange",
-        "Yellow",
-        "Chartreuse",
-        "Celery",
-        "Green",
-        "Seafoam",
-        "Cyan",
-        "Blue",
-        "Indigo",
-        "Purple",
-        "Fuchsia",
-        "Magenta",
-        "Pink",
-        "Turquoise",
-        "Cinnamon",
-        "Brown",
-        "Silver",
+        n_!("Red"),
+        n_!("Orange"),
+        n_!("Yellow"),
+        n_!("Chartreuse"),
+        n_!("Celery"),
+        n_!("Green"),
+        n_!("Seafoam"),
+        n_!("Cyan"),
+        n_!("Blue"),
+        n_!("Indigo"),
+        n_!("Purple"),
+        n_!("Fuchsia"),
+        n_!("Magenta"),
+        n_!("Pink"),
+        n_!("Turquoise"),
+        n_!("Cinnamon"),
+        n_!("Brown"),
+        n_!("Silver"),
     ];
     let roles = ROLES.iter().map(|role| Editable {
         key: role.key,
@@ -700,14 +701,14 @@ pub fn editable() -> impl Iterator<Item = Editable> {
     });
     let neutral = core::iter::once(Editable {
         key: "gray",
-        name: "Neutral",
-        description: "A tint of every gray.",
+        name: n_!("Neutral"),
+        description: n_!("A tint of every gray."),
         family: Family::Neutral,
     });
     let hues = HUES.iter().zip(HUE_NAMES).map(|(hue, name)| Editable {
         key: hue.name,
         name,
-        description: "Tags, charts, what aliases it.",
+        description: n_!("Tags, charts, what aliases it."),
         family: Family::Hue,
     });
     roles.chain(neutral).chain(hues)

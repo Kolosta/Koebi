@@ -120,7 +120,7 @@ impl Colors {
                 half.0 = way;
             }
             let tip = if index == 0 {
-                "How the left half of the fields shows transparency"
+                tr("How the left half of the fields shows transparency")
             } else {
                 tr("How the right half of the fields shows transparency")
             };

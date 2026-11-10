@@ -222,11 +222,6 @@ const FIELD_STATES: [(ControlState, &str); 5] = [
 
 /// The choices of the dropdown to try.
 const CHOICE_NAMES: [&str; 3] = [n_!("Linear"), n_!("Logarithmic"), n_!("Stepped")];
-const CHOICES: [MenuItem<'static>; 3] = [
-    MenuItem::action(CHOICE_NAMES[0]),
-    MenuItem::action(CHOICE_NAMES[1]),
-    MenuItem::action(CHOICE_NAMES[2]),
-];
 
 /// What the components to try keep.
 #[derive(Debug)]
@@ -390,10 +385,9 @@ impl ComponentPages {
                 Vec2::new(stack.left, stack.y),
                 Vec2::new(stack.right, stack.y + UNBOUNDED),
             );
-            let shown = CollapsiblePanel::new(id, panel, title).trailing(slot).show(
-                ui,
-                area,
-                |ui, rect| {
+            let shown = CollapsiblePanel::new(id, panel, tr(title))
+                .trailing(slot)
+                .show(ui, area, |ui, rect| {
                     let mut y = rect.min.y;
                     for (number, page) in pages.iter_mut().enumerate() {
                         let at = Rect::from_min_max(Vec2::new(rect.min.x, y), rect.max);
@@ -401,8 +395,7 @@ impl ComponentPages {
                         y += show_page(ui, at, key, design, keymap, page, live, bounds);
                     }
                     y - rect.min.y
-                },
-            );
+                });
             if let Some(trailing) = shown.trailing {
                 options::header_dot(ui, trailing, id.with(0), design, tokens, menu, bounds);
             }
@@ -463,7 +456,7 @@ fn show_page(
         all,
         rows,
     } = page;
-    let shown = CollapsiblePanel::new(id, panel, doc.title)
+    let shown = CollapsiblePanel::new(id, panel, tr(doc.title))
         .trailing(slot)
         .show(ui, area, |ui, rect| {
             let padding = ui.styles().panel.padding;
@@ -477,7 +470,7 @@ fn show_page(
             let font = ui.styles().text.body.clone();
             let color = ui.styles().text.primary;
             let text = Rect::from_min_max(Vec2::new(inner.min.x, y), inner.max);
-            y += ui.paragraph(doc.text, text, &font, color) + gap;
+            y += ui.paragraph(tr(doc.text), text, &font, color) + gap;
             let section = |ui: &mut Ui<'_>, y: &mut f32, title: &str| {
                 let at = Rect::from_min_max(
                     Vec2::new(inner.min.x, *y),
@@ -644,10 +637,14 @@ fn try_it(
             row
         }
         Preview::Dropdown => {
-            let label = CHOICE_NAMES.get(live.choice).copied().unwrap_or_default();
-            if let Some(choice) = Dropdown::new(id, &mut live.menu, &CHOICES)
-                .label(label)
-                .show(ui, control, bounds)
+            let label = CHOICE_NAMES.get(live.choice).copied().map_or("", tr);
+            if let Some(choice) = Dropdown::new(
+                id,
+                &mut live.menu,
+                &CHOICE_NAMES.map(|name| MenuItem::action(tr(name))),
+            )
+            .label(label)
+            .show(ui, control, bounds)
             {
                 live.choice = choice.index();
             }

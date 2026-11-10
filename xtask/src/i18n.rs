@@ -1,7 +1,8 @@
 //! `cargo xtask i18n`: the translation catalogs kept in step with the sources
 //! (`docs/development/translation.md`).
 //!
-//! - `extract` reads every message the sources mark (`tr`, `trc`, `trn`, `trnc`, `n_!`) and
+//! - `extract` reads every message the sources mark (`tr`, `trc`, `trn`, `trnc`, `n_!`,
+//!   `nc_!`) and
 //!   writes the template `crates/koebi-i18n/locales/koebi.pot`.
 //! - `update` extracts, then merges the template into every catalog: new messages arrive
 //!   untranslated, removed ones become obsolete (`#~`), and a message whose English changed
@@ -483,11 +484,11 @@ fn scan(code: &str, path: &str) -> std::result::Result<Vec<Found>, String> {
         {
             continue;
         }
-        let (context_first, messages, args_at) = if name == "n_" {
+        let (context_first, messages, args_at) = if name == "n_" || name == "nc_" {
             if tokens.get(at + 1).map(|t| &t.0) != Some(&Token::Punct('!')) {
                 continue;
             }
-            (false, 1, at + 2)
+            (name == "nc_", 1, at + 2)
         } else if let Some(&(_, context, count)) = MARKS.iter().find(|(mark, _, _)| mark == name) {
             (context, count, at + 1)
         } else {
@@ -512,8 +513,10 @@ fn scan(code: &str, path: &str) -> std::result::Result<Vec<Found>, String> {
             next += 1;
         }
         if literals.len() < wanted {
-            // `tr(action.label)`: text marked where it is written, with `n_!`.
-            if !literals.is_empty() {
+            // `tr(action.label)`, `trc("key", name)`: text marked where it is written, with `n_!`
+            // or `nc_!`.
+            let context_only = context_first && literals.len() == 1;
+            if !literals.is_empty() && !context_only {
                 return Err(format!(
                     "{line}: `{name}` takes literals or no literal at all"
                 ));
@@ -846,7 +849,9 @@ mod tests {
             let b = koebi_i18n::trc("menu", "Close");
             let c = trn("{count} file", "{count} files", n);
             static D: &str = n_!("Save");
+            static K: &str = nc_!("key", "Delete");
             let e = tr(label); // marked where it is written
+            let l = trc("key", name);
             let f = "tr(\"Not a mark\")";
             fn tr(x: &str) {}
             let g = text.tr("Method");
@@ -868,6 +873,7 @@ mod tests {
                     Some("{count} files".to_owned())
                 ),
                 (none.clone(), "Save".to_owned(), none.clone()),
+                (Some("key".to_owned()), "Delete".to_owned(), none.clone()),
                 (none.clone(), "Raw \"quoted\"".to_owned(), none.clone()),
                 (none.clone(), "Line continued".to_owned(), none),
             ]

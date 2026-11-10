@@ -21,13 +21,15 @@
 //! ```
 //!
 //! Messages are marked where they are written: [`tr`], [`trc`] (with a context that tells two
-//! identical English messages apart), [`trn`] (with a count), and [`n_!`] for text stored before
-//! it is shown (action labels in statics), looked up with [`tr`] where it shows.
+//! identical English messages apart), [`trn`] (with a count), and [`n_!`] (or [`nc_!`], in a
+//! context) for text stored before it is shown (action labels in statics), looked up with [`tr`]
+//! (or [`trc`]) where it shows.
 
 pub mod catalog;
 pub mod plural;
 pub mod po;
 
+use core::cell::Cell;
 use core::fmt::Display;
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
@@ -113,6 +115,11 @@ include!(concat!(env!("OUT_DIR"), "/catalogs.rs"));
 static ACTIVE: AtomicUsize = AtomicUsize::new(0);
 static REVISION: AtomicU64 = AtomicU64::new(0);
 
+std::thread_local! {
+    /// The language of this thread alone, while [`with_language`] runs.
+    static OVERRIDE: Cell<Option<usize>> = const { Cell::new(None) };
+}
+
 /// Every language, English first.
 pub fn languages() -> &'static [Language] {
     LANGUAGES
@@ -125,9 +132,31 @@ pub fn english() -> &'static Language {
 
 /// The language messages show in.
 pub fn language() -> &'static Language {
+    let index = OVERRIDE
+        .with(Cell::get)
+        .unwrap_or_else(|| ACTIVE.load(Ordering::Relaxed));
+    LANGUAGES.get(index).unwrap_or(&LANGUAGES[0])
+}
+
+fn index_of(language: &'static Language) -> usize {
     LANGUAGES
-        .get(ACTIVE.load(Ordering::Relaxed))
-        .unwrap_or(&LANGUAGES[0])
+        .iter()
+        .position(|candidate| core::ptr::eq(candidate, language))
+        .unwrap_or(0)
+}
+
+/// Runs `f` with messages in `language` on this thread only, then as before: tests and previews
+/// show a language without changing the application's.
+pub fn with_language<R>(language: &'static Language, f: impl FnOnce() -> R) -> R {
+    /// Puts the thread's previous language back, even when `f` panics.
+    struct Restore(Option<usize>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            OVERRIDE.with(|cell| cell.set(self.0));
+        }
+    }
+    let _restore = Restore(OVERRIDE.with(|cell| cell.replace(Some(index_of(language)))));
+    f()
 }
 
 /// The language of `code` (`fr`, `pt_BR`; `-` reads as `_`, case does not matter).
@@ -164,10 +193,7 @@ pub fn matching<'a>(preferred: impl IntoIterator<Item = &'a str>) -> Option<&'st
 
 /// Shows messages in `language` from now on; returns whether it changed.
 pub fn set_language(language: &'static Language) -> bool {
-    let index = LANGUAGES
-        .iter()
-        .position(|candidate| core::ptr::eq(candidate, language))
-        .unwrap_or(0);
+    let index = index_of(language);
     let changed = ACTIVE.swap(index, Ordering::Relaxed) != index;
     if changed {
         REVISION.fetch_add(1, Ordering::Relaxed);
@@ -275,6 +301,15 @@ macro_rules! n_ {
     };
 }
 
+/// [`n_!`] in a context: the text itself, translated with [`trc`] and the same context where it
+/// shows (`nc_!("key", "Delete")`, then `trc("key", name)`).
+#[macro_export]
+macro_rules! nc_ {
+    ($context:literal, $text:literal) => {
+        $text
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -331,6 +366,21 @@ mod tests {
         let mut out = String::from("old");
         fill_into(&mut out, "é{n}", &[("n", &"日本")]);
         assert_eq!(out, "é日本");
+    }
+
+    #[test]
+    fn a_thread_may_show_another_language_for_a_while() {
+        let other = languages().last().unwrap_or(english());
+        let (inside, elsewhere) = with_language(other, || {
+            let elsewhere = std::thread::spawn(|| OVERRIDE.with(Cell::get))
+                .join()
+                .unwrap();
+            (language().code(), elsewhere)
+        });
+        assert_eq!(inside, other.code());
+        // Another thread kept the application's language, and this one is back to it.
+        assert_eq!(elsewhere, None);
+        assert_eq!(OVERRIDE.with(Cell::get), None);
     }
 
     #[test]

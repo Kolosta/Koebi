@@ -74,7 +74,8 @@ fn theme_cards(ui: &mut Ui<'_>, cards: &Cards, design: &mut DesignSystem) {
             chosen = Some(theme);
         }
         let color = if theme == active { primary } else { secondary };
-        ui.label(info.name(), cards.name(index), &font, color, Align::Center);
+        let name = koebi_tokens::themes::built_in_name(info.key()).map_or(info.name(), tr);
+        ui.label(name, cards.name(index), &font, color, Align::Center);
     }
     if let Some(theme) = chosen
         && let Err(error) = design.set_active_theme(theme)

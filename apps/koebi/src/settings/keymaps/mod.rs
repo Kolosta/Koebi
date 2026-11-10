@@ -114,6 +114,13 @@ pub(super) struct KeymapsPage {
 }
 
 impl KeymapsPage {
+    /// Builds again what holds translated text: the lists of the details and the conflicts'
+    /// messages.
+    pub(super) fn language_changed(&mut self) {
+        self.choices = Choices::new();
+        self.analysis = Analysis::default();
+    }
+
     pub(super) fn new() -> Self {
         Self {
             search: String::new(),
@@ -154,7 +161,7 @@ impl KeymapsPage {
                 .remove(&context)
                 .unwrap_or_else(|| CollapsiblePanelState::new(context == crate::actions::APP));
             let mut panel =
-                CollapsiblePanel::new(ID.with(context_key(context)), &mut state, info.label);
+                CollapsiblePanel::new(ID.with(context_key(context)), &mut state, tr(info.label));
             if let Some(worst) = self.analysis.zone(context) {
                 panel = panel.status(
                     koebi_icons::interface::WARNING,
@@ -287,8 +294,10 @@ impl KeymapsPage {
             .filter(|(action, bindings)| {
                 let named = text.is_empty()
                     || contains_folded(action.label, text)
+                    || contains_folded(tr(action.label), text)
                     || contains_folded(action.id, text)
-                    || contains_folded(action.description, text);
+                    || contains_folded(action.description, text)
+                    || contains_folded(tr(action.description), text);
                 let pressed = self.search_shortcut.is_none_or(|shortcut| {
                     bindings
                         .iter()
@@ -376,10 +385,11 @@ impl KeymapsPage {
                     .unwrap_or_else(|| CollapsiblePanelState::new(true));
                 let id = ID.with(context_key(context)).with(name_key(group.name));
                 let actions: Vec<&'static ActionDef> = actions.collect();
-                let shown =
-                    CollapsiblePanel::new(id, &mut state, group.name).show(ui, at, |ui, rect| {
-                        self.actions_in(ui, rect, &actions, design, keymap, bounds)
-                    });
+                let shown = CollapsiblePanel::new(id, &mut state, tr(group.name)).show(
+                    ui,
+                    at,
+                    |ui, rect| self.actions_in(ui, rect, &actions, design, keymap, bounds),
+                );
                 self.features.insert(key, state);
                 y += shown.height + gap;
             } else {
@@ -399,8 +409,11 @@ impl KeymapsPage {
                 .zones
                 .remove(&info.context)
                 .unwrap_or_else(|| CollapsiblePanelState::new(false));
-            let mut panel =
-                CollapsiblePanel::new(ID.with(context_key(info.context)), &mut state, info.label);
+            let mut panel = CollapsiblePanel::new(
+                ID.with(context_key(info.context)),
+                &mut state,
+                tr(info.label),
+            );
             if let Some(worst) = self.analysis.zone(info.context) {
                 panel = panel.status(
                     koebi_icons::interface::WARNING,
@@ -459,7 +472,7 @@ impl KeymapsPage {
             drafts,
         } = &mut state;
         let mut panel =
-            CollapsiblePanel::new(id, panel_state, action.label).trailing(ACTION_TRAILING);
+            CollapsiblePanel::new(id, panel_state, tr(action.label)).trailing(ACTION_TRAILING);
         if let Some(worst) = worst {
             panel = panel.status(
                 koebi_icons::interface::WARNING,
@@ -530,7 +543,13 @@ impl KeymapsPage {
             Vec2::new(rect.min.x + padding, y),
             Vec2::new(rect.max.x - padding, y + row),
         );
-        ui.label(action.description, line, &detail, secondary, Align::Start);
+        ui.label(
+            tr(action.description),
+            line,
+            &detail,
+            secondary,
+            Align::Start,
+        );
         y += row + gap;
         let shown = keymap.bindings(action.id).unwrap_or(&[]);
         let report = self.analysis.action(action.id);

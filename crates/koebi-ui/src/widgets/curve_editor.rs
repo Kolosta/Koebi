@@ -612,7 +612,7 @@ fn easing_fields(
             .enabled(index.is_some())
             .show(ui, cell)
             .changed;
-        ui.tooltip(key, EASING_TIPS[part], cell);
+        ui.tooltip(key, tr(EASING_TIPS[part]), cell);
     }
     let Some(index) = index.filter(|_| changed) else {
         return false;

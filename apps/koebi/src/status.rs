@@ -10,6 +10,7 @@
 //!   which to keep when room is short.
 
 use koebi_core::Vec2;
+use koebi_i18n::tr;
 use koebi_input::{ActionKind, Context, Keymap};
 use koebi_ui::{StatusEntry, UiState};
 
@@ -57,7 +58,7 @@ impl StatusShortcuts {
                 }
                 let entry = StatusEntry {
                     shortcut,
-                    label: action.label,
+                    label: tr(action.label),
                     priority: hint.priority,
                 };
                 self.found.push((hint.kind, hint.priority, depth, entry));

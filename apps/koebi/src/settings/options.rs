@@ -406,13 +406,12 @@ fn option_body(
         let title = Rect::from_origin_size(Vec2::new(x, top), Vec2::new(width, row));
         text.clear();
         if theme.is_some() {
-            let name = design
-                .theme(design.active_theme())
-                .map_or("", koebi_design::Theme::name);
-            // Writing into a `String` cannot fail.
-            let _infallible = write!(text, "Current theme: {name}");
+            let name = design.theme(design.active_theme()).map_or("", |theme| {
+                koebi_tokens::themes::built_in_name(theme.key()).map_or(theme.name(), tr)
+            });
+            koebi_i18n::fill_into(text, tr("Current theme: {name}"), &[("name", &name)]);
         } else {
-            text.push_str("Application");
+            text.push_str(tr("Application"));
         }
         ui.label(text, title, &font, secondary, Align::Start);
         let input = Rect::from_origin_size(Vec2::new(x, top + row), Vec2::new(width, height));
