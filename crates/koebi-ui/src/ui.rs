@@ -60,9 +60,11 @@ pub struct UiState {
     scale_factor: Option<f32>,
     /// Whose keyboard keys are named for.
     keyboard: Keyboard,
-    /// The fonts labels are laid out with, and a line reused for each label.
+    /// The fonts labels are laid out with, a line reused for each label and a block for each
+    /// paragraph.
     pub(crate) fonts: Fonts,
     pub(crate) line: TextLine,
+    pub(crate) block: koebi_text::TextBlock,
     /// When the last frame wants to be drawn again, if it does.
     redraw_at: Option<Duration>,
     /// What the frame being built asks of the platform: a locked pointer and where it comes
@@ -536,6 +538,11 @@ impl<'a> Ui<'a> {
     /// wheel straight from [`Input`] for what lies under the pointer leaves them alone then.
     pub fn pointer_is_free(&self) -> bool {
         !self.state.is_action_in_progress()
+    }
+
+    /// The fonts labels are laid out with ([`UiState::set_fonts`]).
+    pub fn fonts(&self) -> &Fonts {
+        &self.state.fonts
     }
 
     /// The scene, for custom drawing between components.

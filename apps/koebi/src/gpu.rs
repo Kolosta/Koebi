@@ -66,6 +66,11 @@ impl Gpu {
         Ok((gpu, first))
     }
 
+    /// Replaces the fonts new renderers draw glyphs from.
+    pub(crate) fn set_fonts(&mut self, fonts: Fonts) {
+        self.fonts = fonts;
+    }
+
     /// What `window` needs to show frames.
     pub(crate) fn for_window(&self, window: &Window) -> Result<WindowGpu, AppError> {
         let surface = create_surface(&self.instance, window)?;
@@ -88,6 +93,13 @@ pub(crate) struct WindowGpu {
 }
 
 impl WindowGpu {
+    /// Replaces the fonts the window's renderer draws glyphs from: its glyphs are stored again.
+    pub(crate) fn set_fonts(&mut self, fonts: Fonts) {
+        if let Some(renderer) = &mut self.renderer {
+            renderer.set_fonts(fonts);
+        }
+    }
+
     const fn empty() -> Self {
         Self {
             renderer: None,

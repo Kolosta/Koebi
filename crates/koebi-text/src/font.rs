@@ -1,4 +1,6 @@
-//! A TrueType font: its tables, character map, metrics and advances.
+//! A TrueType font: its tables, character map, metrics, advances, family name, and the layout
+//! data a horizontal shaper reads (kerning pairs and ligatures, [`crate::otl`]). Fonts of a
+//! collection (`.ttc`) are read one by one.
 
 use std::borrow::Cow;
 use std::fmt;
@@ -56,6 +58,15 @@ pub struct Font {
     cmap: Cmap,
     /// Glyphs of the ASCII characters, looked up once.
     ascii: [u16; 128],
+    /// The family name (`name` table, typographic family first), empty when the font has none.
+    family: String,
+    gpos: Option<Range<usize>>,
+    gsub: Option<Range<usize>>,
+    kern: Option<Range<usize>>,
+    /// The `GPOS` lookups of the `kern` feature.
+    kerning_lookups: Vec<u16>,
+    /// The `GSUB` lookups of the `liga` and `clig` features.
+    ligature_lookups: Vec<u16>,
 }
 
 impl Font {
@@ -65,7 +76,26 @@ impl Font {
     ///
     /// See [`Font::from_vec`].
     pub fn from_static(data: &'static [u8]) -> Result<Self> {
-        Self::parse(Cow::Borrowed(data))
+        Self::parse(Cow::Borrowed(data), 0)
+    }
+
+    /// Reads font `index` of a collection (`.ttc`) or, at index 0, a single font.
+    ///
+    /// # Errors
+    ///
+    /// See [`Font::from_vec`]; [`Error::Malformed`] for an index past the collection.
+    pub fn from_collection(data: Vec<u8>, index: u32) -> Result<Self> {
+        let at = collection_offset(&data, index)?;
+        Self::parse(Cow::Owned(data), at)
+    }
+
+    /// How many fonts `data` holds: a collection's count, 1 for a single font, 0 for other data.
+    pub fn count_in(data: &[u8]) -> u32 {
+        match u32_at(data, 0) {
+            Some(0x7474_6366) => u32_at(data, 8).unwrap_or(0).min(256),
+            Some(0x0001_0000 | 0x7472_7565 | 0x4F54_544F) => 1,
+            _ => 0,
+        }
     }
 
     /// Reads a font from its file's bytes.
@@ -75,11 +105,11 @@ impl Font {
     /// Returns [`Error::NotAFont`] for other data, [`Error::Unsupported`] for CFF outlines and
     /// collections, [`Error::MissingTable`] or [`Error::Malformed`] for broken fonts.
     pub fn from_vec(data: Vec<u8>) -> Result<Self> {
-        Self::parse(Cow::Owned(data))
+        Self::parse(Cow::Owned(data), 0)
     }
 
-    fn parse(data: Cow<'static, [u8]>) -> Result<Self> {
-        let directory = Directory::read(&data)?;
+    fn parse(data: Cow<'static, [u8]>, at: usize) -> Result<Self> {
+        let directory = Directory::read(&data, at)?;
         let table = |tag| directory.find(&data, tag)?.ok_or(Error::MissingTable(tag));
 
         let head = table(Tag::HEAD)?;
@@ -136,6 +166,21 @@ impl Font {
         };
         let cmap_table = table(Tag::CMAP)?;
         let cmap = Cmap::choose(&data[cmap_table.clone()])?;
+        let gpos = directory.find(&data, Tag::GPOS)?;
+        let gsub = directory.find(&data, Tag::GSUB)?;
+        let kern = directory.find(&data, Tag::KERN)?;
+        let kerning_lookups = gpos
+            .clone()
+            .map(|range| crate::otl::feature_lookups(&data[range], &[*b"kern"]))
+            .unwrap_or_default();
+        let ligature_lookups = gsub
+            .clone()
+            .map(|range| crate::otl::feature_lookups(&data[range], &[*b"liga", *b"clig"]))
+            .unwrap_or_default();
+        let family = directory
+            .find(&data, Tag::NAME)?
+            .and_then(|range| family_name(&data[range]))
+            .unwrap_or_default();
 
         let mut font = Self {
             data,
@@ -150,6 +195,12 @@ impl Font {
             cmap_table,
             cmap,
             ascii: [0; 128],
+            family,
+            gpos,
+            gsub,
+            kern,
+            kerning_lookups,
+            ligature_lookups,
         };
         let mut ascii = [0; 128];
         for (code, glyph) in (0_u32..).zip(&mut ascii) {
@@ -186,6 +237,57 @@ impl Font {
             return (*glyph != 0).then_some(GlyphId(*glyph));
         }
         self.lookup(code)
+    }
+
+    /// The family name the font gives (`Noto Sans`), empty when it gives none.
+    pub fn family(&self) -> &str {
+        &self.family
+    }
+
+    /// The kerning between `left` and `right`, in font units: the `GPOS` `kern` feature's pair
+    /// adjustment, else the `kern` table's; 0 without one.
+    pub fn kerning(&self, left: GlyphId, right: GlyphId) -> i16 {
+        if let Some(gpos) = &self.gpos
+            && !self.kerning_lookups.is_empty()
+        {
+            return crate::otl::gpos_kerning(
+                &self.data[gpos.clone()],
+                &self.kerning_lookups,
+                left.0,
+                right.0,
+            )
+            .unwrap_or(0);
+        }
+        self.kern
+            .as_ref()
+            .and_then(|kern| crate::otl::kern_table(&self.data[kern.clone()], left.0, right.0))
+            .unwrap_or(0)
+    }
+
+    /// `true` when the font kerns pairs (a `kern` feature or table).
+    pub fn has_kerning(&self) -> bool {
+        !self.kerning_lookups.is_empty() || self.kern.is_some()
+    }
+
+    /// The ligature (`liga` and `clig` features) the glyphs of `run` start with: the ligature
+    /// glyph and how many glyphs of the run it replaces.
+    pub fn ligature(&self, run: &[GlyphId]) -> Option<(GlyphId, usize)> {
+        let gsub = self.gsub.as_ref()?;
+        if self.ligature_lookups.is_empty() || run.len() < 2 {
+            return None;
+        }
+        let mut glyphs = [0_u16; 8];
+        let len = run.len().min(glyphs.len());
+        for (slot, glyph) in glyphs.iter_mut().zip(run) {
+            *slot = glyph.0;
+        }
+        crate::otl::ligature(
+            &self.data[gsub.clone()],
+            &self.ligature_lookups,
+            &glyphs[..len],
+        )
+        .filter(|&(glyph, _)| glyph < self.glyph_count)
+        .map(|(glyph, count)| (GlyphId(glyph), count))
     }
 
     /// Horizontal advance of `glyph`, in font units.
@@ -246,27 +348,96 @@ impl fmt::Debug for Font {
     }
 }
 
-/// The table directory.
+/// The offset of font `index`'s table directory: in a collection, its entry; 0 otherwise.
+fn collection_offset(data: &[u8], index: u32) -> Result<usize> {
+    if u32_at(data, 0) != Some(0x7474_6366) {
+        return if index == 0 {
+            Ok(0)
+        } else {
+            Err(Error::NotAFont)
+        };
+    }
+    let malformed = Error::Malformed {
+        table: Tag(*b"ttcf"),
+        reason: "no font at this index",
+    };
+    let count = u32_at(data, 8).ok_or(Error::NotAFont)?;
+    if index >= count {
+        return Err(malformed);
+    }
+    let entry = 12_usize
+        .checked_add(4 * usize::try_from(index).map_err(|_| malformed.clone())?)
+        .ok_or(malformed.clone())?;
+    let offset = u32_at(data, entry).ok_or(malformed.clone())?;
+    usize::try_from(offset).map_err(|_| malformed)
+}
+
+/// The family name of a `name` table: the typographic family (name 16) if given, else the
+/// family (name 1); Windows Unicode records first, then Macintosh Roman ones.
+pub(crate) fn family_name(name: &[u8]) -> Option<String> {
+    let count = usize::from(u16_at(name, 2)?);
+    let strings = usize::from(u16_at(name, 4)?);
+    let mut best: Option<(u8, String)> = None;
+    for i in 0..count.min(1024) {
+        let record = 6 + 12 * i;
+        let (platform, encoding) = (u16_at(name, record)?, u16_at(name, record + 2)?);
+        let language = u16_at(name, record + 4)?;
+        let id = u16_at(name, record + 6)?;
+        let (len, offset) = (
+            usize::from(u16_at(name, record + 8)?),
+            usize::from(u16_at(name, record + 10)?),
+        );
+        let Some(bytes) = slice(name, strings + offset, len) else {
+            continue;
+        };
+        let text = match (platform, encoding) {
+            (3, 0 | 1 | 10) | (0, _) => {
+                let (pairs, _) = bytes.as_chunks::<2>();
+                let units: Vec<u16> = pairs.iter().map(|pair| u16::from_be_bytes(*pair)).collect();
+                String::from_utf16(&units).ok()
+            }
+            (1, 0) => Some(bytes.iter().map(|&b| char::from(b)).collect()),
+            _ => None,
+        };
+        let Some(text) = text.filter(|text| !text.is_empty()) else {
+            continue;
+        };
+        // Lower is better: typographic family first, English and Windows first.
+        let rank = match id {
+            16 => 0,
+            1 => 4,
+            _ => continue,
+        } + u8::from(platform != 3)
+            + 2 * u8::from(platform == 3 && language != 0x0409);
+        if best.as_ref().is_none_or(|(kept, _)| rank < *kept) {
+            best = Some((rank, text));
+        }
+    }
+    best.map(|(_, text)| text)
+}
+
+/// The table directory, at its offset in the file.
 struct Directory {
+    at: usize,
     tables: u16,
 }
 
 impl Directory {
-    fn read(data: &[u8]) -> Result<Self> {
-        match u32_at(data, 0).ok_or(Error::NotAFont)? {
+    fn read(data: &[u8], at: usize) -> Result<Self> {
+        match u32_at(data, at).ok_or(Error::NotAFont)? {
             0x0001_0000 | 0x7472_7565 => {}
             0x4F54_544F => return Err(Error::Unsupported("CFF outlines")),
-            0x7474_6366 => return Err(Error::Unsupported("font collections")),
+            0x7474_6366 => return Err(Error::Unsupported("nested font collections")),
             _ => return Err(Error::NotAFont),
         }
-        let tables = u16_at(data, 4).ok_or(Error::NotAFont)?;
-        Ok(Self { tables })
+        let tables = u16_at(data, at + 4).ok_or(Error::NotAFont)?;
+        Ok(Self { at, tables })
     }
 
     /// The byte range of table `tag`, checked to lie inside the data.
     fn find(&self, data: &[u8], tag: Tag) -> Result<Option<Range<usize>>> {
         for index in 0..usize::from(self.tables) {
-            let record = 12 + 16 * index;
+            let record = self.at + 12 + 16 * index;
             let found = slice(data, record, 4).ok_or(Error::NotAFont)?;
             if found != tag.0 {
                 continue;

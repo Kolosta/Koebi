@@ -25,6 +25,8 @@ pub enum Error {
     UnknownGlyph(u16),
     /// A glyph's outline or bitmap exceeds the limits that protect memory.
     TooComplex,
+    /// A font file cannot be read.
+    Io(String),
 }
 
 impl fmt::Display for Error {
@@ -36,6 +38,7 @@ impl fmt::Display for Error {
             Self::Unsupported(what) => write!(f, "unsupported font: {what}"),
             Self::UnknownGlyph(glyph) => write!(f, "glyph {glyph} is not in the font"),
             Self::TooComplex => f.write_str("the glyph is too complex or too large to draw"),
+            Self::Io(reason) => write!(f, "cannot read the font file: {reason}"),
         }
     }
 }

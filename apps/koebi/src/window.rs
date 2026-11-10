@@ -98,6 +98,8 @@ pub(crate) struct AppWindow {
     pub(crate) needs_redraw: bool,
     /// The revision of what every window shows ([`Interface::revision`]) the last frame showed.
     pub(crate) drawn_revision: u64,
+    /// The revision of the fonts the window and its renderer have.
+    pub(crate) fonts_revision: u64,
     /// While the pointer is locked, motion only moves what holds it: positions stay.
     pointer_locked: bool,
     /// Where the pointer comes back while it is locked.
@@ -133,6 +135,7 @@ impl AppWindow {
             settings_in_place: None,
             needs_redraw: true,
             drawn_revision: interface.revision(),
+            fonts_revision: interface.fonts_revision(),
             pointer_locked: false,
             locked_at: None,
             typing: None,

@@ -14,7 +14,7 @@ flowchart TD
     platform["koebi-platform<br/>SDL3: lifecycle, windows, events, surface"]
     tokens["koebi-tokens<br/>Koebi's design tokens and themes"]
     design["koebi-design<br/>design tokens, themes, overrides, color vision"]
-    text["koebi-text<br/>fonts, glyph rasterization, single-line layout"]
+    text["koebi-text<br/>fonts, shaping, line breaking, paragraphs"]
     svg["koebi-svg<br/>SVG subset → curves per color zone"]
     icons["koebi-icons<br/>SVG icons compiled at build time"]
     workspace["koebi-workspace<br/>areas, lines, joins, editor stacks"]
@@ -35,7 +35,7 @@ flowchart TD
 |---|---|---|
 | `koebi-core` | `Vec2`/`Rect`/`Extent`, `Color` (sRGB, linear, OKLab, OKLCH, WCAG contrast), color vision matrices, input vocabulary (`Key`, `Modifiers` with sides, `MouseButton`), logging facade, arithmetic expressions with units | nothing |
 | `koebi-gpu` | Vulkan loading, instance, adapter selection, device, memory, buffers, textures, samplers, bind groups, pipelines, command recording, swapchain and frame pacing | `ash`, core |
-| `koebi-render` | Retained `Scene` of 2D primitives (rectangles, segments, fills, glyphs, vector icons), glyph atlas, icon set, GPU instance layouts, shaders, batching ([pixel grid](pixel-grid.md)) | gpu, text, svg, core |
+| `koebi-render` | Retained `Scene` of 2D primitives (rectangles, segments, fills, glyphs, vector icons), glyphs and icons drawn from their curves, GPU instance layouts, shaders, batching ([pixel grid](pixel-grid.md)) | gpu, text, svg, core |
 | `koebi-platform` | SDL3 main callbacks (`App` trait), windows and custom chrome ([ADR 0019](../adr/0019-window-chrome.md)), event translation (keys, pointer and relative motion, wheel, pinch, text, focus), cursors, pointer lock, text input, clipboard, Vulkan library and surface | `sdl3-sys`, `ash` (types), core |
 | `koebi-design` | Design token engine: typed tokens in three tiers, compiled token tables, themes, overrides, views, color vision ([ADR 0008](../adr/0008-design-token-system.md)) | core |
 | `koebi-tokens` | Koebi's token set and built-in themes ([design system](../design-system/README.md)) | design |

@@ -434,8 +434,8 @@ mod tests {
             })
             .collect();
         let record = record(&curves, [0.0, -0.7, 0.97, 0.0], 0);
-        let bands = record[0][0] as usize;
-        assert_eq!(bands, MAX_BANDS);
+        assert_eq!(record[0][0], MAX_BANDS as f32);
+        let bands = MAX_BANDS;
         // A vertical band holds the bars near it, not all eighty curves.
         let column = record[2 + bands];
         assert!(column[1] < 20.0, "{column:?}");

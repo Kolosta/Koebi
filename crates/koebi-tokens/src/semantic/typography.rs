@@ -132,6 +132,12 @@ koebi_design::tokens! {
     /// Letter spacing of labels, size m.
     FONT_TRACKING_LABEL_M = "font.tracking.label.m": Number -> primitive::FONT_TRACKING_WIDE;
 
+    /// Pair kerning of the interface's text (`kern`): 1 on, 0 off.
+    FONT_KERNING = "font.kerning": Number -> primitive::FONT_FEATURE_ON;
+    /// Ligatures of the interface's text (`liga`, `clig`: fi, fl): 1 on, 0 off. Never with
+    /// letter spacing, which keeps letters apart.
+    FONT_LIGATURES = "font.ligatures": Number -> primitive::FONT_FEATURE_ON;
+
     /// Space above headings, size m.
     TEXT_MARGIN_TOP_HEADING_M = "text.margin.top.heading.m": Dimension -> primitive::SPACING_400;
     /// Space above headings, size l.

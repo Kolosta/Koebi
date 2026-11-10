@@ -110,6 +110,10 @@ koebi_design::tokens! {
     FONT_TRACKING_NORMAL = "font.tracking.normal": Number = 0.0, range(-0.2, 0.5);
     /// Wide letter spacing, in em.
     FONT_TRACKING_WIDE = "font.tracking.wide": Number = 0.05, range(-0.2, 0.5);
+    /// A typographic feature turned on (kerning, ligatures).
+    FONT_FEATURE_ON = "font.feature.on": Number = 1.0, range(0.0, 1.0);
+    /// A typographic feature turned off.
+    FONT_FEATURE_OFF = "font.feature.off": Number = 0.0, range(0.0, 1.0);
     /// Wider letter spacing, in em.
     FONT_TRACKING_WIDER = "font.tracking.wider": Number = 0.1, range(-0.2, 0.5);
     /// Widest letter spacing, in em.

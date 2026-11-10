@@ -1,6 +1,6 @@
 # 0014. Text basics: in-house TrueType reading, CPU coverage glyphs, single-line labels
 
-- Status: Accepted
+- Status: Accepted; drawing and layout superseded by [0022](0022-text-on-the-gpu.md)
 - Date: 2026-10-25
 - Deciders: @Kolosta
 

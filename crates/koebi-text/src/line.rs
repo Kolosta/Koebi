@@ -1,17 +1,51 @@
-//! Single-line layout: glyphs placed by their advances, cut with an ellipsis to fit a width.
+//! Single-line layout: glyphs shaped ([`crate::shape`]), cut with an ellipsis to fit a width.
 
 use crate::font::GlyphId;
 use crate::fonts::{FontId, Fonts};
 
+/// The typographic features a style uses.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Features {
+    /// Pair kerning (`kern`).
+    pub kerning: bool,
+    /// Standard and contextual ligatures (`liga`, `clig`), never with tracking: letters spaced
+    /// apart are not joined.
+    pub ligatures: bool,
+}
+
+impl Default for Features {
+    /// Both on, as browsers and type setters do.
+    fn default() -> Self {
+        Self {
+            kerning: true,
+            ligatures: true,
+        }
+    }
+}
+
 /// How a run of text looks.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TextStyle {
-    /// The font.
+    /// The font; characters it lacks come from the fallbacks ([`Fonts::add_fallback`]).
     pub font: FontId,
     /// Size in pixels per em (logical pixels for the UI).
     pub size: f32,
     /// Extra space between glyphs, in ems (the `font.tracking.*` tokens).
     pub tracking: f32,
+    /// Kerning and ligatures.
+    pub features: Features,
+}
+
+impl TextStyle {
+    /// `font` at `size`, without tracking, with the default features.
+    pub fn new(font: FontId, size: f32) -> Self {
+        Self {
+            font,
+            size,
+            tracking: 0.0,
+            features: Features::default(),
+        }
+    }
 }
 
 /// A glyph placed on a line.
@@ -60,25 +94,7 @@ impl TextLine {
         let metrics = font.metrics();
         self.ascent = f32::from(metrics.ascender) * scale;
         self.descent = -f32::from(metrics.descender) * scale;
-        let spacing = style.tracking * style.size;
-        let mut x = 0.0;
-        for (offset, c) in text.char_indices() {
-            if c.is_control() {
-                continue;
-            }
-            let glyph = font.glyph_index(c).unwrap_or(GlyphId::NOTDEF);
-            if !self.glyphs.is_empty() {
-                x += spacing;
-            }
-            self.glyphs.push(PlacedGlyph {
-                font: style.font,
-                glyph,
-                x,
-                cluster: u32::try_from(offset).unwrap_or(u32::MAX),
-            });
-            x += f32::from(font.advance(glyph)) * scale;
-        }
-        self.width = x;
+        self.width = crate::shape::shape(fonts, text, style, &mut self.glyphs);
     }
 
     /// Lays `text` out, then, if it is wider than `max_width`, keeps the longest start that
@@ -103,6 +119,9 @@ impl TextLine {
         let scale = style.size / f32::from(font.units_per_em());
         let spacing = style.tracking * style.size;
         let advance = |glyph| f32::from(font.advance(glyph)) * scale;
+        // Where each glyph's advance ends, in its own font.
+        let end =
+            |placed: &PlacedGlyph| placed.x + crate::shape::advance(fonts, placed, style.size);
         let ellipsis = font.glyph_index('\u{2026}');
         let (ellipsis, dots, ellipsis_width) = if let Some(glyph) = ellipsis {
             (glyph, 1, advance(glyph))
@@ -114,7 +133,7 @@ impl TextLine {
         let mut kept = self
             .glyphs
             .iter()
-            .take_while(|placed| fits(placed.x + advance(placed.glyph)))
+            .take_while(|placed| fits(end(placed)))
             .count();
         let is_space = |placed: &PlacedGlyph| {
             usize::try_from(placed.cluster)
@@ -128,7 +147,7 @@ impl TextLine {
         }
         let cluster = self.glyphs.get(kept).map_or(0, |placed| placed.cluster);
         let mut x = match kept.checked_sub(1).map(|last| self.glyphs[last]) {
-            Some(last) => last.x + advance(last.glyph) + spacing,
+            Some(last) => end(&last) + spacing,
             None => 0.0,
         };
         self.glyphs.truncate(kept);

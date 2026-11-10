@@ -33,8 +33,11 @@ pub(crate) struct Interface {
     pub(crate) content: Content,
     /// Whether the frame-time overlay is shown.
     pub(crate) overlay: OverlaySwitch,
-    /// The fonts text is laid out with; the renderers rasterize glyphs from the same ones.
+    /// The fonts text is laid out with; the renderers draw glyphs from the same ones.
     pub(crate) fonts: Fonts,
+    /// How many times fonts were added since start-up: windows and renderers take the new
+    /// collection when it changes.
+    fonts_revision: u64,
     /// The text of the shortcuts the menus show.
     pub(crate) labels: ShortcutLabels,
     /// The keymap's revision the labels were read from.
@@ -94,6 +97,7 @@ impl Interface {
             content: Content::new(),
             overlay: OverlaySwitch::new(options.shows_frame_times()),
             fonts,
+            fonts_revision: 0,
             labels,
             labels_revision: keymap.revision(),
             keymap,
@@ -131,7 +135,22 @@ impl Interface {
     /// when the change came from another window. Both counts only grow, so their sum changes
     /// whenever either does.
     pub(crate) fn revision(&self) -> u64 {
-        self.design.revision() + self.overlay.changes()
+        self.design.revision() + self.overlay.changes() + self.fonts_revision
+    }
+
+    /// Adds `font` to `family`, as a fallback for the characters other fonts lack when
+    /// `fallback`; every window and renderer takes the new collection on its next frame.
+    pub(crate) fn add_font(&mut self, family: &str, font: koebi_text::Font, fallback: bool) {
+        let id = self.fonts.add(family, font);
+        if fallback {
+            self.fonts.add_fallback(id);
+        }
+        self.fonts_revision += 1;
+    }
+
+    /// The revision of the fonts ([`Self::add_font`]).
+    pub(crate) fn fonts_revision(&self) -> u64 {
+        self.fonts_revision
     }
 
     /// The time since the interface started: the time scale of `Input::set_time`.

@@ -2,7 +2,7 @@
 
 use koebi_core::{Color, Rect, Vec2};
 use koebi_gpu::Pod;
-use koebi_text::{FontId, GlyphId, TextLine};
+use koebi_text::{FontId, GlyphId, TextBlock, TextLine};
 
 use crate::fill::{FillInstance, FillPrimitive};
 use crate::icon::{IconInstance, IconPrimitive};
@@ -630,6 +630,47 @@ impl Scene {
                 rotation: 0.0,
                 color,
             });
+        }
+    }
+
+    /// Appends the glyphs of `line` turned clockwise by `rotation` radians about `origin`, the
+    /// start of its baseline (logical pixels).
+    pub fn push_text_rotated(
+        &mut self,
+        line: &TextLine,
+        origin: Vec2,
+        color: Color,
+        rotation: f32,
+    ) {
+        let (sin, cos) = rotation.sin_cos();
+        for placed in line.glyphs() {
+            self.push_glyph(&GlyphPrimitive {
+                font: placed.font,
+                glyph: placed.glyph,
+                size: line.size(),
+                origin: origin + Vec2::new(placed.x * cos, placed.x * sin),
+                rotation,
+                color,
+            });
+        }
+    }
+
+    /// Appends the glyphs of a laid-out block whose top-left corner is `origin` (logical
+    /// pixels), turned clockwise by `rotation` radians about it.
+    pub fn push_block(&mut self, block: &TextBlock, origin: Vec2, color: Color, rotation: f32) {
+        let (sin, cos) = rotation.sin_cos();
+        for line in block.lines() {
+            for placed in &block.glyphs()[line.glyphs.clone()] {
+                let (x, y) = (placed.x, line.baseline);
+                self.push_glyph(&GlyphPrimitive {
+                    font: placed.font,
+                    glyph: placed.glyph,
+                    size: block.size(),
+                    origin: origin + Vec2::new(x * cos - y * sin, x * sin + y * cos),
+                    rotation,
+                    color,
+                });
+            }
         }
     }
 

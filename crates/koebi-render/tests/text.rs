@@ -294,6 +294,7 @@ fn text_blends_its_color_with_coverage_in_painters_order() {
         font: regular,
         size: 24.0,
         tracking: 0.0,
+        features: koebi_text::Features::default(),
     };
     line.layout(&fonts, "IH", &style);
     let ink = Color::from_rgba8(255, 128, 0, 255).with_alpha(0.5);
