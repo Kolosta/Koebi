@@ -40,7 +40,8 @@ crates/koebi-design/   design token engine: typed tiers, token tables, themes, o
 crates/koebi-tokens/   Koebi's design tokens (primitive, semantic, component) and built-in themes
 crates/koebi-ui/       components drawn from typed token styles, immediate-mode interaction
 crates/koebi-input/    actions and shortcuts: keymap, contexts, gestures, conflicts, overrides
-crates/koebi-text/     fonts: TrueType reading, glyph rasterization, one-line layout; Noto Sans
+crates/koebi-text/     fonts: TrueType reading, shaping (kerning, ligatures), line breaking, paragraphs;
+                       Noto Sans, Noto Sans JP, system fonts
 crates/koebi-svg/      icon compiler: checked SVG subset -> quadratic curves per color zone; no deps
 crates/koebi-icons/    the SVG icons (icons/<category>/), compiled and checked by build.rs
 crates/koebi-workspace/ workspace model: tiled areas, linked lines, joins, editor stacks

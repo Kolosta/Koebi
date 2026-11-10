@@ -231,6 +231,7 @@ fn style(fonts: &Fonts, weight: u16, size: f32) -> TextStyle {
             .expect("Noto Sans is embedded"),
         size,
         tracking: 0.0,
+        features: koebi_text::Features::default(),
     }
 }
 
@@ -242,7 +243,14 @@ fn close(a: f32, b: f32) -> bool {
 fn lines_place_glyphs_by_their_advances() {
     let fonts = Fonts::with_embedded();
     let mut line = TextLine::new();
-    let regular = style(&fonts, 400, 10.0);
+    // Advances alone: kerning and ligatures off.
+    let regular = TextStyle {
+        features: koebi_text::Features {
+            kerning: false,
+            ligatures: false,
+        },
+        ..style(&fonts, 400, 10.0)
+    };
     line.layout(&fonts, "AV", &regular);
     let xs: Vec<f32> = line.glyphs().iter().map(|placed| placed.x).collect();
     assert!(close(xs[0], 0.0) && close(xs[1], 6.39), "{xs:?}");
@@ -260,7 +268,8 @@ fn lines_place_glyphs_by_their_advances() {
     // Control characters are skipped; missing characters show the missing-glyph box.
     line.layout(&fonts, "A\tV\n", &regular);
     assert_eq!(line.glyphs().len(), 2);
-    line.layout(&fonts, "中", &regular);
+    // A private-use character: no embedded font draws it.
+    line.layout(&fonts, "\u{E000}", &regular);
     assert_eq!(line.glyphs()[0].glyph, GlyphId::NOTDEF);
     assert!(close(line.width(), 6.0));
     assert_eq!(line.glyphs()[0].cluster, 0);
@@ -313,7 +322,11 @@ fn truncation_keeps_what_fits_and_appends_an_ellipsis() {
 #[test]
 fn fonts_select_by_family_and_weight() {
     let fonts = Fonts::with_embedded();
-    assert_eq!(fonts.len(), 2);
+    assert_eq!(
+        fonts.len(),
+        4,
+        "Noto Sans and Noto Sans JP, two weights each"
+    );
     let weight = |family: &str, weight| {
         fonts
             .select(family, weight)
@@ -414,11 +427,11 @@ fn exercise(font: &Font, rasterizer: &mut Rasterizer, bitmap: &mut GlyphBitmap) 
     for c in ['A', 'é', 'o', '€', '…', 'Ж', '\u{FFFF}', '\u{10FFFF}'] {
         let glyph = font.glyph_index(c).unwrap_or(GlyphId::NOTDEF);
         let _ = font.advance(glyph);
-        let _ = outline.load(font, glyph);
-        let _ = rasterizer.rasterize(font, glyph, 24.0, 0.5, bitmap);
+        drop(outline.load(font, glyph));
+        drop(rasterizer.rasterize(font, glyph, 24.0, 0.5, bitmap));
     }
     for index in [0, 1, 100, 171, 4502, 4503, u16::MAX] {
-        let _ = rasterizer.rasterize(font, GlyphId(index), 13.0, 0.25, bitmap);
+        drop(rasterizer.rasterize(font, GlyphId(index), 13.0, 0.25, bitmap));
     }
 }
 
@@ -462,5 +475,96 @@ fn corrupted_fonts_never_panic() {
         if let Ok(font) = Font::from_vec(corrupted) {
             exercise(&font, &mut rasterizer, &mut bitmap);
         }
+    }
+}
+
+#[test]
+fn kerning_and_ligatures_follow_the_style() {
+    let fonts = Fonts::with_embedded();
+    let mut line = TextLine::new();
+    let kerned = style(&fonts, 400, 10.0);
+    // Noto Sans kerns "AV" by -40 units per 1000: V moves 0.4 pixel left at 10 pixels.
+    line.layout(&fonts, "AV", &kerned);
+    assert!(close(line.glyphs()[1].x, 5.99), "{:?}", line.glyphs());
+    // "fi" joins into one glyph, keeping the cluster of the "f".
+    line.layout(&fonts, "a fi", &kerned);
+    assert_eq!(line.glyphs().len(), 3);
+    assert_eq!(line.glyphs()[2].cluster, 2);
+    // Not with letter spacing, nor with ligatures off.
+    let spaced = TextStyle {
+        tracking: 0.05,
+        ..kerned
+    };
+    line.layout(&fonts, "fi", &spaced);
+    assert_eq!(line.glyphs().len(), 2);
+    let plain = TextStyle {
+        features: koebi_text::Features {
+            kerning: true,
+            ligatures: false,
+        },
+        ..kerned
+    };
+    line.layout(&fonts, "fi", &plain);
+    assert_eq!(line.glyphs().len(), 2);
+}
+
+#[test]
+fn fonts_read_their_family_and_collections_their_count() {
+    let font = Font::from_static(embedded::NOTO_SANS_REGULAR).unwrap();
+    assert_eq!(font.family(), "Noto Sans");
+    assert!(font.has_kerning());
+    assert_eq!(Font::count_in(embedded::NOTO_SANS_REGULAR), 1);
+    assert_eq!(Font::count_in(b"not a font"), 0);
+    assert!(Font::from_collection(embedded::NOTO_SANS_REGULAR.to_vec(), 1).is_err());
+    assert!(Font::from_collection(embedded::NOTO_SANS_REGULAR.to_vec(), 0).is_ok());
+}
+
+#[test]
+fn characters_a_font_lacks_come_from_its_fallbacks() {
+    // Without a fallback, the missing-glyph box.
+    let mut latin = Fonts::new();
+    let regular = latin.add(
+        embedded::NOTO_SANS,
+        Font::from_static(embedded::NOTO_SANS_REGULAR).unwrap(),
+    );
+    assert_eq!(latin.glyph_for(regular, '中').1, GlyphId::NOTDEF);
+    // The embedded fonts take Japanese from Noto Sans JP, in the weight of the style.
+    let fonts = Fonts::with_embedded();
+    let regular = fonts.select(embedded::NOTO_SANS, 400).unwrap();
+    let medium = fonts.select(embedded::NOTO_SANS, 500).unwrap();
+    let jp_regular = fonts.select(embedded::NOTO_SANS_JP, 400).unwrap();
+    let jp_medium = fonts.select(embedded::NOTO_SANS_JP, 500).unwrap();
+    assert_eq!(fonts.fallbacks(), [jp_regular, jp_medium]);
+    for c in ['中', 'あ', 'カ', '。'] {
+        assert_eq!(fonts.glyph_for(regular, c).0, jp_regular, "{c}");
+        assert_eq!(fonts.glyph_for(medium, c).0, jp_medium, "{c}");
+        assert_ne!(fonts.glyph_for(regular, c).1, GlyphId::NOTDEF, "{c}");
+    }
+    // A character the font has stays in it.
+    assert_eq!(fonts.glyph_for(regular, 'A').0, regular);
+    assert_eq!(
+        fonts.families(),
+        [embedded::NOTO_SANS, embedded::NOTO_SANS_JP]
+    );
+}
+
+#[test]
+fn japanese_lines_break_between_characters() {
+    let fonts = Fonts::with_embedded();
+    let style = style(&fonts, 400, 16.0);
+    let mut block = koebi_text::TextBlock::new();
+    let text = "日本語の文章は、単語の間に空白がなくても行を分けられます。";
+    let paragraph = koebi_text::Paragraph {
+        width: Some(100.0),
+        ..koebi_text::Paragraph::default()
+    };
+    block.layout(&fonts, text, &style, &paragraph);
+    assert!(block.lines().len() >= 4, "{} lines", block.lines().len());
+    for line in block.lines() {
+        assert!(line.width <= 100.0 + 1e-3);
+        // No line starts with a full stop or a comma (kinsoku).
+        let first = block.glyphs()[line.glyphs.start];
+        let c = text[first.cluster as usize..].chars().next().unwrap();
+        assert!(!matches!(c, '。' | '、'), "a line starts with {c}");
     }
 }

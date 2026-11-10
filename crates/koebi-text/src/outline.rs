@@ -19,6 +19,49 @@ pub enum PathCommand {
     Close,
 }
 
+/// A quadratic Bézier curve monotonic in x and y: its start, control and end point.
+pub type MonotonicCurve = [Vec2; 3];
+
+/// Curves one glyph may give: hostile fonts are bounded by the point limit already.
+const MAX_CURVES: usize = 1 << 14;
+
+fn lerp(a: Vec2, b: Vec2, t: f32) -> Vec2 {
+    a + (b - a) * t
+}
+
+/// Splits a quadratic curve at its extrema in x and y: the pieces are monotonic.
+fn split_monotonic(curve: MonotonicCurve, out: &mut Vec<MonotonicCurve>) {
+    let extremum = |p0: f32, p1: f32, p2: f32| {
+        let denominator = p0 - 2.0 * p1 + p2;
+        if denominator.abs() < 1e-12 {
+            return None;
+        }
+        let t = (p0 - p1) / denominator;
+        (t > 1e-6 && t < 1.0 - 1e-6).then_some(t)
+    };
+    let [a, b, c] = curve;
+    let (mut first, mut second) = (extremum(a.x, b.x, c.x), extremum(a.y, b.y, c.y));
+    if let (Some(x), Some(y)) = (first, second)
+        && y < x
+    {
+        (first, second) = (Some(y), Some(x));
+    }
+    let mut rest = curve;
+    let mut done = 0.0;
+    for cut in [first, second].into_iter().flatten() {
+        // The cut on what is left of the curve.
+        let t = (cut - done) / (1.0 - done);
+        let [p0, p1, p2] = rest;
+        let q0 = lerp(p0, p1, t);
+        let q1 = lerp(p1, p2, t);
+        let mid = lerp(q0, q1, t);
+        out.push([p0, q0, mid]);
+        rest = [mid, q1, p2];
+        done = cut;
+    }
+    out.push(rest);
+}
+
 /// Composite glyphs nest at most this deep: deeper ones are refused, loops included.
 const MAX_DEPTH: u8 = 8;
 /// Points one glyph may total, components included: protects memory from hostile fonts.
@@ -121,6 +164,62 @@ impl Outline {
     /// The commands, contour after contour.
     pub fn commands(&self) -> &[PathCommand] {
         &self.commands
+    }
+
+    /// The outline as quadratic curves monotonic in x and y, in ems with y pointing down and
+    /// the pen at the origin (`units_per_em` font units per em), written into `out` (cleared
+    /// first); and their bounds, `[x min, y min, x max, y max]`. Lines become straight
+    /// quadratics, curves are split at their extrema. `None` for a glyph without contours.
+    /// What the renderer draws glyphs from, and what tests check it against.
+    pub fn monotonic_curves(
+        &self,
+        units_per_em: f32,
+        out: &mut Vec<MonotonicCurve>,
+    ) -> Option<[f32; 4]> {
+        out.clear();
+        let em = |p: Vec2| Vec2::new(p.x / units_per_em, -p.y / units_per_em);
+        let (mut start, mut pen) = (Vec2::ZERO, Vec2::ZERO);
+        for command in &self.commands {
+            match *command {
+                PathCommand::MoveTo(p) => {
+                    start = em(p);
+                    pen = start;
+                }
+                PathCommand::LineTo(p) => {
+                    let to = em(p);
+                    if to != pen {
+                        out.push([pen, lerp(pen, to, 0.5), to]);
+                    }
+                    pen = to;
+                }
+                PathCommand::QuadTo(control, p) => {
+                    let to = em(p);
+                    split_monotonic([pen, em(control), to], out);
+                    pen = to;
+                }
+                PathCommand::Close => {
+                    if pen != start {
+                        out.push([pen, lerp(pen, start, 0.5), start]);
+                    }
+                    pen = start;
+                }
+            }
+            if out.len() > MAX_CURVES {
+                out.clear();
+                return None;
+            }
+        }
+        let first = out.first()?[0];
+        let mut bounds = [first.x, first.y, first.x, first.y];
+        for p in out.iter().flatten() {
+            bounds = [
+                bounds[0].min(p.x),
+                bounds[1].min(p.y),
+                bounds[2].max(p.x),
+                bounds[3].max(p.y),
+            ];
+        }
+        Some(bounds)
     }
 
     /// `true` for glyphs without outline (spaces).

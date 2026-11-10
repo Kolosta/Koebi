@@ -28,6 +28,7 @@ mod editor;
 mod fields;
 mod icons;
 mod menus;
+mod typography;
 
 use koebi_core::{Color, Oklch, Rect, Vec2};
 use koebi_design::kind::Color as ColorKind;
@@ -171,6 +172,8 @@ pub(crate) struct Gallery {
     curves: curves::Curves,
     /// The size and colors of the icons panel.
     icons: icons::Icons,
+    /// The settings of the typography panel.
+    pub(crate) typography: typography::Typography,
     /// The color vision dropdown's menu.
     vision_menu: MenuState,
     /// How far the gallery is scrolled when its area is too small for it.
@@ -191,6 +194,7 @@ impl Gallery {
             colors: colors::Colors::new(),
             curves: curves::Curves::new(),
             icons: icons::Icons::new(),
+            typography: typography::Typography::new(),
             vision_menu: MenuState::new(),
             scroll: ScrollState::new(),
         }
@@ -242,6 +246,7 @@ impl Gallery {
         let colors = self.colors.height(ui, metrics);
         let curves = curves::Curves::height(ui, metrics);
         let icons = self.icons.height(ui, width - 2.0 * gap, metrics);
+        let typography = typography::Typography::height(ui, metrics);
         let vision = metrics.panel_height(ui, 1);
         let grid = metrics.panel_height(ui, 6);
         2.0 * gap
@@ -260,6 +265,8 @@ impl Gallery {
             + curves
             + gap
             + icons
+            + gap
+            + typography
             + gap
             + vision
             + gap
@@ -322,6 +329,12 @@ impl Gallery {
         let icons_height = self.icons.height(ui, rest.width(), metrics);
         let icons = cut_top(&mut rest, icons_height, metrics.gap);
         self.icons.show(ui, icons, metrics);
+        let typography = cut_top(
+            &mut rest,
+            typography::Typography::height(ui, metrics),
+            metrics.gap,
+        );
+        self.typography.show(ui, typography, window, metrics);
         let vision = cut_top(&mut rest, vision_height, metrics.gap);
         editor::color_vision(ui, design, vision, metrics, &mut self.vision_menu, window);
         self.grid(ui, design, rest, metrics);

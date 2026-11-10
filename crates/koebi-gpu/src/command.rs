@@ -282,6 +282,87 @@ impl<'a> CommandEncoder<'a> {
         unsafe { self.device.cmd_pipeline_barrier2(self.raw, &dependency) };
     }
 
+    /// Copies `region` of `source` to the same place in `destination`, of the same format: what
+    /// a texture held, kept on the GPU when a larger one replaces it.
+    ///
+    /// `source` must be in [`TextureState::TransferSrc`] and `destination` in
+    /// [`TextureState::TransferDst`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidArgument`] if usages are missing, the formats differ, or the
+    /// region is empty or lies outside either texture.
+    pub fn copy_texture_to_texture(
+        &mut self,
+        source: &Texture,
+        destination: &Texture,
+        region: TextureRegion,
+    ) -> Result<()> {
+        if !source.usage().contains(TextureUsage::TRANSFER_SRC)
+            || !destination.usage().contains(TextureUsage::TRANSFER_DST)
+        {
+            return Err(Error::InvalidArgument(
+                "copy requires TRANSFER_SRC/TRANSFER_DST".into(),
+            ));
+        }
+        if source.format() != destination.format() {
+            return Err(Error::InvalidArgument(format!(
+                "copy from {:?} to {:?}: the formats differ",
+                source.format(),
+                destination.format()
+            )));
+        }
+        if region.is_empty()
+            || !region.fits_in(source.extent())
+            || !region.fits_in(destination.extent())
+        {
+            return Err(Error::InvalidArgument(format!(
+                "region {region:?} is empty or outside a texture of {:?} or {:?}",
+                source.extent(),
+                destination.extent()
+            )));
+        }
+        let offset = |value: u32| {
+            i32::try_from(value).map_err(|_| Error::InvalidArgument("region offset".into()))
+        };
+        let at = vk::Offset3D {
+            x: offset(region.x)?,
+            y: offset(region.y)?,
+            z: 0,
+        };
+        let layers = vk::ImageSubresourceLayers {
+            aspect_mask: vk::ImageAspectFlags::COLOR,
+            mip_level: 0,
+            base_array_layer: 0,
+            layer_count: 1,
+        };
+        let copy = vk::ImageCopy {
+            src_subresource: layers,
+            src_offset: at,
+            dst_subresource: layers,
+            dst_offset: at,
+            extent: vk::Extent3D {
+                width: region.width,
+                height: region.height,
+                depth: 1,
+            },
+        };
+        // SAFETY: recording command buffer; both textures belong to this device and have the
+        // usages and the format checked above; the region lies inside both; the caller's
+        // barriers put them in the layouts named here.
+        unsafe {
+            self.device.raw.cmd_copy_image(
+                self.raw,
+                source.handle(),
+                vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
+                destination.handle(),
+                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                &[copy],
+            );
+        }
+        Ok(())
+    }
+
     /// Copies texels from `buffer` into `region` of `texture`, leaving the rest of the texture
     /// unchanged: uploads through a staging buffer, whole or partial.
     ///

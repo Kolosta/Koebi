@@ -3,10 +3,10 @@
 use std::fmt;
 use std::sync::Arc;
 
-use crate::font::Font;
+use crate::font::{Font, GlyphId};
 
-/// Fonts embedded in the binary: Noto Sans, under the SIL Open Font License 1.1
-/// (`crates/koebi-text/fonts/OFL.txt`).
+/// Fonts embedded in the binary: Noto Sans and Noto Sans JP, under the SIL Open Font License 1.1
+/// (`crates/koebi-text/fonts/OFL.txt`, `OFL-NotoSansJP.txt`).
 pub mod embedded {
     /// The family name the design tokens use for Noto Sans (`font.family.sans`).
     pub const NOTO_SANS: &str = "NotoSans";
@@ -14,6 +14,12 @@ pub mod embedded {
     pub const NOTO_SANS_REGULAR: &[u8] = include_bytes!("../fonts/NotoSans-Regular.ttf");
     /// Noto Sans Medium (weight 500): labels.
     pub const NOTO_SANS_MEDIUM: &[u8] = include_bytes!("../fonts/NotoSans-Medium.ttf");
+    /// The family of Noto Sans JP: Japanese kana and kanji, the fallback of every style.
+    pub const NOTO_SANS_JP: &str = "NotoSansJP";
+    /// Noto Sans JP Regular (weight 400).
+    pub const NOTO_SANS_JP_REGULAR: &[u8] = include_bytes!("../fonts/NotoSansJP-Regular.ttf");
+    /// Noto Sans JP Medium (weight 500).
+    pub const NOTO_SANS_JP_MEDIUM: &[u8] = include_bytes!("../fonts/NotoSansJP-Medium.ttf");
 }
 
 /// A font of a [`Fonts`] collection.
@@ -31,6 +37,8 @@ impl FontId {
 struct Entry {
     /// Family name, folded for matching (`notosans`).
     family: String,
+    /// The family as given.
+    name: String,
     font: Arc<Font>,
 }
 
@@ -39,6 +47,8 @@ struct Entry {
 #[derive(Clone, Default)]
 pub struct Fonts {
     entries: Arc<Vec<Entry>>,
+    /// Fonts tried in order for a character the style's font lacks: other scripts.
+    fallbacks: Arc<Vec<FontId>>,
 }
 
 impl Fonts {
@@ -47,13 +57,23 @@ impl Fonts {
         Self::default()
     }
 
-    /// The fonts Koebi embeds ([`embedded`]): Noto Sans Regular and Medium.
+    /// The fonts Koebi embeds ([`embedded`]): Noto Sans Regular and Medium, and Noto Sans JP
+    /// Regular and Medium as fallbacks, so that Japanese shows in any style.
     pub fn with_embedded() -> Self {
         let mut fonts = Self::new();
-        for data in [embedded::NOTO_SANS_REGULAR, embedded::NOTO_SANS_MEDIUM] {
+        let embedded = [
+            (embedded::NOTO_SANS, embedded::NOTO_SANS_REGULAR, false),
+            (embedded::NOTO_SANS, embedded::NOTO_SANS_MEDIUM, false),
+            (embedded::NOTO_SANS_JP, embedded::NOTO_SANS_JP_REGULAR, true),
+            (embedded::NOTO_SANS_JP, embedded::NOTO_SANS_JP_MEDIUM, true),
+        ];
+        for (family, data, fallback) in embedded {
             match Font::from_static(data) {
                 Ok(font) => {
-                    fonts.add(embedded::NOTO_SANS, font);
+                    let id = fonts.add(family, font);
+                    if fallback {
+                        fonts.add_fallback(id);
+                    }
                 }
                 // Tests read every embedded font: this cannot happen in a tested build.
                 Err(error) => koebi_core::error!("embedded font unreadable: {error}"),
@@ -68,9 +88,95 @@ impl Fonts {
         let id = FontId(u16::try_from(entries.len()).unwrap_or(u16::MAX));
         entries.push(Entry {
             family: fold(family),
+            name: family.to_owned(),
             font: Arc::new(font),
         });
         id
+    }
+
+    /// Makes `id` a fallback: characters a style's font lacks are taken from the first fallback
+    /// that has them (Japanese from Noto Sans JP), in the order fallbacks were added.
+    pub fn add_fallback(&mut self, id: FontId) {
+        if self.get(id).is_some() {
+            let fallbacks = Arc::make_mut(&mut self.fallbacks);
+            if !fallbacks.contains(&id) {
+                fallbacks.push(id);
+            }
+        }
+    }
+
+    /// Adds the Korean and Chinese fonts of the system ([`crate::system::cjk_fallbacks`]) as
+    /// fallbacks after the embedded ones, the first font of each file; returns how many. Reads
+    /// whole files (tens of megabytes): call it once, at start-up, on platforms that have them.
+    pub fn add_system_fallbacks(&mut self) -> usize {
+        let mut added = 0;
+        for path in crate::system::cjk_fallbacks() {
+            let font = std::fs::read(&path)
+                .map_err(|error| crate::Error::Io(error.to_string()))
+                .and_then(|data| Font::from_collection(data, 0));
+            match font {
+                Ok(font) => {
+                    let family = font.family().to_owned();
+                    let id = self.add(&family, font);
+                    self.add_fallback(id);
+                    added += 1;
+                }
+                Err(error) => {
+                    koebi_core::debug!("system font {} skipped: {error}", path.display());
+                }
+            }
+        }
+        added
+    }
+
+    /// The fallbacks, in the order they are tried.
+    pub fn fallbacks(&self) -> &[FontId] {
+        &self.fallbacks
+    }
+
+    /// The font and glyph that draw `c` for a style in `font`: its own glyph, else that of the
+    /// first fallback family that has it, in the weight closest to the style's; else its
+    /// missing-glyph box.
+    pub fn glyph_for(&self, font: FontId, c: char) -> (FontId, GlyphId) {
+        let Some(face) = self.get(font) else {
+            return (font, GlyphId::NOTDEF);
+        };
+        if let Some(glyph) = face.glyph_index(c) {
+            return (font, glyph);
+        }
+        let weight = face.weight();
+        let family_of = |id: FontId| self.entries.get(id.index()).map(|entry| &entry.family);
+        let first = self.fallbacks.iter().copied().find(|&fallback| {
+            self.get(fallback)
+                .is_some_and(|face| face.glyph_index(c).is_some())
+        });
+        let Some(first) = first else {
+            return (font, GlyphId::NOTDEF);
+        };
+        // Among the fallbacks of that family, the weight CSS would pick.
+        let family = family_of(first);
+        let best = self
+            .fallbacks
+            .iter()
+            .copied()
+            .filter(|&fallback| family_of(fallback) == family)
+            .filter_map(|fallback| Some((fallback, self.get(fallback)?.glyph_index(c)?)))
+            .min_by_key(|&(fallback, _)| {
+                self.get(fallback)
+                    .map_or((u8::MAX, 0), |face| preference(weight, face.weight()))
+            });
+        best.unwrap_or((font, GlyphId::NOTDEF))
+    }
+
+    /// The families of the collection, each once, in the order they were added.
+    pub fn families(&self) -> Vec<&str> {
+        let mut families: Vec<&str> = Vec::new();
+        for entry in self.entries.iter() {
+            if !families.contains(&entry.name.as_str()) {
+                families.push(&entry.name);
+            }
+        }
+        families
     }
 
     /// The font `id`, if it belongs to this collection.

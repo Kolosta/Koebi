@@ -176,6 +176,7 @@ impl Overlay {
             font,
             size,
             tracking: 0.0,
+            features: koebi_text::Features::default(),
         };
         if self.revision != Some(times.shown_revision()) || self.style != Some(style) {
             self.lines = lines(times.shown());

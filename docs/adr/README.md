@@ -31,3 +31,4 @@ one and link both.
 | [0019](0019-window-chrome.md) | Custom window chrome through the system's hit test | Accepted |
 | [0020](0020-vector-icons.md) | Vector icons compiled at build time, covered from their curves in the shader | Accepted |
 | [0021](0021-contrast-ordered-palettes.md) | Palettes ordered by contrast, made for each theme | Accepted |
+| [0022](0022-text-on-the-gpu.md) | Text on the GPU from glyph curves, shaping and paragraphs | Accepted |

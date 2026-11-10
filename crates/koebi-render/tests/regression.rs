@@ -165,6 +165,7 @@ fn text_scene() -> Scene {
             font,
             size,
             tracking: 0.0,
+            features: koebi_text::Features::default(),
         };
         line.layout_truncated(&fonts, text, &style, width);
         scene.push_text(&line, origin, color);

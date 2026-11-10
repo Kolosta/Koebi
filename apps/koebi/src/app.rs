@@ -52,6 +52,8 @@ pub(crate) struct KoebiApp {
     rate: IterationRate,
     /// Cursors the application drew.
     cursors: AppCursors,
+    /// The system's Korean and Chinese fonts, loaded off the main thread at start-up.
+    system_fonts: Option<std::sync::mpsc::Receiver<Vec<koebi_text::Font>>>,
     /// The icon its windows show.
     icon: AppIcon,
     // Field order is drop order: every window before what they share.
@@ -375,6 +377,13 @@ impl KoebiApp {
             ..
         } = self;
         let shown = &mut windows[index];
+        // Fonts added since its last frame: a system font, the system's fallbacks.
+        if shown.fonts_revision != interface.fonts_revision() {
+            shown.state.set_fonts(interface.fonts.clone());
+            shown.gpu.set_fonts(interface.fonts.clone());
+            gpu.set_fonts(interface.fonts.clone());
+            shown.fonts_revision = interface.fonts_revision();
+        }
         let scale_factor = shown.window.scale_factor();
         let logical_size = shown.window.size_in_pixels().to_logical(scale_factor);
         let started = Instant::now();
@@ -426,6 +435,38 @@ impl KoebiApp {
             }
         }
         AppControl::Continue
+    }
+
+    /// Adds the fonts that arrived: the system's fallbacks once loaded, a system font the
+    /// gallery asked for.
+    fn take_fonts(&mut self) {
+        if let Some(receiver) = &self.system_fonts {
+            match receiver.try_recv() {
+                Ok(fonts) => {
+                    koebi_core::info!("{} system fonts for Korean and Chinese", fonts.len());
+                    for font in fonts {
+                        let family = font.family().to_owned();
+                        self.interface.add_font(&family, font, true);
+                    }
+                    self.system_fonts = None;
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => self.system_fonts = None,
+                Err(std::sync::mpsc::TryRecvError::Empty) => {}
+            }
+        }
+        if let Some(request) = self.interface.content.gallery.typography.take_request() {
+            match request.load() {
+                Ok(font) => {
+                    koebi_core::info!(
+                        "font {} loaded from {}",
+                        request.family,
+                        request.path.display()
+                    );
+                    self.interface.add_font(&request.family, font, false);
+                }
+                Err(error) => koebi_core::warn!("cannot load {}: {error}", request.family),
+            }
+        }
     }
 
     /// Waits for events, except while a window has to draw (see [`iteration_rate`]) or
@@ -509,6 +550,36 @@ fn iteration_rate(
     }
 }
 
+/// Loads the system's Korean and Chinese fonts on a thread of their own, on desktop platforms:
+/// tens of megabytes read without delaying the first frame. The embedded fonts cover Latin and
+/// Japanese meanwhile.
+fn start_system_fonts() -> Option<std::sync::mpsc::Receiver<Vec<koebi_text::Font>>> {
+    if cfg!(any(target_os = "android", target_os = "ios")) {
+        return None;
+    }
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let spawned = std::thread::Builder::new()
+        .name("system fonts".to_owned())
+        .spawn(move || {
+            let fonts: Vec<koebi_text::Font> = koebi_text::system::cjk_fallbacks()
+                .into_iter()
+                .filter_map(|path| {
+                    let data = std::fs::read(&path).ok()?;
+                    koebi_text::Font::from_collection(data, 0).ok()
+                })
+                .collect();
+            // The application may have quit meanwhile: nobody to tell.
+            drop(sender.send(fonts));
+        });
+    match spawned {
+        Ok(_) => Some(receiver),
+        Err(error) => {
+            koebi_core::warn!("system fonts not loaded: {error}");
+            None
+        }
+    }
+}
+
 fn first_area(workspace: &Workspace) -> Option<koebi_workspace::AreaId> {
     workspace.layout().areas().next().map(|(area, _)| area)
 }
@@ -540,6 +611,7 @@ impl App for KoebiApp {
         context.set_iteration_rate(rate);
         let fonts = Fonts::with_embedded();
         let (interface, workspace, editors) = Interface::new(context, &options, fonts.clone())?;
+        let system_fonts = start_system_fonts();
 
         // Load Vulkan before creating the window: otherwise SDL loads its default library when
         // the first Vulkan window is created, which fails where the loader is not on the system
@@ -579,6 +651,7 @@ impl App for KoebiApp {
             frame_times: FrameTimes::new(),
             rate,
             cursors,
+            system_fonts,
             icon,
             windows: vec![main],
             gpu,
@@ -628,6 +701,7 @@ impl App for KoebiApp {
             window.apply_requests(context);
         }
         route_screen_pick(&mut self.windows);
+        self.take_fonts();
         let control = self.apply_commands(context);
         if control != AppControl::Continue {
             return control;

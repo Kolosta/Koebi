@@ -18,6 +18,10 @@ impl Tag {
     pub(crate) const LOCA: Self = Self(*b"loca");
     pub(crate) const MAXP: Self = Self(*b"maxp");
     pub(crate) const OS2: Self = Self(*b"OS/2");
+    pub(crate) const GPOS: Self = Self(*b"GPOS");
+    pub(crate) const GSUB: Self = Self(*b"GSUB");
+    pub(crate) const KERN: Self = Self(*b"kern");
+    pub(crate) const NAME: Self = Self(*b"name");
 }
 
 impl fmt::Display for Tag {

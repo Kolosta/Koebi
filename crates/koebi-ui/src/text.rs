@@ -20,6 +20,8 @@ pub struct FontStyle {
     pub size: f32,
     /// Extra space between glyphs, in ems.
     pub tracking: f32,
+    /// Kerning and ligatures (`semantic.font.kerning`, `semantic.font.ligatures`).
+    pub features: koebi_text::Features,
 }
 
 /// The text styles of the interface, from the `semantic.font.*` and `semantic.text.*` tokens.
@@ -43,24 +45,31 @@ impl TextStyles {
     /// Reads the styles from `tokens`.
     pub fn resolve(tokens: &impl Resolve) -> Self {
         let family = tokens.get(semantic::FONT_FAMILY_BODY);
+        let features = koebi_text::Features {
+            kerning: tokens.get(semantic::FONT_KERNING) >= 0.5,
+            ligatures: tokens.get(semantic::FONT_LIGATURES) >= 0.5,
+        };
         Self {
             label: FontStyle {
                 family: Arc::clone(&family),
                 weight: tokens.get(semantic::FONT_WEIGHT_LABEL_M).get(),
                 size: tokens.get(semantic::FONT_SIZE_LABEL_M),
                 tracking: tokens.get(semantic::FONT_TRACKING_LABEL_M),
+                features,
             },
             body: FontStyle {
                 family: Arc::clone(&family),
                 weight: tokens.get(semantic::FONT_WEIGHT_BODY_M).get(),
                 size: tokens.get(semantic::FONT_SIZE_BODY_M),
                 tracking: tokens.get(semantic::FONT_TRACKING_BODY_M),
+                features,
             },
             detail: FontStyle {
                 family,
                 weight: tokens.get(semantic::FONT_WEIGHT_BODY_M).get(),
                 size: tokens.get(semantic::FONT_SIZE_DETAIL_S),
                 tracking: 0.0,
+                features,
             },
             primary: tokens.get(semantic::TEXT_COLOR_PRIMARY_DEFAULT),
             secondary: tokens.get(semantic::TEXT_COLOR_SECONDARY_DEFAULT),
@@ -92,6 +101,7 @@ impl Ui<'_> {
             font: id,
             size: font.size,
             tracking: font.tracking,
+            features: font.features,
         })
     }
 
@@ -159,83 +169,40 @@ impl Ui<'_> {
     }
 
     /// Draws `text` wrapped to the width of `rect`, line under line from its top, breaking
-    /// between words; a line break starts a new paragraph, an empty line leaves one blank. A
-    /// word wider than the rectangle is cut with an ellipsis. Returns the height used, as
-    /// [`Ui::paragraph_height`] measures it; without fonts, nothing.
+    /// where lines may break (between words, and between the characters of Japanese, Chinese or
+    /// Korean, [`koebi_text::breaks`]); a line feed starts a new line, an empty line leaves one
+    /// blank. A word wider than the rectangle breaks between two characters. Returns the height
+    /// used, as [`Ui::paragraph_height`] measures it; without fonts, nothing.
     pub fn paragraph(&mut self, text: &str, rect: Rect, font: &FontStyle, color: Color) -> f32 {
-        self.wrap(text, rect.width(), font, Some((rect, color)))
+        let height = self.wrap(text, rect.width(), font);
+        let state = &*self.state;
+        self.scene.push_block(&state.block, rect.min, color, 0.0);
+        height
     }
 
     /// The height `text` takes wrapped to `width` in `font` ([`Ui::paragraph`]).
     pub fn paragraph_height(&mut self, text: &str, width: f32, font: &FontStyle) -> f32 {
-        self.wrap(text, width, font, None)
+        self.wrap(text, width, font)
     }
 
-    /// Lays `text` out in lines of `width` at most, drawing them in `draw`'s rectangle and
-    /// color when given. Returns the height of the lines. Each word is measured once, and a
-    /// line is the words that fit with a space between them.
-    fn wrap(
-        &mut self,
-        text: &str,
-        width: f32,
-        font: &FontStyle,
-        draw: Option<(Rect, Color)>,
-    ) -> f32 {
+    /// Lays `text` out in the shared block (`UiState::block`), in lines of `width` at most, a
+    /// line every `LEADING` line heights rounded to a whole pixel. Returns the height of the
+    /// lines.
+    fn wrap(&mut self, text: &str, width: f32, font: &FontStyle) -> f32 {
         let line = self.line_height(font);
-        if line <= 0.0 {
+        let Some(style) = self.text_style(font).filter(|_| line > 0.0) else {
+            self.state.block = koebi_text::TextBlock::new();
             return 0.0;
-        }
+        };
         let pitch = (line * LEADING).round();
-        let space = self.text_width(" ", font);
-        let mut y = 0.0;
-        for paragraph in text.split('\n') {
-            let words = paragraph
-                .split(' ')
-                .scan(0_usize, |offset, word| {
-                    let start = *offset;
-                    *offset += word.len() + 1;
-                    Some((start, word))
-                })
-                .filter(|(_, word)| !word.is_empty());
-            // The current line: from `start` to `end` of the paragraph, `used` wide.
-            let mut current: Option<(usize, usize, f32)> = None;
-            for (begin, word) in words {
-                let measured = self.text_width(word, font);
-                let end = begin + word.len();
-                current = match current {
-                    Some((start, last, used)) if used + space + measured > width => {
-                        self.wrapped_line(&paragraph[start..last], y, pitch, font, draw);
-                        y += pitch;
-                        Some((begin, end, measured))
-                    }
-                    Some((start, _, used)) => Some((start, end, used + space + measured)),
-                    None => Some((begin, end, measured)),
-                };
-            }
-            if let Some((start, end, _)) = current {
-                self.wrapped_line(&paragraph[start..end], y, pitch, font, draw);
-            }
-            y += pitch;
-        }
-        y
-    }
-
-    /// One line of [`Ui::wrap`], `y` below the top of `draw`'s rectangle.
-    fn wrapped_line(
-        &mut self,
-        line: &str,
-        y: f32,
-        pitch: f32,
-        font: &FontStyle,
-        draw: Option<(Rect, Color)>,
-    ) {
-        if let Some((rect, color)) = draw {
-            let at = Rect::from_min_max(
-                Vec2::new(rect.min.x, rect.min.y + y),
-                Vec2::new(rect.max.x, rect.min.y + y + pitch),
-            );
-            self.label(line, at, font, color, Align::Start);
-        }
+        let paragraph = koebi_text::Paragraph {
+            width: Some(width),
+            line_height: pitch / font.size.max(1e-3),
+            align: koebi_text::Align::Start,
+        };
+        let state = &mut *self.state;
+        state.block.layout(&state.fonts, text, &style, &paragraph);
+        state.block.height()
     }
 }
 
