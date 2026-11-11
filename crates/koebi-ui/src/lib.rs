@@ -76,6 +76,7 @@ mod bar;
 mod icon;
 mod id;
 mod input;
+pub mod layout;
 mod operation;
 mod pixel;
 mod routing;

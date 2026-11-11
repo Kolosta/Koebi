@@ -31,7 +31,7 @@ use koebi_input::{ActionDef, Binding, Conflict, Context, Keymap, Shortcut, Trigg
 use koebi_tokens::semantic;
 use koebi_ui::{
     Align, Button, Capture, CaptureField, CaptureState, CollapsiblePanel, CollapsiblePanelState,
-    TextField, Ui, WidgetId,
+    TextField, Track, Ui, WidgetId, layout,
 };
 
 use self::analysis::{Analysis, contains_folded, finds};
@@ -238,16 +238,11 @@ impl KeymapsPage {
             Vec2::new(stack.left, stack.y),
             Vec2::new(stack.right, stack.y + row),
         );
-        let clear = Rect::from_min_max(Vec2::new(rect.max.x - row, rect.min.y), rect.max);
-        let half = ((clear.min.x - gap - rect.min.x - gap) * 0.5).max(0.0);
-        let name = Rect::from_origin_size(rect.min, Vec2::new(half, row));
+        let [name, by_shortcut, clear] =
+            layout::row(rect, gap, [Track::Fit, Track::Fit, Track::Fixed(row)]);
         TextField::new(ID.with(1), &mut self.search)
             .placeholder(tr("Search by name"))
             .show(ui, name);
-        let by_shortcut = Rect::from_origin_size(
-            Vec2::new(name.max.x + gap, rect.min.y),
-            Vec2::new(half, row),
-        );
         let recorded =
             CaptureField::new(ID.with(2), &mut self.search_capture, self.search_shortcut)
                 .capture(Capture::Any)

@@ -38,6 +38,7 @@ mod style;
 mod tests;
 
 pub use group::{ButtonGroup, GroupCell, GroupResponse, Track};
+pub(crate) use group::{MAX_TRACKS, size_tracks};
 pub use style::ButtonStyle;
 
 pub(crate) use look::Look;
