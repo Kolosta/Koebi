@@ -11,11 +11,29 @@ runs:
       run: |
         set -euo pipefail
         trap 'echo "::error title=Linux build dependencies::failed: $BASH_COMMAND"' ERR
-        sudo apt-get update -qq
-        sudo apt-get install -y --no-install-recommends \
-          cmake ninja-build pkg-config \
-          libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev \
-          libxss-dev libxtst-dev libxkbcommon-dev \
-          libwayland-dev wayland-protocols libdecor-0-dev libegl-dev libdrm-dev libgbm-dev \
-          libasound2-dev libpulse-dev libdbus-1-dev libudev-dev \
+        # A mirror that does not answer (the runner failing to resolve it, a stalled
+        # connection) gives up within seconds per request and an attempt within minutes,
+        # then the next attempt starts. Left to itself, apt waited about 20 s per package and
+        # mirror: a job spent 40 minutes here before its own timeout.
+        apt=(sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=15
+          -o Acquire::https::Timeout=15)
+        packages=(
+          cmake ninja-build pkg-config
+          libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev
+          libxss-dev libxtst-dev libxkbcommon-dev
+          libwayland-dev wayland-protocols libdecor-0-dev libegl-dev libdrm-dev libgbm-dev
+          libasound2-dev libpulse-dev libdbus-1-dev libudev-dev
           xvfb xauth
+        )
+        for attempt in 1 2 3; do
+          if timeout 300 "${apt[@]}" update -qq \
+            && timeout 600 "${apt[@]}" install -y --no-install-recommends "${packages[@]}"; then
+            exit 0
+          fi
+          echo "::warning title=Linux build dependencies::attempt $attempt failed, trying again"
+          # An install cut short may leave packages half configured.
+          sudo dpkg --configure -a || true
+          sleep 20
+        done
+        echo "::error title=Linux build dependencies::the package mirrors did not answer"
+        exit 1
