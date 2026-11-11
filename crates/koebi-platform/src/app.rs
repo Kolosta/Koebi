@@ -109,12 +109,25 @@ impl IterationRate {
 
 /// An application driven by SDL's main callbacks. All methods run on the main thread.
 pub trait App: Sized + 'static {
-    /// Creates the application. SDL video is initialized; create windows here.
+    /// What the command line asks for ([`App::parse`]).
+    type Options;
+
+    /// Reads the command line (`args[0]` is the program), before SDL video is initialized: a
+    /// mistyped option, `--help` or `--version` need no display.
+    ///
+    /// # Errors
+    ///
+    /// Returning an error quits with [`AppError::exit_code`]: a usage error, or
+    /// [`exit_code::SUCCESS`] once a command such as `--help` is done.
+    fn parse(args: &[String]) -> Result<Self::Options, AppError>;
+
+    /// Creates the application from what the command line asks for. SDL video is initialized;
+    /// create windows here.
     ///
     /// # Errors
     ///
     /// Returning an error quits with [`AppError::exit_code`].
-    fn init(context: &mut AppContext, args: &[String]) -> Result<Self, AppError>;
+    fn init(context: &mut AppContext, options: Self::Options) -> Result<Self, AppError>;
 
     /// Called once per frame (see [`IterationRate`]).
     fn iterate(&mut self, context: &mut AppContext) -> AppControl;
@@ -451,6 +464,15 @@ struct AppState<A> {
     context: AppContext,
 }
 
+/// Quits with `error`: its message logged, its exit code kept.
+fn quit_with(error: &AppError) -> SDL_AppResult {
+    if !error.message.is_empty() {
+        koebi_core::error!("{}", error.message);
+    }
+    record_exit_code(error.exit_code);
+    SDL_APP_FAILURE
+}
+
 /// Runs a callback body, turning panics into an orderly failure instead of an abort.
 fn guarded(body: impl FnOnce() -> SDL_AppResult) -> SDL_AppResult {
     catch_unwind(AssertUnwindSafe(body)).unwrap_or_else(|_| {
@@ -494,6 +516,11 @@ unsafe extern "C" fn app_init<A: App>(
                 }
             })
             .collect();
+        // The command line first: what it asks may need no display (#85).
+        let options = match A::parse(&args) {
+            Ok(options) => options,
+            Err(error) => return quit_with(&error),
+        };
 
         // SAFETY: valid NUL-terminated strings with static lifetime.
         let metadata_set = unsafe {
@@ -519,7 +546,7 @@ unsafe extern "C" fn app_init<A: App>(
         }
 
         let mut context = AppContext::new();
-        match A::init(&mut context, &args) {
+        match A::init(&mut context, options) {
             Ok(app) => {
                 let state = Box::new(AppState {
                     app: Some(app),
@@ -529,13 +556,7 @@ unsafe extern "C" fn app_init<A: App>(
                 unsafe { *appstate = Box::into_raw(state).cast() };
                 SDL_APP_CONTINUE
             }
-            Err(error) => {
-                if !error.message.is_empty() {
-                    koebi_core::error!("{}", error.message);
-                }
-                record_exit_code(error.exit_code);
-                SDL_APP_FAILURE
-            }
+            Err(error) => quit_with(&error),
         }
     })
 }
