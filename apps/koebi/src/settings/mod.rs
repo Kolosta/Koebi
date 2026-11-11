@@ -517,12 +517,14 @@ mod tests {
     }
 
     #[test]
-    fn the_keymaps_page_reads_in_japanese() {
-        let Some(gpu) = koebi_testkit::gpu_or_skip("the_keymaps_page_reads_in_japanese") else {
+    fn the_theme_page_reads_in_japanese() {
+        // The theme page shows the same on every platform: the keymaps page shows each one's
+        // default shortcuts.
+        let Some(gpu) = koebi_testkit::gpu_or_skip("the_theme_page_reads_in_japanese") else {
             return;
         };
-        let image = translated_page(&gpu, Page::Keymaps, "ja");
-        assert_page(&image, "settings_keymaps_ja");
+        let image = translated_page(&gpu, Page::Theme, "ja");
+        assert_page(&image, "settings_theme_ja");
         gpu.assert_no_validation_errors();
     }
 
