@@ -113,3 +113,17 @@ errors, 64 invalid command line. On Linux CI the window opens on Xvfb.
 - A bug fix starts with a test that fails for the reported reason.
 - Deterministic only: no sleeps, no network, no order dependence, no shared mutable state.
 - Shared helpers: `tests/common/mod.rs` inside a crate, `koebi-testkit` across crates.
+
+## Performance
+
+`cargo xtask bench` measures the application in release, on the machine that runs it:
+- the scenes of real screens built on the CPU (the settings pages, the gallery);
+- paragraphs laid out in Latin and in Japanese;
+- frames rendered offscreen;
+- the start-up of the binary to its first frame.
+
+The benchmark is an ignored test, `apps/koebi/src/bench.rs`. The report goes to
+`target/bench/latest.md`; `--save` writes it to
+[`docs/performance/baseline.md`](../performance/baseline.md), the baseline to compare a change
+with on the same machine. Timings vary between machines and CI runners: the benchmark is not
+a CI check.

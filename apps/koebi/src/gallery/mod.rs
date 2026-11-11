@@ -28,7 +28,7 @@ mod editor;
 mod fields;
 mod icons;
 mod menus;
-mod typography;
+pub(crate) mod typography;
 
 use koebi_core::{Color, Oklch, Rect, Vec2};
 use koebi_design::kind::Color as ColorKind;

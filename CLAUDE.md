@@ -71,6 +71,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo xtask shaders                 # GLSL -> SPIR-V (Vulkan SDK glslc); commit the .spv files
 cargo xtask bless                   # regenerate golden images after an intended visual change
 cargo xtask i18n update             # after changing interface messages: template and catalogs
+cargo xtask bench [--save]          # performance in release; --save writes docs/performance/baseline.md
 cargo xtask android | ios --run     # mobile builds (docs/development/platforms.md)
 ```
 
