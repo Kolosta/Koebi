@@ -585,7 +585,9 @@ fn first_area(workspace: &Workspace) -> Option<koebi_workspace::AreaId> {
 }
 
 impl App for KoebiApp {
-    fn init(context: &mut AppContext, args: &[String]) -> Result<Self, AppError> {
+    type Options = Options;
+
+    fn parse(args: &[String]) -> Result<Options, AppError> {
         let options = Options::parse(args.iter().skip(1)).map_err(|error| {
             AppError::new(exit_code::USAGE, format!("{error}\n\n{}", Options::USAGE))
         })?;
@@ -601,7 +603,10 @@ impl App for KoebiApp {
             }
             return Err(AppError::new(exit_code::SUCCESS, String::new()));
         }
+        Ok(options)
+    }
 
+    fn init(context: &mut AppContext, options: Options) -> Result<Self, AppError> {
         // A UI only needs to draw after input; benchmarks and tests draw continuously.
         let rate = if options.frames.is_some() {
             IterationRate::Unlimited

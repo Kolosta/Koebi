@@ -80,8 +80,14 @@ fn other_windows_present_frames_beside_the_main_one() {
 }
 
 fn run_koebi(args: &[&str], timeout: Duration) -> Run {
+    run_koebi_with(args, &[], timeout)
+}
+
+/// [`run_koebi`] with more environment variables.
+fn run_koebi_with(args: &[&str], env: &[(&str, &str)], timeout: Duration) -> Run {
     let mut child = Command::new(env!("CARGO_BIN_EXE_koebi"))
         .args(args)
+        .envs(env.iter().copied())
         .env("KOEBI_LOG", "info")
         .env(
             "KOEBI_VALIDATION",
@@ -162,10 +168,7 @@ fn renders_frames_in_a_window_and_exits_cleanly() {
 #[test]
 fn help_prints_usage_and_succeeds() {
     let run = run_koebi(&["--help"], Duration::from_secs(60));
-    if run.code == Some(exit_code::UNSUPPORTED) && !koebi_testkit::require_gpu() {
-        eprintln!("SKIPPED: SDL video unavailable\n{}", run.stderr);
-        return;
-    }
+    // Read before SDL video starts: no display needed (#85).
     assert_eq!(run.code, Some(exit_code::SUCCESS), "{}", run.stderr);
     assert!(
         run.stdout.contains("--frames"),
@@ -177,12 +180,28 @@ fn help_prints_usage_and_succeeds() {
 #[test]
 fn invalid_arguments_exit_with_usage_code() {
     let run = run_koebi(&["--frames", "zero"], Duration::from_secs(60));
-    if run.code == Some(exit_code::UNSUPPORTED) && !koebi_testkit::require_gpu() {
-        eprintln!("SKIPPED: SDL video unavailable\n{}", run.stderr);
-        return;
-    }
+    // Read before SDL video starts: no display needed (#85).
     assert_eq!(run.code, Some(exit_code::USAGE), "{}", run.stderr);
     assert!(run.stderr.contains("invalid value"), "{}", run.stderr);
+}
+
+#[test]
+fn the_command_line_is_read_without_a_display() {
+    // Regression test for #85: a video driver that does not exist, as on a machine without a
+    // display. Mistyped options and `--help` are answered all the same.
+    let headless = [
+        ("SDL_VIDEO_DRIVER", "koebi-no-display"),
+        ("SDL_VIDEODRIVER", "koebi-no-display"),
+    ];
+    let run = run_koebi_with(&["--frames", "zero"], &headless, Duration::from_secs(60));
+    assert_eq!(run.code, Some(exit_code::USAGE), "{}", run.stderr);
+    assert!(run.stderr.contains("invalid value"), "{}", run.stderr);
+    let run = run_koebi_with(&["--help"], &headless, Duration::from_secs(60));
+    assert_eq!(run.code, Some(exit_code::SUCCESS), "{}", run.stderr);
+    assert!(run.stdout.contains("--frames"), "{}", run.stdout);
+    // What needs a window still says so.
+    let run = run_koebi_with(&["--frames", "1"], &headless, Duration::from_secs(60));
+    assert_eq!(run.code, Some(exit_code::UNSUPPORTED), "{}", run.stderr);
 }
 
 /// An empty directory for the design state of one test.
