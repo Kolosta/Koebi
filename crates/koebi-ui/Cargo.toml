@@ -12,6 +12,7 @@ publish.workspace = true
 [dependencies]
 koebi-core.workspace = true
 koebi-design.workspace = true
+koebi-i18n.workspace = true
 koebi-icons.workspace = true
 koebi-input.workspace = true
 koebi-render.workspace = true

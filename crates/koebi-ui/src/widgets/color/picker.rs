@@ -8,6 +8,7 @@
 
 use koebi_core::input::ModifierKey;
 use koebi_core::{Cmyk, Color, Hsl, Hsv, Oklch, Rect, Vec2};
+use koebi_i18n::tr;
 use koebi_render::{Corners, Fill, FillPrimitive, RectPrimitive};
 
 use super::field::{Transparency, paint_color};
@@ -56,14 +57,14 @@ impl ColorMode {
     ];
 
     /// Its name on the switch.
-    pub const fn label(self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
             Self::Rgb => "RGB",
             Self::Hsv => "HSV",
             Self::Hsl => "HSL",
             Self::Oklch => "OKLCH",
             Self::Cmyk => "CMYK",
-            Self::Hex => "Hex",
+            Self::Hex => tr("Hex"),
         }
     }
 }
@@ -683,7 +684,7 @@ impl ColorPicker<'_> {
             } else if was && !on {
                 ui.cancel_screen_pick(key);
             }
-            ui.tooltip(self.id.with(19), "Pick a color on the screen", button);
+            ui.tooltip(self.id.with(19), tr("Pick a color on the screen"), button);
             Rect::from_min_max(
                 column.min,
                 Vec2::new(column.max.x, button.min.y - style.gap),
@@ -715,9 +716,9 @@ impl ColorPicker<'_> {
                 response.hovered && index > 0,
             );
             let tip = [
-                "The current color",
-                "The color before the picker opened",
-                "The color without any change",
+                tr("The current color"),
+                tr("The color before the picker opened"),
+                tr("The color without any change"),
             ][index];
             ui.tooltip(id, tip, at);
             if index > 0 && response.clicked {

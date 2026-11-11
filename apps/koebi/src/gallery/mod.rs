@@ -34,6 +34,7 @@ use koebi_core::{Color, Oklch, Rect, Vec2};
 use koebi_design::kind::Color as ColorKind;
 use koebi_design::tier::Semantic;
 use koebi_design::{DesignSystem, Scope, Token};
+use koebi_i18n::tr;
 use koebi_tokens::semantic;
 use koebi_ui::{
     BarMapping, Button, Checkbox, MenuState, NumberField, PanelLevel, ScrollAxes, ScrollState,
@@ -349,7 +350,7 @@ impl Gallery {
 
         let mut line = cut_top(&mut content, row, gap);
         Button::new(ID.with(0))
-            .label("Button")
+            .label(tr("Button"))
             .show(ui, cut_left(&mut line, 4.0 * row, gap));
         for (index, icon) in [
             koebi_icons::interface::PLUS,

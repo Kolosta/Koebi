@@ -6,6 +6,7 @@
 //! default, the left half opaque and the right half over a checkerboard.
 
 use koebi_core::{Color, Rect, Vec2};
+use koebi_i18n::tr;
 use koebi_render::{Corners, Fill, FillPrimitive, RectPrimitive};
 
 use super::picker::{
@@ -43,13 +44,13 @@ impl Transparency {
     ];
 
     /// Its name, for a list.
-    pub const fn label(self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
-            Self::Opaque => "Opaque",
-            Self::Over => "Over the background",
-            Self::White => "Over white",
-            Self::Black => "Over black",
-            Self::Checker => "Over a checkerboard",
+            Self::Opaque => tr("Opaque"),
+            Self::Over => tr("Over the background"),
+            Self::White => tr("Over white"),
+            Self::Black => tr("Over black"),
+            Self::Checker => tr("Over a checkerboard"),
         }
     }
 }

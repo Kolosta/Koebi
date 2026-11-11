@@ -6,6 +6,7 @@ use koebi_core::input::{Key, ModifierKey};
 use koebi_core::log::Level;
 use koebi_core::{Color, Rect};
 use koebi_design::DesignSystem;
+use koebi_i18n::n_;
 use koebi_input::{ActionDef, ActionGroup, ActionKind, Context, Hint, Shortcut};
 use koebi_tokens::semantic;
 use koebi_ui::{ListItem, ListOptions, ListSelection, ListState, Ui, WidgetId};
@@ -18,8 +19,8 @@ pub(crate) const INFO: Context = Context::new("info");
 /// Deletes the selected messages.
 pub(crate) static DELETE: ActionDef = ActionDef {
     id: "info.delete",
-    label: "Delete messages",
-    description: "Deletes the selected messages.",
+    label: n_!("Delete messages"),
+    description: n_!("Deletes the selected messages."),
     context: INFO,
     defaults: &[Shortcut::key(Key::X), Shortcut::key(Key::Delete)],
     repeats: false,
@@ -30,8 +31,8 @@ pub(crate) static DELETE: ActionDef = ActionDef {
 /// Deletes every message.
 pub(crate) static CLEAR: ActionDef = ActionDef {
     id: "info.clear",
-    label: "Clear messages",
-    description: "Deletes every message.",
+    label: n_!("Clear messages"),
+    description: n_!("Deletes every message."),
     context: INFO,
     defaults: &[Shortcut::key(Key::Delete).with(ModifierKey::Shift)],
     repeats: false,
@@ -41,7 +42,7 @@ pub(crate) static CLEAR: ActionDef = ActionDef {
 
 /// The Info editor's actions, for the keymap.
 pub(crate) static ACTIONS: ActionGroup = ActionGroup {
-    name: "Info",
+    name: n_!("Info"),
     actions: &[&DELETE, &CLEAR],
 };
 

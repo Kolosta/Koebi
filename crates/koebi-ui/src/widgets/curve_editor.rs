@@ -14,6 +14,8 @@ use koebi_core::input::CursorShape;
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
 use koebi_design::value::{CubicBezier, Curve, CurveKey};
+use koebi_i18n::n_;
+use koebi_i18n::tr;
 use koebi_render::{LinePrimitive, RectPrimitive};
 use koebi_tokens::component;
 
@@ -26,10 +28,10 @@ use crate::widgets::number_field::NumberField;
 
 /// What the easing's fields set: the control points of the segment leaving the selected key.
 const EASING_TIPS: [&str; 4] = [
-    "The easing's first control point: its time",
-    "The easing's first control point: its value",
-    "The easing's second control point: its time",
-    "The easing's second control point: its value",
+    n_!("The easing's first control point: its time"),
+    n_!("The easing's first control point: its value"),
+    n_!("The easing's second control point: its time"),
+    n_!("The easing's second control point: its value"),
 ];
 
 /// How many segments draw the curve.
@@ -507,12 +509,12 @@ fn key_fields(
     let mut cells = [
         GroupCell::new(
             Button::new(id.with(10))
-                .label("Add key")
+                .label(tr("Add key"))
                 .enabled(keys.len < Curve::MAX_KEYS),
         ),
         GroupCell::new(
             Button::new(id.with(11))
-                .label("Remove key")
+                .label(tr("Remove key"))
                 .enabled(removable),
         ),
     ];
@@ -566,8 +568,8 @@ fn key_fields(
         .enabled(editable.is_some())
         .show(ui, cell)
         .changed;
-    ui.tooltip(id.with(12), "The selected key's time", fields);
-    ui.tooltip(id.with(13), "The selected key's value", fields);
+    ui.tooltip(id.with(12), tr("The selected key's time"), fields);
+    ui.tooltip(id.with(13), tr("The selected key's value"), fields);
     if (moved_x || moved_y)
         && let Some(index) = editable
     {
@@ -610,7 +612,7 @@ fn easing_fields(
             .enabled(index.is_some())
             .show(ui, cell)
             .changed;
-        ui.tooltip(key, EASING_TIPS[part], cell);
+        ui.tooltip(key, tr(EASING_TIPS[part]), cell);
     }
     let Some(index) = index.filter(|_| changed) else {
         return false;

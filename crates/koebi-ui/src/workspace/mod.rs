@@ -19,6 +19,7 @@ mod gutter;
 mod preview;
 
 use core::time::Duration;
+use koebi_i18n::tr;
 
 use koebi_core::input::CursorShape;
 use koebi_core::{Color, Rect, Vec2};
@@ -424,11 +425,11 @@ impl Ui<'_> {
         let joinable = layout.plan_join(gutter.before, gutter.after).is_ok()
             || layout.plan_join(gutter.after, gutter.before).is_ok();
         let items = [
-            MenuItem::action("Swap areas"),
-            MenuItem::action("Join areas").enabled(joinable),
+            MenuItem::action(tr("Swap areas")),
+            MenuItem::action(tr("Join areas")).enabled(joinable),
             MenuItem::Separator,
-            MenuItem::action("Vertical split"),
-            MenuItem::action("Horizontal split"),
+            MenuItem::action(tr("Vertical split")),
+            MenuItem::action(tr("Horizontal split")),
         ];
         match self
             .menu(AREA_MENU, &mut view.menu, &items, window)

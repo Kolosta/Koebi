@@ -4,6 +4,7 @@
 
 use koebi_core::{Rect, Vec2};
 use koebi_design::DesignSystem;
+use koebi_i18n::tr;
 use koebi_tokens::semantic;
 use koebi_ui::{Align, ThemePreview, Ui, WidgetId};
 
@@ -41,7 +42,7 @@ impl ThemePage {
         self.cards = Some(cards);
         stack.container(ui, row + gap + cards.height(), |ui, content| {
             let title = Rect::from_origin_size(content.min, Vec2::new(content.width(), row));
-            ui.section_title(title, "Themes");
+            ui.section_title(title, tr("Themes"));
             theme_cards(ui, &cards, design);
         });
         self.colors.show(ui, stack, design);
@@ -73,7 +74,8 @@ fn theme_cards(ui: &mut Ui<'_>, cards: &Cards, design: &mut DesignSystem) {
             chosen = Some(theme);
         }
         let color = if theme == active { primary } else { secondary };
-        ui.label(info.name(), cards.name(index), &font, color, Align::Center);
+        let name = koebi_tokens::themes::built_in_name(info.key()).map_or(info.name(), tr);
+        ui.label(name, cards.name(index), &font, color, Align::Center);
     }
     if let Some(theme) = chosen
         && let Err(error) = design.set_active_theme(theme)

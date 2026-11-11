@@ -20,6 +20,7 @@ mod frame_times;
 mod gallery;
 mod gpu;
 mod interface;
+mod language;
 mod messages;
 mod options;
 mod overlay;

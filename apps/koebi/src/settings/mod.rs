@@ -18,12 +18,16 @@ mod customisation;
 mod dev;
 mod inputs;
 mod keymaps;
+mod language;
 mod options;
 mod theme;
 mod values;
 
 use koebi_core::{Rect, Vec2};
 use koebi_design::DesignSystem;
+use koebi_i18n::tr;
+
+use crate::language::LanguageSetting;
 use koebi_input::Keymap;
 use koebi_tokens::{component, semantic};
 use koebi_ui::{
@@ -53,18 +57,18 @@ pub(crate) enum Page {
 
 impl Page {
     /// The title of the page, in its button.
-    const fn title(self) -> &'static str {
+    fn title(self) -> &'static str {
         match self {
-            Self::General => "General",
-            Self::Language => "Language",
-            Self::Theme => "Theme",
-            Self::Customisation => "Customisation",
-            Self::Accessibility => "Accessibility",
-            Self::Inputs => "Inputs",
-            Self::Keymaps => "Keymaps",
-            Self::Navigation => "Navigation",
-            Self::Icons => "Icons",
-            Self::Dev => "Dev",
+            Self::General => tr("General"),
+            Self::Language => tr("Language"),
+            Self::Theme => tr("Theme"),
+            Self::Customisation => tr("Customisation"),
+            Self::Accessibility => tr("Accessibility"),
+            Self::Inputs => tr("Inputs"),
+            Self::Keymaps => tr("Keymaps"),
+            Self::Navigation => tr("Navigation"),
+            Self::Icons => tr("Icons"),
+            Self::Dev => tr("Dev"),
         }
     }
 }
@@ -161,9 +165,12 @@ pub(crate) struct SettingsView {
     accessibility: accessibility::AccessibilityPage,
     keymaps: keymaps::KeymapsPage,
     inputs: inputs::InputsPage,
+    language_page: language::LanguagePage,
     /// How far each page is scrolled, and how high it was on the last frame.
     scroll: [ScrollState; PAGES],
     height: [f32; PAGES],
+    /// The language the pages that keep text were built in (`koebi_i18n::revision`).
+    language: u64,
 }
 
 impl SettingsView {
@@ -176,8 +183,10 @@ impl SettingsView {
             accessibility: accessibility::AccessibilityPage::new(),
             keymaps: keymaps::KeymapsPage::new(),
             inputs: inputs::InputsPage::new(),
+            language_page: language::LanguagePage::new(),
             scroll: [ScrollState::new(); PAGES],
             height: [0.0; PAGES],
+            language: koebi_i18n::revision(),
         }
     }
 
@@ -196,7 +205,13 @@ impl SettingsView {
         design: &mut DesignSystem,
         keymap: &mut Keymap,
         frame_times: &mut bool,
+        language: &mut LanguageSetting,
     ) {
+        if self.language != koebi_i18n::revision() {
+            self.language = koebi_i18n::revision();
+            self.inputs = inputs::InputsPage::new();
+            self.keymaps.language_changed();
+        }
         let width = design.get(component::SIDE_PANEL_WIDTH_DEFAULT);
         let margin = ui.whole_pixels(design.get(component::SIDE_PANEL_MARGIN_DEFAULT));
         let column = Rect::from_min_max(
@@ -206,7 +221,7 @@ impl SettingsView {
         self.column(ui, column, design, margin);
         let content = Rect::from_min_max(Vec2::new(column.max.x, rect.min.y), rect.max);
         if !content.is_empty() {
-            self.content(ui, content, design, keymap, frame_times, margin);
+            self.content(ui, content, design, keymap, frame_times, language, margin);
         }
     }
 
@@ -242,6 +257,10 @@ impl SettingsView {
     }
 
     /// The page shown, scrolling when it is too high for its room.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "what the pages change, from the window"
+    )]
     fn content(
         &mut self,
         ui: &mut Ui<'_>,
@@ -249,6 +268,7 @@ impl SettingsView {
         design: &mut DesignSystem,
         keymap: &mut Keymap,
         frame_times: &mut bool,
+        language: &mut LanguageSetting,
         margin: f32,
     ) {
         let index = self.page as usize;
@@ -278,6 +298,7 @@ impl SettingsView {
                     Page::Inputs => self.inputs.show(ui, &mut stack, design),
                     Page::Keymaps => self.keymaps.show(ui, &mut stack, design, keymap),
                     Page::Dev => dev::show(ui, &mut stack, design, frame_times),
+                    Page::Language => self.language_page.show(ui, &mut stack, language),
                     _ => empty_page(ui, area.viewport, design),
                 }
                 stack.y - top + margin
@@ -295,7 +316,13 @@ impl SettingsView {
 fn empty_page(ui: &mut Ui<'_>, rect: Rect, design: &DesignSystem) {
     let font = ui.styles().text.label.clone();
     let color = design.get(semantic::TEXT_COLOR_SECONDARY_DEFAULT);
-    ui.label("Nothing to set here yet", rect, &font, color, Align::Center);
+    ui.label(
+        tr("Nothing to set here yet"),
+        rect,
+        &font,
+        color,
+        Align::Center,
+    );
 }
 
 #[cfg(test)]
@@ -312,6 +339,7 @@ mod tests {
         pub(super) keymap: Keymap,
         pub(super) settings: SettingsView,
         pub(super) frame_times: bool,
+        pub(super) language: LanguageSetting,
         pub(super) state: UiState,
         pub(super) input: Input,
         styles: StyleCache,
@@ -329,6 +357,7 @@ mod tests {
                 keymap: Keymap::new(&crate::actions::GROUPS).unwrap(),
                 settings: SettingsView::new(),
                 frame_times: false,
+                language: LanguageSetting::new(None, Vec::new(), None),
                 state,
                 input: Input::new(),
                 time: 0,
@@ -353,6 +382,7 @@ mod tests {
                     &mut self.design,
                     &mut self.keymap,
                     &mut self.frame_times,
+                    &mut self.language,
                 );
             }
             self.input.end_frame();
@@ -456,6 +486,61 @@ mod tests {
         let image = page_image(&gpu, &mut harness);
         assert_page(&image, "settings_theme");
         gpu.assert_no_validation_errors();
+    }
+
+    /// `page` drawn with the interface in `code`, on this thread only.
+    fn translated_page(
+        gpu: &koebi_testkit::HeadlessGpu,
+        page: Page,
+        code: &str,
+    ) -> koebi_testkit::Image {
+        let language = koebi_i18n::find(code).expect("the catalog ships with Koebi");
+        koebi_i18n::with_language(language, || {
+            let mut harness = Harness::new();
+            harness.settings.page = page;
+            // Key caps as on Windows, whatever the machine.
+            harness.state.set_keyboard(koebi_ui::Keyboard::Windows);
+            page_image(gpu, &mut harness)
+        })
+    }
+
+    #[test]
+    fn the_language_page_lists_every_language_in_french() {
+        let Some(gpu) =
+            koebi_testkit::gpu_or_skip("the_language_page_lists_every_language_in_french")
+        else {
+            return;
+        };
+        let image = translated_page(&gpu, Page::Language, "fr");
+        assert_page(&image, "settings_language_fr");
+        gpu.assert_no_validation_errors();
+    }
+
+    #[test]
+    fn the_theme_page_reads_in_japanese() {
+        // The theme page shows the same on every platform: the keymaps page shows each one's
+        // default shortcuts.
+        let Some(gpu) = koebi_testkit::gpu_or_skip("the_theme_page_reads_in_japanese") else {
+            return;
+        };
+        let image = translated_page(&gpu, Page::Theme, "ja");
+        assert_page(&image, "settings_theme_ja");
+        gpu.assert_no_validation_errors();
+    }
+
+    #[test]
+    fn the_page_titles_follow_the_language() {
+        let french = koebi_i18n::find("fr").unwrap();
+        let japanese = koebi_i18n::find("ja").unwrap();
+        assert_eq!(
+            koebi_i18n::with_language(french, || Page::Theme.title()),
+            "Thème"
+        );
+        assert_eq!(
+            koebi_i18n::with_language(japanese, || Page::Keymaps.title()),
+            "キーマップ"
+        );
+        assert_eq!(Page::Theme.title(), "Theme");
     }
 
     #[test]

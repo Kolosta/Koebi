@@ -10,6 +10,7 @@
 use koebi_core::{Rect, Vec2};
 use koebi_design::schema::{Group, TokenInfo};
 use koebi_design::{DesignSystem, TokenId};
+use koebi_i18n::tr;
 use koebi_tokens::{FEATURES, Feature};
 use koebi_ui::{Align, CollapsiblePanel, CollapsiblePanelState, MenuState, Ui, WidgetId};
 
@@ -27,6 +28,9 @@ enum Child {
 #[derive(Debug)]
 pub(super) struct Folder {
     title: String,
+    /// Whether the title and description are messages to translate (a feature's), or names
+    /// taken from tokens, which stay as they are.
+    translated: bool,
     /// What the folder is about, shown at the top of its content.
     description: Option<&'static str>,
     panel: CollapsiblePanelState,
@@ -41,6 +45,7 @@ impl Folder {
     fn new(title: String, description: Option<&'static str>) -> Self {
         Self {
             title,
+            translated: false,
             description,
             panel: CollapsiblePanelState::new(false),
             menu: MenuState::new(),
@@ -52,6 +57,7 @@ impl Folder {
     /// The folder of `feature`: one folder per group.
     fn feature(design: &DesignSystem, feature: &Feature) -> Self {
         let mut folder = Self::new(feature.title.to_owned(), Some(feature.description));
+        folder.translated = true;
         for group in feature.groups {
             let child = Self::group(design, group);
             folder.tokens.extend_from_slice(&child.tokens);
@@ -132,6 +138,7 @@ impl Folder {
     ) -> f32 {
         let Self {
             title,
+            translated,
             description,
             panel,
             menu,
@@ -139,35 +146,32 @@ impl Folder {
             children,
         } = self;
         let slot = options::reset_slot(design);
-        let shown =
-            CollapsiblePanel::new(id, panel, title)
-                .trailing(slot)
-                .show(ui, area, |ui, rect| {
-                    let mut y = rect.min.y;
-                    if let Some(description) = description {
-                        let padding = ui.styles().panel.padding;
-                        let font = ui.styles().text.body.clone();
-                        let color = ui.styles().text.secondary;
-                        let row = ui.styles().button.height;
-                        let line = Rect::from_min_max(
-                            Vec2::new(rect.min.x + padding, y),
-                            Vec2::new(rect.max.x - padding, y + row),
-                        );
-                        ui.label(description, line, &font, color, Align::Start);
-                        y += row;
-                    }
-                    for (index, child) in children.iter_mut().enumerate() {
-                        let at = Rect::from_min_max(Vec2::new(rect.min.x, y), rect.max);
-                        let key = id.with(index as u64 + 1);
-                        y += match child {
-                            Child::Folder(folder) => folder.show(ui, at, key, design, bounds),
-                            Child::Row(row) => {
-                                options::show_option(ui, at, key, design, row, bounds)
-                            }
-                        };
-                    }
-                    y - rect.min.y
-                });
+        let shown = CollapsiblePanel::new(id, panel, if *translated { tr(title) } else { title })
+            .trailing(slot)
+            .show(ui, area, |ui, rect| {
+                let mut y = rect.min.y;
+                if let Some(description) = description {
+                    let padding = ui.styles().panel.padding;
+                    let font = ui.styles().text.body.clone();
+                    let color = ui.styles().text.secondary;
+                    let row = ui.styles().button.height;
+                    let line = Rect::from_min_max(
+                        Vec2::new(rect.min.x + padding, y),
+                        Vec2::new(rect.max.x - padding, y + row),
+                    );
+                    ui.label(tr(description), line, &font, color, Align::Start);
+                    y += row;
+                }
+                for (index, child) in children.iter_mut().enumerate() {
+                    let at = Rect::from_min_max(Vec2::new(rect.min.x, y), rect.max);
+                    let key = id.with(index as u64 + 1);
+                    y += match child {
+                        Child::Folder(folder) => folder.show(ui, at, key, design, bounds),
+                        Child::Row(row) => options::show_option(ui, at, key, design, row, bounds),
+                    };
+                }
+                y - rect.min.y
+            });
         if let Some(trailing) = shown.trailing {
             options::header_dot(ui, trailing, id.with(0), design, tokens, menu, bounds);
         }

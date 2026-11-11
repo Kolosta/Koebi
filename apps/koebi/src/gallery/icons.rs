@@ -5,6 +5,7 @@
 //! in a tooltip.
 
 use koebi_core::{Rect, Vec2};
+use koebi_i18n::tr;
 use koebi_icons::IconId;
 use koebi_ui::{
     Align, BarMapping, Button, IconPaint, NumberField, PanelLevel, Ui, WidgetId, paint_icon,
@@ -64,15 +65,15 @@ impl Icons {
 
         let mut line = cut_top(&mut content, row, gap);
         let title = cut_left(&mut line, 8.0 * row, gap);
-        ui.label("Vector icons", title, &font, secondary, Align::Start);
+        ui.label(tr("Vector icons"), title, &font, secondary, Align::Start);
         NumberField::new(ID.with(1), &mut self.size)
-            .label("Size")
+            .label(tr("Size"))
             .range(SIZES.0, SIZES.1)
             .step(1.0)
             .bar(BarMapping::Linear)
             .show(ui, cut_left(&mut line, 8.0 * row, gap));
         if Button::new(ID.with(2))
-            .label("Original colors")
+            .label(tr("Original colors"))
             .selected(self.original)
             .show(ui, cut_left(&mut line, 6.0 * row, gap))
             .clicked
@@ -81,7 +82,7 @@ impl Icons {
         }
         let tones = cut_left(&mut line, 5.0 * row, gap);
         if Button::new(ID.with(3))
-            .label("Two tones")
+            .label(tr("Two tones"))
             .selected(self.two_tones)
             .enabled(!self.original)
             .show(ui, tones)
@@ -91,8 +92,10 @@ impl Icons {
         }
         ui.tooltip(
             ID.with(3),
-            "Icons with a secondary part (what lies behind, inside, or what an action applies \
-             to) show it fainter; off, in the main color",
+            tr(
+                "Icons with a secondary part (what lies behind, inside, or what an action \
+                applies to) show it fainter; off, in the main color",
+            ),
             tones,
         );
 

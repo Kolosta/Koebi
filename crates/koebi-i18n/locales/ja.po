@@ -1,0 +1,2954 @@
+# Japanese translation of Koebi.
+msgid ""
+msgstr ""
+"Project-Id-Version: Koebi\n"
+"Report-Msgid-Bugs-To: https://github.com/Kolosta/Koebi/issues\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ja\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Native-Name: 日本語\n"
+"X-English-Name: Japanese\n"
+
+#: apps/koebi/src/actions.rs
+msgid "Frame times"
+msgstr "フレーム時間"
+
+#: apps/koebi/src/actions.rs
+msgid "Shows or hides the frame rate and the CPU and GPU time of a frame."
+msgstr "フレームレートと、1フレームのCPU時間・GPU時間の表示を切り替えます。"
+
+#: apps/koebi/src/actions.rs
+#: apps/koebi/src/chrome.rs
+msgid "Quit"
+msgstr "終了"
+
+#: apps/koebi/src/actions.rs
+msgid "Closes every window and quits."
+msgstr "すべてのウィンドウを閉じて終了します。"
+
+#: apps/koebi/src/actions.rs
+#: apps/koebi/src/chrome.rs
+msgid "Fullscreen"
+msgstr "全画面表示"
+
+#: apps/koebi/src/actions.rs
+msgid "Shows the window alone on its display, or brings it back."
+msgstr "ウィンドウを画面全体に表示するか、元に戻します。"
+
+#: apps/koebi/src/actions.rs
+#: apps/koebi/src/chrome.rs
+#: apps/koebi/src/window.rs
+msgid "Settings"
+msgstr "設定"
+
+#: apps/koebi/src/actions.rs
+msgid "Opens the settings window, or brings it to the front."
+msgstr "設定ウィンドウを開くか、最前面に表示します。"
+
+#: apps/koebi/src/actions.rs
+#: apps/koebi/src/settings/options.rs
+msgid "Application"
+msgstr "アプリケーション"
+
+#: apps/koebi/src/actions.rs
+msgid "Workspace"
+msgstr "ワークスペース"
+
+#: apps/koebi/src/actions.rs
+#: apps/koebi/src/editors/mod.rs
+#: apps/koebi/src/editors/viewport.rs
+msgid "Viewport"
+msgstr "ビューポート"
+
+#: apps/koebi/src/actions.rs
+#: apps/koebi/src/editors/mod.rs
+#: apps/koebi/src/editors/outliner.rs
+msgid "Outliner"
+msgstr "アウトライナー"
+
+#: apps/koebi/src/actions.rs
+#: apps/koebi/src/editors/mod.rs
+#: apps/koebi/src/editors/timeline.rs
+msgid "Timeline"
+msgstr "タイムライン"
+
+#: apps/koebi/src/actions.rs
+#: apps/koebi/src/editors/info.rs
+#: apps/koebi/src/editors/mod.rs
+#: apps/koebi/src/gallery/buttons.rs
+#: crates/koebi-ui/src/widgets/theme_card.rs
+msgid "Info"
+msgstr "情報"
+
+#: apps/koebi/src/actions.rs
+msgid "Lists"
+msgstr "リスト"
+
+#: apps/koebi/src/actions.rs
+msgid "Open menus"
+msgstr "開いているメニュー"
+
+#: apps/koebi/src/actions.rs
+msgid "Editing text"
+msgstr "テキスト編集"
+
+#: apps/koebi/src/actions.rs
+msgid "Operations in progress (drags, resizes, picks)"
+msgstr "実行中の操作（ドラッグ、サイズ変更、色の取得）"
+
+#: apps/koebi/src/chrome.rs
+msgid "New"
+msgstr "新規"
+
+#: apps/koebi/src/chrome.rs
+msgid "Open"
+msgstr "開く"
+
+#: apps/koebi/src/chrome.rs
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Save"
+msgstr "保存"
+
+#: apps/koebi/src/chrome.rs
+msgid "Save As"
+msgstr "名前を付けて保存"
+
+#: apps/koebi/src/chrome.rs
+msgid "File"
+msgstr "ファイル"
+
+#: apps/koebi/src/chrome.rs
+#: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/gallery/menus.rs
+msgid "Edit"
+msgstr "編集"
+
+#: apps/koebi/src/chrome.rs
+msgid "Window"
+msgstr "ウィンドウ"
+
+#: apps/koebi/src/chrome.rs
+msgid "New Window"
+msgstr "新しいウィンドウ"
+
+#: apps/koebi/src/chrome.rs
+msgid "New Main Window"
+msgstr "新しいメインウィンドウ"
+
+#: apps/koebi/src/chrome.rs
+msgid "New Instance"
+msgstr "新しいインスタンス"
+
+#: apps/koebi/src/editors/info.rs
+msgid "Delete messages"
+msgstr "メッセージを削除"
+
+#: apps/koebi/src/editors/info.rs
+msgid "Deletes the selected messages."
+msgstr "選択したメッセージを削除します。"
+
+#: apps/koebi/src/editors/info.rs
+msgid "Clear messages"
+msgstr "メッセージを消去"
+
+#: apps/koebi/src/editors/info.rs
+msgid "Deletes every message."
+msgstr "すべてのメッセージを削除します。"
+
+#: apps/koebi/src/editors/mod.rs
+msgid "Gallery"
+msgstr "ギャラリー"
+
+#: apps/koebi/src/editors/mod.rs
+msgid "Properties"
+msgstr "プロパティ"
+
+#: apps/koebi/src/editors/outliner.rs
+#: apps/koebi/src/gallery/menus.rs
+msgid "Delete"
+msgstr "削除"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "Deletes the selected rows and what they hold."
+msgstr "選択した行とその中身を削除します。"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "Group"
+msgstr "グループ化"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "Puts the selected rows in a new group, where the first of them was."
+msgstr "選択した行を新しいグループにまとめ、先頭の行があった位置に置きます。"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "Unfold all"
+msgstr "すべて展開"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "Unfolds every group of the outliner, when all are folded."
+msgstr "すべて折りたたまれているとき、アウトライナーのすべてのグループを展開します。"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "when every group is folded"
+msgstr "すべてのグループが折りたたまれているとき"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "Fold all"
+msgstr "すべて折りたたむ"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "Folds every group of the outliner, when one is unfolded."
+msgstr "展開されたグループがあるとき、アウトライナーのすべてのグループを折りたたみます。"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "when a group is unfolded"
+msgstr "展開されたグループがあるとき"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "Document"
+msgstr "ドキュメント"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "Background"
+msgstr "背景"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "Sketch"
+msgstr "スケッチ"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "Construction"
+msgstr "下描き"
+
+#: apps/koebi/src/editors/outliner.rs
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Gesture"
+msgstr "ジェスチャー"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "Ink"
+msgstr "ペン入れ"
+
+#: apps/koebi/src/editors/outliner.rs
+#: apps/koebi/src/settings/colors.rs
+msgid "Colors"
+msgstr "色"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "Flats"
+msgstr "ベタ塗り"
+
+#: apps/koebi/src/editors/outliner.rs
+msgid "Shadows"
+msgstr "影"
+
+#: apps/koebi/src/editors/outliner.rs
+#: apps/koebi/src/editors/properties.rs
+msgid "Notes"
+msgstr "メモ"
+
+#. TRANSLATORS: the name of a new group of layers, a noun.
+#: apps/koebi/src/editors/outliner.rs
+msgctxt "layer"
+msgid "Group"
+msgstr "グループ"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "Smooth"
+msgstr "スムーズ"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "Flat"
+msgstr "フラット"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "Auto smooth"
+msgstr "自動スムーズ"
+
+#: apps/koebi/src/editors/properties.rs
+#: apps/koebi/src/gallery/menus.rs
+msgid "Cube"
+msgstr "立方体"
+
+#: apps/koebi/src/editors/properties.rs
+#: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/gallery/menus.rs
+msgid "Object"
+msgstr "オブジェクト"
+
+#: apps/koebi/src/editors/properties.rs
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Name"
+msgstr "名前"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "What the object is for"
+msgstr "オブジェクトの用途"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "Transform"
+msgstr "トランスフォーム"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "Location"
+msgstr "位置"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "Rotation"
+msgstr "回転"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "Scale"
+msgstr "スケール"
+
+#: apps/koebi/src/editors/properties.rs
+#: apps/koebi/src/gallery/editor.rs
+msgid "Reset"
+msgstr "リセット"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "Apply delta"
+msgstr "差分を適用"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "Delta transform"
+msgstr "差分トランスフォーム"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "Visibility"
+msgstr "表示"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "Show in viewport"
+msgstr "ビューポートに表示"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "Show in renders"
+msgstr "レンダーに表示"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "Selectable"
+msgstr "選択可能"
+
+#: apps/koebi/src/editors/properties.rs
+#: apps/koebi/src/gallery/fields.rs
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Opacity"
+msgstr "不透明度"
+
+#: apps/koebi/src/editors/properties.rs
+msgid "Shading"
+msgstr "シェーディング"
+
+#: apps/koebi/src/editors/properties.rs
+#: apps/koebi/src/gallery/fields.rs
+msgid "Samples"
+msgstr "サンプル数"
+
+#: apps/koebi/src/editors/timeline.rs
+msgid "Next frame"
+msgstr "次のフレーム"
+
+#: apps/koebi/src/editors/timeline.rs
+msgid "Makes the next frame current."
+msgstr "次のフレームを現在のフレームにします。"
+
+#: apps/koebi/src/editors/timeline.rs
+msgid "Previous frame"
+msgstr "前のフレーム"
+
+#: apps/koebi/src/editors/timeline.rs
+msgid "Makes the previous frame current."
+msgstr "前のフレームを現在のフレームにします。"
+
+#: apps/koebi/src/editors/timeline.rs
+msgid "First frame"
+msgstr "最初のフレーム"
+
+#: apps/koebi/src/editors/timeline.rs
+msgid "Makes the first frame of the scene current."
+msgstr "シーンの最初のフレームを現在のフレームにします。"
+
+#: apps/koebi/src/editors/timeline.rs
+msgid "Last frame"
+msgstr "最後のフレーム"
+
+#: apps/koebi/src/editors/timeline.rs
+msgid "Makes the last frame of the scene current."
+msgstr "シーンの最後のフレームを現在のフレームにします。"
+
+#: apps/koebi/src/editors/timeline.rs
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zoom in"
+msgstr "ズームイン"
+
+#: apps/koebi/src/editors/timeline.rs
+msgid "Widens the frames, around the current one."
+msgstr "現在のフレームを中心に、フレームの幅を広げます。"
+
+#: apps/koebi/src/editors/timeline.rs
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zoom out"
+msgstr "ズームアウト"
+
+#: apps/koebi/src/editors/timeline.rs
+msgid "Narrows the frames, around the current one."
+msgstr "現在のフレームを中心に、フレームの幅を狭めます。"
+
+#: apps/koebi/src/editors/timeline.rs
+#: apps/koebi/src/editors/viewport.rs
+msgid "Frame all"
+msgstr "全体を表示"
+
+#: apps/koebi/src/editors/timeline.rs
+msgid "Zooms so that every frame of the scene shows."
+msgstr "シーンのすべてのフレームが見えるようにズームします。"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zooms and pans so that the whole page shows."
+msgstr "ページ全体が見えるようにズームと移動をします。"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zooms in by one step on the middle of the view."
+msgstr "ビューの中央を1段階ズームインします。"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zooms out by one step from the middle of the view."
+msgstr "ビューの中央から1段階ズームアウトします。"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Actual size"
+msgstr "実寸"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zooms to 100 %: one canvas unit per logical pixel."
+msgstr "100%にズームします。キャンバスの1単位が論理ピクセル1つになります。"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Toggle rulers"
+msgstr "ルーラーの切り替え"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Hides every ruler, or shows the top and left ones."
+msgstr "すべてのルーラーを隠すか、上と左のルーラーを表示します。"
+
+#: apps/koebi/src/gallery/buttons.rs
+msgid "Default"
+msgstr "デフォルト"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/gallery/colors.rs
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Accent"
+msgstr "アクセント"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Positive"
+msgstr "ポジティブ"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Negative"
+msgstr "ネガティブ"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Neutral"
+msgstr "ニュートラル"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Notice"
+msgstr "注意"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Blue"
+msgstr "ブルー"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Cyan"
+msgstr "シアン"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Green"
+msgstr "グリーン"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Yellow"
+msgstr "イエロー"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Orange"
+msgstr "オレンジ"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Red"
+msgstr "レッド"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Magenta"
+msgstr "マゼンタ"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Purple"
+msgstr "パープル"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/gallery/menus.rs
+msgid "Sculpt"
+msgstr "スカルプト"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/gallery/fields.rs
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Disabled"
+msgstr "無効"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/gallery/menus.rs
+msgid "Add"
+msgstr "追加"
+
+#: apps/koebi/src/gallery/buttons.rs
+msgid "Ctrl"
+msgstr "Ctrl"
+
+#: apps/koebi/src/gallery/buttons.rs
+msgid "+10 on press"
+msgstr "押すと+10"
+
+#: apps/koebi/src/gallery/buttons.rs
+msgid "Reset on double click"
+msgstr "ダブルクリックでリセット"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Snap to grid"
+msgstr "グリッドにスナップ"
+
+#: apps/koebi/src/gallery/buttons.rs
+msgid "Moves items by whole cells"
+msgstr "項目をセル単位で移動します"
+
+#: apps/koebi/src/gallery/buttons.rs
+msgid "Overlays"
+msgstr "オーバーレイ"
+
+#: apps/koebi/src/gallery/buttons.rs
+msgid "Some guides are shown"
+msgstr "一部のガイドが表示されています"
+
+#: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/gallery/fields.rs
+msgid "Locked"
+msgstr "ロック"
+
+#: apps/koebi/src/gallery/buttons.rs
+msgid "Cannot change here"
+msgstr "ここでは変更できません"
+
+#: apps/koebi/src/gallery/colors.rs
+msgid "How the left half of the fields shows transparency"
+msgstr "フィールドの左半分での透明度の表示方法"
+
+#: apps/koebi/src/gallery/colors.rs
+msgid "How the right half of the fields shows transparency"
+msgstr "フィールドの右半分での透明度の表示方法"
+
+#: apps/koebi/src/gallery/colors.rs
+msgid "Title"
+msgstr "タイトル"
+
+#: apps/koebi/src/gallery/colors.rs
+msgid "Palette"
+msgstr "パレット"
+
+#: apps/koebi/src/gallery/colors.rs
+msgid "Values first"
+msgstr "値を先に表示"
+
+#: apps/koebi/src/gallery/colors.rs
+msgid "As a dropdown"
+msgstr "ドロップダウンで"
+
+#: apps/koebi/src/gallery/colors.rs
+msgid "As a panel"
+msgstr "パネルで"
+
+#: apps/koebi/src/gallery/colors.rs
+msgid "A horizontal strip"
+msgstr "横長のバー"
+
+#: apps/koebi/src/gallery/curves.rs
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Linear"
+msgstr "リニア"
+
+#: apps/koebi/src/gallery/curves.rs
+msgid "Ease in and out"
+msgstr "イーズインアウト"
+
+#: apps/koebi/src/gallery/curves.rs
+msgid "Overshoot"
+msgstr "オーバーシュート"
+
+#: apps/koebi/src/gallery/curves.rs
+msgid "Bounce"
+msgstr "バウンス"
+
+#: apps/koebi/src/gallery/curves.rs
+msgid "Curve editor (temporary)"
+msgstr "カーブエディター（仮）"
+
+#: apps/koebi/src/gallery/curves.rs
+msgid "Where a square moving by the curve lies at equal times"
+msgstr "カーブに沿って動く四角形の、等間隔の時刻ごとの位置"
+
+#: apps/koebi/src/gallery/editor.rs
+#: apps/koebi/src/settings/accessibility.rs
+msgid "Normal vision"
+msgstr "通常の色覚"
+
+#: apps/koebi/src/gallery/editor.rs
+#: apps/koebi/src/settings/accessibility.rs
+msgid "Protanopia"
+msgstr "1型色覚"
+
+#: apps/koebi/src/gallery/editor.rs
+#: apps/koebi/src/settings/accessibility.rs
+msgid "Deuteranopia"
+msgstr "2型色覚"
+
+#: apps/koebi/src/gallery/editor.rs
+#: apps/koebi/src/settings/accessibility.rs
+msgid "Tritanopia"
+msgstr "3型色覚"
+
+#: apps/koebi/src/gallery/editor.rs
+#: apps/koebi/src/settings/accessibility.rs
+msgid "Achromatopsia"
+msgstr "1色覚"
+
+#: apps/koebi/src/gallery/editor.rs
+#: apps/koebi/src/settings/accessibility.rs
+msgid "Protan correction"
+msgstr "1型の補正"
+
+#: apps/koebi/src/gallery/editor.rs
+#: apps/koebi/src/settings/accessibility.rs
+msgid "Deutan correction"
+msgstr "2型の補正"
+
+#: apps/koebi/src/gallery/editor.rs
+#: apps/koebi/src/settings/accessibility.rs
+msgid "Tritan correction"
+msgstr "3型の補正"
+
+#: apps/koebi/src/gallery/editor.rs
+msgid "Simulate"
+msgstr "シミュレート"
+
+#: apps/koebi/src/gallery/editor.rs
+msgid "Correct"
+msgstr "補正"
+
+#: apps/koebi/src/gallery/editor.rs
+msgid "Custom"
+msgstr "カスタム"
+
+#: apps/koebi/src/gallery/fields.rs
+msgid "Centered"
+msgstr "中央揃え"
+
+#: apps/koebi/src/gallery/fields.rs
+msgid "A name far too long for its field, which scrolls while editing"
+msgstr "フィールドに収まらない長い名前は、編集中にスクロールします"
+
+#: apps/koebi/src/gallery/fields.rs
+msgid "Click a field to edit it; Tab moves to the next one"
+msgstr "フィールドをクリックして編集します。Tabで次のフィールドへ移動します"
+
+#: apps/koebi/src/gallery/fields.rs
+msgid "Search"
+msgstr "検索"
+
+#: apps/koebi/src/gallery/fields.rs
+#: apps/koebi/src/gallery/typography.rs
+msgid "Width"
+msgstr "幅"
+
+#: apps/koebi/src/gallery/fields.rs
+msgid "Frequency"
+msgstr "頻度"
+
+#: apps/koebi/src/gallery/fields.rs
+msgid "Bar with step buttons"
+msgstr "ステップボタン付きバー"
+
+#: apps/koebi/src/gallery/fields.rs
+msgid "Without step buttons"
+msgstr "ステップボタンなし"
+
+#: apps/koebi/src/gallery/fields.rs
+msgid "Kept the text"
+msgstr "テキストを確定しました"
+
+#: apps/koebi/src/gallery/fields.rs
+msgid "Restored the text"
+msgstr "テキストを元に戻しました"
+
+#: apps/koebi/src/gallery/icons.rs
+msgid "Vector icons"
+msgstr "ベクターアイコン"
+
+#: apps/koebi/src/gallery/icons.rs
+#: apps/koebi/src/gallery/typography.rs
+msgid "Size"
+msgstr "サイズ"
+
+#: apps/koebi/src/gallery/icons.rs
+msgid "Original colors"
+msgstr "元の色"
+
+#: apps/koebi/src/gallery/icons.rs
+msgid "Two tones"
+msgstr "2トーン"
+
+#: apps/koebi/src/gallery/icons.rs
+msgid ""
+"Icons with a secondary part (what lies behind, inside, or what "
+"an action applies to) show it fainter; off, in the main color"
+msgstr "副次的な部分（背後や内側にあるもの、操作の対象）を持つアイコンは、その部分を淡く表示します。オフにすると主な色で表示します"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Solid"
+msgstr "ソリッド"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Wireframe"
+msgstr "ワイヤーフレーム"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Rendered"
+msgstr "レンダー"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Median point"
+msgstr "中点"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Cursor"
+msgstr "カーソル"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Active element"
+msgstr "アクティブな要素"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Nothing chosen yet"
+msgstr "まだ何も選択されていません"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "How the viewport draws the scene"
+msgstr "ビューポートでのシーンの描画方法"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Previous mode"
+msgstr "前のモード"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Next mode"
+msgstr "次のモード"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Right-click here for a context menu with submenus"
+msgstr "ここを右クリックすると、サブメニュー付きのコンテキストメニューが開きます"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Sphere"
+msgstr "球"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Plane"
+msgstr "平面"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Point"
+msgstr "ポイント"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Sun"
+msgstr "サン"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Mesh"
+msgstr "メッシュ"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Light"
+msgstr "ライト"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Camera"
+msgstr "カメラ"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Duplicate"
+msgstr "複製"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Join"
+msgstr "結合"
+
+#: apps/koebi/src/gallery/menus.rs
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Snap"
+msgstr "スナップ"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Pivot point"
+msgstr "ピボットポイント"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Added a mesh"
+msgstr "メッシュを追加しました"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Added a light"
+msgstr "ライトを追加しました"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Added a camera"
+msgstr "カメラを追加しました"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Duplicated"
+msgstr "複製しました"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Deleted"
+msgstr "削除しました"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Toggled snapping"
+msgstr "スナップを切り替えました"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Changed the pivot point"
+msgstr "ピボットポイントを変更しました"
+
+#: apps/koebi/src/gallery/menus.rs
+msgid "Chose an item"
+msgstr "項目を選択しました"
+
+#: apps/koebi/src/gallery/mod.rs
+#: apps/koebi/src/settings/customisation/components.rs
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Button"
+msgstr "ボタン"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "Latin"
+msgstr "ラテン文字"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "Japanese"
+msgstr "日本語"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "Korean"
+msgstr "韓国語"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "Chinese"
+msgstr "中国語"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "Mixed"
+msgstr "混在"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "System fonts listed"
+msgstr "システムフォントを一覧にしました"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "List system fonts"
+msgstr "システムフォントを一覧表示"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "TrueType fonts of the system: pick one in the family menu to load it"
+msgstr "システムのTrueTypeフォントです。ファミリーメニューから選ぶと読み込まれます"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid ""
+"Reads the headers of the system's fonts; fonts with CFF outlines "
+"are not read yet"
+msgstr "システムフォントのヘッダーを読み込みます。CFFアウトラインのフォントにはまだ対応していません"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "Weight"
+msgstr "ウェイト"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "Turn"
+msgstr "回転"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "Letter spacing"
+msgstr "字間"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "Line height"
+msgstr "行の高さ"
+
+#: apps/koebi/src/gallery/typography.rs
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Start"
+msgstr "先頭"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "Center"
+msgstr "中央"
+
+#: apps/koebi/src/gallery/typography.rs
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "End"
+msgstr "末尾"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "Kerning"
+msgstr "カーニング"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "Ligatures"
+msgstr "合字"
+
+#: apps/koebi/src/gallery/typography.rs
+msgid "Drawn from the glyphs' curves: any size, any turn."
+msgstr "グリフのカーブから描画します。どのサイズでも、どの角度でも。"
+
+#: apps/koebi/src/settings/accessibility.rs
+msgid "Colors as the theme defines them"
+msgstr "テーマで定義されたとおりの色"
+
+#: apps/koebi/src/settings/accessibility.rs
+msgid "No red cones"
+msgstr "赤錐体がない"
+
+#: apps/koebi/src/settings/accessibility.rs
+msgid "No green cones"
+msgstr "緑錐体がない"
+
+#: apps/koebi/src/settings/accessibility.rs
+msgid "No blue cones"
+msgstr "青錐体がない"
+
+#: apps/koebi/src/settings/accessibility.rs
+msgid "No colors"
+msgstr "色の区別がない"
+
+#: apps/koebi/src/settings/accessibility.rs
+msgid "Separates reds from greens"
+msgstr "赤と緑を見分けやすくします"
+
+#: apps/koebi/src/settings/accessibility.rs
+msgid "Separates greens from reds"
+msgstr "緑と赤を見分けやすくします"
+
+#: apps/koebi/src/settings/accessibility.rs
+msgid "Separates blues from yellows"
+msgstr "青と黄を見分けやすくします"
+
+#: apps/koebi/src/settings/accessibility.rs
+msgid "No transformation"
+msgstr "変換なし"
+
+#: apps/koebi/src/settings/accessibility.rs
+msgid "See as someone with a color deficiency"
+msgstr "色覚特性のある人の見え方をシミュレート"
+
+#: apps/koebi/src/settings/accessibility.rs
+msgid "Correct a color deficiency"
+msgstr "色覚特性を補正"
+
+#: apps/koebi/src/settings/accessibility.rs
+msgid "Strength"
+msgstr "強さ"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Hue palettes"
+msgstr "色相パレット"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "One color makes a palette: its steps keep their contrast."
+msgstr "1色からパレットを作ります。各段階のコントラストは保たれます。"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "This theme"
+msgstr "このテーマ"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Every theme"
+msgstr "すべてのテーマ"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Back to the theme's own palette"
+msgstr "テーマ本来のパレットに戻す"
+
+#: apps/koebi/src/settings/colors.rs
+#: crates/koebi-ui/src/widgets/theme_card.rs
+msgid "Aa"
+msgstr "Aa"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Actions"
+msgstr "アクション"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A button runs an action when it is clicked: the pointer pressed "
+"and released over it. Moving away before releasing cancels the "
+"click. A toggle button stays selected until clicked again; a "
+"selected button that is pressed shows both. Disabled buttons "
+"show dimmed and ignore the pointer, but still keep it from what "
+"lies below."
+msgstr ""
+"ボタンはクリック（ポインターをボタンの上で押して離すこと）でアクションを実行します。離す前にポインターを外すとクリックは取り消されます。トグルボタンはもう一度クリックするまで選択されたままで、選択中のボタンを押すと両方の状態を表示します。無効なボタンは薄く表示されてポインターを無視しますが、下にあるものへポインターは届きません。"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Checkbox"
+msgstr "チェックボックス"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A checkbox turns an option on or off. A click anywhere on it, "
+"its label included, flips it; a mixed box (some of several options "
+"on) becomes checked."
+msgstr ""
+"チェックボックスはオプションのオンとオフを切り替えます。ラベルを含めてどこをクリックしても切り替わり、混在状態（複数のオプションの一部がオン）のボックスはチェックされた状態になります。"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Values"
+msgstr "値"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Number field"
+msgstr "数値フィールド"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A number field shows a value and changes it. Drag it sideways: "
+"the pointer hides and the value follows, finer with Shift, coarser "
+"with Ctrl; Escape or the secondary button brings back the value "
+"the drag started from. A click without moving types the value: "
+"expressions and units (\"2 * 3 mm\") are understood. The step "
+"buttons, and Ctrl with the wheel, step it. A bounded field fills "
+"a bar up to its value."
+msgstr ""
+"数値フィールドは値を表示し、変更します。横にドラッグするとポインターが隠れて値が追従し、Shiftで細かく、Ctrlで粗く変わります。Escまたは副ボタンでドラッグ開始時の値に戻ります。動かさずにクリックすると値を入力でき、式や単位（「2 "
+"* 3 mm」）も使えます。ステップボタンやCtrl+ホイールで1ステップずつ変わります。範囲のあるフィールドは値までバーが塗られます。"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Text field"
+msgstr "テキストフィールド"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A text field edits one line of text. A click places the caret, "
+"a drag selects, a double click selects a word; the usual shortcuts "
+"copy, cut, paste and undo. Enter keeps the text, Escape brings "
+"back what it was."
+msgstr ""
+"テキストフィールドは1行のテキストを編集します。クリックでキャレットを置き、ドラッグで選択し、ダブルクリックで単語を選択します。いつものショートカットでコピー、切り取り、貼り付け、元に戻すができます。Enterでテキストを確定し、Escで元に戻します。"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Dropdown"
+msgstr "ドロップダウン"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A dropdown shows the current choice and opens the list of the "
+"others below it, its corners meeting the list's. The arrows "
+"move in the list, Enter chooses, Escape closes it without changing "
+"anything."
+msgstr ""
+"ドロップダウンは現在の選択を表示し、その下に他の選択肢のリストを開きます。角はリストの角とつながります。矢印キーでリスト内を移動し、Enterで選択、Escで何も変えずに閉じます。"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Color field and picker"
+msgstr "カラーフィールドとピッカー"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A color field shows a color, each half showing its transparency "
+"its own way, outlined in a gray of its own. A click opens the "
+"picker: an area of two components, strips for the third and "
+"the opacity, the colors when it opened and originally, an eyedropper, "
+"and the fields of a model (RGB, HSV, HSL, OKLCH, CMYK, hex). "
+"Dragging hides the pointer; Shift is finer; Escape brings the "
+"color back."
+msgstr ""
+"カラーフィールドは色を表示します。左右の半分はそれぞれの方法で透明度を示し、独自のグレーで縁取られます。クリックするとピッカーが開きます：2成分のエリア、3つ目の成分と不透明度のバー、開いたときの色と元の色、スポイト、色モデル（RGB、HSV、HSL、OKLCH、CMYK、16進数）のフィールドがあります。ドラッグ中はポインターが隠れ、Shiftで細かく動き、Escで色が元に戻ります。"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Curve editor"
+msgstr "カーブエディター"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A curve editor shapes how something eases over time. Drag a "
+"key to move it (Escape brings it back), double click the graph "
+"to add one, right click a key to remove it; the fields type "
+"the selected key's place and the easing of the segment leaving "
+"it. It is temporary: curves get a fuller editor later."
+msgstr ""
+"カーブエディターは時間に沿った変化の緩急を形づくります。キーをドラッグして移動し（Escで元に戻ります）、グラフをダブルクリックしてキーを追加し、キーを右クリックして削除します。フィールドでは選択したキーの位置と、そこから始まる区間のイージングを入力します。これは仮のもので、後により充実したエディターになります。"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Containers"
+msgstr "コンテナー"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Panel"
+msgstr "パネル"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"Panels gather what belongs together. An expandable panel opens "
+"and closes with a click on its header; nested panels span their "
+"parent's width and indent what they hold. A dot at the end of "
+"a header tells something below was changed, and brings it back."
+msgstr ""
+"パネルは関連するものをまとめます。展開できるパネルはヘッダーのクリックで開閉し、入れ子のパネルは親の幅いっぱいに広がって中身を字下げします。ヘッダーの端の点は、その下で何かが変更されたことを示し、クリックすると元に戻します。"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Tooltip"
+msgstr "ツールチップ"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A tooltip names what lies under the pointer once it rests there "
+"for a moment; moving to a neighbour shows the neighbour's at "
+"once, for a little while."
+msgstr ""
+"ツールチップは、ポインターが少し止まると、その下にあるものの名前を示します。隣の項目へ移ると、しばらくの間はすぐに隣のツールチップが表示されます。"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Status bar"
+msgstr "ステータスバー"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"The status bar, at the bottom of workspace windows, shows the "
+"shortcuts that apply where the pointer is, the most useful first, "
+"and the version on the right."
+msgstr "ステータスバーはワークスペースのウィンドウの下部にあり、ポインターのある場所で使えるショートカットを役立つ順に、右端にバージョンを表示します。"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Shortcuts"
+msgstr "ショートカット"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Key caps"
+msgstr "キーキャップ"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"Key caps show shortcuts as the keys to press: the modifiers "
+"first, each side of the keyboard as its own key when it matters, "
+"then the key or the mouse button."
+msgstr ""
+"キーキャップはショートカットを押すキーとして表示します。まず修飾キー（左右の区別が必要なときはそれぞれ別のキー）、次にキーまたはマウスボタンです。"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Normal"
+msgstr "通常"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Hovered"
+msgstr "ホバー"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Pressed"
+msgstr "押下"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Selected"
+msgstr "選択"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Selected, hovered"
+msgstr "選択・ホバー"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Selected, pressed"
+msgstr "選択・押下"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Active"
+msgstr "アクティブ"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Selected, disabled"
+msgstr "選択・無効"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Dragged"
+msgstr "ドラッグ中"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Logarithmic"
+msgstr "対数"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Stepped"
+msgstr "段階"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Untitled"
+msgstr "無題"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "States"
+msgstr "状態"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Try it"
+msgstr "試す"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "What it does"
+msgstr "動作"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Every token"
+msgstr "すべてのトークン"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Mix"
+msgstr "ミックス"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "On"
+msgstr "オン"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Off"
+msgstr "オフ"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "Rest here"
+msgstr "ここにポインターを置く"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "A tooltip names what lies under the pointer"
+msgstr "ツールチップはポインターの下にあるものの名前を示します"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "A nested panel"
+msgstr "入れ子のパネル"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid "What it holds"
+msgstr "その中身"
+
+#: apps/koebi/src/settings/customisation/mod.rs
+msgid "By feature"
+msgstr "機能別"
+
+#: apps/koebi/src/settings/customisation/mod.rs
+msgid "By component"
+msgstr "コンポーネント別"
+
+#: apps/koebi/src/settings/customisation/mod.rs
+msgid ""
+"Every token, from the parts of the interface down. A dot marks "
+"what changed."
+msgstr "インターフェースの各部から下層まで、すべてのトークンです。変更されたものには点が付きます。"
+
+#: apps/koebi/src/settings/customisation/mod.rs
+msgid ""
+"Each component: what it does, its states, one to try, its shortcuts "
+"and tokens."
+msgstr "各コンポーネントの動作、状態、試せる見本、ショートカット、トークンです。"
+
+#: apps/koebi/src/settings/dev.rs
+msgid "Diagnostics"
+msgstr "診断"
+
+#: apps/koebi/src/settings/dev.rs
+msgid "Show the frame times"
+msgstr "フレーム時間を表示"
+
+#: apps/koebi/src/settings/dev.rs
+msgid ""
+"Frames per second, CPU and GPU time of a frame, above the status "
+"bar. F12 too."
+msgstr "毎秒のフレーム数と、1フレームのCPU時間・GPU時間をステータスバーの上に表示します。F12キーでも切り替えられます。"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Pointer"
+msgstr "ポインター"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Drag start distance"
+msgstr "ドラッグ開始距離"
+
+#: apps/koebi/src/settings/inputs.rs
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Double click time"
+msgstr "ダブルクリック間隔"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Hovering"
+msgstr "ホバー"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Tooltip delay, short"
+msgstr "ツールチップの遅延（短）"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Tooltip delay, normal"
+msgstr "ツールチップの遅延（標準）"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Tooltip delay, long"
+msgstr "ツールチップの遅延（長）"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Hover delay"
+msgstr "ホバーの遅延"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Holding"
+msgstr "長押し"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Repeat delay"
+msgstr "リピート開始までの時間"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Repeat interval"
+msgstr "リピート間隔"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Number fields"
+msgstr "数値フィールド"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Drag distance of a step"
+msgstr "1ステップのドラッグ距離"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Shift, without a bar"
+msgstr "Shift（バーなし）"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Shift, with a bar"
+msgstr "Shift（バーあり）"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Steps in a unit"
+msgstr "1単位あたりのステップ数"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Menus"
+msgstr "メニュー"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Submenu delay"
+msgstr "サブメニューの遅延"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Submenu grace"
+msgstr "サブメニューの猶予"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Closing distance"
+msgstr "閉じる距離"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Scrolling"
+msgstr "スクロール"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Wheel step"
+msgstr "ホイールの移動量"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Docking"
+msgstr "ドッキング"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Drag start distance of a tab"
+msgstr "タブのドラッグ開始距離"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Tab bar delay"
+msgstr "タブバーの遅延"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Tab bar grace"
+msgstr "タブバーの猶予"
+
+#: apps/koebi/src/settings/inputs.rs
+msgid "Drop preview glide"
+msgstr "ドロップのプレビューの移動"
+
+#. TRANSLATORS: {shortcut} is a shortcut (Ctrl+S), {action} an action, {place} a part of the interface (Outliner).
+#: apps/koebi/src/settings/keymaps/analysis.rs
+msgid ""
+"{shortcut} is already a shortcut of {action} in {place}: it "
+"stays off until one of them changes."
+msgstr "{shortcut}はすでに{place}の{action}のショートカットです。どちらかが変わるまで無効になります。"
+
+#: apps/koebi/src/settings/keymaps/analysis.rs
+msgid "In {place}, inside {here}, {shortcut} does {action} instead."
+msgstr "{here}の中の{place}では、{shortcut}は代わりに{action}を実行します。"
+
+#: apps/koebi/src/settings/keymaps/analysis.rs
+msgid ""
+"In {here}, {shortcut} wins over {action} of {place}, which it "
+"lies inside."
+msgstr "{here}では、{shortcut}はそれを含む{place}の{action}より優先されます。"
+
+#: apps/koebi/src/settings/keymaps/analysis.rs
+msgid ""
+"{other} does {action} in {place}: one movement does both, or "
+"one instead of the other."
+msgstr "{other}は{place}で{action}を実行します。1つの操作で両方が実行されるか、一方だけが実行されます。"
+
+#. TRANSLATORS: {condition} tells when the other action applies ("when a group is folded").
+#: apps/koebi/src/settings/keymaps/analysis.rs
+msgid "Also {action} {condition}: the two never apply at once."
+msgstr "{condition}は{action}にもなります。両方が同時に適用されることはありません。"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Click to record a button"
+msgstr "クリックしてボタンを記録"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Click to record a key"
+msgstr "クリックしてキーを記録"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Choose it below"
+msgstr "下で選択してください"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Hold modifiers, then press"
+msgstr "修飾キーを押したまま、キーを押してください"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Remove this shortcut"
+msgstr "このショートカットを削除"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid ""
+"Record its key or button above, or choose it: the shortcut works "
+"from then on."
+msgstr "上でキーかボタンを記録するか、選択してください。その時点からショートカットが有効になります。"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Event"
+msgstr "イベント"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Repeat"
+msgstr "リピート"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "While the key is held"
+msgstr "キーを押している間"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Direction"
+msgstr "方向"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Distance"
+msgstr "距離"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Modifiers"
+msgstr "修飾キー"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Key held"
+msgstr "押し続けるキー"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+#: crates/koebi-ui/src/widgets/capture_field.rs
+msgid "None"
+msgstr "なし"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Press the key to hold"
+msgstr "押し続けるキーを押してください"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "A key held as a modifier: the shortcut triggers only while it is down"
+msgstr "修飾キーのように押し続けるキーです。押している間だけショートカットが働きます"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Its own"
+msgstr "個別の値"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "The application's value, unless this shortcut has its own"
+msgstr "このショートカットに個別の値がなければ、アプリケーションの値を使います"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Key"
+msgstr "キー"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Input"
+msgstr "入力"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Choose a key"
+msgstr "キーを選択"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Other key"
+msgstr "その他のキー"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Choose a button"
+msgstr "ボタンを選択"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Other button"
+msgstr "その他のボタン"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Any movement"
+msgstr "任意の移動"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Any"
+msgstr "任意"
+
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid ""
+"Any modifiers held or not; the others keep their values for "
+"when it goes off"
+msgstr "修飾キーは押していてもいなくても構いません。他の設定は、この選択を解除したときのために保持されます"
+
+#: apps/koebi/src/settings/keymaps/mod.rs
+msgid "Search by name"
+msgstr "名前で検索"
+
+#: apps/koebi/src/settings/keymaps/mod.rs
+msgid "Search by shortcut"
+msgstr "ショートカットで検索"
+
+#: apps/koebi/src/settings/keymaps/mod.rs
+msgid "Press the shortcut to find"
+msgstr "検索するショートカットを押してください"
+
+#: apps/koebi/src/settings/keymaps/mod.rs
+msgid "Clear the search"
+msgstr "検索をクリア"
+
+#: apps/koebi/src/settings/keymaps/mod.rs
+msgid "Bring back the default shortcuts"
+msgstr "デフォルトのショートカットに戻す"
+
+#: apps/koebi/src/settings/keymaps/mod.rs
+msgid "Add a shortcut"
+msgstr "ショートカットを追加"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Keyboard"
+msgstr "キーボード"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Mouse"
+msgstr "マウス"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Touchpad"
+msgstr "タッチパッド"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Pointer move"
+msgstr "ポインターの移動"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Press"
+msgstr "押す"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Release"
+msgstr "離す"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Click"
+msgstr "クリック"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Double click"
+msgstr "ダブルクリック"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Click and drag"
+msgstr "クリックしてドラッグ"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Letters"
+msgstr "文字"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Digits"
+msgstr "数字"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Function keys"
+msgstr "ファンクションキー"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+#: apps/koebi/src/settings/mod.rs
+msgid "Navigation"
+msgstr "ナビゲーション"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Up"
+msgstr "↑"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Down"
+msgstr "↓"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Left"
+msgstr "←"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Right"
+msgstr "→"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Home"
+msgstr "Home"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "End"
+msgstr "End"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Page up"
+msgstr "Page Up"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Page down"
+msgstr "Page Down"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Editing"
+msgstr "編集"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Space"
+msgstr "スペース"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Enter"
+msgstr "Enter"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Tab"
+msgstr "Tab"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Backspace"
+msgstr "Back Space"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Delete"
+msgstr "Delete"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Insert"
+msgstr "Insert"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Escape"
+msgstr "Esc"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Punctuation"
+msgstr "記号"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Minus"
+msgstr "マイナス"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Equals"
+msgstr "イコール"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Left bracket"
+msgstr "左角かっこ"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Right bracket"
+msgstr "右角かっこ"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Backslash"
+msgstr "バックスラッシュ"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Semicolon"
+msgstr "セミコロン"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Apostrophe"
+msgstr "アポストロフィ"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Grave accent"
+msgstr "グレーブアクセント"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Comma"
+msgstr "カンマ"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Period"
+msgstr "ピリオド"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Slash"
+msgstr "スラッシュ"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Numeric keypad"
+msgstr "テンキー"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad 0"
+msgstr "テンキー0"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad 1"
+msgstr "テンキー1"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad 2"
+msgstr "テンキー2"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad 3"
+msgstr "テンキー3"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad 4"
+msgstr "テンキー4"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad 5"
+msgstr "テンキー5"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad 6"
+msgstr "テンキー6"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad 7"
+msgstr "テンキー7"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad 8"
+msgstr "テンキー8"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad 9"
+msgstr "テンキー9"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad divide"
+msgstr "テンキー÷"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad multiply"
+msgstr "テンキー×"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad minus"
+msgstr "テンキー−"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad plus"
+msgstr "テンキー+"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad enter"
+msgstr "テンキーEnter"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Keypad period"
+msgstr "テンキー."
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Num lock"
+msgstr "Num Lock"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "System"
+msgstr "システム"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Caps lock"
+msgstr "Caps Lock"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Print screen"
+msgstr "Print Screen"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Scroll lock"
+msgstr "Scroll Lock"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Pause"
+msgstr "Pause"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgctxt "key"
+msgid "Menu"
+msgstr "アプリケーション"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Buttons"
+msgstr "ボタン"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Left button"
+msgstr "左ボタン"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Middle button"
+msgstr "中ボタン"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Right button"
+msgstr "右ボタン"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Back button"
+msgstr "戻るボタン"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Forward button"
+msgstr "進むボタン"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Button 6"
+msgstr "ボタン6"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Button 7"
+msgstr "ボタン7"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Button 8"
+msgstr "ボタン8"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Wheel"
+msgstr "ホイール"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Wheel up"
+msgstr "ホイール上"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Wheel down"
+msgstr "ホイール下"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Wheel left"
+msgstr "ホイール左"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Wheel right"
+msgstr "ホイール右"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Pinch in"
+msgstr "ピンチイン"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Pinch out"
+msgstr "ピンチアウト"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Any direction"
+msgstr "任意の方向"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Up"
+msgstr "上"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Up right"
+msgstr "右上"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Right"
+msgstr "右"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Down right"
+msgstr "右下"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Down"
+msgstr "下"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Down left"
+msgstr "左下"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Left"
+msgstr "左"
+
+#: apps/koebi/src/settings/keymaps/rules.rs
+msgid "Up left"
+msgstr "左上"
+
+#: apps/koebi/src/settings/language.rs
+msgid "{language}: {percent} % translated"
+msgstr "{language}：{percent}%翻訳済み"
+
+#: apps/koebi/src/settings/language.rs
+msgid "The system's: {language}"
+msgstr "システムの設定：{language}"
+
+#: apps/koebi/src/settings/language.rs
+msgid "Language of the interface"
+msgstr "インターフェースの言語"
+
+#: apps/koebi/src/settings/language.rs
+msgid ""
+"Koebi is written in English; the other languages come from translators. "
+"A message not translated yet shows in English."
+msgstr "Koebiは英語で書かれており、他の言語は翻訳者によるものです。まだ翻訳されていないメッセージは英語で表示されます。"
+
+#: apps/koebi/src/settings/mod.rs
+msgid "General"
+msgstr "一般"
+
+#: apps/koebi/src/settings/mod.rs
+msgid "Language"
+msgstr "言語"
+
+#: apps/koebi/src/settings/mod.rs
+#: apps/koebi/src/settings/options.rs
+msgid "Theme"
+msgstr "テーマ"
+
+#: apps/koebi/src/settings/mod.rs
+msgid "Customisation"
+msgstr "カスタマイズ"
+
+#: apps/koebi/src/settings/mod.rs
+msgid "Accessibility"
+msgstr "アクセシビリティ"
+
+#: apps/koebi/src/settings/mod.rs
+msgid "Inputs"
+msgstr "入力"
+
+#: apps/koebi/src/settings/mod.rs
+msgid "Keymaps"
+msgstr "キーマップ"
+
+#: apps/koebi/src/settings/mod.rs
+msgid "Icons"
+msgstr "アイコン"
+
+#: apps/koebi/src/settings/mod.rs
+msgid "Dev"
+msgstr "開発"
+
+#: apps/koebi/src/settings/mod.rs
+msgid "Nothing to set here yet"
+msgstr "ここで設定できる項目はまだありません"
+
+#: apps/koebi/src/settings/options.rs
+msgid "Reset for the application"
+msgstr "アプリケーションの値をリセット"
+
+#: apps/koebi/src/settings/options.rs
+msgid "Reset for the current theme"
+msgstr "現在のテーマの値をリセット"
+
+#: apps/koebi/src/settings/options.rs
+msgid "Reset both"
+msgstr "両方をリセット"
+
+#: apps/koebi/src/settings/options.rs
+msgid "Reset what changed below; right-click to choose for what"
+msgstr "下で変更した値をリセットします。右クリックで対象を選べます"
+
+#: apps/koebi/src/settings/options.rs
+msgid "Current theme: {name}"
+msgstr "現在のテーマ：{name}"
+
+#: apps/koebi/src/settings/options.rs
+msgid "Resolution chain"
+msgstr "解決の順序"
+
+#: apps/koebi/src/settings/options.rs
+msgid "Current theme"
+msgstr "現在のテーマ"
+
+#: apps/koebi/src/settings/theme.rs
+msgid "Themes"
+msgstr "テーマ"
+
+#: crates/koebi-tokens/src/lib.rs
+msgid "Controls"
+msgstr "コントロール"
+
+#: crates/koebi-tokens/src/lib.rs
+msgid "Buttons, toggles, fields, dropdowns, pickers and the other controls."
+msgstr "ボタン、トグル、フィールド、ドロップダウン、ピッカーなどのコントロール。"
+
+#: crates/koebi-tokens/src/lib.rs
+msgid "Surfaces"
+msgstr "サーフェス"
+
+#: crates/koebi-tokens/src/lib.rs
+msgid "Windows, panels, menus, tooltips, the status bar and what they hold."
+msgstr "ウィンドウ、パネル、メニュー、ツールチップ、ステータスバーとその中身。"
+
+#: crates/koebi-tokens/src/lib.rs
+msgid "Editors"
+msgstr "エディター"
+
+#: crates/koebi-tokens/src/lib.rs
+msgid "The workspace's areas and tabs, and the editors inside them."
+msgstr "ワークスペースのエリアとタブ、その中のエディター。"
+
+#: crates/koebi-tokens/src/lib.rs
+msgid "Intents"
+msgstr "インテント"
+
+#: crates/koebi-tokens/src/lib.rs
+msgid ""
+"Semantic tokens: the roles, backgrounds, text, sizes and motion "
+"components alias."
+msgstr "セマンティックトークン：コンポーネントが参照する役割、背景、テキスト、サイズ、モーション。"
+
+#: crates/koebi-tokens/src/lib.rs
+msgid "Palettes and scales"
+msgstr "パレットとスケール"
+
+#: crates/koebi-tokens/src/lib.rs
+msgid ""
+"Primitive tokens: the raw colors, sizes, fonts and durations "
+"beneath everything."
+msgstr "プリミティブトークン：すべての土台となる色、サイズ、フォント、時間の値。"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Selection, focus, main actions."
+msgstr "選択、フォーカス、主要なアクション。"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Informative"
+msgstr "情報"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Information needing no action."
+msgstr "操作の必要がない情報。"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Success, what is valid or added."
+msgstr "成功、有効なもの、追加されたもの。"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Warnings, what needs attention."
+msgstr "警告、注意が必要なもの。"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Errors and destructive actions."
+msgstr "エラーと破壊的な操作。"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Chartreuse"
+msgstr "シャルトルーズ"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Celery"
+msgstr "セロリ"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Seafoam"
+msgstr "シーフォーム"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Indigo"
+msgstr "インディゴ"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Fuchsia"
+msgstr "フクシア"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Pink"
+msgstr "ピンク"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Turquoise"
+msgstr "ターコイズ"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Cinnamon"
+msgstr "シナモン"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Brown"
+msgstr "ブラウン"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Silver"
+msgstr "シルバー"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "A tint of every gray."
+msgstr "すべてのグレーの色味。"
+
+#: crates/koebi-tokens/src/palettes.rs
+msgid "Tags, charts, what aliases it."
+msgstr "タグ、グラフ、これを参照するもの。"
+
+#: crates/koebi-tokens/src/themes/mod.rs
+msgid "Dark"
+msgstr "ダーク"
+
+#: crates/koebi-tokens/src/themes/mod.rs
+msgid "Dark pink"
+msgstr "ダークピンク"
+
+#: crates/koebi-tokens/src/themes/mod.rs
+msgid "Muted green"
+msgstr "ミュートグリーン"
+
+#: crates/koebi-tokens/src/themes/mod.rs
+msgid "Snow"
+msgstr "スノー"
+
+#: crates/koebi-tokens/src/themes/mod.rs
+msgid "Arctic"
+msgstr "アークティック"
+
+#: crates/koebi-tokens/src/themes/mod.rs
+msgid "High contrast"
+msgstr "ハイコントラスト"
+
+#: crates/koebi-ui/src/operation.rs
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Cancel"
+msgstr "キャンセル"
+
+#: crates/koebi-ui/src/operation.rs
+msgid ""
+"Cancels the operation in progress (a drag, a resize, a pick) "
+"and brings back what it changed."
+msgstr "実行中の操作（ドラッグ、サイズ変更、色の取得）を取り消し、変更を元に戻します。"
+
+#: crates/koebi-ui/src/operation.rs
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Confirm"
+msgstr "確定"
+
+#: crates/koebi-ui/src/operation.rs
+msgid ""
+"Ends the operation in progress and keeps what it does: the value "
+"dragged, the split or join previewed, the color under the pointer."
+msgstr "実行中の操作を終了し、その結果を確定します：ドラッグした値、プレビュー中の分割や結合、ポインターの下の色。"
+
+#: crates/koebi-ui/src/operation.rs
+msgid "Operations"
+msgstr "操作"
+
+#: crates/koebi-ui/src/widgets/capture_field.rs
+msgid "Press a key"
+msgstr "キーを押してください"
+
+#: crates/koebi-ui/src/widgets/color/field.rs
+msgid "Opaque"
+msgstr "不透明"
+
+#: crates/koebi-ui/src/widgets/color/field.rs
+msgid "Over the background"
+msgstr "背景の上"
+
+#: crates/koebi-ui/src/widgets/color/field.rs
+msgid "Over white"
+msgstr "白の上"
+
+#: crates/koebi-ui/src/widgets/color/field.rs
+msgid "Over black"
+msgstr "黒の上"
+
+#: crates/koebi-ui/src/widgets/color/field.rs
+msgid "Over a checkerboard"
+msgstr "市松模様の上"
+
+#: crates/koebi-ui/src/widgets/color/picker.rs
+msgid "Hex"
+msgstr "16進数"
+
+#: crates/koebi-ui/src/widgets/color/picker.rs
+msgid "Pick a color on the screen"
+msgstr "画面から色を取得"
+
+#: crates/koebi-ui/src/widgets/color/picker.rs
+msgid "The current color"
+msgstr "現在の色"
+
+#: crates/koebi-ui/src/widgets/color/picker.rs
+msgid "The color before the picker opened"
+msgstr "ピッカーを開く前の色"
+
+#: crates/koebi-ui/src/widgets/color/picker.rs
+msgid "The color without any change"
+msgstr "変更前の元の色"
+
+#: crates/koebi-ui/src/widgets/color/shape.rs
+msgid "Square: saturation and value"
+msgstr "四角形：彩度と明度"
+
+#: crates/koebi-ui/src/widgets/color/shape.rs
+msgid "Square: hue and saturation"
+msgstr "四角形：色相と彩度"
+
+#: crates/koebi-ui/src/widgets/color/shape.rs
+msgid "Wheel: HSV"
+msgstr "ホイール：HSV"
+
+#: crates/koebi-ui/src/widgets/color/shape.rs
+msgid "Wheel: HSL"
+msgstr "ホイール：HSL"
+
+#: crates/koebi-ui/src/widgets/color/shape.rs
+msgid "Wheel: OKLCH, perceptual"
+msgstr "ホイール：OKLCH（知覚的）"
+
+#: crates/koebi-ui/src/widgets/color/shape.rs
+msgid "Ring and triangle"
+msgstr "リングと三角形"
+
+#: crates/koebi-ui/src/widgets/color/shape.rs
+msgid "Ring and square"
+msgstr "リングと四角形"
+
+#: crates/koebi-ui/src/widgets/curve_editor.rs
+msgid "The easing's first control point: its time"
+msgstr "イージングの1つ目の制御点：時間"
+
+#: crates/koebi-ui/src/widgets/curve_editor.rs
+msgid "The easing's first control point: its value"
+msgstr "イージングの1つ目の制御点：値"
+
+#: crates/koebi-ui/src/widgets/curve_editor.rs
+msgid "The easing's second control point: its time"
+msgstr "イージングの2つ目の制御点：時間"
+
+#: crates/koebi-ui/src/widgets/curve_editor.rs
+msgid "The easing's second control point: its value"
+msgstr "イージングの2つ目の制御点：値"
+
+#: crates/koebi-ui/src/widgets/curve_editor.rs
+msgid "Add key"
+msgstr "キーを追加"
+
+#: crates/koebi-ui/src/widgets/curve_editor.rs
+msgid "Remove key"
+msgstr "キーを削除"
+
+#: crates/koebi-ui/src/widgets/curve_editor.rs
+msgid "The selected key's time"
+msgstr "選択したキーの時間"
+
+#: crates/koebi-ui/src/widgets/curve_editor.rs
+msgid "The selected key's value"
+msgstr "選択したキーの値"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Ctrl"
+msgstr "Ctrl"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "L Ctrl"
+msgstr "左Ctrl"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "R Ctrl"
+msgstr "右Ctrl"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Any Ctrl"
+msgstr "Ctrl（任意）"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Shift"
+msgstr "Shift"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "L Shift"
+msgstr "左Shift"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "R Shift"
+msgstr "右Shift"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Any Shift"
+msgstr "Shift（任意）"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Option"
+msgstr "Option"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "L Option"
+msgstr "左Option"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "R Option"
+msgstr "右Option"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Any Option"
+msgstr "Option（任意）"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Alt"
+msgstr "Alt"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "L Alt"
+msgstr "左Alt"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "R Alt"
+msgstr "右Alt"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Any Alt"
+msgstr "Alt（任意）"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Cmd"
+msgstr "Cmd"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "L Cmd"
+msgstr "左Cmd"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "R Cmd"
+msgstr "右Cmd"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Any Cmd"
+msgstr "Cmd（任意）"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Win"
+msgstr "Win"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "L Win"
+msgstr "左Win"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "R Win"
+msgstr "右Win"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Any Win"
+msgstr "Win（任意）"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Super"
+msgstr "Super"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "L Super"
+msgstr "左Super"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "R Super"
+msgstr "右Super"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Any Super"
+msgstr "Super（任意）"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Any"
+msgstr "任意"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Esc"
+msgstr "Esc"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Page Up"
+msgstr "Page Up"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Page Down"
+msgstr "Page Down"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num 0"
+msgstr "テンキー0"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num 1"
+msgstr "テンキー1"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num 2"
+msgstr "テンキー2"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num 3"
+msgstr "テンキー3"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num 4"
+msgstr "テンキー4"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num 5"
+msgstr "テンキー5"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num 6"
+msgstr "テンキー6"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num 7"
+msgstr "テンキー7"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num 8"
+msgstr "テンキー8"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num 9"
+msgstr "テンキー9"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num +"
+msgstr "テンキー+"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num -"
+msgstr "テンキー-"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num *"
+msgstr "テンキー*"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num /"
+msgstr "テンキー/"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num ."
+msgstr "テンキー."
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num Enter"
+msgstr "テンキーEnter"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Num Lock"
+msgstr "Num Lock"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Caps Lock"
+msgstr "Caps Lock"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Scroll Lock"
+msgstr "Scroll Lock"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Print Screen"
+msgstr "Print Screen"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "repeat"
+msgstr "リピート"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "release"
+msgstr "離したとき"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "click"
+msgstr "クリック"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "double click"
+msgstr "ダブルクリック"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "Wheel up"
+msgstr "ホイール上"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "Wheel down"
+msgstr "ホイール下"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "Wheel left"
+msgstr "ホイール左"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "Wheel right"
+msgstr "ホイール右"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "Pinch in"
+msgstr "ピンチイン"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "Pinch out"
+msgstr "ピンチアウト"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "Move"
+msgstr "移動"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "drag"
+msgstr "ドラッグ"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "drag up"
+msgstr "上へドラッグ"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "drag up right"
+msgstr "右上へドラッグ"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "drag right"
+msgstr "右へドラッグ"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "drag down right"
+msgstr "右下へドラッグ"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "drag down"
+msgstr "下へドラッグ"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "drag down left"
+msgstr "左下へドラッグ"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "drag left"
+msgstr "左へドラッグ"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "shortcut"
+msgid "drag up left"
+msgstr "左上へドラッグ"
+
+#: crates/koebi-ui/src/widgets/key_caps.rs
+msgctxt "key"
+msgid "Mouse {number}"
+msgstr "マウス{number}"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Text editing"
+msgstr "テキスト編集"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Ends the edit and keeps the text."
+msgstr "編集を終了し、テキストを確定します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Ends the edit and restores the text it started with."
+msgstr "編集を終了し、編集前のテキストに戻します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Next field"
+msgstr "次のフィールド"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Keeps the text and edits the next field."
+msgstr "テキストを確定し、次のフィールドを編集します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Previous field"
+msgstr "前のフィールド"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Keeps the text and edits the previous field."
+msgstr "テキストを確定し、前のフィールドを編集します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Moves the caret one character left."
+msgstr "キャレットを1文字左へ移動します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Moves the caret one character right."
+msgstr "キャレットを1文字右へ移動します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Word left"
+msgstr "前の単語"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Moves the caret to the start of the word before it."
+msgstr "キャレットを前の単語の先頭へ移動します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Word right"
+msgstr "次の単語"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Moves the caret to the end of the word after it."
+msgstr "キャレットを次の単語の末尾へ移動します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Moves the caret to the start of the text."
+msgstr "キャレットをテキストの先頭へ移動します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Moves the caret to the end of the text."
+msgstr "キャレットをテキストの末尾へ移動します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Select left"
+msgstr "左を選択"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Extends the selection one character left."
+msgstr "選択範囲を1文字左へ広げます。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Select right"
+msgstr "右を選択"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Extends the selection one character right."
+msgstr "選択範囲を1文字右へ広げます。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Select word left"
+msgstr "前の単語まで選択"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Extends the selection to the start of the word before the caret."
+msgstr "選択範囲をキャレットの前の単語の先頭まで広げます。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Select word right"
+msgstr "次の単語まで選択"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Extends the selection to the end of the word after the caret."
+msgstr "選択範囲をキャレットの次の単語の末尾まで広げます。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Select to start"
+msgstr "先頭まで選択"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Extends the selection to the start of the text."
+msgstr "選択範囲をテキストの先頭まで広げます。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Select to end"
+msgstr "末尾まで選択"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Extends the selection to the end of the text."
+msgstr "選択範囲をテキストの末尾まで広げます。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Select all"
+msgstr "すべて選択"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Selects the whole text."
+msgstr "テキスト全体を選択します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Delete backward"
+msgstr "前を削除"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Deletes the selection, or the character before the caret."
+msgstr "選択範囲、またはキャレットの前の文字を削除します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Delete forward"
+msgstr "後ろを削除"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Deletes the selection, or the character after the caret."
+msgstr "選択範囲、またはキャレットの後ろの文字を削除します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Delete word backward"
+msgstr "前の単語を削除"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Deletes the selection, or the word before the caret."
+msgstr "選択範囲、またはキャレットの前の単語を削除します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Delete word forward"
+msgstr "次の単語を削除"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Deletes the selection, or the word after the caret."
+msgstr "選択範囲、またはキャレットの後ろの単語を削除します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Copy"
+msgstr "コピー"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Copies the selected text to the clipboard."
+msgstr "選択したテキストをクリップボードにコピーします。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Cut"
+msgstr "切り取り"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Copies the selected text to the clipboard and deletes it."
+msgstr "選択したテキストをクリップボードにコピーして削除します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Paste"
+msgstr "貼り付け"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Replaces the selection with the clipboard's text."
+msgstr "選択範囲をクリップボードのテキストで置き換えます。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Undo"
+msgstr "元に戻す"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Undoes the last change to the text being edited."
+msgstr "編集中のテキストの直前の変更を元に戻します。"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Redo"
+msgstr "やり直し"
+
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Redoes the last change undone in the text being edited."
+msgstr "編集中のテキストで元に戻した変更をやり直します。"
+
+#: crates/koebi-ui/src/widgets/theme_card.rs
+msgid "Ready"
+msgstr "準備完了"
+
+#: crates/koebi-ui/src/widgets/theme_card.rs
+msgid "Scene"
+msgstr "シーン"
+
+#: crates/koebi-ui/src/widgets/theme_card.rs
+msgid "Layer"
+msgstr "レイヤー"
+
+#: crates/koebi-ui/src/widgets/theme_card.rs
+msgid "Shape"
+msgstr "シェイプ"
+
+#: crates/koebi-ui/src/widgets/theme_card.rs
+msgid "Aa Title"
+msgstr "Aa タイトル"
+
+#: crates/koebi-ui/src/widgets/theme_card.rs
+msgid "Text over the theme"
+msgstr "テーマの上のテキスト"
+
+#: crates/koebi-ui/src/widgets/theme_card.rs
+msgid "No"
+msgstr "いいえ"
+
+#: crates/koebi-ui/src/widgets/theme_card.rs
+msgid "Done"
+msgstr "完了"
+
+#: crates/koebi-ui/src/widgets/theme_card.rs
+msgid "Error"
+msgstr "エラー"
+
+#: crates/koebi-ui/src/widgets/theme_card.rs
+msgid "Note"
+msgstr "メモ"
+
+#: crates/koebi-ui/src/workspace/mod.rs
+msgid "Swap areas"
+msgstr "エリアを入れ替え"
+
+#: crates/koebi-ui/src/workspace/mod.rs
+msgid "Join areas"
+msgstr "エリアを結合"
+
+#: crates/koebi-ui/src/workspace/mod.rs
+msgid "Vertical split"
+msgstr "垂直に分割"
+
+#: crates/koebi-ui/src/workspace/mod.rs
+msgid "Horizontal split"
+msgstr "水平に分割"

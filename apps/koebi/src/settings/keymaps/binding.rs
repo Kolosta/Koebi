@@ -11,6 +11,7 @@
 use koebi_core::input::{Key, ModifierKey};
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::DesignSystem;
+use koebi_i18n::{tr, trc};
 use koebi_input::{
     ActionDef, Binding, ButtonTrigger, ConflictKind, DoubleClick, Drag, KeyTrigger, ModifierRule,
     ModifierState, Shortcut, Side, Trigger,
@@ -138,8 +139,8 @@ pub(super) fn conflict_color(design: &DesignSystem, kind: ConflictKind) -> Color
     }
 }
 
-/// The lists the details choose from, built once: the items of each section, each with the
-/// caps of its key or button.
+/// The lists the details choose from, built once per language: the items of each section, each
+/// with the caps of its key or button.
 #[derive(Debug)]
 pub(super) struct Choices {
     keys: Vec<Vec<MenuItem<'static>>>,
@@ -154,7 +155,7 @@ impl Choices {
                 section
                     .inputs
                     .iter()
-                    .map(|(key, name)| MenuItem::action(name).caps(Shortcut::key(*key)))
+                    .map(|(key, name)| MenuItem::action(trc("key", name)).caps(Shortcut::key(*key)))
                     .collect()
             })
             .collect();
@@ -167,7 +168,7 @@ impl Choices {
                     .map(|(input, name)| {
                         let trigger =
                             input.apply(Trigger::button(koebi_core::input::MouseButton::Left));
-                        MenuItem::action(name).caps(Shortcut::new(trigger))
+                        MenuItem::action(tr(name)).caps(Shortcut::new(trigger))
                     })
                     .collect()
             })
@@ -221,9 +222,9 @@ pub(super) fn header(
         Vec2::new((remove.min.x - gap).max(at.max.x + gap), rect.max.y),
     );
     let (capture, empty) = match device {
-        Device::Mouse => (Capture::Mouse, "Click to record a button"),
-        _ if device.records() => (Capture::Keyboard, "Click to record a key"),
-        _ => (Capture::Keyboard, "Choose it below"),
+        Device::Mouse => (Capture::Mouse, tr("Click to record a button")),
+        _ if device.records() => (Capture::Keyboard, tr("Click to record a key")),
+        _ => (Capture::Keyboard, tr("Choose it below")),
     };
     let current = match shown {
         Shown::Binding(binding) => Some(binding.shortcut),
@@ -231,7 +232,7 @@ pub(super) fn header(
     };
     let recorded = CaptureField::new(id.with(3), &mut state.capture, current)
         .capture(capture)
-        .hints(empty, "Hold modifiers, then press")
+        .hints(empty, tr("Hold modifiers, then press"))
         .enabled(device.records())
         .show(ui, field);
     if let Some(shortcut) = recorded.captured {
@@ -254,7 +255,7 @@ pub(super) fn header(
     {
         edit = Some(Edit::Remove);
     }
-    ui.tooltip(id.with(4), "Remove this shortcut", remove);
+    ui.tooltip(id.with(4), tr("Remove this shortcut"), remove);
     edit
 }
 
@@ -338,7 +339,7 @@ pub(super) fn draft_details(
     rows.line(
         ui,
         None,
-        "Record its key or button above, or choose it: the shortcut works from then on.",
+        tr("Record its key or button above, or choose it: the shortcut works from then on."),
     );
     rows.y += rows.gap;
     let input = rows.labeled(ui, input_title(device), 1.0);
@@ -424,7 +425,7 @@ pub(super) fn details(
     if let Some(current) = Event::of(shortcut.trigger)
         && !events.is_empty()
     {
-        let at = rows.labeled(ui, "Event", 1.0);
+        let at = rows.labeled(ui, tr("Event"), 1.0);
         let items: [MenuItem<'_>; 5] = core::array::from_fn(|index| {
             MenuItem::action(events.get(index).map_or("", |event| event.label()))
         });
@@ -441,10 +442,10 @@ pub(super) fn details(
     }
     match shortcut.trigger {
         Trigger::Key { key, repeat, .. } if can_repeat(action, shortcut.trigger) => {
-            let at = rows.labeled(ui, "Repeat", 1.0);
+            let at = rows.labeled(ui, tr("Repeat"), 1.0);
             let mut on = repeat;
             if Checkbox::new(id.with(12), &mut on)
-                .label("While the key is held")
+                .label(tr("While the key is held"))
                 .show(ui, at)
                 .changed
             {
@@ -462,12 +463,12 @@ pub(super) fn details(
             button,
             when: ButtonTrigger::Drag(drag),
         } => {
-            let at = rows.labeled(ui, "Direction", 1.0);
-            let items = DIRECTIONS.map(|(_, name)| MenuItem::action(name));
+            let at = rows.labeled(ui, tr("Direction"), 1.0);
+            let items = DIRECTIONS.map(|(_, name)| MenuItem::action(tr(name)));
             let current = DIRECTIONS
                 .iter()
                 .find(|(direction, _)| *direction == drag.direction)
-                .map_or("", |(_, name)| name);
+                .map_or("", |(_, name)| tr(name));
             if let Some(choice) = Dropdown::new(id.with(13), &mut state.direction, &items)
                 .label(current)
                 .show(ui, at, bounds)
@@ -481,7 +482,7 @@ pub(super) fn details(
                     ..shortcut
                 });
             }
-            let at = rows.labeled(ui, "Distance", 1.0);
+            let at = rows.labeled(ui, tr("Distance"), 1.0);
             let settings = design.get(semantic::INPUT_DRAG_THRESHOLD);
             let value = drag.distance.map(f64::from);
             if let Some(distance) = own_value(
@@ -518,7 +519,7 @@ pub(super) fn details(
             when: ButtonTrigger::DoubleClick(double),
         } => {
             // The application's time, unless the shortcut has its own.
-            let at = rows.labeled(ui, "Double click time", 1.0);
+            let at = rows.labeled(ui, tr("Double click time"), 1.0);
             let settings = design.get(semantic::INPUT_DOUBLE_CLICK_TIME);
             let (shortest, longest) = DoubleClick::TIMES;
             if let Some(time) = own_value(
@@ -552,14 +553,14 @@ pub(super) fn details(
 
     // The modifiers: one group per family with its sides below, any, and a key held.
     if !matches!(device, Device::Pointer) {
-        let grid = rows.labeled(ui, "Modifiers", 2.0);
+        let grid = rows.labeled(ui, tr("Modifiers"), 2.0);
         if let Some(rule) = modifiers(ui, grid, id.with(20), shortcut.modifiers, state) {
             set(Shortcut {
                 modifiers: rule,
                 ..shortcut
             });
         }
-        let at = rows.labeled(ui, "Key held", 1.0);
+        let at = rows.labeled(ui, tr("Key held"), 1.0);
         let row = rows.row;
         let has_held = shortcut.held.is_some();
         // A button clearing it, once there is one.
@@ -576,7 +577,7 @@ pub(super) fn details(
             shortcut.held.map(Shortcut::key),
         )
         .capture(Capture::Keyboard)
-        .hints("None", "Press the key to hold")
+        .hints(tr("None"), tr("Press the key to hold"))
         .show(ui, field);
         if let Some(captured) = held.captured
             && let Trigger::Key { key, .. } = captured.trigger
@@ -588,7 +589,7 @@ pub(super) fn details(
         }
         ui.tooltip(
             id.with(30),
-            "A key held as a modifier: the shortcut triggers only while it is down",
+            tr("A key held as a modifier: the shortcut triggers only while it is down"),
             field,
         );
         if let Some(clear) = clear
@@ -641,7 +642,7 @@ fn own_value(
     let mut own = value.is_some();
     let check = Rect::from_origin_size(rect.min, Vec2::new(rect.width() * 0.4, rect.height()));
     let toggled = Checkbox::new(id, &mut own)
-        .label("Its own")
+        .label(tr("Its own"))
         .show(ui, check)
         .changed;
     let field = Rect::from_min_max(Vec2::new(check.max.x + gap, rect.min.y), rect.max);
@@ -656,7 +657,7 @@ fn own_value(
         .changed;
     ui.tooltip(
         id.with(1),
-        "The application's value, unless this shortcut has its own",
+        tr("The application's value, unless this shortcut has its own"),
         field,
     );
     (toggled || moved).then_some(if own {
@@ -667,12 +668,12 @@ fn own_value(
 }
 
 /// What the row of a device's input is called.
-const fn input_title(device: Device) -> &'static str {
+fn input_title(device: Device) -> &'static str {
     match device {
-        Device::Keyboard => "Key",
-        Device::Mouse => "Button",
-        Device::Touchpad => "Gesture",
-        Device::Pointer => "Input",
+        Device::Keyboard => tr("Key"),
+        Device::Mouse => tr("Button"),
+        Device::Touchpad => tr("Gesture"),
+        Device::Pointer => tr("Input"),
     }
 }
 
@@ -693,9 +694,9 @@ fn input_choice(
     match trigger {
         Trigger::Key { key, when, repeat } => {
             let current = if draft {
-                "Choose a key"
+                tr("Choose a key")
             } else {
-                name_in(&KEY_SECTIONS, key).unwrap_or("Other key")
+                name_in(&KEY_SECTIONS, key).map_or(tr("Other key"), |name| trc("key", name))
             };
             let key = sectioned(
                 ui,
@@ -711,11 +712,11 @@ fn input_choice(
         }
         Trigger::Button { .. } | Trigger::Wheel(_) => {
             let current = if draft {
-                "Choose a button"
+                tr("Choose a button")
             } else {
                 MouseInput::of(trigger)
                     .and_then(|input| name_in(&MOUSE_SECTIONS, input))
-                    .unwrap_or("Other button")
+                    .map_or(tr("Other button"), tr)
             };
             let input = sectioned(
                 ui,
@@ -730,11 +731,11 @@ fn input_choice(
             Some(input.apply(trigger))
         }
         Trigger::Pinch(direction) => {
-            let items = PINCHES.map(|(_, name)| MenuItem::action(name));
+            let items = PINCHES.map(|(_, name)| MenuItem::action(tr(name)));
             let current = PINCHES
                 .iter()
                 .find(|(chosen, _)| *chosen == direction)
-                .map_or("", |(_, name)| name);
+                .map_or("", |(_, name)| tr(name));
             let choice = Dropdown::new(id, menu, &items)
                 .label(current)
                 .show(ui, rect, bounds)?;
@@ -743,7 +744,7 @@ fn input_choice(
         Trigger::PointerMove => {
             let secondary = ui.styles().text.secondary;
             let font = ui.styles().text.label.clone();
-            ui.label("Any movement", rect, &font, secondary, Align::Start);
+            ui.label(tr("Any movement"), rect, &font, secondary, Align::Start);
             None
         }
     }
@@ -766,7 +767,7 @@ fn sectioned<T: Copy>(
     let mut top: [MenuItem<'_>; 8] = [MenuItem::Separator; 8];
     let count = sections.len().min(top.len());
     for (slot, (section, items)) in top.iter_mut().zip(sections.iter().zip(items)) {
-        *slot = MenuItem::submenu(section.name, items);
+        *slot = MenuItem::submenu(tr(section.name), items);
     }
     let choice = Dropdown::new(id, menu, &top[..count])
         .label(current)
@@ -844,7 +845,7 @@ fn modifiers(
     // A group of one cell, so that it looks like the families beside it: their state shows as
     // selected cells with the group's borders, not as a toggle button.
     let mut any_cell = [GroupCell::new(
-        Button::new(id.with(40)).label("Any").selected(any),
+        Button::new(id.with(40)).label(tr("Any")).selected(any),
     )];
     if ButtonGroup::horizontal()
         .show(ui, any_at, &mut any_cell)
@@ -857,7 +858,7 @@ fn modifiers(
     }
     ui.tooltip(
         id.with(40),
-        "Any modifiers held or not; the others keep their values for when it goes off",
+        tr("Any modifiers held or not; the others keep their values for when it goes off"),
         any_at,
     );
     changed

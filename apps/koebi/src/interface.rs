@@ -17,6 +17,7 @@ use crate::actions;
 use crate::chrome::ShortcutLabels;
 use crate::design_options;
 use crate::editors::{self, Content, Editors};
+use crate::language::LanguageSetting;
 use crate::options::Options;
 use crate::overlay::OverlaySwitch;
 use crate::preferences::Preferences;
@@ -49,6 +50,8 @@ pub(crate) struct Interface {
     pub(crate) chain: Vec<Context>,
     /// The origin of the interface's time (`Input::set_time`).
     pub(crate) started: Instant,
+    /// The language of the interface, and where it comes from.
+    pub(crate) language: LanguageSetting,
 }
 
 impl Interface {
@@ -88,6 +91,12 @@ impl Interface {
         if let Some(preferences) = &mut preferences {
             preferences.load_shortcuts(&mut keymap);
         }
+        let language = LanguageSetting::new(
+            directory.as_deref(),
+            context.preferred_locales(),
+            options.language.as_deref().and_then(koebi_i18n::find),
+        );
+        language.apply();
         let labels = ShortcutLabels::read(&keymap);
         let interface = Self {
             styles: StyleCache::new(&design),
@@ -104,6 +113,7 @@ impl Interface {
             input_settings: InputSettings::default(),
             chain: Vec::new(),
             started: Instant::now(),
+            language,
         };
         Ok((interface, workspace, editors))
     }
@@ -135,7 +145,10 @@ impl Interface {
     /// when the change came from another window. Both counts only grow, so their sum changes
     /// whenever either does.
     pub(crate) fn revision(&self) -> u64 {
-        self.design.revision() + self.overlay.changes() + self.fonts_revision
+        self.design.revision()
+            + self.overlay.changes()
+            + self.fonts_revision
+            + koebi_i18n::revision()
     }
 
     /// Adds `font` to `family`, as a fallback for the characters other fonts lack when

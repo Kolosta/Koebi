@@ -7,6 +7,8 @@
 
 use koebi_core::input::Key;
 use koebi_core::{Color, Rect};
+use koebi_i18n::n_;
+use koebi_i18n::{tr, trc};
 use koebi_input::{ActionDef, ActionGroup, ActionKind, Condition, Context, Hint, Shortcut};
 use koebi_ui::{
     DropPlace, ListDelegate, ListItem, ListOptions, ListState, TreeGuide, Ui, WidgetId,
@@ -18,8 +20,8 @@ pub(crate) const OUTLINER: Context = Context::new("outliner");
 /// Deletes the selected rows.
 pub(crate) static DELETE: ActionDef = ActionDef {
     id: "outliner.delete",
-    label: "Delete",
-    description: "Deletes the selected rows and what they hold.",
+    label: n_!("Delete"),
+    description: n_!("Deletes the selected rows and what they hold."),
     context: OUTLINER,
     defaults: &[Shortcut::key(Key::X), Shortcut::key(Key::Delete)],
     repeats: false,
@@ -30,8 +32,8 @@ pub(crate) static DELETE: ActionDef = ActionDef {
 /// Puts the selected rows in a new group.
 pub(crate) static GROUP: ActionDef = ActionDef {
     id: "outliner.group",
-    label: "Group",
-    description: "Puts the selected rows in a new group, where the first of them was.",
+    label: n_!("Group"),
+    description: n_!("Puts the selected rows in a new group, where the first of them was."),
     context: OUTLINER,
     defaults: &[Shortcut::key(Key::G).primary()],
     repeats: false,
@@ -45,30 +47,30 @@ const FOLDS: &str = "outliner.folds";
 /// Unfolds every group, when all are folded.
 pub(crate) static UNFOLD_ALL: ActionDef = ActionDef {
     id: "outliner.unfold-all",
-    label: "Unfold all",
-    description: "Unfolds every group of the outliner, when all are folded.",
+    label: n_!("Unfold all"),
+    description: n_!("Unfolds every group of the outliner, when all are folded."),
     context: OUTLINER,
     defaults: &[Shortcut::key(Key::KeypadPlus)],
     repeats: false,
-    when: Some(Condition::new(FOLDS, "when every group is folded")),
+    when: Some(Condition::new(FOLDS, n_!("when every group is folded"))),
     hint: Some(Hint::new(ActionKind::Fold, 4)),
 };
 
 /// Folds every group, when one is unfolded.
 pub(crate) static FOLD_ALL: ActionDef = ActionDef {
     id: "outliner.fold-all",
-    label: "Fold all",
-    description: "Folds every group of the outliner, when one is unfolded.",
+    label: n_!("Fold all"),
+    description: n_!("Folds every group of the outliner, when one is unfolded."),
     context: OUTLINER,
     defaults: &[Shortcut::key(Key::KeypadMinus)],
     repeats: false,
-    when: Some(Condition::new(FOLDS, "when a group is unfolded")),
+    when: Some(Condition::new(FOLDS, n_!("when a group is unfolded"))),
     hint: Some(Hint::new(ActionKind::Fold, 4)),
 };
 
 /// The outliner's actions, for the keymap.
 pub(crate) static ACTIONS: ActionGroup = ActionGroup {
-    name: "Outliner",
+    name: n_!("Outliner"),
     actions: &[&DELETE, &GROUP, &UNFOLD_ALL, &FOLD_ALL],
 };
 
@@ -109,26 +111,24 @@ impl Tree {
             nodes: Vec::new(),
             next_id: 1,
         };
-        let layers: [(&str, u16, Option<u32>); 10] = [
-            ("Document", 0, None),
-            ("Background", 1, Some(0x2D_9C_DB)),
-            ("Sketch", 1, None),
-            ("Construction", 2, Some(0x9B_9B_9B)),
-            ("Gesture", 2, Some(0xF2_C9_4C)),
-            ("Ink", 1, Some(0xBB_6B_D9)),
-            ("Colors", 1, None),
-            ("Flats", 2, Some(0xE0_4F_5F)),
-            ("Shadows", 2, Some(0x6F_4F_A0)),
-            ("Notes", 0, Some(0x27_AE_60)),
+        // The three looks of the lines: the document's plain, a tag and a looser relation.
+        let tagged = TreeGuide::Color(Color::from_hex(0xF2_C9_4C));
+        let (line, dotted) = (TreeGuide::Line, TreeGuide::Dotted);
+        // The names are the document's, in the language it was made in.
+        let layers: [(&str, u16, Option<u32>, TreeGuide); 10] = [
+            (tr("Document"), 0, None, line),
+            (tr("Background"), 1, Some(0x2D_9C_DB), line),
+            (tr("Sketch"), 1, None, tagged),
+            (tr("Construction"), 2, Some(0x9B_9B_9B), line),
+            (tr("Gesture"), 2, Some(0xF2_C9_4C), line),
+            (tr("Ink"), 1, Some(0xBB_6B_D9), line),
+            (tr("Colors"), 1, None, dotted),
+            (tr("Flats"), 2, Some(0xE0_4F_5F), line),
+            (tr("Shadows"), 2, Some(0x6F_4F_A0), line),
+            (tr("Notes"), 0, Some(0x27_AE_60), line),
         ];
-        for (name, depth, color) in layers {
+        for (name, depth, color, guide) in layers {
             let id = tree.push(name, depth, color.map(Color::from_hex));
-            // The three looks of the lines: the document's plain, a tag and a looser relation.
-            let guide = match name {
-                "Sketch" => TreeGuide::Color(Color::from_hex(0xF2_C9_4C)),
-                "Colors" => TreeGuide::Dotted,
-                _ => TreeGuide::Line,
-            };
             if let Some(index) = tree.index(id) {
                 tree.nodes[index].guide = guide;
             }
@@ -246,7 +246,8 @@ impl Tree {
             index,
             Node {
                 id,
-                name: "Group".to_owned(),
+                // TRANSLATORS: the name of a new group of layers, a noun.
+                name: trc("layer", "Group").to_owned(),
                 depth,
                 group: true,
                 color: None,

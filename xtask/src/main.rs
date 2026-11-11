@@ -14,6 +14,7 @@ mod android;
 mod ci;
 mod commits;
 mod gitflow;
+mod i18n;
 mod ios;
 mod package;
 mod release;
@@ -32,6 +33,14 @@ Quality
   ci [--fast]                     Run the local CI gate (fmt, clippy, tests, docs, shaders, deny, typos)
   shaders [--check]               Compile GLSL to SPIR-V (--check: fail if committed SPIR-V is stale)
   bless                           Regenerate golden images after an intended visual change
+
+Translations (docs/development/translation.md)
+  i18n extract                    Write the template koebi.pot from the messages of the sources
+  i18n update                     Extract, then merge the template into every catalog
+  i18n stats [--markdown]         Print how much of the template each catalog translates
+  i18n check                      Fail on an outdated template or catalog, or a catalog error
+  i18n new <code> --name <native> --english <name> --plural <Plural-Forms>
+                                  Start the catalog of a language
 
 Git workflow
   install-hooks                   Use the versioned git hooks in .githooks/
@@ -76,6 +85,7 @@ fn dispatch(args: &[String]) -> Result<()> {
         "ci" => ci::run(has("--fast")),
         "shaders" => shaders::run(has("--check")),
         "bless" => ci::bless(),
+        "i18n" => i18n::run(rest),
         "install-hooks" => util::install_hooks(),
         "gitflow-check" => {
             let head = value("--head").ok_or("--head <branch> is required")?;

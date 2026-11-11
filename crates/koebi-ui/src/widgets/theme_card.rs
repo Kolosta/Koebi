@@ -5,6 +5,7 @@
 
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::{DesignSystem, Layers, Resolve, ThemeId};
+use koebi_i18n::tr;
 use koebi_render::{Corners, RectPrimitive};
 use koebi_tokens::{component, semantic};
 
@@ -267,7 +268,7 @@ impl Ui<'_> {
                 Vec2::new(status.min.x + unit * 0.6, status.min.y),
                 status.max,
             );
-            ui.label("Ready", ready, &font, p.text_secondary, Align::Start);
+            ui.label(tr("Ready"), ready, &font, p.text_secondary, Align::Start);
             // A side panel: a list, its second row selected.
             let side = Rect::from_min_max(
                 Vec2::new(rect.min.x + unit * 0.5, bar.max.y + unit * 0.5),
@@ -275,7 +276,10 @@ impl Ui<'_> {
             );
             ui.scene
                 .push_rect(&rounded(side, p.panel, radius).with_border(1.0, p.panel_border));
-            for (index, item) in ["Scene", "Layer", "Shape"].into_iter().enumerate() {
+            for (index, item) in [tr("Scene"), tr("Layer"), tr("Shape")]
+                .into_iter()
+                .enumerate()
+            {
                 let row = Rect::from_origin_size(
                     Vec2::new(
                         side.min.x + 1.0,
@@ -302,10 +306,16 @@ impl Ui<'_> {
                 size: font.size * 1.35,
                 ..font.clone()
             };
-            ui.label("Aa Title", title, &heading, p.text_primary, Align::Start);
+            ui.label(
+                tr("Aa Title"),
+                title,
+                &heading,
+                p.text_primary,
+                Align::Start,
+            );
             let body = Rect::from_min_max(Vec2::new(left, line(1.0)), Vec2::new(right, line(1.9)));
             ui.label(
-                "Text over the theme",
+                tr("Text over the theme"),
                 body,
                 &font,
                 p.text_secondary,
@@ -349,7 +359,7 @@ impl Ui<'_> {
             ui.label("OK", ok, &font, p.accent_label, Align::Center);
             let cancel = button(ok.max.x + unit * 0.4);
             ui.scene.push_rect(&rounded(cancel, p.button, radius));
-            ui.label("No", cancel, &font, p.button_label, Align::Center);
+            ui.label(tr("No"), cancel, &font, p.button_label, Align::Center);
             // A chart beside them: bars of its first colors, standing on the buttons' line.
             let chart_left = cancel.max.x + unit * 0.8;
             let column = ((right - chart_left) / 6.5).max(0.0);
@@ -403,7 +413,7 @@ impl Ui<'_> {
                 tile = tile.with_border(1.0, p.panel_border);
             }
             self.scene.push_rect(&tile);
-            self.label("Aa", at, &big, ink, Align::Center);
+            self.label(tr("Aa"), at, &big, ink, Align::Center);
         }
         // The colors of states, with their labels.
         let tones_top = inner.min.y + tile_height + gap * 2.0;
@@ -415,7 +425,7 @@ impl Ui<'_> {
             );
             self.scene
                 .push_rect(&RectPrimitive::new(at, color).with_corner_radius(radius));
-            let name = ["Done", "Error", "Note", "Info"][index];
+            let name = [tr("Done"), tr("Error"), tr("Note"), tr("Info")][index];
             self.label(name, at, &small, ink, Align::Center);
         }
         // The colors of charts, side by side: what a mode confuses shows as neighbours alike.

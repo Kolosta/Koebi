@@ -10,6 +10,8 @@ use koebi_design::kind::KindId;
 use koebi_design::schema::Group;
 use koebi_design::value::{CubicBezier, Curve, CurveKey};
 use koebi_design::{DesignSystem, TokenId};
+use koebi_i18n::n_;
+use koebi_i18n::tr;
 use koebi_input::{ActionGroup, Keymap};
 use koebi_tokens::component;
 use koebi_ui::{
@@ -53,24 +55,28 @@ struct Doc {
 /// The components by kind.
 static KINDS: [(&str, &[Doc]); 4] = [
     (
-        "Actions",
+        n_!("Actions"),
         &[
             Doc {
-                title: "Button",
-                text: "A button runs an action when it is clicked: the pointer pressed and \
+                title: n_!("Button"),
+                text: n_!(
+                    "A button runs an action when it is clicked: the pointer pressed and \
                     released over it. Moving away before releasing cancels the click. A \
                     toggle button stays selected until clicked again; a selected button that \
                     is pressed shows both. Disabled buttons show dimmed and ignore the pointer, \
-                    but still keep it from what lies below.",
+                    but still keep it from what lies below."
+                ),
                 preview: Preview::Button,
                 groups: &[component::BUTTON::GROUP, component::ICON_BUTTON::GROUP],
                 actions: None,
             },
             Doc {
-                title: "Checkbox",
-                text: "A checkbox turns an option on or off. A click anywhere on it, its label \
+                title: n_!("Checkbox"),
+                text: n_!(
+                    "A checkbox turns an option on or off. A click anywhere on it, its label \
                     included, flips it; a mixed box (some of several options on) becomes \
-                    checked.",
+                    checked."
+                ),
                 preview: Preview::Checkbox,
                 groups: &[component::CHECKBOX::GROUP, component::TOGGLE::GROUP],
                 actions: None,
@@ -78,46 +84,54 @@ static KINDS: [(&str, &[Doc]); 4] = [
         ],
     ),
     (
-        "Values",
+        n_!("Values"),
         &[
             Doc {
-                title: "Number field",
-                text: "A number field shows a value and changes it. Drag it sideways: the \
+                title: n_!("Number field"),
+                text: n_!(
+                    "A number field shows a value and changes it. Drag it sideways: the \
                     pointer hides and the value follows, finer with Shift, coarser with Ctrl; \
                     Escape or the secondary button brings back the value the drag started \
                     from. A click without moving types the value: expressions and units \
                     (\"2 * 3 mm\") are understood. The step buttons, and Ctrl with the wheel, \
-                    step it. A bounded field fills a bar up to its value.",
+                    step it. A bounded field fills a bar up to its value."
+                ),
                 preview: Preview::NumberField,
                 groups: &[component::NUMBER_FIELD::GROUP],
                 actions: Some(&koebi_ui::OPERATION_ACTIONS),
             },
             Doc {
-                title: "Text field",
-                text: "A text field edits one line of text. A click places the caret, a drag \
+                title: n_!("Text field"),
+                text: n_!(
+                    "A text field edits one line of text. A click places the caret, a drag \
                     selects, a double click selects a word; the usual shortcuts copy, cut, \
-                    paste and undo. Enter keeps the text, Escape brings back what it was.",
+                    paste and undo. Enter keeps the text, Escape brings back what it was."
+                ),
                 preview: Preview::TextField,
                 groups: &[component::TEXT_FIELD::GROUP],
                 actions: Some(&koebi_ui::TEXT_ACTIONS),
             },
             Doc {
-                title: "Dropdown",
-                text: "A dropdown shows the current choice and opens the list of the others \
+                title: n_!("Dropdown"),
+                text: n_!(
+                    "A dropdown shows the current choice and opens the list of the others \
                     below it, its corners meeting the list's. The arrows move in the list, \
-                    Enter chooses, Escape closes it without changing anything.",
+                    Enter chooses, Escape closes it without changing anything."
+                ),
                 preview: Preview::Dropdown,
                 groups: &[component::DROPDOWN::GROUP, component::MENU::GROUP],
                 actions: Some(&koebi_ui::MENU_ACTIONS),
             },
             Doc {
-                title: "Color field and picker",
-                text: "A color field shows a color, each half showing its transparency its own \
+                title: n_!("Color field and picker"),
+                text: n_!(
+                    "A color field shows a color, each half showing its transparency its own \
                     way, outlined in a gray of its own. A click opens the picker: an area of \
                     two components, strips for the third and the opacity, the colors when it \
                     opened and originally, an eyedropper, and the fields of a model (RGB, \
                     HSV, HSL, OKLCH, CMYK, hex). Dragging hides the pointer; Shift is finer; \
-                    Escape brings the color back.",
+                    Escape brings the color back."
+                ),
                 preview: Preview::ColorField,
                 groups: &[
                     component::COLOR_FIELD::GROUP,
@@ -126,12 +140,14 @@ static KINDS: [(&str, &[Doc]); 4] = [
                 actions: None,
             },
             Doc {
-                title: "Curve editor",
-                text: "A curve editor shapes how something eases over time. Drag a key to move \
+                title: n_!("Curve editor"),
+                text: n_!(
+                    "A curve editor shapes how something eases over time. Drag a key to move \
                     it (Escape brings it back), double click the graph to add one, right click \
                     a key to remove it; the fields type the selected key's place and the \
                     easing of the segment leaving it. It is temporary: curves get a fuller \
-                    editor later.",
+                    editor later."
+                ),
                 preview: Preview::CurveEditor,
                 groups: &[component::CURVE_EDITOR::GROUP],
                 actions: None,
@@ -139,32 +155,38 @@ static KINDS: [(&str, &[Doc]); 4] = [
         ],
     ),
     (
-        "Containers",
+        n_!("Containers"),
         &[
             Doc {
-                title: "Panel",
-                text: "Panels gather what belongs together. An expandable panel opens and \
+                title: n_!("Panel"),
+                text: n_!(
+                    "Panels gather what belongs together. An expandable panel opens and \
                     closes with a click on its header; nested panels span their parent's width \
                     and indent what they hold. A dot at the end of a header tells something \
-                    below was changed, and brings it back.",
+                    below was changed, and brings it back."
+                ),
                 preview: Preview::Panel,
                 groups: &[component::PANEL::GROUP, component::PROPERTY_GROUP::GROUP],
                 actions: None,
             },
             Doc {
-                title: "Tooltip",
-                text: "A tooltip names what lies under the pointer once it rests there for a \
+                title: n_!("Tooltip"),
+                text: n_!(
+                    "A tooltip names what lies under the pointer once it rests there for a \
                     moment; moving to a neighbour shows the neighbour's at once, for a little \
-                    while.",
+                    while."
+                ),
                 preview: Preview::Tooltip,
                 groups: &[component::TOOLTIP::GROUP],
                 actions: None,
             },
             Doc {
-                title: "Status bar",
-                text: "The status bar, at the bottom of workspace windows, shows the shortcuts \
+                title: n_!("Status bar"),
+                text: n_!(
+                    "The status bar, at the bottom of workspace windows, shows the shortcuts \
                     that apply where the pointer is, the most useful first, and the version on \
-                    the right.",
+                    the right."
+                ),
                 preview: Preview::None,
                 groups: &[component::STATUS_BAR::GROUP],
                 actions: None,
@@ -172,12 +194,14 @@ static KINDS: [(&str, &[Doc]); 4] = [
         ],
     ),
     (
-        "Shortcuts",
+        n_!("Shortcuts"),
         &[Doc {
-            title: "Key caps",
-            text: "Key caps show shortcuts as the keys to press: the modifiers first, each \
+            title: n_!("Key caps"),
+            text: n_!(
+                "Key caps show shortcuts as the keys to press: the modifiers first, each \
                     side of the keyboard as its own key when it matters, then the key or the \
-                    mouse button.",
+                    mouse button."
+            ),
             preview: Preview::None,
             groups: &[component::KEY_CAP::GROUP, component::CAPTURE_FIELD::GROUP],
             actions: Some(&koebi_ui::MENU_ACTIONS),
@@ -190,41 +214,36 @@ const CONTROL: f32 = 120.0;
 
 /// The states a button shows, each with its name.
 const BUTTON_STATES: [(ControlState, &str); 9] = [
-    (ControlState::Normal, "Normal"),
-    (ControlState::Hovered, "Hovered"),
-    (ControlState::Pressed, "Pressed"),
-    (ControlState::Selected, "Selected"),
-    (ControlState::SelectedHovered, "Selected, hovered"),
-    (ControlState::SelectedPressed, "Selected, pressed"),
-    (ControlState::Active, "Active"),
-    (ControlState::Disabled, "Disabled"),
-    (ControlState::SelectedDisabled, "Selected, disabled"),
+    (ControlState::Normal, n_!("Normal")),
+    (ControlState::Hovered, n_!("Hovered")),
+    (ControlState::Pressed, n_!("Pressed")),
+    (ControlState::Selected, n_!("Selected")),
+    (ControlState::SelectedHovered, n_!("Selected, hovered")),
+    (ControlState::SelectedPressed, n_!("Selected, pressed")),
+    (ControlState::Active, n_!("Active")),
+    (ControlState::Disabled, n_!("Disabled")),
+    (ControlState::SelectedDisabled, n_!("Selected, disabled")),
 ];
 
 /// The states a checkbox shows (checked or not is its value).
 const CHECKBOX_STATES: [(ControlState, &str); 4] = [
-    (ControlState::Normal, "Normal"),
-    (ControlState::Hovered, "Hovered"),
-    (ControlState::Pressed, "Pressed"),
-    (ControlState::Disabled, "Disabled"),
+    (ControlState::Normal, n_!("Normal")),
+    (ControlState::Hovered, n_!("Hovered")),
+    (ControlState::Pressed, n_!("Pressed")),
+    (ControlState::Disabled, n_!("Disabled")),
 ];
 
 /// The states a number field shows.
 const FIELD_STATES: [(ControlState, &str); 5] = [
-    (ControlState::Normal, "Normal"),
-    (ControlState::Hovered, "Hovered"),
-    (ControlState::Pressed, "Pressed"),
-    (ControlState::Active, "Dragged"),
-    (ControlState::Disabled, "Disabled"),
+    (ControlState::Normal, n_!("Normal")),
+    (ControlState::Hovered, n_!("Hovered")),
+    (ControlState::Pressed, n_!("Pressed")),
+    (ControlState::Active, n_!("Dragged")),
+    (ControlState::Disabled, n_!("Disabled")),
 ];
 
 /// The choices of the dropdown to try.
-const CHOICE_NAMES: [&str; 3] = ["Linear", "Logarithmic", "Stepped"];
-const CHOICES: [MenuItem<'static>; 3] = [
-    MenuItem::action(CHOICE_NAMES[0]),
-    MenuItem::action(CHOICE_NAMES[1]),
-    MenuItem::action(CHOICE_NAMES[2]),
-];
+const CHOICE_NAMES: [&str; 3] = [n_!("Linear"), n_!("Logarithmic"), n_!("Stepped")];
 
 /// What the components to try keep.
 #[derive(Debug)]
@@ -248,7 +267,7 @@ impl Live {
             toggled: false,
             checked: true,
             number: 50.0,
-            text: String::from("Untitled"),
+            text: String::from(tr("Untitled")),
             menu: MenuState::new(),
             choice: 0,
             color: Color::new(0.24, 0.53, 0.88, 0.8),
@@ -388,10 +407,9 @@ impl ComponentPages {
                 Vec2::new(stack.left, stack.y),
                 Vec2::new(stack.right, stack.y + UNBOUNDED),
             );
-            let shown = CollapsiblePanel::new(id, panel, title).trailing(slot).show(
-                ui,
-                area,
-                |ui, rect| {
+            let shown = CollapsiblePanel::new(id, panel, tr(title))
+                .trailing(slot)
+                .show(ui, area, |ui, rect| {
                     let mut y = rect.min.y;
                     for (number, page) in pages.iter_mut().enumerate() {
                         let at = Rect::from_min_max(Vec2::new(rect.min.x, y), rect.max);
@@ -399,8 +417,7 @@ impl ComponentPages {
                         y += show_page(ui, at, key, design, keymap, page, live, bounds);
                     }
                     y - rect.min.y
-                },
-            );
+                });
             if let Some(trailing) = shown.trailing {
                 options::header_dot(ui, trailing, id.with(0), design, tokens, menu, bounds);
             }
@@ -461,7 +478,7 @@ fn show_page(
         all,
         rows,
     } = page;
-    let shown = CollapsiblePanel::new(id, panel, doc.title)
+    let shown = CollapsiblePanel::new(id, panel, tr(doc.title))
         .trailing(slot)
         .show(ui, area, |ui, rect| {
             let padding = ui.styles().panel.padding;
@@ -475,7 +492,7 @@ fn show_page(
             let font = ui.styles().text.body.clone();
             let color = ui.styles().text.primary;
             let text = Rect::from_min_max(Vec2::new(inner.min.x, y), inner.max);
-            y += ui.paragraph(doc.text, text, &font, color) + gap;
+            y += ui.paragraph(tr(doc.text), text, &font, color) + gap;
             let section = |ui: &mut Ui<'_>, y: &mut f32, title: &str| {
                 let at = Rect::from_min_max(
                     Vec2::new(inner.min.x, *y),
@@ -485,7 +502,7 @@ fn show_page(
                 *y += row + gap;
             };
             if has_states(doc.preview) {
-                section(ui, &mut y, "States");
+                section(ui, &mut y, tr("States"));
                 y += states(
                     ui,
                     Vec2::new(inner.min.x, y),
@@ -495,16 +512,16 @@ fn show_page(
                 ) + gap;
             }
             if doc.preview != Preview::None {
-                section(ui, &mut y, "Try it");
+                section(ui, &mut y, tr("Try it"));
                 let at = Rect::from_min_max(Vec2::new(inner.min.x, y), inner.max);
                 y += try_it(ui, at, id.with(2), doc.preview, live, bounds) + gap;
             }
             if let Some(actions) = doc.actions {
-                section(ui, &mut y, "Shortcuts");
+                section(ui, &mut y, tr("Shortcuts"));
                 y += shortcuts(ui, Vec2::new(inner.min.x, y), inner.max.x, actions, keymap) + gap;
             }
             if !behaviour.is_empty() {
-                section(ui, &mut y, "What it does");
+                section(ui, &mut y, tr("What it does"));
                 for (index, option) in behaviour.iter_mut().enumerate() {
                     let at = Rect::from_min_max(Vec2::new(rect.min.x, y), rect.max);
                     let key = id.with(100 + index as u64);
@@ -513,8 +530,10 @@ fn show_page(
                 y += gap;
             }
             let at = Rect::from_min_max(Vec2::new(rect.min.x, y), rect.max);
-            let tokens_panel =
-                CollapsiblePanel::new(id.with(3), all, "Every token").show(ui, at, |ui, inner| {
+            let tokens_panel = CollapsiblePanel::new(id.with(3), all, tr("Every token")).show(
+                ui,
+                at,
+                |ui, inner| {
                     let mut y = inner.min.y;
                     for (index, option) in rows.iter_mut().enumerate() {
                         let at = Rect::from_min_max(Vec2::new(inner.min.x, y), inner.max);
@@ -522,7 +541,8 @@ fn show_page(
                         y += options::show_option(ui, at, key, design, option, bounds);
                     }
                     y - inner.min.y
-                });
+                },
+            );
             y += tokens_panel.height;
             y - rect.min.y
         });
@@ -568,14 +588,14 @@ fn states(ui: &mut Ui<'_>, origin: Vec2, right: f32, id: WidgetId, preview: Prev
         match preview {
             Preview::Button => {
                 Button::new(key)
-                    .label("Save")
+                    .label(tr("Save"))
                     .forced(state)
                     .show(ui, control);
             }
             Preview::Checkbox => {
                 let mut checked = index % 2 == 0;
                 Checkbox::new(key, &mut checked)
-                    .label("Snap")
+                    .label(tr("Snap"))
                     .forced(state)
                     .show(ui, control);
             }
@@ -584,7 +604,7 @@ fn states(ui: &mut Ui<'_>, origin: Vec2, right: f32, id: WidgetId, preview: Prev
                 NumberField::new(key, &mut value)
                     .range(0.0, 1.0)
                     .decimals(2)
-                    .label("Mix")
+                    .label(tr("Mix"))
                     .bar(BarMapping::Linear)
                     .forced(state)
                     .show(ui, control);
@@ -612,14 +632,14 @@ fn try_it(
     match preview {
         Preview::Button => {
             Button::new(id)
-                .label(if live.toggled { "On" } else { "Off" })
+                .label(if live.toggled { tr("On") } else { tr("Off") })
                 .toggle(&mut live.toggled)
                 .show(ui, control);
             row
         }
         Preview::Checkbox => {
             Checkbox::new(id, &mut live.checked)
-                .label("Snap to grid")
+                .label(tr("Snap to grid"))
                 .show(ui, control);
             row
         }
@@ -627,22 +647,26 @@ fn try_it(
             NumberField::new(id, &mut live.number)
                 .range(0.0, 100.0)
                 .decimals(1)
-                .label("Opacity")
+                .label(tr("Opacity"))
                 .bar(BarMapping::Linear)
                 .show(ui, control);
             row
         }
         Preview::TextField => {
             TextField::new(id, &mut live.text)
-                .placeholder("Name")
+                .placeholder(tr("Name"))
                 .show(ui, control);
             row
         }
         Preview::Dropdown => {
-            let label = CHOICE_NAMES.get(live.choice).copied().unwrap_or_default();
-            if let Some(choice) = Dropdown::new(id, &mut live.menu, &CHOICES)
-                .label(label)
-                .show(ui, control, bounds)
+            let label = CHOICE_NAMES.get(live.choice).copied().map_or("", tr);
+            if let Some(choice) = Dropdown::new(
+                id,
+                &mut live.menu,
+                &CHOICE_NAMES.map(|name| MenuItem::action(tr(name))),
+            )
+            .label(label)
+            .show(ui, control, bounds)
             {
                 live.choice = choice.index();
             }
@@ -661,20 +685,24 @@ fn try_it(
             height
         }
         Preview::Tooltip => {
-            Button::new(id).label("Rest here").show(ui, control);
-            ui.tooltip(id, "A tooltip names what lies under the pointer", control);
+            Button::new(id).label(tr("Rest here")).show(ui, control);
+            ui.tooltip(
+                id,
+                tr("A tooltip names what lies under the pointer"),
+                control,
+            );
             row
         }
         Preview::Panel => {
             let at = Rect::from_min_max(area.min, Vec2::new(area.max.x, area.max.y));
-            let shown = CollapsiblePanel::new(id, &mut live.nested, "A nested panel").show(
+            let shown = CollapsiblePanel::new(id, &mut live.nested, tr("A nested panel")).show(
                 ui,
                 at,
                 |ui, inner| {
                     let font = ui.styles().text.label.clone();
                     let color = ui.styles().text.secondary;
                     let line = Rect::from_origin_size(inner.min, Vec2::new(inner.width(), row));
-                    ui.label("What it holds", line, &font, color, Align::Start);
+                    ui.label(tr("What it holds"), line, &font, color, Align::Start);
                     row
                 },
             );

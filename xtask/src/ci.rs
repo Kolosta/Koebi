@@ -58,6 +58,12 @@ pub(crate) fn run(fast: bool) -> Result<()> {
     let doctests = util::run(util::cargo().args(["test", "--workspace", "--doc", "--locked"]));
     results.push(("doctests", outcome(doctests)));
 
+    util::step("translations");
+    results.push((
+        "translations",
+        outcome(crate::i18n::run(&["check".to_owned()])),
+    ));
+
     if !fast {
         util::step("docs");
         let docs = util::run(

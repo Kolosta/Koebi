@@ -31,6 +31,9 @@ pub struct Options {
     pub data_dir: Option<PathBuf>,
     /// Theme to activate at startup, by key.
     pub theme: Option<String>,
+    /// Language of the interface for this session, by code (`fr`); the saved choice, else the
+    /// system's, when `None`.
+    pub language: Option<String>,
     /// Global overrides to set at startup: token path and value, in command-line order.
     pub overrides: Vec<(String, String)>,
     /// Color vision setting to apply at startup.
@@ -103,6 +106,9 @@ Options:
   --data-dir <DIR>         Keep the design state in DIR (default: the user's preferences)
   --theme <KEY>            Activate a theme: dark, dark-pink, muted-green, snow, arctic,
                            high-contrast
+  --lang <CODE>            Show the interface in a language for this session: en, fr,
+                           ja... (default: the one chosen in the settings, else the
+                           system's)
   --override <PATH=VALUE>  Override a token in every theme, for instance
                            semantic.radius.control=6,
                            component.button.background.color.default=#ff8800 or
@@ -183,6 +189,16 @@ Environment:
                     let value = args.next().ok_or(ParseError::MissingValue("--theme"))?;
                     options.theme = Some(value.as_ref().to_owned());
                 }
+                "--lang" => {
+                    let value = args.next().ok_or(ParseError::MissingValue("--lang"))?;
+                    let language = koebi_i18n::find(value.as_ref()).ok_or_else(|| {
+                        ParseError::InvalidValue {
+                            option: "--lang",
+                            value: value.as_ref().into(),
+                        }
+                    })?;
+                    options.language = Some(language.code().to_owned());
+                }
                 "--override" => {
                     let value = args.next().ok_or(ParseError::MissingValue("--override"))?;
                     let (path, definition) = value
@@ -257,6 +273,24 @@ Environment:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_language_is_one_koebi_shows() {
+        let options = Options::parse(["--lang", "FR"]).unwrap();
+        assert_eq!(options.language.as_deref(), Some("fr"));
+        assert!(matches!(
+            Options::parse(["--lang", "xx"]),
+            Err(ParseError::InvalidValue {
+                option: "--lang",
+                ..
+            })
+        ));
+        assert_eq!(
+            Options::parse(["--lang"]),
+            Err(ParseError::MissingValue("--lang"))
+        );
+        assert!(Options::USAGE.contains("--lang"));
+    }
 
     #[test]
     fn windows_to_open_are_options() {

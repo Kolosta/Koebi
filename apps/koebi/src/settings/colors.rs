@@ -9,6 +9,7 @@
 //! palette back. The tokens stay in Customisation for finer changes.
 
 use core::fmt::Write as _;
+use koebi_i18n::tr;
 
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::{DesignSystem, Layers, ThemeId};
@@ -98,7 +99,7 @@ impl ColorsSection {
         let height = 2.0 * (row + gap) + MAIN as f32 * line;
         stack.container(ui, height, |ui, content| {
             let title = Rect::from_origin_size(content.min, Vec2::new(content.width(), row));
-            ui.section_title(title, "Colors");
+            ui.section_title(title, tr("Colors"));
             let scope = Rect::from_origin_size(
                 Vec2::new(content.min.x, title.max.y + gap),
                 Vec2::new(content.width(), row),
@@ -118,7 +119,7 @@ impl ColorsSection {
         let mut state = core::mem::replace(&mut self.hues, CollapsiblePanelState::new(false));
         stack.panel(
             ui,
-            CollapsiblePanel::new(ID.with(1), &mut state, "Hue palettes"),
+            CollapsiblePanel::new(ID.with(1), &mut state, tr("Hue palettes")),
             |ui, rect| {
                 for index in 0..hues {
                     let y = rect.min.y + index as f32 * line;
@@ -141,7 +142,7 @@ impl ColorsSection {
         let width = (rect.width() * 0.5).min(14.0 * rect.height());
         let text = Rect::from_min_max(rect.min, Vec2::new(rect.max.x - width, rect.max.y));
         ui.label(
-            "One color makes a palette: its steps keep their contrast.",
+            tr("One color makes a palette: its steps keep their contrast."),
             text,
             &label,
             secondary,
@@ -151,12 +152,12 @@ impl ColorsSection {
         let mut cells = [
             GroupCell::new(
                 Button::new(ID.with(10))
-                    .label("This theme")
+                    .label(tr("This theme"))
                     .selected(!self.every_theme),
             ),
             GroupCell::new(
                 Button::new(ID.with(11))
-                    .label("Every theme")
+                    .label(tr("Every theme"))
                     .selected(self.every_theme),
             )
             .at(1, 0),
@@ -195,7 +196,7 @@ impl ColorsSection {
         let dot = Rect::from_origin_size(rect.min, Vec2::splat(row));
         if seeded
             && ui
-                .reset_dot(id.with(1), dot, "Back to the theme's own palette")
+                .reset_dot(id.with(1), dot, tr("Back to the theme's own palette"))
                 .clicked
         {
             for &theme in &themes {
@@ -212,13 +213,13 @@ impl ColorsSection {
             Vec2::new(dot.max.x + gap, rect.min.y),
             Vec2::new(names, row),
         );
-        ui.label(palette.name, name, &label, primary, Align::Start);
+        ui.label(tr(palette.name), name, &label, primary, Align::Start);
         let description = Rect::from_origin_size(
             Vec2::new(name.min.x, name.max.y + gap),
             Vec2::new(names, row),
         );
         ui.label(
-            palette.description,
+            tr(palette.description),
             description,
             &detail,
             secondary,
@@ -246,7 +247,7 @@ impl ColorsSection {
         if ColorField::new(id.with(2), &mut color, &mut self.fields[index])
             .dropdown(true)
             .original(own)
-            .title(palette.name)
+            .title(tr(palette.name))
             .show(ui, field, bounds)
             .changed
         {
@@ -348,7 +349,7 @@ fn samples_of(
             rect = rect.with_border(1.0, border);
         }
         ui.scene().push_rect(&rect);
-        ui.label("Aa", chip, &label, ink, Align::Center);
+        ui.label(tr("Aa"), chip, &label, ink, Align::Center);
     }
 }
 

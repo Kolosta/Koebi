@@ -2,6 +2,8 @@
 //! group, a context menu with submenus, check and radio items, and tooltips.
 
 use koebi_core::Rect;
+use koebi_i18n::n_;
+use koebi_i18n::tr;
 use koebi_ui::{
     Align, Button, ButtonGroup, Dropdown, GroupCell, MenuChoice, MenuItem, MenuState, PanelLevel,
     Placement, PointerButton, Ui, WidgetId,
@@ -12,9 +14,9 @@ use super::{Metrics, cut_left, cut_top};
 /// Rows of the panel: the controls, then the area that opens the context menu.
 pub(super) const ROWS: u16 = 2;
 
-const SHADINGS: [&str; 3] = ["Solid", "Wireframe", "Rendered"];
-const MODES: [&str; 3] = ["Object", "Edit", "Sculpt"];
-const PIVOTS: [&str; 3] = ["Median point", "Cursor", "Active element"];
+const SHADINGS: [&str; 3] = [n_!("Solid"), n_!("Wireframe"), n_!("Rendered")];
+const MODES: [&str; 3] = [n_!("Object"), n_!("Edit"), n_!("Sculpt")];
+const PIVOTS: [&str; 3] = [n_!("Median point"), n_!("Cursor"), n_!("Active element")];
 
 /// The values the panel edits.
 #[derive(Debug)]
@@ -38,7 +40,7 @@ impl Menus {
             mode: 0,
             pivot: 0,
             snap: true,
-            last: "Nothing chosen yet",
+            last: tr("Nothing chosen yet"),
             shading_menu: MenuState::new(),
             side_menu: MenuState::new(),
             mode_menu: MenuState::new(),
@@ -53,16 +55,16 @@ impl Menus {
         let (row, gap) = (metrics.row, metrics.row_gap());
 
         let mut line = cut_top(&mut content, row, gap);
-        let shadings = SHADINGS.map(MenuItem::action);
+        let shadings = SHADINGS.map(|label| MenuItem::action(tr(label)));
         let shadings = mark(shadings, self.shading);
         let shading = Dropdown::new(ID.with(0), &mut self.shading_menu, &shadings)
-            .label(SHADINGS[self.shading]);
+            .label(tr(SHADINGS[self.shading]));
         let width = shading.size(ui).x.max(6.0 * row);
         let at = cut_left(&mut line, width, gap);
         if let Some(choice) = shading.show(ui, at, window) {
             self.shading = choice.index();
         }
-        ui.tooltip(ID.with(0), "How the viewport draws the scene", at);
+        ui.tooltip(ID.with(0), tr("How the viewport draws the scene"), at);
 
         // A vertical dropdown: its menu opens beside it.
         let side = Dropdown::new(ID.with(1), &mut self.side_menu, &shadings)
@@ -74,12 +76,12 @@ impl Menus {
         }
 
         // A menu button between two step buttons, fused in a group.
-        let modes = mark(MODES.map(MenuItem::action), self.mode);
+        let modes = mark(MODES.map(|label| MenuItem::action(tr(label))), self.mode);
         let mut cells = [
             GroupCell::new(Button::new(ID.with(2)).icon(koebi_icons::interface::CHEVRON_LEFT)),
             GroupCell::new(
                 Button::new(ID.with(3))
-                    .label(MODES[self.mode])
+                    .label(tr(MODES[self.mode]))
                     .trailing_icon(koebi_icons::interface::CHEVRON_DOWN)
                     .align(Align::Start)
                     .menu(&mut self.mode_menu, Placement::BELOW),
@@ -90,8 +92,8 @@ impl Menus {
         let width = group.size(ui, &cells).x.max(7.0 * row);
         let at = cut_left(&mut line, width, gap);
         let stepped = group.show(ui, at, &mut cells).clicked;
-        ui.tooltip(ID.with(2), "Previous mode", at);
-        ui.tooltip(ID.with(4), "Next mode", at);
+        ui.tooltip(ID.with(2), tr("Previous mode"), at);
+        ui.tooltip(ID.with(4), tr("Next mode"), at);
         match stepped {
             Some(0) => self.mode = (self.mode + MODES.len() - 1) % MODES.len(),
             Some(2) => self.mode = (self.mode + 1) % MODES.len(),
@@ -115,7 +117,7 @@ impl Menus {
         let response = ui.interact(ID.with(6), area);
         let styles = ui.styles();
         ui.label(
-            "Right-click here for a context menu with submenus",
+            tr("Right-click here for a context menu with submenus"),
             area,
             &styles.text.label,
             styles.text.secondary,
@@ -131,29 +133,29 @@ impl Menus {
 
     /// The context menu: actions, check and radio items, and nested submenus.
     fn context_menu(&mut self, ui: &mut Ui<'_>, window: Rect) {
-        const MESHES: [MenuItem<'static>; 3] = [
-            MenuItem::action("Cube"),
-            MenuItem::action("Sphere"),
-            MenuItem::action("Plane"),
+        let meshes = [
+            MenuItem::action(tr("Cube")),
+            MenuItem::action(tr("Sphere")),
+            MenuItem::action(tr("Plane")),
         ];
-        const LIGHTS: [MenuItem<'static>; 2] = [MenuItem::action("Point"), MenuItem::action("Sun")];
-        const ADD: [MenuItem<'static>; 3] = [
-            MenuItem::submenu("Mesh", &MESHES),
-            MenuItem::submenu("Light", &LIGHTS),
-            MenuItem::action("Camera"),
+        let lights = [MenuItem::action(tr("Point")), MenuItem::action(tr("Sun"))];
+        let add = [
+            MenuItem::submenu(tr("Mesh"), &meshes),
+            MenuItem::submenu(tr("Light"), &lights),
+            MenuItem::action(tr("Camera")),
         ];
         let pivots: [MenuItem<'_>; 3] = core::array::from_fn(|index| {
-            MenuItem::action(PIVOTS[index]).radio(index == self.pivot)
+            MenuItem::action(tr(PIVOTS[index])).radio(index == self.pivot)
         });
         let items = [
-            MenuItem::Title("Object"),
-            MenuItem::submenu("Add", &ADD).icon(koebi_icons::interface::PLUS),
-            MenuItem::action("Duplicate").shortcut("Shift+D"),
-            MenuItem::action("Delete").shortcut("X"),
-            MenuItem::action("Join").enabled(false),
+            MenuItem::Title(tr("Object")),
+            MenuItem::submenu(tr("Add"), &add).icon(koebi_icons::interface::PLUS),
+            MenuItem::action(tr("Duplicate")).shortcut("Shift+D"),
+            MenuItem::action(tr("Delete")).shortcut("X"),
+            MenuItem::action(tr("Join")).enabled(false),
             MenuItem::Separator,
-            MenuItem::action("Snap").checked(self.snap),
-            MenuItem::submenu("Pivot point", &pivots),
+            MenuItem::action(tr("Snap")).checked(self.snap),
+            MenuItem::submenu(tr("Pivot point"), &pivots),
         ];
         let Some(choice) = ui.menu(
             WidgetId::new("menus-context"),
@@ -185,13 +187,13 @@ fn mark<const N: usize>(items: [MenuItem<'static>; N], current: usize) -> [MenuI
 /// What a choice of the context menu did, for the panel's status line.
 fn describe(choice: MenuChoice) -> &'static str {
     match choice.path() {
-        [1, 0, _] => "Added a mesh",
-        [1, 1, _] => "Added a light",
-        [1, 2] => "Added a camera",
-        [2] => "Duplicated",
-        [3] => "Deleted",
-        [6] => "Toggled snapping",
-        [7, _] => "Changed the pivot point",
-        _ => "Chose an item",
+        [1, 0, _] => tr("Added a mesh"),
+        [1, 1, _] => tr("Added a light"),
+        [1, 2] => tr("Added a camera"),
+        [2] => tr("Duplicated"),
+        [3] => tr("Deleted"),
+        [6] => tr("Toggled snapping"),
+        [7, _] => tr("Changed the pivot point"),
+        _ => tr("Chose an item"),
     }
 }

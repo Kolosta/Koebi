@@ -55,6 +55,8 @@ you work on.
   run, modal conventions, input settings.
 - [Editors](development/editors.md): kinds and their state, templates, their shortcuts.
 - [Icons](development/icons.md): the SVG subset icons are drawn in, adding one, color zones.
+- [Translation](development/translation.md): catalogs, tools and workflow for translators, marking
+  messages, adding a language.
 - [CI/CD](development/ci-cd.md): workflows, required checks, releases, artifacts.
 - [Platforms](development/platforms.md): building and running on each platform.
 - [GitHub setup](development/github-setup.md): branch protection, labels, security features.

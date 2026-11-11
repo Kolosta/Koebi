@@ -5,6 +5,7 @@
 //! the system learns where the bar is and what lies on it ([`AppChrome::update_regions`]).
 
 use koebi_core::{Rect, Vec2};
+use koebi_i18n::tr;
 use koebi_input::Keymap;
 use koebi_platform::{ChromeInsets, MaximizeButtonState, Window, WindowRegions, WindowState};
 use koebi_ui::{
@@ -175,40 +176,40 @@ impl AppChrome {
     ) -> Option<AppCommand> {
         // The document model comes later: its commands show what the menu will hold.
         let file = [
-            MenuItem::action("New")
+            MenuItem::action(tr("New"))
                 .icon(koebi_icons::actions::NEW)
                 .enabled(false),
-            MenuItem::action("Open")
+            MenuItem::action(tr("Open"))
                 .icon(koebi_icons::actions::OPEN)
                 .enabled(false),
-            MenuItem::action("Save")
+            MenuItem::action(tr("Save"))
                 .icon(koebi_icons::actions::SAVE)
                 .enabled(false),
-            MenuItem::action("Save As")
+            MenuItem::action(tr("Save As"))
                 .icon(koebi_icons::actions::SAVE_AS)
                 .enabled(false),
             MenuItem::Separator,
             with_shortcut(
-                MenuItem::action("Quit").icon(koebi_icons::actions::QUIT),
+                MenuItem::action(tr("Quit")).icon(koebi_icons::actions::QUIT),
                 &labels.quit,
             ),
         ];
         let edit = [with_shortcut(
-            MenuItem::action("Settings").icon(koebi_icons::actions::SETTINGS),
+            MenuItem::action(tr("Settings")).icon(koebi_icons::actions::SETTINGS),
             &labels.settings,
         )];
         let window = window_items(state, labels);
         let entries = [
             MenuBarEntry {
-                title: "File",
+                title: tr("File"),
                 items: &file,
             },
             MenuBarEntry {
-                title: "Edit",
+                title: tr("Edit"),
                 items: &edit,
             },
             MenuBarEntry {
-                title: "Window",
+                title: tr("Window"),
                 items: &window,
             },
         ];
@@ -240,17 +241,17 @@ impl AppChrome {
 
 /// The Window menu: windows of the same document, another instance, fullscreen.
 fn window_items(state: WindowState, labels: &ShortcutLabels) -> [MenuItem<'_>; 5] {
-    let fullscreen = MenuItem::action("Fullscreen")
+    let fullscreen = MenuItem::action(tr("Fullscreen"))
         .icon(koebi_icons::view::FULLSCREEN)
         .checked(state == WindowState::Fullscreen);
     [
-        MenuItem::action("New Window")
+        MenuItem::action(tr("New Window"))
             .icon(koebi_icons::actions::NEW_WINDOW)
             .enabled(MULTIPLE_WINDOWS),
-        MenuItem::action("New Main Window")
+        MenuItem::action(tr("New Main Window"))
             .icon(koebi_icons::actions::NEW_MAIN_WINDOW)
             .enabled(MULTIPLE_WINDOWS),
-        MenuItem::action("New Instance")
+        MenuItem::action(tr("New Instance"))
             .icon(koebi_icons::actions::NEW_INSTANCE)
             .enabled(MULTIPLE_WINDOWS),
         MenuItem::Separator,

@@ -38,6 +38,7 @@ pub mod semantic;
 pub mod themes;
 
 use koebi_design::schema::{Group, Schema};
+use koebi_i18n::n_;
 
 /// Koebi's token schema: every token, the base theme and the built-in themes.
 pub static KOEBI: Schema = SCHEMA;
@@ -131,9 +132,9 @@ const _: () = SCHEMA.assert_valid();
 /// (Settings > Customisation, by feature).
 #[derive(Clone, Copy, Debug)]
 pub struct Feature {
-    /// Its name.
+    /// Its name, in English: shown with `koebi_i18n::tr`.
     pub title: &'static str,
-    /// What its tokens decide, in a sentence.
+    /// What its tokens decide, in a sentence, in English.
     pub description: &'static str,
     /// Its groups, in schema order.
     pub groups: &'static [Group],
@@ -143,8 +144,8 @@ pub struct Feature {
 /// editors), then the intents they alias, then the palettes and scales beneath.
 pub static FEATURES: [Feature; 5] = [
     Feature {
-        title: "Controls",
-        description: "Buttons, toggles, fields, dropdowns, pickers and the other controls.",
+        title: n_!("Controls"),
+        description: n_!("Buttons, toggles, fields, dropdowns, pickers and the other controls."),
         groups: &[
             component::BUTTON::GROUP,
             component::ICON_BUTTON::GROUP,
@@ -171,8 +172,8 @@ pub static FEATURES: [Feature; 5] = [
         ],
     },
     Feature {
-        title: "Surfaces",
-        description: "Windows, panels, menus, tooltips, the status bar and what they hold.",
+        title: n_!("Surfaces"),
+        description: n_!("Windows, panels, menus, tooltips, the status bar and what they hold."),
         groups: &[
             component::WINDOW::GROUP,
             component::TITLE_BAR::GROUP,
@@ -196,8 +197,8 @@ pub static FEATURES: [Feature; 5] = [
         ],
     },
     Feature {
-        title: "Editors",
-        description: "The workspace's areas and tabs, and the editors inside them.",
+        title: n_!("Editors"),
+        description: n_!("The workspace's areas and tabs, and the editors inside them."),
         groups: &[
             component::EDITOR::GROUP,
             component::EDITOR_TOP_BAR::GROUP,
@@ -218,8 +219,10 @@ pub static FEATURES: [Feature; 5] = [
         ],
     },
     Feature {
-        title: "Intents",
-        description: "Semantic tokens: the roles, backgrounds, text, sizes and motion components alias.",
+        title: n_!("Intents"),
+        description: n_!(
+            "Semantic tokens: the roles, backgrounds, text, sizes and motion components alias."
+        ),
         groups: &[
             semantic::ROLE::GROUP,
             semantic::BACKGROUND::GROUP,
@@ -233,8 +236,10 @@ pub static FEATURES: [Feature; 5] = [
         ],
     },
     Feature {
-        title: "Palettes and scales",
-        description: "Primitive tokens: the raw colors, sizes, fonts and durations beneath everything.",
+        title: n_!("Palettes and scales"),
+        description: n_!(
+            "Primitive tokens: the raw colors, sizes, fonts and durations beneath everything."
+        ),
         groups: &[
             primitive::PALETTE::GROUP,
             primitive::NEUTRAL::GROUP,

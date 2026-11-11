@@ -22,6 +22,7 @@ mod analysis;
 mod binding;
 mod rules;
 
+use koebi_i18n::tr;
 use std::collections::HashMap;
 
 use koebi_core::{Rect, Vec2};
@@ -113,6 +114,13 @@ pub(super) struct KeymapsPage {
 }
 
 impl KeymapsPage {
+    /// Builds again what holds translated text: the lists of the details and the conflicts'
+    /// messages.
+    pub(super) fn language_changed(&mut self) {
+        self.choices = Choices::new();
+        self.analysis = Analysis::default();
+    }
+
     pub(super) fn new() -> Self {
         Self {
             search: String::new(),
@@ -153,7 +161,7 @@ impl KeymapsPage {
                 .remove(&context)
                 .unwrap_or_else(|| CollapsiblePanelState::new(context == crate::actions::APP));
             let mut panel =
-                CollapsiblePanel::new(ID.with(context_key(context)), &mut state, info.label);
+                CollapsiblePanel::new(ID.with(context_key(context)), &mut state, tr(info.label));
             if let Some(worst) = self.analysis.zone(context) {
                 panel = panel.status(
                     koebi_icons::interface::WARNING,
@@ -234,7 +242,7 @@ impl KeymapsPage {
         let half = ((clear.min.x - gap - rect.min.x - gap) * 0.5).max(0.0);
         let name = Rect::from_origin_size(rect.min, Vec2::new(half, row));
         TextField::new(ID.with(1), &mut self.search)
-            .placeholder("Search by name")
+            .placeholder(tr("Search by name"))
             .show(ui, name);
         let by_shortcut = Rect::from_origin_size(
             Vec2::new(name.max.x + gap, rect.min.y),
@@ -243,7 +251,7 @@ impl KeymapsPage {
         let recorded =
             CaptureField::new(ID.with(2), &mut self.search_capture, self.search_shortcut)
                 .capture(Capture::Any)
-                .hints("Search by shortcut", "Press the shortcut to find")
+                .hints(tr("Search by shortcut"), tr("Press the shortcut to find"))
                 .show(ui, by_shortcut);
         if let Some(shortcut) = recorded.captured {
             self.search_shortcut = Some(shortcut);
@@ -258,7 +266,7 @@ impl KeymapsPage {
             self.search.clear();
             self.search_shortcut = None;
         }
-        ui.tooltip(ID.with(3), "Clear the search", clear);
+        ui.tooltip(ID.with(3), tr("Clear the search"), clear);
         stack.y += row + stack.gap;
     }
 
@@ -286,8 +294,10 @@ impl KeymapsPage {
             .filter(|(action, bindings)| {
                 let named = text.is_empty()
                     || contains_folded(action.label, text)
+                    || contains_folded(tr(action.label), text)
                     || contains_folded(action.id, text)
-                    || contains_folded(action.description, text);
+                    || contains_folded(action.description, text)
+                    || contains_folded(tr(action.description), text);
                 let pressed = self.search_shortcut.is_none_or(|shortcut| {
                     bindings
                         .iter()
@@ -375,10 +385,11 @@ impl KeymapsPage {
                     .unwrap_or_else(|| CollapsiblePanelState::new(true));
                 let id = ID.with(context_key(context)).with(name_key(group.name));
                 let actions: Vec<&'static ActionDef> = actions.collect();
-                let shown =
-                    CollapsiblePanel::new(id, &mut state, group.name).show(ui, at, |ui, rect| {
-                        self.actions_in(ui, rect, &actions, design, keymap, bounds)
-                    });
+                let shown = CollapsiblePanel::new(id, &mut state, tr(group.name)).show(
+                    ui,
+                    at,
+                    |ui, rect| self.actions_in(ui, rect, &actions, design, keymap, bounds),
+                );
                 self.features.insert(key, state);
                 y += shown.height + gap;
             } else {
@@ -398,8 +409,11 @@ impl KeymapsPage {
                 .zones
                 .remove(&info.context)
                 .unwrap_or_else(|| CollapsiblePanelState::new(false));
-            let mut panel =
-                CollapsiblePanel::new(ID.with(context_key(info.context)), &mut state, info.label);
+            let mut panel = CollapsiblePanel::new(
+                ID.with(context_key(info.context)),
+                &mut state,
+                tr(info.label),
+            );
             if let Some(worst) = self.analysis.zone(info.context) {
                 panel = panel.status(
                     koebi_icons::interface::WARNING,
@@ -458,7 +472,7 @@ impl KeymapsPage {
             drafts,
         } = &mut state;
         let mut panel =
-            CollapsiblePanel::new(id, panel_state, action.label).trailing(ACTION_TRAILING);
+            CollapsiblePanel::new(id, panel_state, tr(action.label)).trailing(ACTION_TRAILING);
         if let Some(worst) = worst {
             panel = panel.status(
                 koebi_icons::interface::WARNING,
@@ -487,7 +501,7 @@ impl KeymapsPage {
             }
             if keymap.is_modified(action.id)
                 && ui
-                    .reset_dot(id.with(9), dot, "Bring back the default shortcuts")
+                    .reset_dot(id.with(9), dot, tr("Bring back the default shortcuts"))
                     .clicked
                 && let Err(error) = keymap.reset(action.id)
             {
@@ -529,7 +543,13 @@ impl KeymapsPage {
             Vec2::new(rect.min.x + padding, y),
             Vec2::new(rect.max.x - padding, y + row),
         );
-        ui.label(action.description, line, &detail, secondary, Align::Start);
+        ui.label(
+            tr(action.description),
+            line,
+            &detail,
+            secondary,
+            Align::Start,
+        );
         y += row + gap;
         let shown = keymap.bindings(action.id).unwrap_or(&[]);
         let report = self.analysis.action(action.id);
@@ -617,7 +637,7 @@ impl KeymapsPage {
         );
         if Button::new(ID.with(name_key(action.id)).with(99))
             .leading_icon(koebi_icons::interface::PLUS)
-            .label("Add a shortcut")
+            .label(tr("Add a shortcut"))
             .show(ui, at)
             .clicked
         {

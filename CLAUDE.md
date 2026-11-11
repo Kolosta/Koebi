@@ -40,6 +40,7 @@ crates/koebi-design/   design token engine: typed tiers, token tables, themes, o
 crates/koebi-tokens/   Koebi's design tokens (primitive, semantic, component) and built-in themes
 crates/koebi-ui/       components drawn from typed token styles, immediate-mode interaction
 crates/koebi-input/    actions and shortcuts: keymap, contexts, gestures, conflicts, overrides
+crates/koebi-i18n/     translations: gettext catalogs (locales/) compiled in, `tr` lookups; no deps
 crates/koebi-text/     fonts: TrueType reading, shaping (kerning, ligatures), line breaking, paragraphs;
                        Noto Sans, Noto Sans JP, system fonts
 crates/koebi-svg/      icon compiler: checked SVG subset -> quadratic curves per color zone; no deps
@@ -56,7 +57,7 @@ docs/                  architecture, ADRs, development guides, AI workflow
 
 Layering (enforced by Cargo): `app -> ui -> render -> gpu -> core`, `render -> text -> core`,
 `app -> platform -> core`, `ui -> tokens -> design -> core` and `ui -> icons -> svg`,
-`render -> svg` (`svg` depends on nothing).
+`render -> svg` (`svg` depends on nothing), `app, ui, tokens -> i18n` (`i18n` depends on nothing).
 `render`, `gpu` and `ui` never see SDL; `platform` never sees the renderer; `core` depends on
 nothing.
 
@@ -69,6 +70,7 @@ cargo nextest run --workspace       # all tests (or cargo test --workspace)
 cargo clippy --workspace --all-targets -- -D warnings
 cargo xtask shaders                 # GLSL -> SPIR-V (Vulkan SDK glslc); commit the .spv files
 cargo xtask bless                   # regenerate golden images after an intended visual change
+cargo xtask i18n update             # after changing interface messages: template and catalogs
 cargo xtask android | ios --run     # mobile builds (docs/development/platforms.md)
 ```
 
@@ -102,6 +104,8 @@ Useful environment: `KOEBI_LOG=debug`, `KOEBI_VALIDATION=1|required`, `KOEBI_ADA
   queue when the GPU may still use them. Never call `vkDestroy*` by hand outside `koebi-gpu`.
 - Every public item has a doc comment; every module starts with `//!` explaining its role.
 - Log with `koebi_core::{error,warn,info,debug,trace}!`, never `println!` in libraries.
+- Every text the interface shows goes through `koebi_i18n` (`tr`, `trc`, `n_!`, `fill`): whole
+  sentences with placeholders; logs, ids and token docs stay English (docs/development/translation.md).
 - Colors are `koebi_core::Color` (gamma-encoded sRGB, straight alpha). UI values come from design
   tokens (`koebi-design`, ADR 0008): components read component tokens, never raw literals.
 
