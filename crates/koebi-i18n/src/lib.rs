@@ -117,6 +117,10 @@ static REVISION: AtomicU64 = AtomicU64::new(0);
 
 std::thread_local! {
     /// The language of this thread alone, while [`with_language`] runs.
+    #[allow(
+        clippy::missing_const_for_thread_local,
+        reason = "the initializer is const: clippy misreads the macro's expansion on Android"
+    )]
     static OVERRIDE: Cell<Option<usize>> = const { Cell::new(None) };
 }
 
