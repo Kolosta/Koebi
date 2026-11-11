@@ -11,6 +11,7 @@
 )]
 
 mod android;
+mod bench;
 mod ci;
 mod commits;
 mod gitflow;
@@ -33,6 +34,8 @@ Quality
   ci [--fast]                     Run the local CI gate (fmt, clippy, tests, docs, shaders, deny, typos)
   shaders [--check]               Compile GLSL to SPIR-V (--check: fail if committed SPIR-V is stale)
   bless                           Regenerate golden images after an intended visual change
+  bench [--save]                  Measure performance in release: scenes, text, offscreen frames,
+                                  start-up (--save: write docs/performance/baseline.md)
 
 Translations (docs/development/translation.md)
   i18n extract                    Write the template koebi.pot from the messages of the sources
@@ -85,6 +88,7 @@ fn dispatch(args: &[String]) -> Result<()> {
         "ci" => ci::run(has("--fast")),
         "shaders" => shaders::run(has("--check")),
         "bless" => ci::bless(),
+        "bench" => bench::run(has("--save")),
         "i18n" => i18n::run(rest),
         "install-hooks" => util::install_hooks(),
         "gitflow-check" => {

@@ -12,6 +12,8 @@
 mod actions;
 mod app;
 mod app_icon;
+#[cfg(test)]
+mod bench;
 mod chrome;
 mod cursors;
 mod design_options;

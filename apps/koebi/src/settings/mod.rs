@@ -178,7 +178,7 @@ impl Stack {
 /// The settings window's state.
 #[derive(Debug)]
 pub(crate) struct SettingsView {
-    page: Page,
+    pub(crate) page: Page,
     theme: theme::ThemePage,
     customisation: customisation::CustomisationPage,
     accessibility: accessibility::AccessibilityPage,
@@ -358,10 +358,10 @@ pub(crate) mod tests {
     use super::*;
 
     /// Runs frames of the settings.
-    pub(super) struct Harness {
-        pub(super) design: DesignSystem,
+    pub(crate) struct Harness {
+        pub(crate) design: DesignSystem,
         pub(super) keymap: Keymap,
-        pub(super) settings: SettingsView,
+        pub(crate) settings: SettingsView,
         pub(super) frame_times: bool,
         pub(super) language: LanguageSetting,
         pub(super) state: UiState,
@@ -371,7 +371,7 @@ pub(crate) mod tests {
     }
 
     impl Harness {
-        pub(super) fn new() -> Self {
+        pub(crate) fn new() -> Self {
             let design = DesignSystem::new(&koebi_tokens::KOEBI).unwrap();
             let mut state = UiState::new();
             state.set_fonts(Fonts::with_embedded());
@@ -392,7 +392,7 @@ pub(crate) mod tests {
             Rect::from_origin_size(Vec2::ZERO, Vec2::new(960.0, 680.0))
         }
 
-        pub(super) fn frame(&mut self) -> Scene {
+        pub(crate) fn frame(&mut self) -> Scene {
             let mut scene = Scene::new();
             self.time += 16;
             self.input

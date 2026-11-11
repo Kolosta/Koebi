@@ -23,7 +23,7 @@ const SETTING_ROWS: f32 = 3.0;
 const PREVIEW_ROWS: f32 = 11.0;
 
 /// The samples: their name and their text.
-pub(super) const SAMPLES: [(&str, &str); 5] = [
+pub(crate) const SAMPLES: [(&str, &str); 5] = [
     (
         n_!("Latin"),
         "Typography: kerning in AV, To and Wa, ligatures in office, affluent and fjord. The quick \
