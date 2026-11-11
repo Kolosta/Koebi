@@ -725,6 +725,12 @@ msgstr ""
 msgid "Two tones"
 msgstr ""
 
+#: apps/koebi/src/gallery/icons.rs
+msgid ""
+"Icons with a secondary part (what lies behind, inside, or what "
+"an action applies to) show it fainter; off, in the main color"
+msgstr ""
+
 #: apps/koebi/src/gallery/menus.rs
 msgid "Solid"
 msgstr ""
@@ -1010,7 +1016,24 @@ msgid "Actions"
 msgstr ""
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A button runs an action when it is clicked: the pointer pressed "
+"and released over it. Moving away before releasing cancels the "
+"click. A toggle button stays selected until clicked again; a "
+"selected button that is pressed shows both. Disabled buttons "
+"show dimmed and ignore the pointer, but still keep it from what "
+"lies below."
+msgstr ""
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Checkbox"
+msgstr ""
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A checkbox turns an option on or off. A click anywhere on it, "
+"its label included, flips it; a mixed box (some of several options "
+"on) becomes checked."
 msgstr ""
 
 #: apps/koebi/src/settings/customisation/components.rs
@@ -1022,7 +1045,26 @@ msgid "Number field"
 msgstr ""
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A number field shows a value and changes it. Drag it sideways: "
+"the pointer hides and the value follows, finer with Shift, coarser "
+"with Ctrl; Escape or the secondary button brings back the value "
+"the drag started from. A click without moving types the value: "
+"expressions and units (\"2 * 3 mm\") are understood. The step "
+"buttons, and Ctrl with the wheel, step it. A bounded field fills "
+"a bar up to its value."
+msgstr ""
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Text field"
+msgstr ""
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A text field edits one line of text. A click places the caret, "
+"a drag selects, a double click selects a word; the usual shortcuts "
+"copy, cut, paste and undo. Enter keeps the text, Escape brings "
+"back what it was."
 msgstr ""
 
 #: apps/koebi/src/settings/customisation/components.rs
@@ -1030,11 +1072,39 @@ msgid "Dropdown"
 msgstr ""
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A dropdown shows the current choice and opens the list of the "
+"others below it, its corners meeting the list's. The arrows "
+"move in the list, Enter chooses, Escape closes it without changing "
+"anything."
+msgstr ""
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Color field and picker"
 msgstr ""
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A color field shows a color, each half showing its transparency "
+"its own way, outlined in a gray of its own. A click opens the "
+"picker: an area of two components, strips for the third and "
+"the opacity, the colors when it opened and originally, an eyedropper, "
+"and the fields of a model (RGB, HSV, HSL, OKLCH, CMYK, hex). "
+"Dragging hides the pointer; Shift is finer; Escape brings the "
+"color back."
+msgstr ""
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Curve editor"
+msgstr ""
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A curve editor shapes how something eases over time. Drag a "
+"key to move it (Escape brings it back), double click the graph "
+"to add one, right click a key to remove it; the fields type "
+"the selected key's place and the easing of the segment leaving "
+"it. It is temporary: curves get a fuller editor later."
 msgstr ""
 
 #: apps/koebi/src/settings/customisation/components.rs
@@ -1046,11 +1116,33 @@ msgid "Panel"
 msgstr ""
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"Panels gather what belongs together. An expandable panel opens "
+"and closes with a click on its header; nested panels span their "
+"parent's width and indent what they hold. A dot at the end of "
+"a header tells something below was changed, and brings it back."
+msgstr ""
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Tooltip"
 msgstr ""
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A tooltip names what lies under the pointer once it rests there "
+"for a moment; moving to a neighbour shows the neighbour's at "
+"once, for a little while."
+msgstr ""
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Status bar"
+msgstr ""
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"The status bar, at the bottom of workspace windows, shows the "
+"shortcuts that apply where the pointer is, the most useful first, "
+"and the version on the right."
 msgstr ""
 
 #: apps/koebi/src/settings/customisation/components.rs
@@ -1059,6 +1151,13 @@ msgstr ""
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Key caps"
+msgstr ""
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"Key caps show shortcuts as the keys to press: the modifiers "
+"first, each side of the keyboard as its own key when it matters, "
+"then the key or the mouse button."
 msgstr ""
 
 #: apps/koebi/src/settings/customisation/components.rs
@@ -2110,8 +2209,20 @@ msgid "Cancel"
 msgstr ""
 
 #: crates/koebi-ui/src/operation.rs
+msgid ""
+"Cancels the operation in progress (a drag, a resize, a pick) "
+"and brings back what it changed."
+msgstr ""
+
+#: crates/koebi-ui/src/operation.rs
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Confirm"
+msgstr ""
+
+#: crates/koebi-ui/src/operation.rs
+msgid ""
+"Ends the operation in progress and keeps what it does: the value "
+"dragged, the split or join previewed, the color under the pointer."
 msgstr ""
 
 #: crates/koebi-ui/src/operation.rs

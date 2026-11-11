@@ -59,20 +59,24 @@ static KINDS: [(&str, &[Doc]); 4] = [
         &[
             Doc {
                 title: n_!("Button"),
-                text: "A button runs an action when it is clicked: the pointer pressed and \
+                text: n_!(
+                    "A button runs an action when it is clicked: the pointer pressed and \
                     released over it. Moving away before releasing cancels the click. A \
                     toggle button stays selected until clicked again; a selected button that \
                     is pressed shows both. Disabled buttons show dimmed and ignore the pointer, \
-                    but still keep it from what lies below.",
+                    but still keep it from what lies below."
+                ),
                 preview: Preview::Button,
                 groups: &[component::BUTTON::GROUP, component::ICON_BUTTON::GROUP],
                 actions: None,
             },
             Doc {
                 title: n_!("Checkbox"),
-                text: "A checkbox turns an option on or off. A click anywhere on it, its label \
+                text: n_!(
+                    "A checkbox turns an option on or off. A click anywhere on it, its label \
                     included, flips it; a mixed box (some of several options on) becomes \
-                    checked.",
+                    checked."
+                ),
                 preview: Preview::Checkbox,
                 groups: &[component::CHECKBOX::GROUP, component::TOGGLE::GROUP],
                 actions: None,
@@ -84,42 +88,50 @@ static KINDS: [(&str, &[Doc]); 4] = [
         &[
             Doc {
                 title: n_!("Number field"),
-                text: "A number field shows a value and changes it. Drag it sideways: the \
+                text: n_!(
+                    "A number field shows a value and changes it. Drag it sideways: the \
                     pointer hides and the value follows, finer with Shift, coarser with Ctrl; \
                     Escape or the secondary button brings back the value the drag started \
                     from. A click without moving types the value: expressions and units \
                     (\"2 * 3 mm\") are understood. The step buttons, and Ctrl with the wheel, \
-                    step it. A bounded field fills a bar up to its value.",
+                    step it. A bounded field fills a bar up to its value."
+                ),
                 preview: Preview::NumberField,
                 groups: &[component::NUMBER_FIELD::GROUP],
                 actions: Some(&koebi_ui::OPERATION_ACTIONS),
             },
             Doc {
                 title: n_!("Text field"),
-                text: "A text field edits one line of text. A click places the caret, a drag \
+                text: n_!(
+                    "A text field edits one line of text. A click places the caret, a drag \
                     selects, a double click selects a word; the usual shortcuts copy, cut, \
-                    paste and undo. Enter keeps the text, Escape brings back what it was.",
+                    paste and undo. Enter keeps the text, Escape brings back what it was."
+                ),
                 preview: Preview::TextField,
                 groups: &[component::TEXT_FIELD::GROUP],
                 actions: Some(&koebi_ui::TEXT_ACTIONS),
             },
             Doc {
                 title: n_!("Dropdown"),
-                text: "A dropdown shows the current choice and opens the list of the others \
+                text: n_!(
+                    "A dropdown shows the current choice and opens the list of the others \
                     below it, its corners meeting the list's. The arrows move in the list, \
-                    Enter chooses, Escape closes it without changing anything.",
+                    Enter chooses, Escape closes it without changing anything."
+                ),
                 preview: Preview::Dropdown,
                 groups: &[component::DROPDOWN::GROUP, component::MENU::GROUP],
                 actions: Some(&koebi_ui::MENU_ACTIONS),
             },
             Doc {
                 title: n_!("Color field and picker"),
-                text: "A color field shows a color, each half showing its transparency its own \
+                text: n_!(
+                    "A color field shows a color, each half showing its transparency its own \
                     way, outlined in a gray of its own. A click opens the picker: an area of \
                     two components, strips for the third and the opacity, the colors when it \
                     opened and originally, an eyedropper, and the fields of a model (RGB, \
                     HSV, HSL, OKLCH, CMYK, hex). Dragging hides the pointer; Shift is finer; \
-                    Escape brings the color back.",
+                    Escape brings the color back."
+                ),
                 preview: Preview::ColorField,
                 groups: &[
                     component::COLOR_FIELD::GROUP,
@@ -129,11 +141,13 @@ static KINDS: [(&str, &[Doc]); 4] = [
             },
             Doc {
                 title: n_!("Curve editor"),
-                text: "A curve editor shapes how something eases over time. Drag a key to move \
+                text: n_!(
+                    "A curve editor shapes how something eases over time. Drag a key to move \
                     it (Escape brings it back), double click the graph to add one, right click \
                     a key to remove it; the fields type the selected key's place and the \
                     easing of the segment leaving it. It is temporary: curves get a fuller \
-                    editor later.",
+                    editor later."
+                ),
                 preview: Preview::CurveEditor,
                 groups: &[component::CURVE_EDITOR::GROUP],
                 actions: None,
@@ -145,28 +159,34 @@ static KINDS: [(&str, &[Doc]); 4] = [
         &[
             Doc {
                 title: n_!("Panel"),
-                text: "Panels gather what belongs together. An expandable panel opens and \
+                text: n_!(
+                    "Panels gather what belongs together. An expandable panel opens and \
                     closes with a click on its header; nested panels span their parent's width \
                     and indent what they hold. A dot at the end of a header tells something \
-                    below was changed, and brings it back.",
+                    below was changed, and brings it back."
+                ),
                 preview: Preview::Panel,
                 groups: &[component::PANEL::GROUP, component::PROPERTY_GROUP::GROUP],
                 actions: None,
             },
             Doc {
                 title: n_!("Tooltip"),
-                text: "A tooltip names what lies under the pointer once it rests there for a \
+                text: n_!(
+                    "A tooltip names what lies under the pointer once it rests there for a \
                     moment; moving to a neighbour shows the neighbour's at once, for a little \
-                    while.",
+                    while."
+                ),
                 preview: Preview::Tooltip,
                 groups: &[component::TOOLTIP::GROUP],
                 actions: None,
             },
             Doc {
                 title: n_!("Status bar"),
-                text: "The status bar, at the bottom of workspace windows, shows the shortcuts \
+                text: n_!(
+                    "The status bar, at the bottom of workspace windows, shows the shortcuts \
                     that apply where the pointer is, the most useful first, and the version on \
-                    the right.",
+                    the right."
+                ),
                 preview: Preview::None,
                 groups: &[component::STATUS_BAR::GROUP],
                 actions: None,
@@ -177,9 +197,11 @@ static KINDS: [(&str, &[Doc]); 4] = [
         n_!("Shortcuts"),
         &[Doc {
             title: n_!("Key caps"),
-            text: "Key caps show shortcuts as the keys to press: the modifiers first, each \
+            text: n_!(
+                "Key caps show shortcuts as the keys to press: the modifiers first, each \
                     side of the keyboard as its own key when it matters, then the key or the \
-                    mouse button.",
+                    mouse button."
+            ),
             preview: Preview::None,
             groups: &[component::KEY_CAP::GROUP, component::CAPTURE_FIELD::GROUP],
             actions: Some(&koebi_ui::MENU_ACTIONS),

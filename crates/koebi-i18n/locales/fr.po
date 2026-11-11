@@ -729,6 +729,15 @@ msgstr "Couleurs d'origine"
 msgid "Two tones"
 msgstr "Deux tons"
 
+#: apps/koebi/src/gallery/icons.rs
+msgid ""
+"Icons with a secondary part (what lies behind, inside, or what "
+"an action applies to) show it fainter; off, in the main color"
+msgstr ""
+"Les icônes à partie secondaire (ce qui est derrière, dedans, "
+"ou ce à quoi une action s'applique) la montrent plus pâle ; "
+"désactivé, dans la couleur principale"
+
 #: apps/koebi/src/gallery/menus.rs
 msgid "Solid"
 msgstr "Solide"
@@ -1020,8 +1029,34 @@ msgid "Actions"
 msgstr "Actions"
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A button runs an action when it is clicked: the pointer pressed "
+"and released over it. Moving away before releasing cancels the "
+"click. A toggle button stays selected until clicked again; a "
+"selected button that is pressed shows both. Disabled buttons "
+"show dimmed and ignore the pointer, but still keep it from what "
+"lies below."
+msgstr ""
+"Un bouton lance une action quand on clique dessus : le pointeur "
+"enfoncé puis relâché au-dessus. S'éloigner avant de relâcher "
+"annule le clic. Un bouton bascule reste sélectionné jusqu'au "
+"clic suivant ; un bouton sélectionné et enfoncé montre les deux. "
+"Les boutons désactivés s'affichent estompés et ignorent le pointeur, "
+"mais l'empêchent tout de même d'atteindre ce qui est dessous."
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Checkbox"
 msgstr "Case à cocher"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A checkbox turns an option on or off. A click anywhere on it, "
+"its label included, flips it; a mixed box (some of several options "
+"on) becomes checked."
+msgstr ""
+"Une case à cocher active ou désactive une option. Un clic n'importe "
+"où dessus, libellé compris, l'inverse ; une case mixte (certaines "
+"options parmi plusieurs activées) devient cochée."
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Values"
@@ -1032,20 +1067,98 @@ msgid "Number field"
 msgstr "Champ numérique"
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A number field shows a value and changes it. Drag it sideways: "
+"the pointer hides and the value follows, finer with Shift, coarser "
+"with Ctrl; Escape or the secondary button brings back the value "
+"the drag started from. A click without moving types the value: "
+"expressions and units (\"2 * 3 mm\") are understood. The step "
+"buttons, and Ctrl with the wheel, step it. A bounded field fills "
+"a bar up to its value."
+msgstr ""
+"Un champ numérique affiche une valeur et la modifie. Faites-le "
+"glisser sur le côté : le pointeur se cache et la valeur suit, "
+"plus finement avec Maj, plus grossièrement avec Ctrl ; Échap "
+"ou le bouton secondaire rétablit la valeur de départ. Un clic "
+"sans bouger permet de saisir la valeur : les expressions et "
+"les unités (« 2 * 3 mm ») sont comprises. Les boutons de pas, "
+"et Ctrl avec la molette, la font varier par pas. Un champ borné "
+"remplit une barre jusqu'à sa valeur."
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Text field"
 msgstr "Champ de texte"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A text field edits one line of text. A click places the caret, "
+"a drag selects, a double click selects a word; the usual shortcuts "
+"copy, cut, paste and undo. Enter keeps the text, Escape brings "
+"back what it was."
+msgstr ""
+"Un champ de texte modifie une ligne de texte. Un clic place "
+"le curseur, un glissement sélectionne, un double-clic sélectionne "
+"un mot ; les raccourcis habituels copient, coupent, collent "
+"et annulent. Entrée garde le texte, Échap rétablit ce qu'il "
+"était."
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Dropdown"
 msgstr "Liste déroulante"
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A dropdown shows the current choice and opens the list of the "
+"others below it, its corners meeting the list's. The arrows "
+"move in the list, Enter chooses, Escape closes it without changing "
+"anything."
+msgstr ""
+"Une liste déroulante affiche le choix actuel et ouvre la liste "
+"des autres en dessous, ses coins rejoignant ceux de la liste. "
+"Les flèches se déplacent dans la liste, Entrée choisit, Échap "
+"la ferme sans rien changer."
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Color field and picker"
 msgstr "Champ et sélecteur de couleur"
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A color field shows a color, each half showing its transparency "
+"its own way, outlined in a gray of its own. A click opens the "
+"picker: an area of two components, strips for the third and "
+"the opacity, the colors when it opened and originally, an eyedropper, "
+"and the fields of a model (RGB, HSV, HSL, OKLCH, CMYK, hex). "
+"Dragging hides the pointer; Shift is finer; Escape brings the "
+"color back."
+msgstr ""
+"Un champ de couleur affiche une couleur, chaque moitié montrant "
+"sa transparence à sa façon, entourée d'un gris propre. Un clic "
+"ouvre le sélecteur : une zone de deux composantes, des bandes "
+"pour la troisième et l'opacité, les couleurs à l'ouverture et "
+"d'origine, une pipette, et les champs d'un modèle (RVB, TSV, "
+"TSL, OKLCH, CMJN, hex). Glisser cache le pointeur ; Maj est "
+"plus fin ; Échap rétablit la couleur."
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Curve editor"
 msgstr "Éditeur de courbes"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A curve editor shapes how something eases over time. Drag a "
+"key to move it (Escape brings it back), double click the graph "
+"to add one, right click a key to remove it; the fields type "
+"the selected key's place and the easing of the segment leaving "
+"it. It is temporary: curves get a fuller editor later."
+msgstr ""
+"Un éditeur de courbes façonne l'accélération de quelque chose "
+"dans le temps. Faites glisser une clé pour la déplacer (Échap "
+"la ramène), double-cliquez sur le graphe pour en ajouter une, "
+"clic droit sur une clé pour la retirer ; les champs saisissent "
+"la place de la clé sélectionnée et l'accélération du segment "
+"qui en part. Il est provisoire : les courbes auront plus tard "
+"un éditeur plus complet."
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Containers"
@@ -1056,12 +1169,45 @@ msgid "Panel"
 msgstr "Panneau"
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"Panels gather what belongs together. An expandable panel opens "
+"and closes with a click on its header; nested panels span their "
+"parent's width and indent what they hold. A dot at the end of "
+"a header tells something below was changed, and brings it back."
+msgstr ""
+"Les panneaux regroupent ce qui va ensemble. Un panneau dépliable "
+"s'ouvre et se ferme d'un clic sur son en-tête ; les panneaux "
+"imbriqués occupent la largeur de leur parent et décalent ce "
+"qu'ils contiennent. Un point au bout d'un en-tête indique qu'un "
+"réglage en dessous a changé, et le rétablit."
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Tooltip"
 msgstr "Info-bulle"
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A tooltip names what lies under the pointer once it rests there "
+"for a moment; moving to a neighbour shows the neighbour's at "
+"once, for a little while."
+msgstr ""
+"Une info-bulle nomme ce qui se trouve sous le pointeur une fois "
+"qu'il s'y attarde un instant ; passer à un voisin affiche aussitôt "
+"celle du voisin, pendant un court moment."
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Status bar"
 msgstr "Barre d'état"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"The status bar, at the bottom of workspace windows, shows the "
+"shortcuts that apply where the pointer is, the most useful first, "
+"and the version on the right."
+msgstr ""
+"La barre d'état, en bas des fenêtres de travail, affiche les "
+"raccourcis qui s'appliquent là où se trouve le pointeur, les "
+"plus utiles d'abord, et la version à droite."
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Shortcuts"
@@ -1070,6 +1216,17 @@ msgstr "Raccourcis"
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Key caps"
 msgstr "Touches"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"Key caps show shortcuts as the keys to press: the modifiers "
+"first, each side of the keyboard as its own key when it matters, "
+"then the key or the mouse button."
+msgstr ""
+"Les touches affichent les raccourcis comme les touches à presser : "
+"les modificateurs d'abord, chaque côté du clavier comme une "
+"touche à part quand il compte, puis la touche ou le bouton de "
+"la souris."
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Normal"
@@ -2156,9 +2313,26 @@ msgid "Cancel"
 msgstr "Annuler"
 
 #: crates/koebi-ui/src/operation.rs
+msgid ""
+"Cancels the operation in progress (a drag, a resize, a pick) "
+"and brings back what it changed."
+msgstr ""
+"Annule l'opération en cours (un glissement, un redimensionnement, "
+"une pipette) et rétablit ce qu'elle a changé."
+
+#: crates/koebi-ui/src/operation.rs
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Confirm"
 msgstr "Valider"
+
+#: crates/koebi-ui/src/operation.rs
+msgid ""
+"Ends the operation in progress and keeps what it does: the value "
+"dragged, the split or join previewed, the color under the pointer."
+msgstr ""
+"Termine l'opération en cours et garde ce qu'elle fait : la valeur "
+"glissée, la division ou la jonction prévisualisée, la couleur "
+"sous le pointeur."
 
 #: crates/koebi-ui/src/operation.rs
 msgid "Operations"

@@ -725,6 +725,12 @@ msgstr "元の色"
 msgid "Two tones"
 msgstr "2トーン"
 
+#: apps/koebi/src/gallery/icons.rs
+msgid ""
+"Icons with a secondary part (what lies behind, inside, or what "
+"an action applies to) show it fainter; off, in the main color"
+msgstr "副次的な部分（背後や内側にあるもの、操作の対象）を持つアイコンは、その部分を淡く表示します。オフにすると主な色で表示します"
+
 #: apps/koebi/src/gallery/menus.rs
 msgid "Solid"
 msgstr "ソリッド"
@@ -1010,8 +1016,27 @@ msgid "Actions"
 msgstr "アクション"
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A button runs an action when it is clicked: the pointer pressed "
+"and released over it. Moving away before releasing cancels the "
+"click. A toggle button stays selected until clicked again; a "
+"selected button that is pressed shows both. Disabled buttons "
+"show dimmed and ignore the pointer, but still keep it from what "
+"lies below."
+msgstr ""
+"ボタンはクリック（ポインターをボタンの上で押して離すこと）でアクションを実行します。離す前にポインターを外すとクリックは取り消されます。トグルボタンはもう一度クリックするまで選択されたままで、選択中のボタンを押すと両方の状態を表示します。無効なボタンは薄く表示されてポインターを無視しますが、下にあるものへポインターは届きません。"
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Checkbox"
 msgstr "チェックボックス"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A checkbox turns an option on or off. A click anywhere on it, "
+"its label included, flips it; a mixed box (some of several options "
+"on) becomes checked."
+msgstr ""
+"チェックボックスはオプションのオンとオフを切り替えます。ラベルを含めてどこをクリックしても切り替わり、混在状態（複数のオプションの一部がオン）のボックスはチェックされた状態になります。"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Values"
@@ -1022,20 +1047,73 @@ msgid "Number field"
 msgstr "数値フィールド"
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A number field shows a value and changes it. Drag it sideways: "
+"the pointer hides and the value follows, finer with Shift, coarser "
+"with Ctrl; Escape or the secondary button brings back the value "
+"the drag started from. A click without moving types the value: "
+"expressions and units (\"2 * 3 mm\") are understood. The step "
+"buttons, and Ctrl with the wheel, step it. A bounded field fills "
+"a bar up to its value."
+msgstr ""
+"数値フィールドは値を表示し、変更します。横にドラッグするとポインターが隠れて値が追従し、Shiftで細かく、Ctrlで粗く変わります。Escまたは副ボタンでドラッグ開始時の値に戻ります。動かさずにクリックすると値を入力でき、式や単位（「2 "
+"* 3 mm」）も使えます。ステップボタンやCtrl+ホイールで1ステップずつ変わります。範囲のあるフィールドは値までバーが塗られます。"
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Text field"
 msgstr "テキストフィールド"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A text field edits one line of text. A click places the caret, "
+"a drag selects, a double click selects a word; the usual shortcuts "
+"copy, cut, paste and undo. Enter keeps the text, Escape brings "
+"back what it was."
+msgstr ""
+"テキストフィールドは1行のテキストを編集します。クリックでキャレットを置き、ドラッグで選択し、ダブルクリックで単語を選択します。いつものショートカットでコピー、切り取り、貼り付け、元に戻すができます。Enterでテキストを確定し、Escで元に戻します。"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Dropdown"
 msgstr "ドロップダウン"
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A dropdown shows the current choice and opens the list of the "
+"others below it, its corners meeting the list's. The arrows "
+"move in the list, Enter chooses, Escape closes it without changing "
+"anything."
+msgstr ""
+"ドロップダウンは現在の選択を表示し、その下に他の選択肢のリストを開きます。角はリストの角とつながります。矢印キーでリスト内を移動し、Enterで選択、Escで何も変えずに閉じます。"
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Color field and picker"
 msgstr "カラーフィールドとピッカー"
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A color field shows a color, each half showing its transparency "
+"its own way, outlined in a gray of its own. A click opens the "
+"picker: an area of two components, strips for the third and "
+"the opacity, the colors when it opened and originally, an eyedropper, "
+"and the fields of a model (RGB, HSV, HSL, OKLCH, CMYK, hex). "
+"Dragging hides the pointer; Shift is finer; Escape brings the "
+"color back."
+msgstr ""
+"カラーフィールドは色を表示します。左右の半分はそれぞれの方法で透明度を示し、独自のグレーで縁取られます。クリックするとピッカーが開きます：2成分のエリア、3つ目の成分と不透明度のバー、開いたときの色と元の色、スポイト、色モデル（RGB、HSV、HSL、OKLCH、CMYK、16進数）のフィールドがあります。ドラッグ中はポインターが隠れ、Shiftで細かく動き、Escで色が元に戻ります。"
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Curve editor"
 msgstr "カーブエディター"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A curve editor shapes how something eases over time. Drag a "
+"key to move it (Escape brings it back), double click the graph "
+"to add one, right click a key to remove it; the fields type "
+"the selected key's place and the easing of the segment leaving "
+"it. It is temporary: curves get a fuller editor later."
+msgstr ""
+"カーブエディターは時間に沿った変化の緩急を形づくります。キーをドラッグして移動し（Escで元に戻ります）、グラフをダブルクリックしてキーを追加し、キーを右クリックして削除します。フィールドでは選択したキーの位置と、そこから始まる区間のイージングを入力します。これは仮のもので、後により充実したエディターになります。"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Containers"
@@ -1046,12 +1124,36 @@ msgid "Panel"
 msgstr "パネル"
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"Panels gather what belongs together. An expandable panel opens "
+"and closes with a click on its header; nested panels span their "
+"parent's width and indent what they hold. A dot at the end of "
+"a header tells something below was changed, and brings it back."
+msgstr ""
+"パネルは関連するものをまとめます。展開できるパネルはヘッダーのクリックで開閉し、入れ子のパネルは親の幅いっぱいに広がって中身を字下げします。ヘッダーの端の点は、その下で何かが変更されたことを示し、クリックすると元に戻します。"
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Tooltip"
 msgstr "ツールチップ"
 
 #: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"A tooltip names what lies under the pointer once it rests there "
+"for a moment; moving to a neighbour shows the neighbour's at "
+"once, for a little while."
+msgstr ""
+"ツールチップは、ポインターが少し止まると、その下にあるものの名前を示します。隣の項目へ移ると、しばらくの間はすぐに隣のツールチップが表示されます。"
+
+#: apps/koebi/src/settings/customisation/components.rs
 msgid "Status bar"
 msgstr "ステータスバー"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"The status bar, at the bottom of workspace windows, shows the "
+"shortcuts that apply where the pointer is, the most useful first, "
+"and the version on the right."
+msgstr "ステータスバーはワークスペースのウィンドウの下部にあり、ポインターのある場所で使えるショートカットを役立つ順に、右端にバージョンを表示します。"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Shortcuts"
@@ -1060,6 +1162,14 @@ msgstr "ショートカット"
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Key caps"
 msgstr "キーキャップ"
+
+#: apps/koebi/src/settings/customisation/components.rs
+msgid ""
+"Key caps show shortcuts as the keys to press: the modifiers "
+"first, each side of the keyboard as its own key when it matters, "
+"then the key or the mouse button."
+msgstr ""
+"キーキャップはショートカットを押すキーとして表示します。まず修飾キー（左右の区別が必要なときはそれぞれ別のキー）、次にキーまたはマウスボタンです。"
 
 #: apps/koebi/src/settings/customisation/components.rs
 msgid "Normal"
@@ -2110,9 +2220,21 @@ msgid "Cancel"
 msgstr "キャンセル"
 
 #: crates/koebi-ui/src/operation.rs
+msgid ""
+"Cancels the operation in progress (a drag, a resize, a pick) "
+"and brings back what it changed."
+msgstr "実行中の操作（ドラッグ、サイズ変更、色の取得）を取り消し、変更を元に戻します。"
+
+#: crates/koebi-ui/src/operation.rs
 #: crates/koebi-ui/src/widgets/text_field/actions.rs
 msgid "Confirm"
 msgstr "確定"
+
+#: crates/koebi-ui/src/operation.rs
+msgid ""
+"Ends the operation in progress and keeps what it does: the value "
+"dragged, the split or join previewed, the color under the pointer."
+msgstr "実行中の操作を終了し、その結果を確定します：ドラッグした値、プレビュー中の分割や結合、ポインターの下の色。"
 
 #: crates/koebi-ui/src/operation.rs
 msgid "Operations"

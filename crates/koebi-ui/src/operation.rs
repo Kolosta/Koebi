@@ -21,8 +21,10 @@ pub const OPERATION: Context = Context::new("operation");
 pub static OPERATION_CANCEL: ActionDef = ActionDef {
     id: "operation.cancel",
     label: n_!("Cancel"),
-    description: "Cancels the operation in progress (a drag, a resize, a pick) and brings back \
-        what it changed.",
+    description: n_!(
+        "Cancels the operation in progress (a drag, a resize, a pick) and brings back \
+        what it changed."
+    ),
     context: OPERATION,
     defaults: &[
         Shortcut::key(Key::Escape),
@@ -38,8 +40,10 @@ pub static OPERATION_CANCEL: ActionDef = ActionDef {
 pub static OPERATION_CONFIRM: ActionDef = ActionDef {
     id: "operation.confirm",
     label: n_!("Confirm"),
-    description: "Ends the operation in progress and keeps what it does: the value dragged, the \
-        split or join previewed, the color under the pointer.",
+    description: n_!(
+        "Ends the operation in progress and keeps what it does: the value dragged, the \
+        split or join previewed, the color under the pointer."
+    ),
     context: OPERATION,
     defaults: &[Shortcut::key(Key::Enter), Shortcut::key(Key::KeypadEnter)],
     repeats: false,

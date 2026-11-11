@@ -92,8 +92,10 @@ impl Icons {
         }
         ui.tooltip(
             ID.with(3),
-            "Icons with a secondary part (what lies behind, inside, or what an action applies \
-             to) show it fainter; off, in the main color",
+            tr(
+                "Icons with a secondary part (what lies behind, inside, or what an action \
+                applies to) show it fainter; off, in the main color",
+            ),
             tones,
         );
 
