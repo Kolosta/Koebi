@@ -19,6 +19,17 @@ checks every rule and fails with the file and the line of what breaks one.
 The gallery's *Vector icons* panel shows every icon at any size, recolored on hover and press,
 or in its own colors.
 
+**Settings › Icons** lists every icon by category. A click opens a preview of the icon in each
+state and tone the interface gives icons (normal, hovered, pressed, active, disabled; accent,
+negative, notice, neutral, yellow), in its own colors, two-toned or not, with its zones
+recolored one by one for the preview alone, and the constant that names it
+(`koebi_icons::settings::GENERAL`). The icon tokens (`component.icon.*`) are edited below.
+
+Editors have icons of their own (`editors/*`), shown in their tabs and the type dropdown
+(`EditorHost::icon`, `EditorHost::kind_icons`), as do the settings pages (`settings/*`) in the
+settings' column, and the outliner's rows: the document, groups (`objects/folder`) and layers
+(`objects/layer`, in the layer's color).
+
 ## The file
 
 - **A square view box.** `viewBox="0 0 24 24"`, or `width` and `height` without one. The whole
@@ -72,8 +83,8 @@ shape. A standard interface icon has a single `ds-primary` ink, or two for a two
 Two families share the interface. Whatever the family, an icon reads at 16 px, its weight
 matches its neighbours', and it stays inside its square.
 
-**Content icons** (`actions`, `objects`, `shapes`, `text`, `tools`, `transform`, `view`,
-`navigation`): [Material Symbols](https://fonts.google.com/icons), outlined, weight 400, grade 0,
+**Content icons** (`actions`, `editors`, `objects`, `settings`, `shapes`, `text`, `tools`,
+`transform`, `view`, `navigation`): [Material Symbols](https://fonts.google.com/icons), outlined, weight 400, grade 0,
 optical size 24, unfilled, in their `0 -960 960 960` frame. New ones come from the same set
 when it has them; drawn ones follow its rules:
 

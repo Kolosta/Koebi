@@ -41,6 +41,7 @@ msgstr "Affiche la fenêtre seule sur son écran, ou la rétablit."
 
 #: apps/koebi/src/actions.rs
 #: apps/koebi/src/chrome.rs
+#: apps/koebi/src/settings/icons.rs
 #: apps/koebi/src/window.rs
 msgid "Settings"
 msgstr "Paramètres"
@@ -50,6 +51,7 @@ msgid "Opens the settings window, or brings it to the front."
 msgstr "Ouvre la fenêtre des paramètres, ou la passe au premier plan."
 
 #: apps/koebi/src/actions.rs
+#: apps/koebi/src/settings/icons.rs
 #: apps/koebi/src/settings/options.rs
 msgid "Application"
 msgstr "Application"
@@ -292,6 +294,7 @@ msgid "What the object is for"
 msgstr "À quoi sert l'objet"
 
 #: apps/koebi/src/editors/properties.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Transform"
 msgstr "Transformation"
 
@@ -444,6 +447,7 @@ msgstr "Par défaut"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/gallery/colors.rs
+#: apps/koebi/src/settings/icons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Accent"
 msgstr "Accent"
@@ -454,16 +458,19 @@ msgid "Positive"
 msgstr "Positif"
 
 #: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/settings/icons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Negative"
 msgstr "Négatif"
 
 #: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/settings/icons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Neutral"
 msgstr "Neutre"
 
 #: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/settings/icons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Notice"
 msgstr "Avertissement"
@@ -484,6 +491,7 @@ msgid "Green"
 msgstr "Vert"
 
 #: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/settings/icons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Yellow"
 msgstr "Jaune"
@@ -516,6 +524,7 @@ msgstr "Sculpture"
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/gallery/fields.rs
 #: apps/koebi/src/settings/customisation/components.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Disabled"
 msgstr "Désactivé"
 
@@ -722,10 +731,12 @@ msgid "Size"
 msgstr "Taille"
 
 #: apps/koebi/src/gallery/icons.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Original colors"
 msgstr "Couleurs d'origine"
 
 #: apps/koebi/src/gallery/icons.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Two tones"
 msgstr "Deux tons"
 
@@ -1025,6 +1036,7 @@ msgid "Aa"
 msgstr "Aa"
 
 #: apps/koebi/src/settings/customisation/components.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Actions"
 msgstr "Actions"
 
@@ -1229,14 +1241,17 @@ msgstr ""
 "la souris."
 
 #: apps/koebi/src/settings/customisation/components.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Normal"
 msgstr "Normal"
 
 #: apps/koebi/src/settings/customisation/components.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Hovered"
 msgstr "Survolé"
 
 #: apps/koebi/src/settings/customisation/components.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Pressed"
 msgstr "Enfoncé"
 
@@ -1253,6 +1268,7 @@ msgid "Selected, pressed"
 msgstr "Sélectionné, enfoncé"
 
 #: apps/koebi/src/settings/customisation/components.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Active"
 msgstr "Actif"
 
@@ -1359,6 +1375,83 @@ msgid ""
 msgstr ""
 "Images par seconde, temps CPU et GPU d'une image, au-dessus "
 "de la barre d'état. F12 aussi."
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Cursors"
+msgstr "Curseurs"
+
+#: apps/koebi/src/settings/icons.rs
+#: crates/koebi-tokens/src/lib.rs
+msgid "Editors"
+msgstr "Éditeurs"
+
+#: apps/koebi/src/settings/icons.rs
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Input"
+msgstr "Entrée"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Interface"
+msgstr "Interface"
+
+#: apps/koebi/src/settings/icons.rs
+#: apps/koebi/src/settings/keymaps/rules.rs
+#: apps/koebi/src/settings/mod.rs
+msgid "Navigation"
+msgstr "Navigation"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Objects"
+msgstr "Objets"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Shapes"
+msgstr "Formes"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Text"
+msgstr "Texte"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Tools"
+msgstr "Outils"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "View"
+msgstr "Affichage"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Main ink"
+msgstr "Encre principale"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Secondary ink"
+msgstr "Encre secondaire"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Third ink"
+msgstr "Troisième encre"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Accent ink"
+msgstr "Encre d'accent"
+
+#: apps/koebi/src/settings/icons.rs
+#: apps/koebi/src/settings/mod.rs
+msgid "Icons"
+msgstr "Icônes"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Zone {number}: {role}"
+msgstr "Zone {number} : {role}"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Colors of the look"
+msgstr "Couleurs de l'aspect"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Icon tokens"
+msgstr "Jetons des icônes"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Pointer"
@@ -1591,10 +1684,6 @@ msgid "Key"
 msgstr "Touche"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
-msgid "Input"
-msgstr "Entrée"
-
-#: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Choose a key"
 msgstr "Choisir une touche"
 
@@ -1697,11 +1786,6 @@ msgstr "Chiffres"
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Function keys"
 msgstr "Touches de fonction"
-
-#: apps/koebi/src/settings/keymaps/rules.rs
-#: apps/koebi/src/settings/mod.rs
-msgid "Navigation"
-msgstr "Navigation"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
@@ -2112,10 +2196,6 @@ msgid "Keymaps"
 msgstr "Raccourcis"
 
 #: apps/koebi/src/settings/mod.rs
-msgid "Icons"
-msgstr "Icônes"
-
-#: apps/koebi/src/settings/mod.rs
 msgid "Dev"
 msgstr "Dév."
 
@@ -2176,10 +2256,6 @@ msgid "Windows, panels, menus, tooltips, the status bar and what they hold."
 msgstr ""
 "Fenêtres, panneaux, menus, info-bulles, la barre d'état et ce "
 "qu'ils contiennent."
-
-#: crates/koebi-tokens/src/lib.rs
-msgid "Editors"
-msgstr "Éditeurs"
 
 #: crates/koebi-tokens/src/lib.rs
 msgid "The workspace's areas and tabs, and the editors inside them."

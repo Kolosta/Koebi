@@ -16,6 +16,7 @@ pub(crate) mod viewport;
 use koebi_core::Rect;
 use koebi_design::DesignSystem;
 use koebi_i18n::tr;
+use koebi_icons::IconId;
 use koebi_ui::{BarLayout, EditorHost, ListItem, ListState, Ui, WidgetId};
 use koebi_workspace::{EditorId, GRID, Orientation, Workspace};
 
@@ -66,6 +67,28 @@ impl EditorKind {
     /// The titles of [`EditorKind::ALL`] in the current language, for the dropdown.
     pub(crate) fn titles() -> [&'static str; 6] {
         Self::ALL.map(Self::title)
+    }
+
+    /// The icons of [`EditorKind::ALL`], for the dropdown.
+    pub(crate) const ICONS: [IconId; 6] = [
+        koebi_icons::editors::GALLERY,
+        koebi_icons::editors::VIEWPORT,
+        koebi_icons::editors::OUTLINER,
+        koebi_icons::editors::PROPERTIES,
+        koebi_icons::editors::INFO,
+        koebi_icons::editors::TIMELINE,
+    ];
+
+    /// The icon shown before the editor's title, in its tab and the type dropdown.
+    pub(crate) const fn icon(self) -> IconId {
+        match self {
+            Self::Gallery => koebi_icons::editors::GALLERY,
+            Self::Viewport => koebi_icons::editors::VIEWPORT,
+            Self::Outliner => koebi_icons::editors::OUTLINER,
+            Self::Properties => koebi_icons::editors::PROPERTIES,
+            Self::Info => koebi_icons::editors::INFO,
+            Self::Timeline => koebi_icons::editors::TIMELINE,
+        }
     }
 
     /// The title shown in the editor's tab and type dropdown.
@@ -271,6 +294,14 @@ impl EditorHost for Host<'_> {
         &self.titles
     }
 
+    fn icon(&self, editor: EditorId) -> Option<IconId> {
+        Some(self.editors.kind(editor).icon())
+    }
+
+    fn kind_icons(&self) -> &[IconId] {
+        &EditorKind::ICONS
+    }
+
     fn kind(&self, editor: EditorId) -> usize {
         let kind = self.editors.kind(editor);
         EditorKind::ALL
@@ -379,6 +410,12 @@ mod tests {
                 .iter()
                 .zip(EditorKind::titles())
                 .all(|(kind, title)| kind.title() == title)
+        );
+        assert!(
+            EditorKind::ALL
+                .iter()
+                .zip(EditorKind::ICONS)
+                .all(|(kind, icon)| kind.icon() == icon)
         );
     }
 

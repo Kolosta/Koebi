@@ -16,7 +16,7 @@
 
 layout(set = 0, binding = 0) uniform sampler2D icons;
 
-layout(location = 0) in vec2 v_unit;
+layout(location = 0) flat in vec4 v_place;
 layout(location = 1) flat in vec2 v_side;
 layout(location = 2) flat in vec4 v_params;
 layout(location = 3) flat in vec4 v_color0;
@@ -151,7 +151,12 @@ void main() {
     int first_layer = int(record.x);
     int layers = min(int(record.y), MAX_LAYERS);
     int mask = int(v_params.y);
-    vec2 p = v_unit;
+    // The pixel's center in the icon's unit square, from its exact position: rasterizers
+    // interpolate with their own precision, and a point a rounding away from a curve's end may
+    // be covered differently (as for glyphs).
+    precise vec2 d = gl_FragCoord.xy - v_place.xy;
+    precise vec2 local = vec2(d.x * v_place.z + d.y * v_place.w, d.y * v_place.z - d.x * v_place.w);
+    precise vec2 p = local / max(v_side, vec2(1.0)) + 0.5;
     // Half a pixel in the icon's square: a layer farther than that from p leaves it uncovered.
     vec2 reach = 0.5 / v_side;
 

@@ -16,6 +16,7 @@ mod cards;
 mod colors;
 mod customisation;
 mod dev;
+mod icons;
 mod inputs;
 mod keymaps;
 mod language;
@@ -26,6 +27,7 @@ mod values;
 use koebi_core::{Rect, Vec2};
 use koebi_design::DesignSystem;
 use koebi_i18n::tr;
+use koebi_icons::IconId;
 
 use crate::language::LanguageSetting;
 use koebi_input::Keymap;
@@ -56,6 +58,23 @@ pub(crate) enum Page {
 }
 
 impl Page {
+    /// The icon of the page, in its button.
+    const fn icon(self) -> IconId {
+        use koebi_icons::settings as icons;
+        match self {
+            Self::General => icons::GENERAL,
+            Self::Language => icons::LANGUAGE,
+            Self::Theme => icons::THEME,
+            Self::Customisation => icons::CUSTOMISATION,
+            Self::Accessibility => icons::ACCESSIBILITY,
+            Self::Inputs => icons::INPUTS,
+            Self::Keymaps => icons::KEYMAPS,
+            Self::Navigation => icons::NAVIGATION,
+            Self::Icons => icons::ICONS,
+            Self::Dev => icons::DEV,
+        }
+    }
+
     /// The title of the page, in its button.
     fn title(self) -> &'static str {
         match self {
@@ -166,6 +185,7 @@ pub(crate) struct SettingsView {
     keymaps: keymaps::KeymapsPage,
     inputs: inputs::InputsPage,
     language_page: language::LanguagePage,
+    icons: icons::IconsPage,
     /// How far each page is scrolled, and how high it was on the last frame.
     scroll: [ScrollState; PAGES],
     height: [f32; PAGES],
@@ -184,6 +204,7 @@ impl SettingsView {
             keymaps: keymaps::KeymapsPage::new(),
             inputs: inputs::InputsPage::new(),
             language_page: language::LanguagePage::new(),
+            icons: icons::IconsPage::new(),
             scroll: [ScrollState::new(); PAGES],
             height: [0.0; PAGES],
             language: koebi_i18n::revision(),
@@ -237,12 +258,14 @@ impl SettingsView {
             let mut cells: [GroupCell<'_>; 3] = core::array::from_fn(|index| {
                 let id = ID.with(1).with(key + index as u64);
                 let page = pages.get(index);
-                GroupCell::new(
-                    Button::new(id)
-                        .label(page.map_or("", |page| page.title()))
-                        .align(Align::Start)
-                        .selected(page == Some(&self.page)),
-                )
+                let button = Button::new(id)
+                    .label(page.map_or("", |page| page.title()))
+                    .align(Align::Start)
+                    .selected(page == Some(&self.page));
+                GroupCell::new(match page {
+                    Some(page) => button.leading_icon(page.icon()),
+                    None => button,
+                })
             });
             let cells = &mut cells[..pages.len()];
             let height = row * pages.len() as f32;
@@ -299,6 +322,7 @@ impl SettingsView {
                     Page::Keymaps => self.keymaps.show(ui, &mut stack, design, keymap),
                     Page::Dev => dev::show(ui, &mut stack, design, frame_times),
                     Page::Language => self.language_page.show(ui, &mut stack, language),
+                    Page::Icons => self.icons.show(ui, &mut stack, design),
                     _ => empty_page(ui, area.viewport, design),
                 }
                 stack.y - top + margin
@@ -326,7 +350,7 @@ fn empty_page(ui: &mut Ui<'_>, rect: Rect, design: &DesignSystem) {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use koebi_render::Scene;
     use koebi_text::Fonts;
     use koebi_ui::{Input, StyleCache, UiState};
@@ -342,7 +366,7 @@ mod tests {
         pub(super) language: LanguageSetting,
         pub(super) state: UiState,
         pub(super) input: Input,
-        styles: StyleCache,
+        pub(super) styles: StyleCache,
         time: u64,
     }
 

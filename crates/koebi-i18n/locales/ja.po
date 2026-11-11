@@ -39,6 +39,7 @@ msgstr "ウィンドウを画面全体に表示するか、元に戻します。
 
 #: apps/koebi/src/actions.rs
 #: apps/koebi/src/chrome.rs
+#: apps/koebi/src/settings/icons.rs
 #: apps/koebi/src/window.rs
 msgid "Settings"
 msgstr "設定"
@@ -48,6 +49,7 @@ msgid "Opens the settings window, or brings it to the front."
 msgstr "設定ウィンドウを開くか、最前面に表示します。"
 
 #: apps/koebi/src/actions.rs
+#: apps/koebi/src/settings/icons.rs
 #: apps/koebi/src/settings/options.rs
 msgid "Application"
 msgstr "アプリケーション"
@@ -288,6 +290,7 @@ msgid "What the object is for"
 msgstr "オブジェクトの用途"
 
 #: apps/koebi/src/editors/properties.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Transform"
 msgstr "トランスフォーム"
 
@@ -440,6 +443,7 @@ msgstr "デフォルト"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/gallery/colors.rs
+#: apps/koebi/src/settings/icons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Accent"
 msgstr "アクセント"
@@ -450,16 +454,19 @@ msgid "Positive"
 msgstr "ポジティブ"
 
 #: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/settings/icons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Negative"
 msgstr "ネガティブ"
 
 #: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/settings/icons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Neutral"
 msgstr "ニュートラル"
 
 #: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/settings/icons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Notice"
 msgstr "注意"
@@ -480,6 +487,7 @@ msgid "Green"
 msgstr "グリーン"
 
 #: apps/koebi/src/gallery/buttons.rs
+#: apps/koebi/src/settings/icons.rs
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Yellow"
 msgstr "イエロー"
@@ -512,6 +520,7 @@ msgstr "スカルプト"
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/gallery/fields.rs
 #: apps/koebi/src/settings/customisation/components.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Disabled"
 msgstr "無効"
 
@@ -718,10 +727,12 @@ msgid "Size"
 msgstr "サイズ"
 
 #: apps/koebi/src/gallery/icons.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Original colors"
 msgstr "元の色"
 
 #: apps/koebi/src/gallery/icons.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Two tones"
 msgstr "2トーン"
 
@@ -1012,6 +1023,7 @@ msgid "Aa"
 msgstr "Aa"
 
 #: apps/koebi/src/settings/customisation/components.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Actions"
 msgstr "アクション"
 
@@ -1172,14 +1184,17 @@ msgstr ""
 "キーキャップはショートカットを押すキーとして表示します。まず修飾キー（左右の区別が必要なときはそれぞれ別のキー）、次にキーまたはマウスボタンです。"
 
 #: apps/koebi/src/settings/customisation/components.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Normal"
 msgstr "通常"
 
 #: apps/koebi/src/settings/customisation/components.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Hovered"
 msgstr "ホバー"
 
 #: apps/koebi/src/settings/customisation/components.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Pressed"
 msgstr "押下"
 
@@ -1196,6 +1211,7 @@ msgid "Selected, pressed"
 msgstr "選択・押下"
 
 #: apps/koebi/src/settings/customisation/components.rs
+#: apps/koebi/src/settings/icons.rs
 msgid "Active"
 msgstr "アクティブ"
 
@@ -1296,6 +1312,83 @@ msgid ""
 "Frames per second, CPU and GPU time of a frame, above the status "
 "bar. F12 too."
 msgstr "毎秒のフレーム数と、1フレームのCPU時間・GPU時間をステータスバーの上に表示します。F12キーでも切り替えられます。"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Cursors"
+msgstr "カーソル"
+
+#: apps/koebi/src/settings/icons.rs
+#: crates/koebi-tokens/src/lib.rs
+msgid "Editors"
+msgstr "エディター"
+
+#: apps/koebi/src/settings/icons.rs
+#: apps/koebi/src/settings/keymaps/binding.rs
+msgid "Input"
+msgstr "入力"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Interface"
+msgstr "インターフェース"
+
+#: apps/koebi/src/settings/icons.rs
+#: apps/koebi/src/settings/keymaps/rules.rs
+#: apps/koebi/src/settings/mod.rs
+msgid "Navigation"
+msgstr "ナビゲーション"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Objects"
+msgstr "オブジェクト"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Shapes"
+msgstr "シェイプ"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Text"
+msgstr "テキスト"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Tools"
+msgstr "ツール"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "View"
+msgstr "表示"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Main ink"
+msgstr "メインのインク"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Secondary ink"
+msgstr "サブのインク"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Third ink"
+msgstr "3番目のインク"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Accent ink"
+msgstr "アクセントのインク"
+
+#: apps/koebi/src/settings/icons.rs
+#: apps/koebi/src/settings/mod.rs
+msgid "Icons"
+msgstr "アイコン"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Zone {number}: {role}"
+msgstr "ゾーン{number}：{role}"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Colors of the look"
+msgstr "表示の色に戻す"
+
+#: apps/koebi/src/settings/icons.rs
+msgid "Icon tokens"
+msgstr "アイコンのトークン"
 
 #: apps/koebi/src/settings/inputs.rs
 msgid "Pointer"
@@ -1514,10 +1607,6 @@ msgid "Key"
 msgstr "キー"
 
 #: apps/koebi/src/settings/keymaps/binding.rs
-msgid "Input"
-msgstr "入力"
-
-#: apps/koebi/src/settings/keymaps/binding.rs
 msgid "Choose a key"
 msgstr "キーを選択"
 
@@ -1618,11 +1707,6 @@ msgstr "数字"
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Function keys"
 msgstr "ファンクションキー"
-
-#: apps/koebi/src/settings/keymaps/rules.rs
-#: apps/koebi/src/settings/mod.rs
-msgid "Navigation"
-msgstr "ナビゲーション"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgctxt "key"
@@ -2031,10 +2115,6 @@ msgid "Keymaps"
 msgstr "キーマップ"
 
 #: apps/koebi/src/settings/mod.rs
-msgid "Icons"
-msgstr "アイコン"
-
-#: apps/koebi/src/settings/mod.rs
 msgid "Dev"
 msgstr "開発"
 
@@ -2089,10 +2169,6 @@ msgstr "サーフェス"
 #: crates/koebi-tokens/src/lib.rs
 msgid "Windows, panels, menus, tooltips, the status bar and what they hold."
 msgstr "ウィンドウ、パネル、メニュー、ツールチップ、ステータスバーとその中身。"
-
-#: crates/koebi-tokens/src/lib.rs
-msgid "Editors"
-msgstr "エディター"
 
 #: crates/koebi-tokens/src/lib.rs
 msgid "The workspace's areas and tabs, and the editors inside them."
