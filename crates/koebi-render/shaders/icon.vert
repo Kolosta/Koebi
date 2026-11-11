@@ -27,7 +27,9 @@ layout(location = 7) in vec4 in_color5;
 layout(location = 8) in vec4 in_color6;
 layout(location = 9) in vec4 in_color7;
 
-layout(location = 0) out vec2 v_unit;        // position in the icon's unit square
+// The square's center (physical px) and its turn's cosine and sine: the fragment shader finds
+// each pixel's point in the unit square from these and gl_FragCoord, nothing interpolated.
+layout(location = 0) flat out vec4 v_place;
 layout(location = 1) flat out vec2 v_side;   // the square's width and height, physical px
 layout(location = 2) flat out vec4 v_params;
 layout(location = 3) flat out vec4 v_color0;
@@ -68,7 +70,7 @@ void main() {
     }
     gl_Position = vec4(ndc, 0.0, 1.0);
 
-    v_unit = corner;
+    v_place = vec4(low + 0.5 * side_px, c, s);
     v_side = side_px;
     v_params = in_params;
     v_color0 = in_color0;
