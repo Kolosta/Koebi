@@ -76,7 +76,7 @@ pub fn row<const N: usize>(rect: Rect, gap: f32, tracks: [Track; N]) -> [Rect; N
     split(rect, Axis::Horizontal, gap, tracks, [0.0; N])
 }
 
-/// [`row`] where each `Fit` track starts at the width its content asks (a component's
+/// [`row()`] where each `Fit` track starts at the width its content asks (a component's
 /// `size().x`).
 pub fn row_fitting<const N: usize>(rect: Rect, gap: f32, tracks: [(Track, f32); N]) -> [Rect; N] {
     split(
@@ -93,7 +93,7 @@ pub fn column<const N: usize>(rect: Rect, gap: f32, tracks: [Track; N]) -> [Rect
     split(rect, Axis::Vertical, gap, tracks, [0.0; N])
 }
 
-/// [`column`] where each `Fit` track starts at the height its content asks.
+/// [`column()`] where each `Fit` track starts at the height its content asks.
 pub fn column_fitting<const N: usize>(
     rect: Rect,
     gap: f32,
