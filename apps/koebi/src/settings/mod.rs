@@ -498,6 +498,8 @@ mod tests {
         koebi_i18n::with_language(language, || {
             let mut harness = Harness::new();
             harness.settings.page = page;
+            // Key caps as on Windows, whatever the machine.
+            harness.state.set_keyboard(koebi_ui::Keyboard::Windows);
             page_image(gpu, &mut harness)
         })
     }
