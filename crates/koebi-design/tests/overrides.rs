@@ -325,3 +325,83 @@ fn every_change_increments_the_revision() {
     step(&design);
     assert_eq!(design.get(component::BUTTON_RADIUS), 2.0);
 }
+
+#[test]
+fn an_override_equal_to_what_lies_below_is_not_kept() {
+    let mut design = design();
+    let base = design.get(semantic::ACCENT_COLOR_700);
+    // The same value: nothing to override, nothing to bring back.
+    design
+        .set_value(Scope::ActiveTheme, semantic::ACCENT_COLOR_700, base)
+        .unwrap();
+    assert!(
+        design
+            .override_of(Scope::ActiveTheme, semantic::ACCENT_COLOR_700)
+            .is_none()
+    );
+    // Another value is kept; setting the original again removes it.
+    design
+        .set_value(Scope::ActiveTheme, semantic::ACCENT_COLOR_700, hex(WHITE))
+        .unwrap();
+    assert!(
+        design
+            .override_of(Scope::ActiveTheme, semantic::ACCENT_COLOR_700)
+            .is_some()
+    );
+    design
+        .set_value(Scope::ActiveTheme, semantic::ACCENT_COLOR_700, base)
+        .unwrap();
+    assert!(
+        design
+            .override_of(Scope::ActiveTheme, semantic::ACCENT_COLOR_700)
+            .is_none()
+    );
+    assert_eq!(design.get(semantic::ACCENT_COLOR_700), base);
+    // A global override equal to the theme's value, and an alias equal to the alias below.
+    design
+        .set_value(
+            Scope::Global,
+            primitive::RADIUS_100,
+            design.get(primitive::RADIUS_100),
+        )
+        .unwrap();
+    assert!(
+        design
+            .override_of(Scope::Global, primitive::RADIUS_100)
+            .is_none()
+    );
+    let below = design
+        .view(design.active_theme(), Layers::THEME)
+        .and_then(|view| view.definition(semantic::RADIUS_CONTROL).cloned());
+    if let Some(Definition::Alias(target)) = below {
+        design
+            .set_override(
+                Scope::Global,
+                semantic::RADIUS_CONTROL.id(),
+                Definition::Alias(target),
+            )
+            .unwrap();
+        assert!(
+            design
+                .override_of(Scope::Global, semantic::RADIUS_CONTROL)
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn colors_equal_in_their_hexadecimal_form_are_the_same() {
+    use koebi_core::Color;
+    let a = Value::Color(Color::from_rgba8(0x5D, 0x89, 0xFF, 0xFF));
+    // A color computed to within a rounding of the same 8-bit encoding.
+    let b = Value::Color(Color::new(
+        0x5D as f32 / 255.0 + 1e-4,
+        0x89 as f32 / 255.0,
+        1.0,
+        1.0,
+    ));
+    assert!(a.same_as(&b));
+    assert!(!a.same_as(&Value::Color(Color::from_rgba8(0x5E, 0x89, 0xFF, 0xFF))));
+    assert!(Value::Dimension(2.0).same_as(&Value::Dimension(2.0 + 1e-7)));
+    assert!(!Value::Dimension(2.0).same_as(&Value::Dimension(2.01)));
+}

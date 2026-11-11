@@ -75,6 +75,16 @@ Details: [gpu-abstraction.md](../architecture/gpu-abstraction.md).
   instanced draws. Instance layouts must match the GLSL exactly.
 - After editing GLSL, run `cargo xtask shaders` and commit the `.spv` files.
 
+## Interface components
+
+- A frame settles what it shows before it draws: presses, keys and drags change the state
+  first, then every part of the component is drawn from that state. A part is never drawn only
+  when nothing else happened: call every part, then combine what they return eagerly
+  (`let picked = swatches(ui); changed.or(picked)`), never inside `or_else`, `&&`, `||`, or
+  after an early `return` or `?`. A frame that skips a part shows as a flicker.
+- Test an interaction by comparing what a frame draws during it with what a frame draws at
+  rest (the color picker's and the menu bar's tests).
+
 ## Platform code
 
 - SDL types never leave `koebi-platform`'s public API.

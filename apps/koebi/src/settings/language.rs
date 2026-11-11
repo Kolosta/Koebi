@@ -6,7 +6,7 @@ use koebi_i18n::{Language, tr};
 use koebi_ui::{Align, Button, ButtonGroup, GroupCell, Ui, WidgetId};
 
 use super::Stack;
-use crate::language::LanguageSetting;
+use crate::language::{Choice, LanguageSetting};
 
 const ID: WidgetId = WidgetId::new("settings-language");
 /// Most choices the page lists: the system's and fifteen languages.
@@ -87,18 +87,19 @@ impl LanguagePage {
             color,
         ) + gap;
         let languages = koebi_i18n::languages();
-        let chosen = setting.chosen();
+        // Nothing chosen yet: English, the default, shows as chosen.
+        let chosen = setting
+            .chosen()
+            .unwrap_or(Choice::Language(koebi_i18n::english()));
         // The choices on the stack: the system's and a few languages, never many.
         let count = self.labels.len().min(CHOICES);
         let labels = &self.labels;
         let mut cells: [GroupCell<'_>; CHOICES] = core::array::from_fn(|index| {
             let selected = match index.checked_sub(1) {
-                None => chosen.is_none(),
-                Some(at) => chosen.is_some_and(|language| {
-                    languages
-                        .get(at)
-                        .is_some_and(|other| core::ptr::eq(language, other))
-                }),
+                None => chosen == Choice::System,
+                Some(at) => languages
+                    .get(at)
+                    .is_some_and(|language| chosen == Choice::Language(language)),
             };
             GroupCell::new(
                 Button::new(ID.with(index as u64))
@@ -115,8 +116,14 @@ impl LanguagePage {
         let clicked = ButtonGroup::vertical().show(ui, group, cells).clicked;
         stack.y += height + gap;
         if let Some(index) = clicked {
-            setting.choose(index.checked_sub(1).and_then(|at| languages.get(at)));
-            setting.apply();
+            let choice = match index.checked_sub(1) {
+                None => Some(Choice::System),
+                Some(at) => languages.get(at).map(Choice::Language),
+            };
+            if let Some(choice) = choice {
+                setting.choose(choice);
+                setting.apply();
+            }
         }
     }
 }

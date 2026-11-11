@@ -304,3 +304,29 @@ fn every_palette_of_the_settings_has_its_tokens() {
         }
     }
 }
+
+#[test]
+fn a_palette_made_again_from_its_own_source_changes_nothing() {
+    // Choosing the color a palette already comes from leaves nothing to bring back: no
+    // override of its source or its steps remains, in any theme.
+    let mut design = DesignSystem::new(&KOEBI).unwrap();
+    let themes: Vec<_> = design.themes().map(|(theme, _)| theme).collect();
+    for theme in themes {
+        for palette in koebi_tokens::palettes::editable() {
+            let Some(source) = koebi_tokens::palettes::source(&design, theme, &palette) else {
+                continue;
+            };
+            koebi_tokens::palettes::seed(&mut design, theme, &palette, source).unwrap();
+            assert!(
+                !koebi_tokens::palettes::is_seeded(&design, theme, &palette),
+                "{} in {theme:?}",
+                palette.key
+            );
+        }
+        let left = design
+            .overrides(koebi_design::Scope::Theme(theme))
+            .unwrap()
+            .count();
+        assert_eq!(left, 0, "overrides left in {theme:?}");
+    }
+}

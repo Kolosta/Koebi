@@ -152,7 +152,7 @@ text tones and accents, made into palettes rather than copied as a handful of co
   `values` block of its file, written by the generator).
 - **Its accent**: `semantic.accent.color.*` aliases another hue (Dark pink, Muted green, Snow,
   Arctic, High contrast).
-- **Its outlines**: `semantic.border.width.control` and `.surface` alias the thin width.
+- **Its outlines**: `semantic.border.width.control` and `.surface` alias the thin width; floating surfaces (`.floating`: menus, tooltips, popups) follow `.surface`.
 - **Light themes**: their surfaces (panels and fields white on a light background, nested
   surfaces on the background's tone), their secondary text (gray 600, tertiary 500), and the
   direction of states (hover and press go up the steps).

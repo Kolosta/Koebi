@@ -67,9 +67,9 @@ koebi_design::tokens! {
     BORDER_WIDTH_CONTROL = "border.width.control": Dimension -> BORDER_WIDTH_NONE;
     /// Border width of surfaces (panels, nested surfaces): none in the base theme.
     BORDER_WIDTH_SURFACE = "border.width.surface": Dimension -> BORDER_WIDTH_NONE;
-    /// Border width of floating surfaces (menus, tooltips, popups): their edge over what they
-    /// cover.
-    BORDER_WIDTH_FLOATING = "border.width.floating": Dimension -> BORDER_WIDTH_THIN;
+    /// Border width of floating surfaces (menus, tooltips, popups): the surfaces' own, so that
+    /// a theme without outlines has none on its menus either; a theme may give them their own.
+    BORDER_WIDTH_FLOATING = "border.width.floating": Dimension -> BORDER_WIDTH_SURFACE;
 
     /// Barely visible opacity.
     OPACITY_GHOST = "opacity.ghost": Number -> primitive::OPACITY_200;

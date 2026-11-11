@@ -28,13 +28,19 @@ fn design() -> DesignSystem {
 /// The base theme with outlined controls: the base theme draws none, tests of borders need them.
 fn outlined() -> DesignSystem {
     let mut design = design();
-    design
-        .set_alias(
-            koebi_design::Scope::Global,
-            koebi_tokens::semantic::BORDER_WIDTH_CONTROL,
-            koebi_tokens::semantic::BORDER_WIDTH_THIN,
-        )
-        .expect("a valid alias");
+    // Controls and floating surfaces both outlined: the base theme outlines neither.
+    for token in [
+        koebi_tokens::semantic::BORDER_WIDTH_CONTROL,
+        koebi_tokens::semantic::BORDER_WIDTH_FLOATING,
+    ] {
+        design
+            .set_alias(
+                koebi_design::Scope::Global,
+                token,
+                koebi_tokens::semantic::BORDER_WIDTH_THIN,
+            )
+            .expect("a valid alias");
+    }
     design
 }
 

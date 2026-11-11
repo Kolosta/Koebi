@@ -738,7 +738,9 @@ pub fn is_seeded(design: &DesignSystem, theme: ThemeId, palette: &Editable) -> b
 }
 
 /// Makes `palette` again from `seed` in `theme`: its source and its steps become overrides of
-/// the theme, each step at its contrast with the theme's background.
+/// the theme, each step at its contrast with the theme's background. The theme's own source
+/// color gives the theme's own palette back ([`reset`]): its steps are the theme's, drawn as
+/// they are, and nothing is left to bring back.
 ///
 /// # Errors
 ///
@@ -750,6 +752,14 @@ pub fn seed(
     seed: Color,
 ) -> koebi_design::Result<()> {
     let missing = |path: &str| koebi_design::Error::UnknownToken(path.to_owned());
+    let own = find(design, &palette.source_path()).and_then(|token| {
+        design
+            .view(theme, Layers::THEME)
+            .and_then(|view| view.value(token))
+    });
+    if own.is_some_and(|own| own.same_as(&Value::Color(seed.with_alpha(1.0)))) {
+        return reset(design, theme, palette);
+    }
     let gray = |design: &DesignSystem, step: u16| {
         let path = format!("primitive.color.gray.{step}");
         let token = find(design, &path).ok_or_else(|| missing(&path))?;

@@ -462,7 +462,9 @@ impl ColorPicker<'_> {
             Vec2::new(at.max.x + style.gap, area.min.y),
             Vec2::new(rect.max.x, area.max.y),
         );
-        changed.or_else(|| self.swatches(ui, column))
+        // Drawn every frame, a drag or not: a widget never hides in a lazy branch.
+        let picked = self.swatches(ui, column);
+        changed.or(picked)
     }
 
     /// The drag in the area: a press sets the components where it lands; the pointer hides
@@ -1042,7 +1044,112 @@ fn parse_hex(text: &str) -> Option<Color> {
 
 #[cfg(test)]
 mod tests {
+    use koebi_render::Scene;
+    use koebi_text::Fonts;
+
     use super::*;
+    use crate::{Input, Styles, UiState};
+
+    /// A picker with every part, frame after frame.
+    struct Harness {
+        state: UiState,
+        picker: ColorPickerState,
+        color: Color,
+        input: Input,
+        styles: Styles,
+    }
+
+    /// What a frame drew.
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    struct Drawn {
+        rects: usize,
+        fills: usize,
+        icons: usize,
+    }
+
+    impl Harness {
+        fn new() -> Self {
+            let mut state = UiState::new();
+            state.set_fonts(Fonts::with_embedded());
+            Self {
+                state,
+                picker: ColorPickerState::new(),
+                color: Color::rgb(0.2, 0.5, 0.8),
+                input: Input::new(),
+                styles: crate::test_styles(),
+            }
+        }
+
+        fn frame(&mut self) -> Drawn {
+            let mut scene = Scene::new();
+            {
+                let mut ui = Ui::new(&mut scene, &self.styles, &self.input, &mut self.state);
+                let picker =
+                    ColorPicker::new(WidgetId::new("picker"), &mut self.picker, &mut self.color)
+                        .original(Color::BLACK)
+                        .eyedropper(true);
+                let size = picker.size(&ui);
+                picker.show(&mut ui, Rect::from_origin_size(Vec2::ZERO, size));
+            }
+            self.input.end_frame();
+            Drawn {
+                rects: scene.rect_count(),
+                fills: scene.fill_count(),
+                icons: scene.icon_count(),
+            }
+        }
+
+        /// What the frames drew while a drag went from `from` to `to`: the press, then the
+        /// motion, the color changing in both; the drag then ends.
+        fn dragging(&mut self, from: Vec2, to: Vec2) -> [Drawn; 2] {
+            self.input.pointer_moved(from);
+            self.frame();
+            let color = self.color;
+            self.input.primary_button(true, from);
+            let pressed = self.frame();
+            assert_ne!(self.color, color, "the press picks a color");
+            let color = self.color;
+            // A locked pointer reports its motion; one that is not, its position.
+            self.input.pointer_moved(to);
+            self.input.pointer_moved_by(to - from);
+            let moved = self.frame();
+            assert_ne!(self.color, color, "the drag picks another");
+            self.input.primary_button(false, to);
+            self.frame();
+            [pressed, moved]
+        }
+    }
+
+    #[test]
+    fn every_part_stays_drawn_while_the_area_or_a_strip_is_dragged() {
+        let mut harness = Harness::new();
+        let idle = harness.frame();
+        assert!(idle.icons > 0, "the eyedropper: {idle:?}");
+        let style = harness.styles.color_picker;
+        let middle = style.area_size * 0.5;
+        let area = Vec2::splat(middle);
+        let strip = |index: f32| {
+            let x = style.area_size + style.gap + index * (style.strip_width + style.gap);
+            Vec2::new(x + style.strip_width * 0.5, middle)
+        };
+        for (part, from) in [("area", area), ("hue", strip(0.0)), ("opacity", strip(1.0))] {
+            for drawn in harness.dragging(from, from + Vec2::new(-6.0, 9.0)) {
+                // A swatch of the previous color may join the others: never fewer.
+                assert_eq!(
+                    drawn.icons, idle.icons,
+                    "{part}: {drawn:?} against {idle:?}"
+                );
+                assert!(
+                    drawn.rects >= idle.rects,
+                    "{part}: {drawn:?} against {idle:?}"
+                );
+                assert!(
+                    drawn.fills >= idle.fills,
+                    "{part}: {drawn:?} against {idle:?}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn hex_texts_go_there_and_back() {
