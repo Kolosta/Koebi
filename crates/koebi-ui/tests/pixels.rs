@@ -534,7 +534,15 @@ fn menu_items_show_their_highlight_inside_their_row() {
     let Some(gpu) = gpu_or_skip("menu_items_show_their_highlight_inside_their_row") else {
         return;
     };
-    let design = design();
+    // A theme that outlines its menus: the rows are counted from the border.
+    let mut design = design();
+    design
+        .set_alias(
+            Scope::Global,
+            semantic::BORDER_WIDTH_FLOATING,
+            semantic::BORDER_WIDTH_THIN,
+        )
+        .expect("a valid alias");
     let background = design
         .get(component::MENU_BACKGROUND_COLOR_DEFAULT)
         .to_rgba8();

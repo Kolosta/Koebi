@@ -423,6 +423,20 @@ pub enum Value {
 }
 
 impl Value {
+    /// `true` when the two values are the same as far as anyone can tell: colors with the same
+    /// 8-bit encoding (their hexadecimal form), numbers equal to the precision of an `f32`,
+    /// everything else equal. An override equal to what it replaces changes nothing.
+    pub fn same_as(&self, other: &Self) -> bool {
+        let close = |a: f32, b: f32| (a - b).abs() <= 1e-6 * a.abs().max(b.abs()).max(1.0);
+        match (self, other) {
+            (Self::Color(a), Self::Color(b)) => a.to_rgba8() == b.to_rgba8(),
+            (Self::Dimension(a), Self::Dimension(b)) | (Self::Number(a), Self::Number(b)) => {
+                close(*a, *b)
+            }
+            _ => self == other,
+        }
+    }
+
     /// The kind of the value.
     pub fn kind(&self) -> KindId {
         match self {

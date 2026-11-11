@@ -289,6 +289,15 @@ impl DesignSystem {
     ) -> Result<()> {
         let definition = self.graph.check_definition(token, definition)?;
         let (layer, theme) = self.target(scope)?;
+        // Overriding a token with what lies below it changes nothing: no override is kept, and
+        // one already there goes. Every editor of tokens gets this, and the marks of changed
+        // tokens stay true.
+        if self.matches_below(layer, theme, token, &definition) {
+            if self.overlay(layer, theme)?.get(token).is_some() {
+                self.reset(scope, token)?;
+            }
+            return Ok(());
+        }
         if definition.alias_target().is_some() {
             self.graph.check_change(&Change {
                 token,
@@ -446,6 +455,29 @@ impl DesignSystem {
     }
 
     // --- Internals --------------------------------------------------------------------------
+
+    /// `true` when `definition`, put in `layer` of `theme`, gives `token` what the layers below
+    /// already give it: the same value, or the same alias.
+    fn matches_below(
+        &self,
+        layer: Layers,
+        theme: Option<ThemeId>,
+        token: TokenId,
+        definition: &Definition,
+    ) -> bool {
+        let below = if layer == Layers::GLOBAL_OVERRIDES {
+            Layers::THEME | Layers::THEME_OVERRIDES
+        } else {
+            Layers::THEME
+        };
+        let Some(view) = self.view(theme.unwrap_or(self.graph.active), below) else {
+            return false;
+        };
+        match definition {
+            Definition::Value(value) => view.value(token).is_some_and(|below| below.same_as(value)),
+            Definition::Alias(_) => view.definition(token) == Some(definition),
+        }
+    }
 
     fn slot(&self, theme: ThemeId) -> Result<&ThemeSlot> {
         self.graph

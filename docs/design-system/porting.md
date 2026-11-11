@@ -640,7 +640,7 @@ are drawn in their SVG files ([icons](../development/icons.md)).
     gray 700; accent text and links on 1400; text field and dropdown outlines on
     `semantic.border.color.default`; the toggle's selected label on the accent content color.
   - Border widths by role: `semantic.border.width.control` and `.surface` (none in the base
-    theme), `.floating` (thin) for menus, tooltips and popups.
+    theme), `.floating` (the surfaces' width) for menus, tooltips and popups.
   - Static black and white (`semantic.static.*`) alias the opaque transparent-black and white
     primitives, the same in every theme.
   - Themes: Light is replaced by Snow and Arctic; Dark pink is new; Muted green and High

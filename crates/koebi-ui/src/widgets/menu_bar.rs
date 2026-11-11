@@ -66,12 +66,16 @@ impl Ui<'_> {
         let moved = pointer != state.pointer;
         state.pointer = pointer;
         let mut rects = [Rect::ZERO; 16];
+        let mut hovered = [false; 16];
         let count = entries.len().min(rects.len());
-        for (index, (entry, slot)) in entries.iter().zip(&mut rects).enumerate() {
+        // What the frame shows is settled before anything is drawn: a press, the pointer or an
+        // arrow that opens another menu shows it at once, and only its title lit.
+        for (index, entry) in entries.iter().take(count).enumerate() {
             let width = self.text_width(entry.title, &font) + 2.0 * style.menu_padding;
             let rect = layout.left(width);
-            *slot = rect;
+            rects[index] = rect;
             let response = self.interact(id.with(index as u64), rect);
+            hovered[index] = response.hovered;
             if response.pressed {
                 state.open_at(index, rect);
             }
@@ -82,26 +86,15 @@ impl Ui<'_> {
             {
                 state.open_at(index, rect);
             }
-            let shown = state.open == Some(index) || response.hovered;
-            if shown {
-                let background = RectPrimitive::new(rect, style.button_hover)
-                    .with_corner_radius(style.menu_radius);
-                self.scene().push_rect(&background);
-            }
-            let inner = Rect::from_min_max(
-                Vec2::new(rect.min.x + style.menu_padding, rect.min.y),
-                Vec2::new(rect.max.x - style.menu_padding, rect.max.y),
-            );
-            self.label(entry.title, inner, &font, style.menu_title, Align::Start);
         }
-        let open = state.open.filter(|open| *open < count)?;
         // The arrows go from menu to menu, where they have nothing to do inside it.
-        let items = entries[open].items;
-        if state.menu.depth() == 1 {
+        if let Some(open) = state.open.filter(|open| *open < count)
+            && state.menu.depth() == 1
+        {
             let on_submenu = state
                 .menu
                 .highlighted()
-                .and_then(|item| items.get(item))
+                .and_then(|item| entries[open].items.get(item))
                 .is_some_and(|item| matches!(item, MenuItem::Submenu(_)));
             let step = if self.triggered(&MENU_CLOSE_SUBMENU) {
                 self.consume(&MENU_CLOSE_SUBMENU);
@@ -115,10 +108,23 @@ impl Ui<'_> {
             if let Some(step) = step {
                 let next = (open + step) % count;
                 state.open_at(next, rects[next]);
-                self.request_redraw_at(self.input().time());
-                return None;
             }
         }
+        for (index, entry) in entries.iter().take(count).enumerate() {
+            let rect = rects[index];
+            if state.open == Some(index) || hovered[index] {
+                let background = RectPrimitive::new(rect, style.button_hover)
+                    .with_corner_radius(style.menu_radius);
+                self.scene().push_rect(&background);
+            }
+            let inner = Rect::from_min_max(
+                Vec2::new(rect.min.x + style.menu_padding, rect.min.y),
+                Vec2::new(rect.max.x - style.menu_padding, rect.max.y),
+            );
+            self.label(entry.title, inner, &font, style.menu_title, Align::Start);
+        }
+        let open = state.open.filter(|open| *open < count)?;
+        let items = entries[open].items;
         let chosen = self.menu(id.with(MENU_KEY), &mut state.menu, items, bounds);
         if !state.menu.is_open() {
             state.open = None;
@@ -147,6 +153,8 @@ mod tests {
         menus: MenuBarState,
         input: Input,
         styles: Styles,
+        /// What the last frame drew: rectangles and glyphs.
+        drawn: (usize, usize),
     }
 
     impl Harness {
@@ -158,6 +166,7 @@ mod tests {
                 menus: MenuBarState::default(),
                 input: Input::new(),
                 styles: crate::test_styles(),
+                drawn: (0, 0),
             }
         }
 
@@ -182,6 +191,7 @@ mod tests {
                 ui.menu_bar(ID, &mut self.menus, &entries, &mut layout, window())
             };
             self.input.end_frame();
+            self.drawn = (scene.rect_count(), scene.glyph_count());
             chosen.map(|(menu, choice)| (menu, choice.index()))
         }
 
@@ -261,5 +271,19 @@ mod tests {
             MENU_OPEN_SUBMENU.defaults[0],
             koebi_input::Shortcut::key(Key::Right)
         );
+    }
+
+    #[test]
+    fn the_menu_an_arrow_opens_shows_in_the_same_frame() {
+        let mut harness = Harness::new();
+        harness.frame();
+        harness.press(FILE);
+        harness.frame();
+        harness.input.trigger(&MENU_OPEN_SUBMENU);
+        harness.frame();
+        let switched = harness.drawn;
+        harness.frame();
+        // No frame without a menu, nor with two titles lit.
+        assert_eq!(switched, harness.drawn);
     }
 }

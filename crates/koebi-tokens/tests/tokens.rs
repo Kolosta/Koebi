@@ -213,10 +213,11 @@ fn renamed_tokens_keep_their_values() {
     assert!(design.find("primitive.font-size.60").is_none());
     // `border-width` joined the `border` family.
     assert_eq!(design.get(semantic::BORDER_WIDTH_THIN), 1.0);
-    // Controls and surfaces have no border in the base theme; floating surfaces keep it.
+    // Controls and surfaces have no border in the base theme, floating surfaces neither: they
+    // follow surfaces.
     assert_eq!(design.get(semantic::BORDER_WIDTH_CONTROL), 0.0);
     assert_eq!(design.get(semantic::BORDER_WIDTH_SURFACE), 0.0);
-    assert_eq!(design.get(semantic::BORDER_WIDTH_FLOATING), 1.0);
+    assert_eq!(design.get(semantic::BORDER_WIDTH_FLOATING), 0.0);
     // `down` became `pressed` (the button's own value changed later: its default variant is a
     // neutral control, see the porting report).
     assert_eq!(
