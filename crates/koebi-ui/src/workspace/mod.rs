@@ -24,6 +24,7 @@ use koebi_i18n::tr;
 use koebi_core::input::CursorShape;
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::Resolve;
+use koebi_icons::IconId;
 use koebi_input::Context;
 use koebi_tokens::{component, semantic};
 use koebi_workspace::{AreaId, EditorId, Layout, Line, Orientation, Workspace};
@@ -47,6 +48,18 @@ const AREA_MENU: WidgetId = WidgetId::new("workspace-area-menu");
 pub trait EditorHost {
     /// The title of `editor`, shown in its tab (and in its top bar when there are no types).
     fn title(&self, editor: EditorId) -> &str;
+
+    /// The icon of `editor`, before its title in its tab; `None` shows the title alone.
+    fn icon(&self, editor: EditorId) -> Option<IconId> {
+        let _ = editor;
+        None
+    }
+
+    /// The icons of [`EditorHost::kinds`], in the same order, for the type dropdown; empty
+    /// shows the titles alone.
+    fn kind_icons(&self) -> &[IconId] {
+        &[]
+    }
 
     /// The editor types the dropdown at the start of each top bar offers; none hides it.
     fn kinds(&self) -> &[&str] {

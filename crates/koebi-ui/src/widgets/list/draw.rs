@@ -341,6 +341,10 @@ impl Ui<'_> {
                 self.icon(icon_bounds(mark_slot, icon_size), icon, ink);
                 x += icon_size + style.gap;
             }
+            ItemMark::Tinted(icon, color) => {
+                self.icon(icon_bounds(mark_slot, icon_size), icon, color);
+                x += icon_size + style.gap;
+            }
             ItemMark::Color(color) => {
                 self.scene.push_rect(
                     &RectPrimitive::new(icon_bounds(mark_slot, style.swatch_size), color)

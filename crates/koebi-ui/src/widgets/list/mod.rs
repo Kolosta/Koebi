@@ -165,6 +165,8 @@ pub enum ItemMark {
     Icon(IconId),
     /// A color: a layer's, a color in use.
     Color(Color),
+    /// A line icon in a color of its own: a layer of a color tag.
+    Tinted(IconId, Color),
 }
 
 /// How the line along the children of a row looks.
@@ -225,6 +227,13 @@ impl<'a> ListItem<'a> {
     #[must_use]
     pub const fn with_icon(mut self, icon: IconId) -> Self {
         self.mark = ItemMark::Icon(icon);
+        self
+    }
+
+    /// The same row, showing `icon` in `color` before its label.
+    #[must_use]
+    pub const fn with_tinted_icon(mut self, icon: IconId, color: Color) -> Self {
+        self.mark = ItemMark::Tinted(icon, color);
         self
     }
 

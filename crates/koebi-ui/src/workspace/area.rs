@@ -9,6 +9,7 @@ use super::dock::dock_cursor;
 use super::geometry::Frame;
 use super::{EditorHost, Operation, WorkspaceStyle, WorkspaceView};
 use crate::bar::BarLayout;
+use crate::icon::icon_bounds;
 use crate::id::WidgetId;
 use crate::text::Align;
 use crate::ui::Ui;
@@ -114,9 +115,13 @@ impl Ui<'_> {
                         .push_rect(&RectPrimitive::new(tabs, style.tab_bar_background));
                     let mut x = tabs.min.x + style.tab_gap;
                     let font = ui.styles().text.label.clone();
+                    let icon_size = ui.styles().icon.size;
                     for (position, &tab) in stack.editors().iter().enumerate() {
                         let title = host.title(tab);
-                        let width = ui.text_width(title, &font) + 2.0 * style.tab_padding;
+                        let icon = host.icon(tab);
+                        // The icon, then the title after a gap as wide as the tab's padding.
+                        let lead = icon.map_or(0.0, |_| icon_size + style.tab_padding);
+                        let width = ui.text_width(title, &font) + 2.0 * style.tab_padding + lead;
                         let rect = Rect::from_min_max(
                             Vec2::new(x, tabs.min.y + style.tab_bar_padding),
                             Vec2::new((x + width).min(tabs.max.x), tabs.max.y),
@@ -148,6 +153,15 @@ impl Ui<'_> {
                             Vec2::new(text.max.x, rect.max.y - style.tab_bar_padding),
                         );
                         ui.clipped(tabs, |ui| {
+                            let mut text = text;
+                            if let Some(icon) = icon {
+                                let slot = Rect::from_min_max(
+                                    text.min,
+                                    Vec2::new(text.min.x + icon_size, text.max.y),
+                                );
+                                ui.icon(icon_bounds(slot, icon_size), icon, ink);
+                                text.min.x += lead;
+                            }
                             ui.label(title, text, &font, ink, Align::Start);
                         });
                         if response.pressed
@@ -251,8 +265,12 @@ impl Ui<'_> {
         let current = host.kind(editor).min(count - 1);
         let mut items = [MenuItem::Separator; MAX_KINDS];
         let (mut widest, mut widest_label) = (0.0_f32, "");
+        let icons = host.kind_icons();
         for (index, (item, label)) in items.iter_mut().zip(kinds).enumerate() {
             *item = MenuItem::action(label).selected(index == current);
+            if let Some(&icon) = icons.get(index) {
+                *item = item.icon(icon);
+            }
             let width = self.text_width(label, &font);
             if width > widest {
                 (widest, widest_label) = (width, label);
@@ -268,8 +286,11 @@ impl Ui<'_> {
         } else {
             MenuState::new()
         };
-        let chosen = Dropdown::new(id, &mut menu, &items[..count])
-            .label(kinds[current])
+        let mut dropdown = Dropdown::new(id, &mut menu, &items[..count]).label(kinds[current]);
+        if let Some(&icon) = icons.get(current) {
+            dropdown = dropdown.icon(icon);
+        }
+        let chosen = dropdown
             .show(self, rect, window)
             .map(|choice| choice.index());
         if menu.is_open() {

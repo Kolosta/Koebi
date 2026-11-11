@@ -162,13 +162,18 @@ impl Tree {
     /// Fills `items` with the rows of the tree.
     pub(crate) fn items<'a>(&'a self, items: &mut Vec<ListItem<'a>>) {
         items.clear();
-        items.extend(self.nodes.iter().map(|node| {
+        items.extend(self.nodes.iter().enumerate().map(|(index, node)| {
             let item = ListItem::new(node.id, &node.name)
                 .with_depth(node.depth)
                 .with_guide(node.guide);
+            // The document at the root, groups as folders, layers in their color.
             match node.color {
-                Some(color) => item.with_color(color),
-                None => item,
+                Some(color) => item.with_tinted_icon(koebi_icons::objects::LAYER, color),
+                None if index == 0 && node.depth == 0 => {
+                    item.with_icon(koebi_icons::objects::DOCUMENT)
+                }
+                None if node.group => item.with_icon(koebi_icons::objects::FOLDER),
+                None => item.with_icon(koebi_icons::objects::LAYER),
             }
         }));
     }
