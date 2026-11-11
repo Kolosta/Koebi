@@ -35,6 +35,7 @@ mod tooltip;
 
 pub use app_bar::{AppBar, AppBarResponse, AppBarStyle, WindowCommand, WindowGlyph};
 pub use button::{Activation, Button, ButtonGroup, ButtonStyle, GroupCell, GroupResponse, Track};
+pub(crate) use button::{MAX_TRACKS, size_tracks};
 pub use capture_field::{
     CAPTURE, Capture, CaptureField, CaptureFieldStyle, CaptureResponse, CaptureState,
 };

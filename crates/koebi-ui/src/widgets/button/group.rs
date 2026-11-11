@@ -29,7 +29,7 @@ use crate::ui::Ui;
 use crate::widgets::parts::{ContentColors, ControlState};
 
 /// The most columns, and the most rows, a group lays out.
-const MAX_TRACKS: usize = 16;
+pub(crate) const MAX_TRACKS: usize = 16;
 
 /// The most cells a group shows.
 const MAX_CELLS: usize = 2 * MAX_TRACKS;
@@ -461,7 +461,7 @@ fn share_of(count: usize) -> f32 {
 /// Sizes the first `count` tracks of an axis. `sizes` holds what the cells within one track
 /// ask for; `cells` lists `(first track, tracks, size)` for every cell; `tracks` the caller's
 /// tracks; `room` the length to fill, if any.
-fn size_tracks(
+pub(crate) fn size_tracks(
     sizes: &mut [f32; MAX_TRACKS],
     count: usize,
     cells: &[(usize, usize, f32)],
