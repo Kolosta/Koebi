@@ -330,3 +330,48 @@ fn a_palette_made_again_from_its_own_source_changes_nothing() {
         assert_eq!(left, 0, "overrides left in {theme:?}");
     }
 }
+
+#[test]
+fn a_palette_made_for_a_theme_shows_through_global_overrides_of_its_steps() {
+    // Regression test for #243: global overrides of the accent's steps, as the gallery's editor
+    // left them, hid the palette the settings made for the theme everywhere but step 900.
+    use koebi_design::Scope;
+    use koebi_design::value::{Definition, Value};
+    use koebi_tokens::palettes;
+    let mut design = DesignSystem::new(&KOEBI).unwrap();
+    let theme = design.active_theme();
+    let accent = palettes::editable()
+        .find(|palette| palette.key == "accent")
+        .unwrap();
+    let steps: Vec<_> = accent
+        .step_paths()
+        .iter()
+        .map(|path| design.find(path).unwrap())
+        .collect();
+    let pinned = Definition::Value(Value::Color(Color::from_hex(0x12_34_56)));
+    for &step in &steps[..4] {
+        design
+            .set_override(Scope::Global, step, pinned.clone())
+            .unwrap();
+    }
+    // Changed by global overrides alone: there is something to reset.
+    assert!(palettes::is_changed(&design, theme, &accent));
+    palettes::seed(&mut design, theme, &accent, Color::from_hex(0xD0_40_80)).unwrap();
+    for &step in &steps {
+        assert!(design.override_of(Scope::Global, step).is_none());
+        let made = design.override_of(Scope::Theme(theme), step).cloned();
+        assert_eq!(
+            made.map(|made| match made {
+                Definition::Value(value) => Some(value),
+                Definition::Alias(_) => None,
+            }),
+            Some(design.value(step).cloned())
+        );
+    }
+    // A reset clears both layers.
+    design
+        .set_override(Scope::Global, steps[0], pinned)
+        .unwrap();
+    palettes::reset(&mut design, theme, &accent).unwrap();
+    assert!(!palettes::is_changed(&design, theme, &accent));
+}

@@ -189,12 +189,12 @@ impl ColorsSection {
         let gap = ui.styles().property_group.row_gap;
         let active = design.active_theme();
         let themes = self.themes(design);
-        // The reset dot, beside the name.
-        let seeded = themes
+        // The reset dot, beside the name: the palette shows other colors than the theme's own.
+        let changed = themes
             .iter()
-            .any(|&theme| palettes::is_seeded(design, theme, &palette));
+            .any(|&theme| palettes::is_changed(design, theme, &palette));
         let dot = Rect::from_origin_size(rect.min, Vec2::splat(row));
-        if seeded
+        if changed
             && ui
                 .reset_dot(id.with(1), dot, tr("Back to the theme's own palette"))
                 .clicked

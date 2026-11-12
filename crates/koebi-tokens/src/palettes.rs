@@ -737,10 +737,41 @@ pub fn is_seeded(design: &DesignSystem, theme: ThemeId, palette: &Editable) -> b
         .is_some_and(|source| design.override_of(Scope::Theme(theme), source).is_some())
 }
 
+/// The tokens of `palette` in the schema: its source, then its steps.
+fn tokens_of(design: &DesignSystem, palette: &Editable) -> Vec<TokenId> {
+    core::iter::once(palette.source_path())
+        .chain(palette.step_paths())
+        .filter_map(|path| find(design, &path))
+        .collect()
+}
+
+/// `true` when `palette` shows other colors than `theme`'s own: an override of its source or
+/// of a step, in the theme or for every theme. What a reset dot shows.
+pub fn is_changed(design: &DesignSystem, theme: ThemeId, palette: &Editable) -> bool {
+    tokens_of(design, palette).into_iter().any(|token| {
+        design.override_of(Scope::Theme(theme), token).is_some()
+            || design.override_of(Scope::Global, token).is_some()
+    })
+}
+
+/// Removes the overrides of `palette`'s tokens for every theme. A palette is made for each
+/// theme's background, so that each step keeps its contrast: one color pinned for every theme
+/// contradicts it, and, global overrides coming first, it would hide the palette made for the
+/// theme.
+fn clear_global(design: &mut DesignSystem, palette: &Editable) -> koebi_design::Result<()> {
+    for token in tokens_of(design, palette) {
+        if design.override_of(Scope::Global, token).is_some() {
+            design.reset(Scope::Global, token)?;
+        }
+    }
+    Ok(())
+}
+
 /// Makes `palette` again from `seed` in `theme`: its source and its steps become overrides of
-/// the theme, each step at its contrast with the theme's background. The theme's own source
-/// color gives the theme's own palette back ([`reset`]): its steps are the theme's, drawn as
-/// they are, and nothing is left to bring back.
+/// the theme, each step at its contrast with the theme's background, and the overrides of its
+/// tokens for every theme go (see [`is_changed`]). The theme's own source color gives the
+/// theme's own palette back ([`reset`]): its steps are the theme's, drawn as they are, and
+/// nothing is left to bring back.
 ///
 /// # Errors
 ///
@@ -790,10 +821,11 @@ pub fn seed(
         let token = find(design, path).ok_or_else(|| missing(path))?;
         design.set_override(scope, token, Definition::Value(Value::Color(color)))?;
     }
-    Ok(())
+    clear_global(design, palette)
 }
 
-/// Gives `palette` back its theme's own steps in `theme`: removes the overrides [`seed`] made.
+/// Gives `palette` back its theme's own steps in `theme`: removes the overrides [`seed`] made,
+/// and those of its tokens for every theme.
 ///
 /// # Errors
 ///
@@ -804,12 +836,12 @@ pub fn reset(
     palette: &Editable,
 ) -> koebi_design::Result<()> {
     let scope = Scope::Theme(theme);
-    for path in core::iter::once(palette.source_path()).chain(palette.step_paths()) {
-        if let Some(token) = find(design, &path) {
+    for token in tokens_of(design, palette) {
+        if design.override_of(scope, token).is_some() {
             design.reset(scope, token)?;
         }
     }
-    Ok(())
+    clear_global(design, palette)
 }
 
 /// The palettes of the theme `key`.
