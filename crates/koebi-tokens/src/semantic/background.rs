@@ -16,8 +16,15 @@ koebi_design::tokens! {
     /// Background raised above the base level: cards and bars.
     BACKGROUND_RAISED_DEFAULT = "background.raised.default": Color -> primitive::COLOR_GRAY_150;
 
-    /// Background of floating surfaces: popovers, menus and tooltips.
-    BACKGROUND_FLOATING_DEFAULT = "background.floating.default": Color -> primitive::COLOR_GRAY_150;
+    /// Background of floating surfaces (menus, dropdown lists, popups such as the color
+    /// picker): a step apart from every surface they may cover, so that their edge shows without
+    /// an outline. In a dark theme, the first step lighter than every panel and nested surface
+    /// (gray 250, 1.16:1 against the nearest); light themes, whose surfaces lie on both sides
+    /// of the background, keep white and an outline; high contrast, black and an outline.
+    BACKGROUND_FLOATING_DEFAULT = "background.floating.default": Color -> primitive::COLOR_GRAY_250;
+    /// Background of a highlighted row of a floating surface (the item of a menu under the
+    /// pointer): apart from the floating background, the primary text reading on it.
+    BACKGROUND_FLOATING_HOVER = "background.floating.hover": Color -> primitive::COLOR_GRAY_350;
     /// Background that stands out on every other one: light where the theme is dark, dark
     /// where it is light (tooltips).
     BACKGROUND_INVERSE_DEFAULT = "background.inverse.default": Color -> primitive::COLOR_GRAY_900;

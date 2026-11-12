@@ -7,15 +7,15 @@ use koebi_design::define::*;
 koebi_design::tokens! {
     group MENU: Component, start = PROPERTY_GROUP::END;
 
-    /// Menu: background color.
+    /// Menu: background color, the floating surfaces' own: apart from every surface below.
     MENU_BACKGROUND_COLOR_DEFAULT = "menu.background.color.default": Color ->
-        semantic::BACKGROUND_BASE_DEFAULT;
+        semantic::BACKGROUND_FLOATING_DEFAULT;
     /// Menu: corner radius.
     MENU_CORNER_RADIUS_DEFAULT = "menu.corner-radius.default": Dimension ->
         semantic::RADIUS_CONTROL;
     /// Menu: item background color, hovered.
     MENU_ITEM_BACKGROUND_COLOR_HOVER = "menu.item.background.color.hover": Color ->
-        semantic::BACKGROUND_RAISED_DEFAULT;
+        semantic::BACKGROUND_FLOATING_HOVER;
     /// Menu: item background color, selected.
     MENU_ITEM_BACKGROUND_COLOR_SELECTED = "menu.item.background.color.selected": Color ->
         semantic::BACKGROUND_ACCENT_DEFAULT;

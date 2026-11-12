@@ -357,6 +357,7 @@ koebi_design::theme! {
             semantic::BORDER_WIDTH_FOCUS => primitive::STROKE_WIDTH_300;
             semantic::BORDER_WIDTH_CONTROL => semantic::BORDER_WIDTH_THIN;
             semantic::BORDER_WIDTH_SURFACE => semantic::BORDER_WIDTH_THIN;
+            semantic::BACKGROUND_FLOATING_HOVER => primitive::COLOR_GRAY_50;
             semantic::TEXT_COLOR_SECONDARY_DEFAULT => primitive::COLOR_GRAY_1000;
             semantic::TEXT_COLOR_TERTIARY_DEFAULT => primitive::COLOR_GRAY_900;
             semantic::TEXT_COLOR_PLACEHOLDER_DEFAULT => primitive::COLOR_GRAY_800;

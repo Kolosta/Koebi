@@ -352,6 +352,7 @@ koebi_design::theme! {
             semantic::BACKGROUND_SUNKEN_DEFAULT => primitive::COLOR_GRAY_100;
             semantic::BACKGROUND_RAISED_DEFAULT => primitive::COLOR_GRAY_25;
             semantic::BACKGROUND_FLOATING_DEFAULT => primitive::COLOR_GRAY_25;
+            semantic::BACKGROUND_FLOATING_HOVER => primitive::COLOR_GRAY_100;
             semantic::BACKGROUND_SURFACE_CANVAS => primitive::COLOR_GRAY_75;
             semantic::BACKGROUND_SURFACE_RAISED => primitive::COLOR_GRAY_25;
             semantic::BACKGROUND_APP_CONTROL => primitive::COLOR_GRAY_75;
@@ -373,6 +374,7 @@ koebi_design::theme! {
             semantic::ICON_COLOR_DISABLED_DEFAULT => primitive::COLOR_GRAY_400;
             semantic::BORDER_WIDTH_CONTROL => semantic::BORDER_WIDTH_THIN;
             semantic::BORDER_WIDTH_SURFACE => semantic::BORDER_WIDTH_THIN;
+            semantic::BORDER_WIDTH_FLOATING => semantic::BORDER_WIDTH_THIN;
             semantic::BACKGROUND_ACCENT_HOVER => semantic::ACCENT_COLOR_1000;
             semantic::BACKGROUND_ACCENT_PRESSED => semantic::ACCENT_COLOR_1100;
             semantic::BACKGROUND_ACCENT_KBD_FOCUS => semantic::ACCENT_COLOR_1000;

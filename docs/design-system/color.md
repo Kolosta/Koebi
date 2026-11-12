@@ -217,10 +217,38 @@ semantic step for its use.
 
 | Surface | Token | Holds |
 |---|---|---|
-| Window background | `background.base` (gray 50) | areas, the app bar, tooltips |
-| Panels, menus, floating surfaces | `background.raised`, `.floating` (gray 150) | controls, rows, text |
+| Window background | `background.base` (gray 50) | areas, the app bar |
+| Panels | `background.raised` (gray 150) | controls, rows, text |
 | Nested surfaces in a panel | `background.app.child` (gray 200) | the same, one level deeper |
 | Fields | `background.app.frame` (gray 300), hovered 350 | their value |
+| Floating surfaces: menus, dropdown lists, popups (the color picker) | `background.floating` (gray 250), its highlighted row `.floating.hover` (gray 350) | items, controls, text |
+| Tooltips | `background.sunken` (gray 25) | their text |
+
+**Floating surfaces stand apart from what they cover.** A menu opens over any surface, so its
+background is a step apart from all of them, and its edge shows without an outline:
+
+- **Dark themes**: gray 250, the first step lighter than every panel and nested surface. The
+  nearest surface is the nested one (gray 200): 1.16:1 in Dark, 1.18:1 in Muted green; fields,
+  lighter, are 1.2:1 away. Primary text reads on it at 9:1, secondary at 7.9:1; a highlighted row
+  (gray 350) is 1.36:1 away from it.
+- **Light themes** (Snow, Arctic): their surfaces lie on both sides of the background (white
+  panels and fields, darker wells), so no step stands apart from all of them without being darker
+  than the darkest. Floating surfaces stay white and keep the thin outline
+  (`border.width.floating` aliases `border.width.thin` there, whatever the surfaces do); their
+  highlighted row is gray 100.
+- **High contrast**: floating surfaces are gray 250 (#191919) outlined in white like every
+  surface; a highlighted row is black, white text at 21:1.
+- **Tooltips** open over the control under the pointer, often a hovered field, and over menus:
+  they take the deepest surface, apart from both (2.3:1 from a hovered field in Dark).
+
+**Borders.** Every border width derives from `border.width.thin` (the primitive stroke width
+100, 200 in high contrast) through the role of what it outlines: `border.width.control` (fields,
+dropdowns, button groups, toggles), `.surface` (panels, nested surfaces) and `.floating` (menus,
+tooltips, popups, which follows `.surface`). A theme outlines a role by aliasing it to the thin
+width, and removing outlines is a matter of setting the role, or `thin` itself, to zero. Content
+outlines (color swatches, key caps, theme cards, the window's edge) use `thin` directly: their
+fill is arbitrary, so they always need an edge. Emphasis (a selected swatch or card) and focus
+rings use `medium` and `focus`.
 
 **Fills.** A fill holding white content uses step 900 of its role and
 `text.color.on-accent`; a fill holding the primary text uses `background.accent.muted` (500) or a
