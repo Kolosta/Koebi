@@ -195,11 +195,18 @@ themes uses them.
 - **Where**: the steps become overrides of the active theme, or of every theme ("Every
   theme"), each made for that theme's own background: one palette, its light and dark versions.
   The reset dot removes them.
+- **Never for every theme at once**: a palette is made for a theme's background, so an override
+  of one of its tokens in the global layer (one color for every theme) contradicts it, and,
+  global overrides coming first, would hide the palette made for the theme (#243). Making or
+  resetting a palette removes the global overrides of its source and steps; a row shows its
+  reset dot as soon as its palette differs from the theme's own (`palettes::is_changed`).
 - **What a row shows**: the palette on the theme's background, the contrast of each step with
   it, and what its main steps hold: a fill with its content (900), text on a panel (1400), a fill
   under the primary text (500); for the grays, text on a panel and on a field, and a border.
 
-The gallery's accent editor does the same for the accent from three OKLCH fields.
+The gallery's accent editor makes the accent palette the same way, with the same function
+(`palettes::seed`), from three OKLCH fields: for the active theme, or for every theme in its
+global scope.
 
 ## Rules for components
 

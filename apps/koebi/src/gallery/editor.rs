@@ -1,8 +1,10 @@
 //! The token editor and the color vision modes.
 //!
 //! The editor writes overrides in the chosen scope: every theme ([`Scope::Global`]) or the
-//! active theme only. It reads tokens without the color vision transformation
-//! ([`Layers::DEFINITIONS`]), so that editing never bakes a simulation into a value.
+//! active theme only. The accent is a palette made for each theme's background, so it writes
+//! the overrides of each theme instead, as the settings do. It reads tokens without the color
+//! vision transformation ([`Layers::DEFINITIONS`]), so that editing never bakes a simulation
+//! into a value.
 
 use core::ops::RangeInclusive;
 use koebi_i18n::n_;
@@ -12,9 +14,9 @@ use koebi_core::expr::PIXEL;
 use koebi_core::{Color, Oklch, Rect, Vec2};
 use koebi_design::kind::{Dimension, Kind};
 use koebi_design::tier::Tier;
-use koebi_design::{DesignSystem, Layers, Scope, Token};
+use koebi_design::{DesignSystem, Layers, Scope, ThemeId, Token};
 use koebi_render::RectPrimitive;
-use koebi_tokens::{component, semantic};
+use koebi_tokens::{component, palettes, semantic};
 use koebi_ui::{
     BarMapping, Button, Dropdown, MenuChoice, MenuItem, MenuState, NumberField, PanelLevel, Tone,
     Ui, WidgetId,
@@ -318,8 +320,9 @@ pub(super) fn tokens(
 }
 
 /// Three number fields editing the accent in OKLCH: hue, chroma and lightness. The color is
-/// the seed of the whole accent palette: its 16 steps are made again from it for the theme's
-/// background (`koebi_tokens::palettes::from_seed`), so that every state keeps its contrast.
+/// the source of the accent palette, made again as Settings › Theme › Colors makes it
+/// (`koebi_tokens::palettes::seed`): its 16 steps for each theme's background, so that every
+/// state keeps its contrast. Every theme in the global scope, the active theme otherwise.
 fn accent_rows(
     gallery: &mut Gallery,
     ui: &mut Ui<'_>,
@@ -329,23 +332,36 @@ fn accent_rows(
 ) {
     const ID: WidgetId = WidgetId::new("accent");
     let (row, gap) = (metrics.row, metrics.row_gap());
-    // Follow changes made elsewhere: a theme switch, a reset.
-    let current = definition(design, semantic::ACCENT_COLOR_900);
+    let Some(palette) = palettes::editable().find(|palette| palette.key == "accent") else {
+        return;
+    };
+    let active = design.active_theme();
+    let themes: Vec<ThemeId> = if gallery.scope == Scope::Global {
+        design.themes().map(|(theme, _)| theme).collect()
+    } else {
+        vec![active]
+    };
+    // Follow changes made elsewhere: a theme switch, a reset, the settings.
+    let current = palettes::source(design, active, &palette).unwrap_or(Color::BLACK);
     if gallery.accent_source != Some(current) {
         gallery.accent = current.to_oklch();
         gallery.accent_source = Some(current);
     }
-    let scope = gallery.scope;
-    let overridden = design
-        .override_of(scope, semantic::ACCENT_COLOR_900)
-        .is_some();
+    let changed_palette = themes
+        .iter()
+        .any(|&theme| palettes::is_changed(design, theme, &palette));
     let frame = design.get(semantic::BORDER_COLOR_DEFAULT);
     let mut accent = gallery.accent;
     let (mut changed, mut cleared) = (false, false);
     for (index, channel) in Channel::ALL.into_iter().enumerate() {
         let id = ID.with(index as u64);
         let mut line = cut_top(content, row, gap);
-        cleared |= badge(ui, id.with(0), cut_left(&mut line, row, gap), overridden);
+        cleared |= badge(
+            ui,
+            id.with(0),
+            cut_left(&mut line, row, gap),
+            changed_palette,
+        );
         channel.paint(ui, cut_left(&mut line, 3.0 * row, gap), accent, frame);
         let range = channel.range();
         changed |= NumberField::new(id.with(1), channel.value(&mut accent))
@@ -356,19 +372,24 @@ fn accent_rows(
             .show(ui, line)
             .changed;
     }
-    let steps = koebi_tokens::palettes::ROLES[0].steps;
-    if cleared {
-        for step in steps {
-            reset(design, scope, step);
-        }
+    let result = if cleared {
+        themes
+            .iter()
+            .try_for_each(|&theme| palettes::reset(design, theme, &palette))
     } else if changed {
         gallery.accent = accent;
-        let background = definition(design, semantic::BACKGROUND_BASE_DEFAULT);
-        let palette = koebi_tokens::palettes::from_seed(accent.to_color(), background);
-        for (step, color) in steps.into_iter().zip(palette) {
-            set(design, scope, step, color);
-        }
-        gallery.accent_source = Some(palette[8]);
+        themes
+            .iter()
+            .try_for_each(|&theme| palettes::seed(design, theme, &palette, accent.to_color()))
+    } else {
+        Ok(())
+    };
+    if let Err(error) = result {
+        koebi_core::warn!("cannot make the accent palette: {error}");
+    }
+    if changed {
+        // What the source holds now: the fields keep the channels they show.
+        gallery.accent_source = palettes::source(design, active, &palette);
     }
 }
 
