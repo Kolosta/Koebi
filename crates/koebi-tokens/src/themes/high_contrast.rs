@@ -1,7 +1,7 @@
 //! High contrast: black surfaces, white content, every control outlined at 2 px, a bright
 //! cyan accent holding black content. Text reaches 7:1 (WCAG AAA) on every surface, borders
 //! and icons 7:1, disabled content 4.5:1 (`docs/design-system/color.md`).
-use crate::{primitive, semantic};
+use crate::{component, primitive, semantic};
 use koebi_design::define::*;
 
 koebi_design::theme! {
@@ -370,6 +370,11 @@ koebi_design::theme! {
             semantic::BORDER_COLOR_STRONG_DEFAULT => primitive::COLOR_GRAY_1000;
             semantic::BORDER_COLOR_DISABLED_DEFAULT => primitive::COLOR_GRAY_400;
             semantic::TEXT_COLOR_ON_ACCENT_DEFAULT => semantic::STATIC_TEXT_COLOR_BLACK;
+            semantic::TEXT_COLOR_ON_INFO_DEFAULT => semantic::STATIC_TEXT_COLOR_BLACK;
+            semantic::TEXT_COLOR_ON_POSITIVE_DEFAULT => semantic::STATIC_TEXT_COLOR_BLACK;
+            semantic::TEXT_COLOR_ON_NOTICE_DEFAULT => semantic::STATIC_TEXT_COLOR_BLACK;
+            semantic::TEXT_COLOR_ON_NEGATIVE_DEFAULT => semantic::STATIC_TEXT_COLOR_BLACK;
+            semantic::TEXT_COLOR_ON_NEUTRAL_DEFAULT => semantic::STATIC_TEXT_COLOR_BLACK;
             semantic::BACKGROUND_ACCENT_DEFAULT => semantic::ACCENT_COLOR_1400;
             semantic::BACKGROUND_ACCENT_HOVER => semantic::ACCENT_COLOR_1500;
             semantic::BACKGROUND_ACCENT_PRESSED => semantic::ACCENT_COLOR_1300;
@@ -380,6 +385,23 @@ koebi_design::theme! {
             semantic::BACKGROUND_NEGATIVE_DEFAULT => semantic::NEGATIVE_COLOR_1400;
             semantic::BACKGROUND_NOTICE_DEFAULT => semantic::NOTICE_COLOR_1400;
             semantic::BACKGROUND_NEUTRAL_DEFAULT => semantic::NEUTRAL_COLOR_900;
+            // The states of the bright fills stay bright, as the accent's, so that their black
+            // content keeps 7:1 when hovered and pressed.
+            semantic::BACKGROUND_INFO_HOVER => semantic::INFO_COLOR_1500;
+            semantic::BACKGROUND_INFO_PRESSED => semantic::INFO_COLOR_1300;
+            semantic::BACKGROUND_INFO_KBD_FOCUS => semantic::INFO_COLOR_1500;
+            semantic::BACKGROUND_POSITIVE_HOVER => semantic::POSITIVE_COLOR_1500;
+            semantic::BACKGROUND_POSITIVE_PRESSED => semantic::POSITIVE_COLOR_1300;
+            semantic::BACKGROUND_POSITIVE_KBD_FOCUS => semantic::POSITIVE_COLOR_1500;
+            semantic::BACKGROUND_NEGATIVE_HOVER => semantic::NEGATIVE_COLOR_1500;
+            semantic::BACKGROUND_NEGATIVE_PRESSED => semantic::NEGATIVE_COLOR_1300;
+            semantic::BACKGROUND_NEGATIVE_KBD_FOCUS => semantic::NEGATIVE_COLOR_1500;
+            semantic::BACKGROUND_NEGATIVE_RECORDING => semantic::NEGATIVE_COLOR_1500;
+            component::BUTTON_NOTICE_BACKGROUND_COLOR_HOVER => semantic::NOTICE_COLOR_1500;
+            component::BUTTON_NOTICE_BACKGROUND_COLOR_PRESSED => semantic::NOTICE_COLOR_1300;
+            semantic::BACKGROUND_NEUTRAL_HOVER => semantic::NEUTRAL_COLOR_1000;
+            semantic::BACKGROUND_NEUTRAL_PRESSED => semantic::NEUTRAL_COLOR_800;
+            semantic::BACKGROUND_NEUTRAL_KBD_FOCUS => semantic::NEUTRAL_COLOR_1000;
             semantic::TEXT_COLOR_ACCENT_DEFAULT => semantic::ACCENT_COLOR_1500;
             semantic::BORDER_COLOR_FOCUS_DEFAULT => semantic::ACCENT_COLOR_1500;
             semantic::BORDER_COLOR_ACCENT_DEFAULT => semantic::ACCENT_COLOR_1500;

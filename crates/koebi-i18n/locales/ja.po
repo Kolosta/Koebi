@@ -213,6 +213,7 @@ msgid "Document"
 msgstr "ドキュメント"
 
 #: apps/koebi/src/editors/outliner.rs
+#: crates/koebi-tokens/src/palettes.rs
 msgid "Background"
 msgstr "背景"
 
@@ -461,7 +462,6 @@ msgstr "ネガティブ"
 
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/settings/icons.rs
-#: crates/koebi-tokens/src/palettes.rs
 msgid "Neutral"
 msgstr "ニュートラル"
 
@@ -998,8 +998,52 @@ msgid "Strength"
 msgstr "強さ"
 
 #: apps/koebi/src/settings/colors.rs
-msgid "One color makes a palette: its steps keep their contrast."
-msgstr "1色からパレットを作ります。各段階のコントラストは保たれます。"
+msgid "Each palette"
+msgstr "パレットごと"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "The background"
+msgstr "背景"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Background and accent"
+msgstr "背景とアクセント"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Every palette from its own color: the theme's, or one you choose."
+msgstr "各パレットをそれぞれの色から作ります。テーマの色か、選んだ色です。"
+
+#: apps/koebi/src/settings/colors.rs
+msgid ""
+"One color makes the theme: the background. The accent takes "
+"its hue, the other colors lean to it."
+msgstr "1色でテーマを作ります。その色が背景です。アクセントはその色相をとり、ほかの色はそれに寄ります。"
+
+#: apps/koebi/src/settings/colors.rs
+msgid ""
+"Two colors make the theme: the background and the accent. The "
+"other colors lean to the background's hue."
+msgstr "2色でテーマを作ります。背景とアクセントです。ほかの色は背景の色相に寄ります。"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Moved to {color}: in the mid-tones, no text reads well enough."
+msgstr "{color} に移しました。中間の明るさでは、十分に読める文字になりません。"
+
+#: apps/koebi/src/settings/colors.rs
+msgid ""
+"So close to black or white that no surface fits beyond it: it "
+"is the deepest surface, and the background lies a step away."
+msgstr "黒か白に近すぎて、その先に置ける面がありません。最も奥の面として使い、背景は1段階離れた色にします。"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Moved to {color}: a fill keeps the theme's contrast with the background."
+msgstr "{color} に移しました。塗りは、テーマが背景に対して持つコントラストを保ちます。"
+
+#: apps/koebi/src/settings/colors.rs
+msgid ""
+"The colors chosen here make the theme again, every step keeping "
+"its contrast."
+msgstr "ここで選んだ色からテーマを作り直します。各段階のコントラストは保たれます。"
 
 #: apps/koebi/src/settings/colors.rs
 msgid "Hue palettes"
@@ -1020,6 +1064,14 @@ msgstr "テーマ本来のパレットに戻す"
 #: apps/koebi/src/settings/colors.rs
 msgid "Step {step}: {contrast}:1 against the background, {color}"
 msgstr "段階 {step}：背景とのコントラスト {contrast}:1、{color}"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "The accent takes the background's hue."
+msgstr "アクセントは背景の色相をとります。"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "This color leans to the background's hue."
+msgstr "この色は背景の色相に寄ります。"
 
 #: apps/koebi/src/settings/colors.rs
 #: crates/koebi-ui/src/widgets/theme_card.rs
@@ -2263,8 +2315,8 @@ msgid "Silver"
 msgstr "シルバー"
 
 #: crates/koebi-tokens/src/palettes.rs
-msgid "A tint of every gray."
-msgstr "すべてのグレーの色味。"
+msgid "The window's background: every surface, text and border follows it."
+msgstr "ウィンドウの背景です。すべての面、文字、枠線がこれに従います。"
 
 #: crates/koebi-tokens/src/palettes.rs
 msgid "Tags, charts, what aliases it."
@@ -3032,3 +3084,9 @@ msgstr "垂直に分割"
 #: crates/koebi-ui/src/workspace/mod.rs
 msgid "Horizontal split"
 msgstr "水平に分割"
+
+#~ msgid "One color makes a palette: its steps keep their contrast."
+#~ msgstr "1色からパレットを作ります。各段階のコントラストは保たれます。"
+
+#~ msgid "A tint of every gray."
+#~ msgstr "すべてのグレーの色味。"

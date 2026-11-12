@@ -260,6 +260,21 @@ koebi_design::tokens! {
     /// item): white, the fills being dark enough for it (palette step 900, 4.5:1 or more).
     TEXT_COLOR_ON_ACCENT_DEFAULT = "text.color.on-accent.default": Color ->
         STATIC_TEXT_COLOR_WHITE;
+    /// Text and icons on an informative fill: white, or black on a pale fill chosen in the color
+    /// settings (`crate::generate`).
+    TEXT_COLOR_ON_INFO_DEFAULT = "text.color.on-info.default": Color -> STATIC_TEXT_COLOR_WHITE;
+    /// Text and icons on a positive fill, as on an informative one.
+    TEXT_COLOR_ON_POSITIVE_DEFAULT = "text.color.on-positive.default": Color ->
+        STATIC_TEXT_COLOR_WHITE;
+    /// Text and icons on a notice fill, as on an informative one.
+    TEXT_COLOR_ON_NOTICE_DEFAULT = "text.color.on-notice.default": Color ->
+        STATIC_TEXT_COLOR_WHITE;
+    /// Text and icons on a negative fill, as on an informative one.
+    TEXT_COLOR_ON_NEGATIVE_DEFAULT = "text.color.on-negative.default": Color ->
+        STATIC_TEXT_COLOR_WHITE;
+    /// Text and icons on a neutral fill (a neutral button), as on an informative one.
+    TEXT_COLOR_ON_NEUTRAL_DEFAULT = "text.color.on-neutral.default": Color ->
+        STATIC_TEXT_COLOR_WHITE;
 
     /// Track color on light media (black in every theme).
     STATIC_TRACK_COLOR_BLACK = "static.track.color.black": Color ->

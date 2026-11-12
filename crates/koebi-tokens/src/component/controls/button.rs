@@ -116,7 +116,7 @@ koebi_design::tokens! {
         semantic::BACKGROUND_POSITIVE_PRESSED;
     /// Positive button: label color.
     BUTTON_POSITIVE_LABEL_COLOR_DEFAULT = "button.positive.label.color.default": Color ->
-        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
+        semantic::TEXT_COLOR_ON_POSITIVE_DEFAULT;
     /// Positive button: border color.
     BUTTON_POSITIVE_BORDER_COLOR_DEFAULT = "button.positive.border.color.default": Color ->
         semantic::POSITIVE_COLOR_1300;
@@ -132,7 +132,7 @@ koebi_design::tokens! {
         semantic::BACKGROUND_NEGATIVE_PRESSED;
     /// Negative button: label color.
     BUTTON_NEGATIVE_LABEL_COLOR_DEFAULT = "button.negative.label.color.default": Color ->
-        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
+        semantic::TEXT_COLOR_ON_NEGATIVE_DEFAULT;
     /// Negative button: border color.
     BUTTON_NEGATIVE_BORDER_COLOR_DEFAULT = "button.negative.border.color.default": Color ->
         semantic::BORDER_COLOR_NEGATIVE_DEFAULT;
@@ -148,7 +148,7 @@ koebi_design::tokens! {
         semantic::BACKGROUND_INFO_PRESSED;
     /// Info button: label color.
     BUTTON_INFO_LABEL_COLOR_DEFAULT = "button.info.label.color.default": Color ->
-        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
+        semantic::TEXT_COLOR_ON_INFO_DEFAULT;
     /// Info button: border color.
     BUTTON_INFO_BORDER_COLOR_DEFAULT = "button.info.border.color.default": Color ->
         semantic::INFO_COLOR_1300;
@@ -164,7 +164,7 @@ koebi_design::tokens! {
         semantic::BACKGROUND_NEUTRAL_PRESSED;
     /// Neutral button: label color.
     BUTTON_NEUTRAL_LABEL_COLOR_DEFAULT = "button.neutral.label.color.default": Color ->
-        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
+        semantic::TEXT_COLOR_ON_NEUTRAL_DEFAULT;
     /// Neutral button: border color.
     BUTTON_NEUTRAL_BORDER_COLOR_DEFAULT = "button.neutral.border.color.default": Color ->
         semantic::BORDER_COLOR_STRONG_DEFAULT;
@@ -180,7 +180,7 @@ koebi_design::tokens! {
         semantic::NOTICE_COLOR_700;
     /// Notice button: label color.
     BUTTON_NOTICE_LABEL_COLOR_DEFAULT = "button.notice.label.color.default": Color ->
-        semantic::TEXT_COLOR_ON_ACCENT_DEFAULT;
+        semantic::TEXT_COLOR_ON_NOTICE_DEFAULT;
     /// Notice button: border color.
     BUTTON_NOTICE_BORDER_COLOR_DEFAULT = "button.notice.border.color.default": Color ->
         semantic::NOTICE_COLOR_1300;

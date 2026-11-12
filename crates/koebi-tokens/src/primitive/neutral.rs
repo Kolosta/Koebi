@@ -126,4 +126,9 @@ koebi_design::tokens! {
     COLOR_STATIC_ORANGE_600 = "color.static.orange.600": Color = hex("#FC7D00");
     /// Static orange, step 800: identical in every theme.
     COLOR_STATIC_ORANGE_800 = "color.static.orange.800": Color = hex("#D45B00");
+
+    /// How the color settings make the theme (`crate::generate::Mode`): 0 every palette from
+    /// its own color, the theme's or a chosen one; 1 every palette from the background; 2 from
+    /// the background and the accent. A setting of the theme: no component reads it.
+    COLOR_MODE = "color.mode": Integer = 0, range(0.0, 2.0);
 }

@@ -247,13 +247,14 @@ fn a_role_made_from_a_color_changes_its_family_and_resets() {
     seed(&mut design, theme, &accent, orange).unwrap();
     assert!(is_seeded(&design, theme, &accent));
     assert_eq!(source(&design, theme, &accent), Some(orange));
-    // The button follows its role's step 900, an orange holding white text.
+    // The button's fill is the orange itself (ADR 0027), far enough from the dark background,
+    // and its content turns dark to read on it.
     let fill = design.get(component::BUTTON_ACCENT_BACKGROUND_COLOR_DEFAULT);
     assert_ne!(fill, before);
     assert_eq!(fill, design.get(semantic::ACCENT_COLOR_900));
-    assert!(Color::WHITE.contrast_ratio(fill) >= 4.5);
-    let hue = fill.to_oklch().h;
-    assert!((40.0..80.0).contains(&hue), "an orange: {hue}");
+    assert_eq!(fill.to_rgba8(), orange.to_rgba8());
+    let content = design.get(component::BUTTON_ACCENT_LABEL_COLOR_DEFAULT);
+    assert!(content.contrast_ratio(fill) >= 4.5, "{content} on {fill}");
     reset(&mut design, theme, &accent).unwrap();
     assert!(!is_seeded(&design, theme, &accent));
     assert_eq!(
@@ -263,8 +264,8 @@ fn a_role_made_from_a_color_changes_its_family_and_resets() {
 }
 
 #[test]
-fn a_tint_of_the_neutral_palette_keeps_its_lightness_and_contrasts() {
-    use koebi_tokens::palettes::{Family, editable, seed};
+fn a_chosen_background_is_the_window_s_background_and_the_theme_follows() {
+    use koebi_tokens::palettes::{Family, editable, reset, seed};
     use koebi_tokens::semantic;
     let mut design = DesignSystem::new(&KOEBI).expect("Koebi's schema is valid");
     let theme = design.active_theme();
@@ -272,20 +273,37 @@ fn a_tint_of_the_neutral_palette_keeps_its_lightness_and_contrasts() {
         .find(|palette| palette.family == Family::Neutral)
         .expect("the neutral palette");
     let base = design.get(semantic::BACKGROUND_BASE_DEFAULT);
-    seed(&mut design, theme, &neutral, Color::from_hex(0x2D_5A_28)).unwrap();
-    let tinted = design.get(semantic::BACKGROUND_BASE_DEFAULT);
-    assert_ne!(tinted, base);
-    assert!(
-        (tinted.to_oklch().l - base.to_oklch().l).abs() < 0.01,
-        "same lightness"
+    let green = Color::from_hex(0x1E_3A_1C);
+    seed(&mut design, theme, &neutral, green).unwrap();
+    let background = design.get(semantic::BACKGROUND_BASE_DEFAULT);
+    assert_eq!(
+        background.to_rgba8(),
+        green.to_rgba8(),
+        "the chosen color itself"
     );
-    assert!(tinted.to_oklch().c > 0.005, "a green tint");
-    // Text keeps its contrast on the tinted surfaces.
-    let text = design.get(semantic::TEXT_COLOR_PRIMARY_DEFAULT);
-    assert!(text.contrast_ratio(design.get(semantic::BACKGROUND_APP_FRAME_HOVER)) >= 4.5);
-    // Tinting again starts from the theme's grays, not from the former tint.
-    seed(&mut design, theme, &neutral, Color::from_hex(0x2D_5A_28)).unwrap();
-    assert_eq!(design.get(semantic::BACKGROUND_BASE_DEFAULT), tinted);
+    // Text, borders and fills keep their contrasts with it: every palette was made again.
+    let ratio = |token: koebi_design::Token<
+        koebi_design::kind::Color,
+        koebi_design::tier::Semantic,
+    >| { design.get(token).contrast_ratio(background) };
+    assert!(ratio(semantic::TEXT_COLOR_PRIMARY_DEFAULT) >= 7.0);
+    assert!(ratio(semantic::TEXT_COLOR_SECONDARY_DEFAULT) >= 4.5);
+    assert!(ratio(semantic::BACKGROUND_ACCENT_DEFAULT) >= 3.0);
+    assert!(ratio(semantic::BACKGROUND_NEGATIVE_DEFAULT) >= 3.0);
+    // Choosing it again changes nothing; a reset gives the theme back, with no override left.
+    let revision = design.revision();
+    seed(&mut design, theme, &neutral, green).unwrap();
+    assert_eq!(design.get(semantic::BACKGROUND_BASE_DEFAULT), background);
+    assert!(design.revision() >= revision);
+    reset(&mut design, theme, &neutral).unwrap();
+    assert_eq!(design.get(semantic::BACKGROUND_BASE_DEFAULT), base);
+    assert_eq!(
+        design
+            .overrides(koebi_design::Scope::Theme(theme))
+            .unwrap()
+            .count(),
+        0
+    );
 }
 
 #[test]

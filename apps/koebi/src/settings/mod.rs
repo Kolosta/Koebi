@@ -541,6 +541,32 @@ pub(crate) mod tests {
         gpu.assert_no_validation_errors();
     }
 
+    #[test]
+    fn a_theme_made_from_a_background_matches_golden() {
+        // ADR 0027: in the background mode, one chosen color makes the theme. The roles show
+        // their fills without a field, and every color follows the dark teal.
+        let Some(gpu) = koebi_testkit::gpu_or_skip("a_theme_made_from_a_background_matches_golden")
+        else {
+            return;
+        };
+        let mut harness = Harness::new();
+        let theme = harness.design.active_theme();
+        koebi_tokens::generate::set_mode(
+            &mut harness.design,
+            theme,
+            koebi_tokens::generate::Mode::Background,
+        )
+        .unwrap();
+        let neutral = koebi_tokens::palettes::editable()
+            .find(|palette| palette.family == koebi_tokens::palettes::Family::Neutral)
+            .unwrap();
+        let teal = koebi_core::Oklch::new(0.24, 0.045, 200.0).to_color();
+        koebi_tokens::palettes::seed(&mut harness.design, theme, &neutral, teal).unwrap();
+        let image = page_image(&gpu, &mut harness);
+        assert_page(&image, "settings_theme_from_background");
+        gpu.assert_no_validation_errors();
+    }
+
     /// `page` drawn with the interface in `code`, on this thread only.
     fn translated_page(
         gpu: &koebi_testkit::HeadlessGpu,

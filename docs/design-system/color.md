@@ -168,45 +168,98 @@ few colors, each with one meaning, no faint content, every boundary drawn.
   secondary and tertiary text white or nearly, never gray.
 - Every control outlined at 2 px in white (7:1), separators and subtle borders 14:1.
 - A focus ring of 3 px (2.4.13: at least 2 px, 3:1).
-- Colored fills bright (step 1400) with black content (7:1 and more); accent text, icons and
-  focus in step 1500.
+- Colored fills bright (step 1400) with black content (7:1 and more), hovered one step brighter
+  (1500) and pressed one step darker (1300), so that the content keeps 7:1 in every state;
+  accent text, icons and focus in step 1500.
 - Disabled content at 4.5:1 or more: visible, told apart by its tone.
 - No meaning by color alone (1.4.1): selection keeps its fill and its text, focus its ring, an
   error its border and its message.
 
 ## Color settings
 
-*Settings › Theme › Colors* sit above the tokens: they change a whole family of colors from one
-color, and the tokens stay there for finer changes (*Customisation*). Nothing in the built-in
-themes uses them.
+*Settings › Theme › Colors* sit above the tokens: they make the whole theme from a few chosen
+colors ([Generated themes](#generated-themes)). The tokens stay there for finer changes
+(*Customisation*), and nothing in the built-in themes uses the settings.
 
-- **What can be made from a color**: the five roles (accent, informative, positive, notice,
-  negative: `semantic.<role>.color.*`), the neutral grays (`primitive.color.gray.*`, tinted:
-  the seed's hue and up to 0.06 of chroma, the theme's own lightness for the deepest surface and
-  the background), and the 18 hue palettes (`primitive.color.<hue>.*`).
-- **How**: the chosen color is the palette's source (`semantic.<role>.color.source`,
-  `semantic.neutral.color.source`, `primitive.color.<hue>.source`, tokens like the others, so
-  that the choice is saved and exported). Its scale, from black through it to white, gives each
-  step the color at that step's contrast with the theme's background
-  (`koebi_tokens::palettes::seed`), the dark themes' fills darkened for white content. A step
-  is a contrast, so every state, part and component aliasing the steps keeps its contrast,
-  whatever the color: `tests/contrast.rs` seeds every role with a pale yellow, a gray, nearly
-  black, a saturated cyan and a magenta in every theme and checks every component again.
-- **Where**: the steps become overrides of the active theme, or of every theme ("Every
-  theme"), each made for that theme's own background: one palette, its light and dark versions.
-  The reset dot removes them.
+- **The mode** (`primitive.color.mode`, a token saved and exported with the theme):
+  - *Each palette*: every palette from its own color, the theme's or a chosen one. The
+    background, each role and each hue have a field.
+  - *The background*: one color makes the theme. The accent takes the background's hue, and
+    the other roles lean to it. Only the background has a field; the roles show their fill.
+  - *Background and accent*: two colors make it, and the other roles lean to the background's
+    hue.
+- **Exact colors**: the chosen background is the window's background, and a chosen accent, role
+  or hue is its palette's fill. When a rule had to move one, a note under it says where and why.
+  This happens to a background in the mid-tones, a background next to black or white, and a fill
+  too close to the background.
+- **Where**: the outputs become overrides of the active theme, or of every theme ("Every
+  theme"), each made for that theme's own rules: one choice, its light and dark versions. The
+  reset dot gives a palette its theme's own color back, and the theme follows.
 - **Never for every theme at once**: a palette is made for a theme's background, so an override
   of one of its tokens in the global layer (one color for every theme) contradicts it, and,
   global overrides coming first, would hide the palette made for the theme (#243). Making or
   resetting a palette removes the global overrides of its source and steps; a row shows its
   reset dot as soon as its palette differs from the theme's own (`palettes::is_changed`).
-- **What a row shows**: the palette on the theme's background, the contrast of each step with
-  it, and what its main steps hold: a fill with its content (900), text on a panel (1400), a fill
-  under the primary text (500); for the grays, text on a panel and on a field, and a border.
+- **What a row shows**:
+  - the palette on the theme's background, with the contrast of each step with it;
+  - what its main steps hold: a fill with its content (900), text on a panel (1400), a fill
+    under the primary text (500);
+  - for the background, text on a panel and on a field, and a border.
 
-The gallery's accent editor makes the accent palette the same way, with the same function
-(`palettes::seed`), from three OKLCH fields: for the active theme, or for every theme in its
-global scope.
+The gallery's accent editor chooses the accent the same way (`palettes::seed`), from three
+OKLCH fields: for the active theme, or for every theme in its global scope.
+
+## Generated themes
+
+A theme is generated from chosen colors by the rules below
+([ADR 0027](../adr/0027-themes-generated-from-chosen-colors.md), `koebi_tokens::generate`).
+
+**Inputs and outputs:**
+- *Inputs* are tokens:
+  - the mode;
+  - the palettes' sources: a source overridden in the theme is a chosen color, and the
+    neutral palette's source is the background.
+- *Outputs* are overrides of the theme:
+  - palette steps;
+  - the structure's aliases;
+  - the content on each role's fills.
+
+**How a change is written:**
+- `generate::plan` computes the outputs from the inputs alone.
+- A change (`generate::regenerate`) writes the new plan.
+- It removes what only the former plan held, if nobody changed it since: a hand edit of a
+  generated token lasts until the generator writes that token again.
+- An output equal to the theme's own definition is no override: a theme with nothing chosen holds
+  none.
+
+| Rule | What | Constant |
+|---|---|---|
+| 1. Scheme | A background below luminance 0.18 is dark (light content), else light. | 0.18 |
+| 2. Readable background | Text needs room against the background, on the surfaces it lies on too: the weakest pair is hint text (gray 700) on a field (gray 300, 2.03:1). A background must leave 12:1 for white or black. In the mid-tones, between luminance 0.0375 and 0.55 (about #363636 and #C4C4C4), it moves along its lightness, hue and chroma kept, to the nearer bound. High contrast keeps 7:1 for all its text and needs 14:1. | `TEXT_ROOM` = 12, `ThemePalettes::text_room` |
+| 3. Deepest surface | Gray 25 lies at the theme's own contrast from the background, on the side away from text: 1.13:1 in Dark, 1.085:1 in Snow, 1:1 in High contrast. Where black (or white) is nearer, it is black (white), while it keeps 1.058:1. Nearer still, the chosen color is the deepest surface, and the background lies at the theme's contrast from it. Choosing pure black in Dark gives Dark's own surfaces. | `SURFACE_APART` = 1.058, the smallest step between neighbouring surfaces |
+| 4. Neutral steps | Steps 75 to 1000 keep the theme's contrasts with the background. When the background caps the contrast below step 900's, steps 600 to 900 share what lies above step 500 in log contrast, step 900 taking the strongest color the background allows. Fills of a dark theme are darkened for white content (4.55:1), as long as they keep 3:1 from the raised surfaces they lie on. | `FILL_APART` = 3, `fill_floor()` = 3 × 1.278 |
+| 5. Hues | For a chosen background, each hue is made again from the theme's own data (Spectrum's keys at the theme's chroma, or its seed), each step at its contrast. | |
+| 6. Chosen colors | A chosen color is its palette's fill: step 900, or the step the theme's fill takes (1400 in High contrast). It must be at least as far from the background as that step's own contrast (3.96:1 dark, 4.81:1 light): what the theme's fills hold on every surface, a chosen fill holds. A nearer one, or one on the background's side, moves along its scale to that contrast. The steps up to the fill keep their place in log contrast between 1:1 and the fill; the steps above keep their distance from it, compressed only where the scale ends sooner. | the theme's fill contrast |
+| 7. Following the background | In *The background*, the accent takes the background's hue with the theme's own accent's lightness and chroma. In both background modes, the other roles turn toward the background's hue by half their difference, 15 degrees at most. A gray background (OKLCH chroma below 0.02) has no hue to follow: the theme keeps its own. | `HARMONY_SHARE` = 0.5, `HARMONY_LIMIT` = 15°, `HUED` = 0.02 |
+| 8. States | Hover and pressed fills lie at an offset from the default: one and two steps toward the background in a dark theme, away from it in a light one, one each way in High contrast. A background of the other scheme takes the opposite offsets. | `PRESSED_APART` = 1.4 |
+| 9. Content | A role's content is white or black (`text.color.on-<role>.default`). States and content are chosen together: the theme's offsets and their opposite, each with white then black content. The first wins where the content reaches 4.5:1 (7:1 in High contrast) on the default, hover and pressed fills, and the pressed fill lies 1.4:1 or more from the default. Else the first that reads wins, else the one that reads best on its worst fill. A pale chosen accent takes black content; a fill near a dark background turns its states away from it. | `CONTENT` = 4.5, `ThemePalettes::content` |
+| 10. Structure | A background of the other scheme takes that scheme's structure. To light, the 27 aliases Snow and Arctic share (`generate::LIGHT`): raised surfaces on the lighter step, outlines, secondary text in gray 600, the neutral fill in 500. To dark, the base theme's own definitions of the same tokens. | |
+
+`tests/contrast.rs` (`generated_themes_keep_every_contrast`) makes themes from a grid in Dark,
+Snow and High contrast:
+- 44 backgrounds: 11 lightnesses × 4 hues and chromas;
+- in each mode;
+- with six accents: none, orange, blue, pale pink, near black, mid gray.
+
+For each one, it checks every component pair of [Contrast guaranteed](#contrast-guaranteed),
+and:
+- primary text at 7:1 and secondary at 4.5:1 (7:1 in High contrast);
+- each role's fill at 3:1 from the background;
+- the content at 4.5:1 (7:1) on the default, hover and pressed fills;
+- the neutral steps in contrast order;
+- the deepest surface apart from the background.
+
+`tests/generate.rs` checks each rule alone.
 
 ## Rules for components
 
