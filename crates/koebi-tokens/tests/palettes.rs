@@ -294,14 +294,22 @@ fn every_palette_of_the_settings_has_its_tokens() {
     let palettes: Vec<_> = koebi_tokens::palettes::editable().collect();
     assert_eq!(palettes.len(), 5 + 1 + 18);
     for palette in palettes {
-        assert!(
-            design.find(&palette.source_path()).is_some(),
-            "{}",
-            palette.key
+        let source = design.find(&palette.source_path());
+        assert!(source.is_some(), "{}", palette.key);
+        let steps: Vec<_> = palette
+            .step_paths()
+            .iter()
+            .map(|path| design.find(path).unwrap_or_else(|| panic!("{path}")))
+            .collect();
+        // The tokens found once, for the frames that show the palette, are the same.
+        let tokens = palette.tokens(&design).expect("every token of the palette");
+        assert_eq!(Some(tokens.source), source, "{}", palette.key);
+        assert_eq!(tokens.steps.as_slice(), steps.as_slice(), "{}", palette.key);
+        let theme = design.active_theme();
+        assert_eq!(
+            tokens.source(&design, theme),
+            koebi_tokens::palettes::source(&design, theme, &palette)
         );
-        for path in palette.step_paths() {
-            assert!(design.find(&path).is_some(), "{path}");
-        }
     }
 }
 

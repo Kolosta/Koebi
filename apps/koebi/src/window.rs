@@ -501,6 +501,108 @@ mod tests {
         .collect()
     }
 
+    /// A main window's frame as [`AppWindow::draw`] builds it, without its native window: the
+    /// bar with the application's menus, the default workspace with an editor of every kind,
+    /// the status bar. Once laid out, it allocates nothing (CLAUDE.md, *Hot paths*), still or
+    /// with the pointer over each part.
+    #[test]
+    fn a_steady_frame_of_the_main_window_allocates_nothing() {
+        use koebi_design::DesignSystem;
+        use koebi_input::Keymap;
+        use koebi_platform::{ChromeInsets, MaximizeButtonState, WindowState};
+        use koebi_text::Fonts;
+        use koebi_ui::StyleCache;
+
+        use crate::chrome::ShortcutLabels;
+        use crate::editors::Content;
+
+        let mut design = DesignSystem::new(&koebi_tokens::KOEBI).unwrap();
+        let mut styles = StyleCache::new(&design);
+        let keymap = Keymap::new(&actions::GROUPS).unwrap();
+        let labels = ShortcutLabels::read(&keymap);
+        let (mut workspace, mut editors) = crate::editors::default_workspace();
+        let mut view = WorkspaceView::new();
+        let mut content = Content::new();
+        let mut chrome = AppChrome::default();
+        let mut status = StatusShortcuts::default();
+        let mut state = UiState::new();
+        state.set_fonts(Fonts::with_embedded());
+        let mut scene = Scene::new();
+        let mut input = Input::new();
+        let area = Rect::from_origin_size(Vec2::ZERO, Vec2::new(1280.0, 800.0));
+        let mut time = 0;
+        let mut frame = |input: &mut Input| {
+            time += 16;
+            input.set_time(Duration::from_millis(time));
+            scene.clear();
+            let styles = styles.update(&design, state.scale_factor());
+            let entries = status.refresh(&state, input.pointer(), &keymap);
+            state.set_window(area);
+            let mut ui = Ui::new(&mut scene, styles, input, &mut state);
+            content.messages.collect();
+            ui.zone(area, actions::APP, |ui| {
+                let window = WindowView {
+                    title: "Koebi",
+                    state: WindowState::Normal,
+                    has_menus: true,
+                    insets: ChromeInsets::default(),
+                    maximize: MaximizeButtonState::default(),
+                };
+                let (rest, _) = chrome.show(ui, area, window, &labels);
+                let mut host = Host {
+                    editors: &mut editors,
+                    content: &mut content,
+                    design: &mut design,
+                    window: area,
+                    titles: EditorKind::titles(),
+                };
+                view.set_window(area);
+                let bar = ui.styles().status_bar.height.min(rest.height());
+                let split = rest.max.y - bar;
+                let work = Rect::from_min_max(rest.min, Vec2::new(rest.max.x, split));
+                ui.workspace(&mut view, &mut workspace, work, &mut host);
+                let bar = Rect::from_min_max(Vec2::new(rest.min.x, split), rest.max);
+                ui.status_bar(bar, entries, VERSION);
+            });
+            ui.screen_pick_layer(area);
+            drop(ui);
+            input.end_frame();
+        };
+        // Still; then over the bar, an editor of each column, the status bar.
+        let pointers = [
+            None,
+            Some(Vec2::new(200.0, 12.0)),
+            Some(Vec2::new(150.0, 300.0)),
+            Some(Vec2::new(640.0, 400.0)),
+            Some(Vec2::new(1150.0, 300.0)),
+            Some(Vec2::new(640.0, 790.0)),
+        ];
+        let mut failures = Vec::new();
+        for pointer in pointers {
+            if let Some(at) = pointer {
+                input.pointer_moved(at);
+            }
+            for _ in 0..10 {
+                frame(&mut input);
+            }
+            let (count, ()) = koebi_testkit::allocations(|| frame(&mut input));
+            if count > 0 {
+                failures.push(format!("pointer at {pointer:?}: {count}"));
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "allocations in steady frames: {failures:#?}"
+        );
+        // A whole window was drawn: the bar, the editors' headers and content, the status bar.
+        assert!(
+            scene.rect_count() > 100 && scene.glyph_count() > 200,
+            "{} rectangles, {} glyphs",
+            scene.rect_count(),
+            scene.glyph_count()
+        );
+    }
+
     #[test]
     fn a_floating_window_closes_alone() {
         assert_eq!(closed_with(&roles(), 1), Some(vec![1]));

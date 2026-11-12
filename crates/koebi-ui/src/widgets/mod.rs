@@ -59,7 +59,8 @@ pub use list::{
 };
 pub use menu::{
     MENU, MENU_ACTIONS, MENU_CHOOSE, MENU_CLOSE, MENU_CLOSE_SUBMENU, MENU_NEXT, MENU_OPEN_SUBMENU,
-    MENU_PREVIOUS, MenuAction, MenuChoice, MenuItem, MenuMark, MenuState, MenuStyle, Submenu,
+    MENU_PREVIOUS, MenuAction, MenuChoice, MenuItem, MenuItems, MenuMark, MenuState, MenuStyle,
+    Submenu,
 };
 pub use menu_bar::{MenuBarEntry, MenuBarState};
 pub(crate) use number_field::NumberState;

@@ -688,3 +688,25 @@ fn closing_by_distance_asks_for_the_next_frame() {
     assert!(!harness.menu.is_open());
     assert_eq!(harness.state.redraw_at(), Some(harness.input.time()));
 }
+
+#[test]
+fn kept_menu_items_reuse_their_storage_frame_after_frame() {
+    let mut kept = MenuItems::new();
+    let names: Vec<String> = (0..40).map(|index| format!("Family {index}")).collect();
+    let fill = |kept: &mut MenuItems, names: &[String]| {
+        kept.with(
+            names.iter().map(|name| MenuItem::action(name)),
+            |items| match items.last() {
+                Some(MenuItem::Action(action)) => (items.len(), action.label.len()),
+                _ => (items.len(), 0),
+            },
+        )
+    };
+    assert_eq!(fill(&mut kept, &names), (40, "Family 39".len()));
+    // The next frames borrow other strings: the storage stays, nothing is allocated.
+    let shorter: Vec<String> = names.iter().take(10).cloned().collect();
+    let (count, filled) = koebi_testkit::allocations(|| fill(&mut kept, &shorter));
+    assert_eq!((count, filled), (0, (10, "Family 9".len())));
+    let (count, filled) = koebi_testkit::allocations(|| fill(&mut kept, &names));
+    assert_eq!((count, filled), (0, (40, "Family 39".len())));
+}

@@ -33,7 +33,7 @@ mod style;
 #[cfg(test)]
 mod tests;
 
-pub use item::{MenuAction, MenuItem, MenuMark, Submenu};
+pub use item::{MenuAction, MenuItem, MenuItems, MenuMark, Submenu};
 pub use state::{MenuChoice, MenuState};
 pub use style::MenuStyle;
 

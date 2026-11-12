@@ -114,6 +114,32 @@ errors, 64 invalid command line. On Linux CI the window opens on Xvfb.
 - Deterministic only: no sleeps, no network, no order dependence, no shared mutable state.
 - Shared helpers: `tests/common/mod.rs` inside a crate, `koebi-testkit` across crates.
 
+## Allocations per frame
+
+A steady frame allocates nothing ([ADR 0026](../adr/0026-counting-allocations-in-tests.md)).
+The test binaries of `koebi` and `koebi-ui` install `koebi_testkit::CountingAllocator` as their
+global allocator. `koebi_testkit::allocations(f)` then counts what `f` allocates on the
+calling thread:
+
+```rust
+for _ in 0..10 {
+    harness.frame_into(&mut scene); // warm-up: caches fill, buffers grow
+}
+let (count, ()) = koebi_testkit::allocations(|| harness.frame_into(&mut scene));
+assert_eq!(count, 0);
+```
+
+Every settings page, the gallery, a main window with an editor of each kind, paragraphs and
+shaping are checked this way, still and with the pointer over them. A new screen, or a widget
+that keeps state, gets such a test. When one fails, the usual causes are:
+- a path or a label formatted each frame;
+- a `Vec` collected to iterate it twice;
+- a `String` cloned for the borrow checker.
+
+Find the data once and keep it (`PaletteTokens`), write into kept buffers (`fill_into`), or
+keep a menu's items in `koebi_ui::MenuItems`. A frame that changes something (an edit of the
+design, a menu opening) may allocate.
+
 ## Performance
 
 `cargo xtask bench` measures the application in release, on the machine that runs it:

@@ -637,6 +637,76 @@ impl Editable {
             Family::Role | Family::Hue => from_seed(seed, background),
         }
     }
+
+    /// Its tokens in `design`'s schema, found from their paths: once, by what shows the
+    /// palette frame after frame ([`PaletteTokens`]). `None` when one is missing.
+    pub fn tokens(&self, design: &DesignSystem) -> Option<PaletteTokens> {
+        let source = design.find(&self.source_path())?;
+        let paths = self.step_paths();
+        if paths.len() != 16 {
+            return None;
+        }
+        let mut steps = [source; 16];
+        for (step, path) in steps.iter_mut().zip(&paths) {
+            *step = design.find(path)?;
+        }
+        Some(PaletteTokens { source, steps })
+    }
+}
+
+/// The tokens of an editable palette, found once in a design system ([`Editable::tokens`]):
+/// what shows the palette reads them frame after frame without writing their paths again,
+/// and without allocating.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PaletteTokens {
+    /// The token holding the color the palette is made from.
+    pub source: TokenId,
+    /// The tokens of its steps, from the closest to the background.
+    pub steps: [TokenId; 16],
+}
+
+impl PaletteTokens {
+    /// Its source, then its steps.
+    fn all(&self) -> impl Iterator<Item = TokenId> {
+        core::iter::once(self.source).chain(self.steps)
+    }
+
+    /// The color the palette is made from in `theme`, the user's included.
+    pub fn source(&self, design: &DesignSystem, theme: ThemeId) -> Option<Color> {
+        color_in(design, theme, self.source)
+    }
+
+    /// The color `theme` itself makes the palette from, whatever the user chose.
+    pub fn own_source(&self, design: &DesignSystem, theme: ThemeId) -> Option<Color> {
+        match design.view(theme, Layers::THEME)?.value(self.source)? {
+            Value::Color(color) => Some(color),
+            _ => None,
+        }
+    }
+
+    /// `true` when the palette is made from a color of the user's in `theme`.
+    pub fn is_seeded(&self, design: &DesignSystem, theme: ThemeId) -> bool {
+        design
+            .override_of(Scope::Theme(theme), self.source)
+            .is_some()
+    }
+
+    /// `true` when the palette shows other colors than `theme`'s own: an override of its
+    /// source or of a step, in the theme or for every theme. What a reset dot shows.
+    pub fn is_changed(&self, design: &DesignSystem, theme: ThemeId) -> bool {
+        self.all().any(|token| {
+            design.override_of(Scope::Theme(theme), token).is_some()
+                || design.override_of(Scope::Global, token).is_some()
+        })
+    }
+
+    /// Its steps in the active theme, from the closest to the background.
+    pub fn steps(&self, design: &DesignSystem) -> [Color; 16] {
+        self.steps.map(|token| match design.value(token) {
+            Some(Value::Color(color)) => *color,
+            _ => Color::TRANSPARENT,
+        })
+    }
 }
 
 /// The most chroma a tint gives the neutral palette: grays stay grays.
@@ -726,32 +796,34 @@ fn color_in(design: &DesignSystem, theme: ThemeId, token: TokenId) -> Option<Col
     }
 }
 
-/// The color `palette` is made from in `theme`.
+/// The color `palette` is made from in `theme` ([`PaletteTokens::source`]; what shows it
+/// frame after frame keeps its tokens).
 pub fn source(design: &DesignSystem, theme: ThemeId, palette: &Editable) -> Option<Color> {
-    color_in(design, theme, find(design, &palette.source_path())?)
+    palette.tokens(design)?.source(design, theme)
 }
 
-/// `true` when `palette` is made from a color of the user's in `theme`.
+/// `true` when `palette` is made from a color of the user's in `theme`
+/// ([`PaletteTokens::is_seeded`]).
 pub fn is_seeded(design: &DesignSystem, theme: ThemeId, palette: &Editable) -> bool {
-    find(design, &palette.source_path())
-        .is_some_and(|source| design.override_of(Scope::Theme(theme), source).is_some())
+    palette
+        .tokens(design)
+        .is_some_and(|tokens| tokens.is_seeded(design, theme))
 }
 
-/// The tokens of `palette` in the schema: its source, then its steps.
-fn tokens_of(design: &DesignSystem, palette: &Editable) -> Vec<TokenId> {
-    core::iter::once(palette.source_path())
-        .chain(palette.step_paths())
-        .filter_map(|path| find(design, &path))
-        .collect()
+/// The tokens of `palette` in the schema, or the error naming its missing source.
+fn tokens_of(design: &DesignSystem, palette: &Editable) -> koebi_design::Result<PaletteTokens> {
+    palette
+        .tokens(design)
+        .ok_or_else(|| koebi_design::Error::UnknownToken(palette.source_path()))
 }
 
 /// `true` when `palette` shows other colors than `theme`'s own: an override of its source or
-/// of a step, in the theme or for every theme. What a reset dot shows.
+/// of a step, in the theme or for every theme. What a reset dot shows
+/// ([`PaletteTokens::is_changed`]).
 pub fn is_changed(design: &DesignSystem, theme: ThemeId, palette: &Editable) -> bool {
-    tokens_of(design, palette).into_iter().any(|token| {
-        design.override_of(Scope::Theme(theme), token).is_some()
-            || design.override_of(Scope::Global, token).is_some()
-    })
+    palette
+        .tokens(design)
+        .is_some_and(|tokens| tokens.is_changed(design, theme))
 }
 
 /// Removes the overrides of `palette`'s tokens for every theme. A palette is made for each
@@ -759,7 +831,7 @@ pub fn is_changed(design: &DesignSystem, theme: ThemeId, palette: &Editable) -> 
 /// contradicts it, and, global overrides coming first, it would hide the palette made for the
 /// theme.
 fn clear_global(design: &mut DesignSystem, palette: &Editable) -> koebi_design::Result<()> {
-    for token in tokens_of(design, palette) {
+    for token in tokens_of(design, palette)?.all() {
         if design.override_of(Scope::Global, token).is_some() {
             design.reset(Scope::Global, token)?;
         }
@@ -783,11 +855,10 @@ pub fn seed(
     seed: Color,
 ) -> koebi_design::Result<()> {
     let missing = |path: &str| koebi_design::Error::UnknownToken(path.to_owned());
-    let own = find(design, &palette.source_path()).and_then(|token| {
-        design
-            .view(theme, Layers::THEME)
-            .and_then(|view| view.value(token))
-    });
+    let tokens = tokens_of(design, palette)?;
+    let own = design
+        .view(theme, Layers::THEME)
+        .and_then(|view| view.value(tokens.source));
     if own.is_some_and(|own| own.same_as(&Value::Color(seed.with_alpha(1.0)))) {
         return reset(design, theme, palette);
     }
@@ -810,15 +881,12 @@ pub fn seed(
         .map_or(NEUTRAL_CONTRASTS, |palettes| palettes.neutral_contrasts);
     let steps = palette.generate(seed.with_alpha(1.0), deepest, background, &contrasts);
     let scope = Scope::Theme(theme);
-    let source = palette.source_path();
-    let token = find(design, &source).ok_or_else(|| missing(&source))?;
     design.set_override(
         scope,
-        token,
+        tokens.source,
         Definition::Value(Value::Color(seed.with_alpha(1.0))),
     )?;
-    for (path, color) in palette.step_paths().iter().zip(steps) {
-        let token = find(design, path).ok_or_else(|| missing(path))?;
+    for (token, color) in tokens.steps.into_iter().zip(steps) {
         design.set_override(scope, token, Definition::Value(Value::Color(color)))?;
     }
     clear_global(design, palette)
@@ -836,7 +904,7 @@ pub fn reset(
     palette: &Editable,
 ) -> koebi_design::Result<()> {
     let scope = Scope::Theme(theme);
-    for token in tokens_of(design, palette) {
+    for token in tokens_of(design, palette)?.all() {
         if design.override_of(scope, token).is_some() {
             design.reset(scope, token)?;
         }

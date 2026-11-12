@@ -158,6 +158,8 @@ pub(crate) struct Gallery {
     accent: Oklch,
     /// The accent color `accent` was last read from or written to.
     accent_source: Option<Color>,
+    /// The accent palette's tokens, found once in the design system.
+    accent_tokens: Option<koebi_tokens::palettes::PaletteTokens>,
     sheet: Sheet,
     /// States of the grid's checkboxes, toggles and swatches.
     grid: Vec<bool>,
@@ -187,6 +189,7 @@ impl Gallery {
             scope: Scope::Global,
             accent: Oklch::new(0.0, 0.0, 0.0),
             accent_source: None,
+            accent_tokens: None,
             sheet: Sheet::default(),
             grid: Vec::new(),
             buttons: buttons::Buttons::new(),
@@ -606,6 +609,42 @@ mod tests {
             &Input::new(),
             Vec2::new(20.0, 20.0),
         );
+    }
+
+    /// Hundreds of components, every kind the interface has: once laid out, a frame of the
+    /// gallery allocates nothing (the hot-path rule of CLAUDE.md), still or with the pointer
+    /// over a panel.
+    #[test]
+    fn a_steady_frame_of_the_gallery_allocates_nothing() {
+        let mut design = design();
+        let mut gallery = Gallery::new();
+        let mut styles = StyleCache::new(&design);
+        let mut state = UiState::new();
+        state.set_fonts(koebi_text::Fonts::with_embedded());
+        let mut scene = Scene::new();
+        let mut input = Input::new();
+        let size = Vec2::new(1600.0, 2400.0);
+        let area = Rect::from_origin_size(Vec2::ZERO, size);
+        for pointer in [
+            None,
+            Some(Vec2::new(400.0, 300.0)),
+            Some(Vec2::new(1200.0, 900.0)),
+        ] {
+            if let Some(at) = pointer {
+                input.pointer_moved(at);
+            }
+            let mut frame = || {
+                scene.clear();
+                let styles = styles.update(&design, 1.0);
+                let mut ui = Ui::new(&mut scene, styles, &input, &mut state);
+                gallery.show(&mut ui, &mut design, area, area);
+            };
+            for _ in 0..10 {
+                frame();
+            }
+            let (count, ()) = koebi_testkit::allocations(&mut frame);
+            assert_eq!(count, 0, "pointer at {pointer:?}");
+        }
     }
 
     #[test]

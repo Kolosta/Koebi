@@ -35,3 +35,4 @@ one and link both.
 | [0023](0023-translations.md) | Translations: gettext catalogs compiled into the binary | Accepted |
 | [0024](0024-layout.md) | Layout: rectangles handed out in immediate mode, no retained tree | Accepted |
 | [0025](0025-batching-across-clips.md) | Batching across clips: each instance carries its clip, overlaps found in a grid | Accepted |
+| [0026](0026-counting-allocations-in-tests.md) | Counting allocations in tests with a global allocator of the test binaries | Accepted |

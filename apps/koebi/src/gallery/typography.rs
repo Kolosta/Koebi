@@ -12,8 +12,8 @@ use koebi_render::RectPrimitive;
 use koebi_text::system::SystemFont;
 use koebi_text::{Align as TextAlign, Features, Paragraph, TextBlock, TextStyle};
 use koebi_ui::{
-    Align, BarMapping, Button, ButtonGroup, Dropdown, GroupCell, MenuItem, MenuState, NumberField,
-    Overflow, PanelLevel, Track, Ui, WidgetId,
+    Align, BarMapping, Button, ButtonGroup, Dropdown, GroupCell, MenuItem, MenuItems, MenuState,
+    NumberField, Overflow, PanelLevel, Track, Ui, WidgetId,
 };
 
 use super::{Metrics, cut_left, cut_top};
@@ -71,6 +71,12 @@ pub(crate) struct Typography {
     family_menu: MenuState,
     sample_menu: MenuState,
     block: TextBlock,
+    /// The families the dropdown offers ([`Self::refresh_families`]), and the number of fonts
+    /// and of system fonts they were listed from.
+    families: Vec<String>,
+    listed_from: Option<(usize, usize)>,
+    /// The items of the family menu, kept from frame to frame.
+    family_items: MenuItems,
 }
 
 impl Typography {
@@ -92,6 +98,9 @@ impl Typography {
             family_menu: MenuState::new(),
             sample_menu: MenuState::new(),
             block: TextBlock::new(),
+            families: Vec::new(),
+            listed_from: None,
+            family_items: MenuItems::new(),
         }
     }
 
@@ -109,20 +118,22 @@ impl Typography {
             + 2.0 * (panel.padding + panel.border_width)
     }
 
-    /// The families the dropdown offers: those of the loaded fonts, then the system's listed.
-    fn families(&self, ui: &Ui<'_>) -> Vec<String> {
-        let mut families: Vec<String> = ui
-            .fonts()
-            .families()
-            .into_iter()
-            .map(str::to_owned)
-            .collect();
+    /// Lists the families the dropdown offers when fonts were loaded, or the system's listed,
+    /// since the last time: those of the loaded fonts, then the system's.
+    fn refresh_families(&mut self, ui: &Ui<'_>) {
+        let from = (ui.fonts().len(), self.system.as_ref().map_or(0, Vec::len));
+        if self.listed_from == Some(from) {
+            return;
+        }
+        self.listed_from = Some(from);
+        self.families.clear();
+        self.families
+            .extend(ui.fonts().families().into_iter().map(str::to_owned));
         for font in self.system.iter().flatten() {
-            if !families.contains(&font.family) {
-                families.push(font.family.clone());
+            if !self.families.contains(&font.family) {
+                self.families.push(font.family.clone());
             }
         }
-        families
     }
 
     /// Draws the panel in `rect`, its menus inside `window`.
@@ -133,14 +144,21 @@ impl Typography {
 
         // The font: family, system fonts, weight, size, turn.
         let mut line = cut_top(&mut content, row, gap);
-        let families = self.families(ui);
-        let items: Vec<MenuItem<'_>> = families
-            .iter()
-            .map(|family| MenuItem::action(family).radio(*family == self.family))
-            .collect();
-        let chosen = Dropdown::new(ID.with(1), &mut self.family_menu, &items)
-            .label(&self.family)
-            .show(ui, cut_left(&mut line, 9.0 * row, gap), window)
+        self.refresh_families(ui);
+        let at = cut_left(&mut line, 9.0 * row, gap);
+        let (families, current, menu) = (&self.families, &self.family, &mut self.family_menu);
+        let chosen = self
+            .family_items
+            .with(
+                families
+                    .iter()
+                    .map(|family| MenuItem::action(family).radio(family == current)),
+                |items| {
+                    Dropdown::new(ID.with(1), menu, items)
+                        .label(current)
+                        .show(ui, at, window)
+                },
+            )
             .and_then(|choice| families.get(choice.index()).cloned());
         if let Some(family) = chosen {
             self.choose(ui, family);
@@ -255,11 +273,9 @@ impl Typography {
                 *on = !*on;
             }
         }
-        let items: Vec<MenuItem<'_>> = SAMPLES
-            .iter()
-            .enumerate()
-            .map(|(index, (name, _))| MenuItem::action(tr(name)).radio(index == self.sample))
-            .collect();
+        let items: [MenuItem<'_>; SAMPLES.len()] = core::array::from_fn(|index| {
+            MenuItem::action(tr(SAMPLES[index].0)).radio(index == self.sample)
+        });
         if let Some(choice) = Dropdown::new(ID.with(11), &mut self.sample_menu, &items)
             .label(tr(SAMPLES[self.sample].0))
             .show(ui, cut_left(&mut line, 7.0 * row, gap), window)

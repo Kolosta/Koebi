@@ -72,6 +72,12 @@
 //! # Ok::<(), koebi_design::Error>(())
 //! ```
 
+/// The unit tests count the allocations of a frame (`koebi_testkit::allocations`): a steady
+/// frame makes none.
+#[cfg(test)]
+#[global_allocator]
+static ALLOCATOR: koebi_testkit::CountingAllocator = koebi_testkit::CountingAllocator;
+
 mod bar;
 mod icon;
 mod id;
@@ -114,11 +120,11 @@ pub use widgets::{
     LIST_PREVIOUS, LIST_SELECT_ALL, LIST_UNFOLD, ListContextMenu, ListDelegate, ListItem,
     ListOptions, ListResponse, ListSelection, ListState, ListStyle, MENU, MENU_ACTIONS,
     MENU_CHOOSE, MENU_CLOSE, MENU_CLOSE_SUBMENU, MENU_NEXT, MENU_OPEN_SUBMENU, MENU_PREVIOUS,
-    MenuAction, MenuBarEntry, MenuBarState, MenuChoice, MenuItem, MenuMark, MenuState, MenuStyle,
-    NumberField, NumberFieldResponse, NumberFieldStyle, Numeric, OKLCH_CHROMA, OutsidePress,
-    PICKER_SECTIONS, PanelAlign, PanelLevel, PanelStyle, PickerSection, PickerShape, Placed,
-    Placement, PropertyGroup, PropertyGroupStyle, RING_INNER, ResetDotStyle, SCROLL, ScrollAxes,
-    ScrollAxis, ScrollContent, ScrollState, ScrollStyle, Scrollbar, ScrollbarResponse,
+    MenuAction, MenuBarEntry, MenuBarState, MenuChoice, MenuItem, MenuItems, MenuMark, MenuState,
+    MenuStyle, NumberField, NumberFieldResponse, NumberFieldStyle, Numeric, OKLCH_CHROMA,
+    OutsidePress, PICKER_SECTIONS, PanelAlign, PanelLevel, PanelStyle, PickerSection, PickerShape,
+    Placed, Placement, PropertyGroup, PropertyGroupStyle, RING_INNER, ResetDotStyle, SCROLL,
+    ScrollAxes, ScrollAxis, ScrollContent, ScrollState, ScrollStyle, Scrollbar, ScrollbarResponse,
     ScrollbarState, SelectOnFocus, SeparatorStyle, Shades, ShortcutCaps, Side, States,
     StatusBarStyle, StatusEntry, StripFill, StripResponse, Submenu, SwatchStyle, TEXT,
     TEXT_ACTIONS, TEXT_CANCEL, TEXT_CONFIRM, TEXT_COPY, TEXT_CUT, TEXT_DELETE_BACKWARD,
