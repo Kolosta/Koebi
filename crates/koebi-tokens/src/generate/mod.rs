@@ -264,10 +264,18 @@ pub fn plan(design: &DesignSystem, theme: ThemeId) -> koebi_design::Result<Plan>
         }
     }
 
+    // Stored as a theme file or a saved state stores them, in 8 bits: what is shown is what is
+    // saved, exported and restored, whatever the platform's last bits of floating point.
     let mut outputs: HashMap<TokenId, Definition> = values
         .iter()
-        .map(|(&token, &color)| (token, Definition::Value(Value::Color(color))))
+        .map(|(&token, &color)| (token, Definition::Value(Value::Color(stored(color)))))
         .collect();
+    for moved in &mut report.moved {
+        moved.1 = stored(moved.1);
+    }
+    if let Some(BackgroundFit::Moved(color)) = &mut report.background {
+        *color = stored(*color);
+    }
 
     // Rule 10: the other scheme's structure when the background changes scheme.
     if scheme != data.scheme {
@@ -368,6 +376,12 @@ pub fn plan(design: &DesignSystem, theme: ThemeId) -> koebi_design::Result<Plan>
         .collect();
     outputs.sort_by_key(|(token, _)| *token);
     Ok(Plan { outputs, report })
+}
+
+/// `color` as tokens store it: 8 bits a channel.
+fn stored(color: Color) -> Color {
+    let [r, g, b, a] = color.to_rgba8();
+    Color::from_rgba8(r, g, b, a)
 }
 
 /// Whether `definition` is what `token` already holds in the theme itself.

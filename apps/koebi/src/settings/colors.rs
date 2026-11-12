@@ -146,12 +146,7 @@ impl ColorsSection {
             let Some(tokens) = tokens else { continue };
             for (label, color) in labels.iter_mut().zip(tokens.steps(design)) {
                 label.clear();
-                let ratio = color.contrast_ratio(background);
-                let _ = if ratio < 10.0 {
-                    write!(label, "{ratio:.1}")
-                } else {
-                    write!(label, "{ratio:.0}")
-                };
+                write_ratio(label, color.contrast_ratio(background));
             }
         }
     }
@@ -686,6 +681,24 @@ fn main_order(palettes: &[Editable]) -> [usize; MAIN] {
     order
 }
 
+/// Writes `ratio` as a contrast label: tenths below 10, whole numbers above. Rounded to
+/// hundredths first: steps aim at contrasts of two decimals (1.15, 7.95), which a last bit of
+/// floating point, different from one platform to another, must not turn into another label.
+fn write_ratio(label: &mut String, ratio: f32) {
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a contrast ratio, between 1 and 21, in hundredths"
+    )]
+    let hundredths = (ratio.max(0.0) * 100.0).round() as u32;
+    let _ = if hundredths < 1000 {
+        let tenths = (hundredths + 5) / 10;
+        write!(label, "{}.{}", tenths / 10, tenths % 10)
+    } else {
+        write!(label, "{}", (hundredths + 50) / 100)
+    };
+}
+
 /// What the palette's main steps hold, from `at`: a fill with its content (step 900 and the
 /// content on colored fills), text in the palette on a panel (1400), a fill under the primary
 /// text (500). For the neutral grays: text on a panel, on a field, and a border.
@@ -748,6 +761,22 @@ fn samples_of(
 mod tests {
     use super::super::Page;
     use super::super::tests::Harness;
+
+    #[test]
+    fn contrast_labels_read_the_same_on_both_sides_of_a_last_bit() {
+        let label = |ratio: f32| {
+            let mut text = String::new();
+            super::write_ratio(&mut text, ratio);
+            text
+        };
+        assert_eq!(label(1.1493), label(1.1504));
+        assert_eq!(label(7.9499), label(7.9509));
+        assert_eq!(label(4.81), "4.8");
+        assert_eq!(label(5.75), "5.8");
+        assert_eq!(label(14.85), "15");
+        assert_eq!(label(9.96), "10.0");
+        assert_eq!(label(21.0), "21");
+    }
 
     #[test]
     fn the_theme_page_lists_every_palette_with_its_source() {
