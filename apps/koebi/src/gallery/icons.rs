@@ -72,12 +72,11 @@ impl Icons {
             .step(1.0)
             .bar(BarMapping::Linear)
             .show(ui, cut_left(&mut line, 8.0 * row, gap));
-        if Button::new(ID.with(2))
+        let original = Button::new(ID.with(2))
             .label(tr("Original colors"))
-            .selected(self.original)
-            .show(ui, cut_left(&mut line, 6.0 * row, gap))
-            .clicked
-        {
+            .selected(self.original);
+        let width = original.size(ui).x.max(6.0 * row);
+        if original.show(ui, cut_left(&mut line, width, gap)).clicked {
             self.original = !self.original;
         }
         let tones = cut_left(&mut line, 5.0 * row, gap);

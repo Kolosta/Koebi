@@ -99,7 +99,7 @@ pub use pixel::whole_pixels;
 pub use routing::Layer;
 pub use screen_pick::PickOutcome;
 pub use style::{CornerRadii, IconStyle, InputStyle, Prop, StateColors, StyleCache, Styles};
-pub use text::{Align, FontStyle, TextStyles};
+pub use text::{Align, FontStyle, Overflow, TextStyles};
 pub use ui::{EYEDROPPER_PIXELS, Response, ScreenPixels, Ui, UiState, WidgetState};
 pub use widgets::{
     Activation, AppBar, AppBarResponse, AppBarStyle, BarMapping, Button, ButtonGroup, ButtonStyle,

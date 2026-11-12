@@ -7,14 +7,20 @@
 //! background, each step's contrast with it, and what its main steps hold: a fill with its
 //! content, text on a panel, a fill under the primary text. The reset dot gives the theme's own
 //! palette back. The tokens stay in Customisation for finer changes.
+//!
+//! Every part is laid out from measured widths, so that nothing is cut whatever the language
+//! or the window's width: the names' column is as wide as the longest name, descriptions
+//! wrap, and the contrasts below a strip are written for as many steps as their width allows,
+//! each swatch telling its step, contrast and color when the pointer rests on it.
 
 use core::fmt::Write as _;
 use koebi_i18n::tr;
 
+use koebi_core::palette::HUE_STEPS;
 use koebi_core::{Color, Rect, Vec2};
 use koebi_design::{DesignSystem, Layers, ThemeId};
 use koebi_render::RectPrimitive;
-use koebi_tokens::palettes::{self, Editable, Family};
+use koebi_tokens::palettes::{self, Editable, Family, NEUTRAL_STEPS};
 use koebi_tokens::semantic;
 use koebi_ui::{
     Align, Button, ButtonGroup, CollapsiblePanel, CollapsiblePanelState, ColorField,
@@ -38,6 +44,28 @@ pub(super) struct ColorsSection {
     revision: Option<u64>,
     every_theme: bool,
     hues: CollapsiblePanelState,
+    /// The height of each palette's row, measured each frame for the section's width.
+    heights: Vec<f32>,
+    /// The text of the swatch tooltip showing: written while it shows, its storage kept.
+    tip: String,
+}
+
+/// Where the parts of a palette's row lie, measured for the section's width.
+#[derive(Clone, Copy, Debug)]
+struct RowLayout {
+    /// The column of the names, as wide as the longest.
+    names: f32,
+    /// The source's color field.
+    field: f32,
+    /// The samples at the end of the row.
+    samples: f32,
+}
+
+impl RowLayout {
+    /// The width of a palette's description: under its name and its field.
+    fn description(&self, gap: f32) -> f32 {
+        self.names + gap + self.field
+    }
 }
 
 impl ColorsSection {
@@ -50,6 +78,8 @@ impl ColorsSection {
             revision: None,
             every_theme: false,
             hues: CollapsiblePanelState::new(false),
+            heights: Vec::new(),
+            tip: String::new(),
         }
     }
 
@@ -82,11 +112,64 @@ impl ColorsSection {
         }
     }
 
-    /// The height of a palette's row: its name over its description, its strip over the
-    /// contrasts.
-    fn row_height(ui: &Ui<'_>) -> f32 {
+    /// The parts of a row for a section `width` wide: the names' column holds the longest
+    /// name, and the longest description on one line beside the field below it, as far as a
+    /// third of the width; past it, descriptions wrap.
+    fn layout(&self, ui: &mut Ui<'_>, width: f32) -> RowLayout {
         let row = ui.styles().button.height;
-        2.0 * row + ui.styles().property_group.row_gap
+        let gap = ui.styles().property_group.row_gap;
+        let label = ui.styles().text.label.clone();
+        let detail = ui.styles().text.detail.clone();
+        let field = 3.0 * row;
+        let longest = self
+            .palettes
+            .iter()
+            .map(|palette| {
+                let name = ui.text_width(tr(palette.name), &label);
+                let description = ui.text_width(tr(palette.description), &detail);
+                name.max(description - gap - field)
+            })
+            .fold(0.0_f32, f32::max);
+        let names = longest
+            .ceil()
+            .min((width * 0.35).max(4.0 * row))
+            .max(4.0 * row);
+        RowLayout {
+            names,
+            field,
+            samples: 3.0 * 2.0 * row + 2.0 * gap,
+        }
+    }
+
+    /// The height of the palette at `index`'s row: its name over its description, wrapped,
+    /// its strip over the contrasts.
+    fn row_height(&self, ui: &mut Ui<'_>, index: usize, layout: RowLayout) -> f32 {
+        let row = ui.styles().button.height;
+        let gap = ui.styles().property_group.row_gap;
+        let detail = ui.styles().text.detail.clone();
+        let description = tr(self.palettes[index].description);
+        let lines = ui.paragraph_height(description, layout.description(gap), &detail);
+        row + gap + lines.max(row)
+    }
+
+    /// The text beside the choice of scope.
+    fn scope_text() -> &'static str {
+        tr("One color makes a palette: its steps keep their contrast.")
+    }
+
+    /// The width of the choice of scope's buttons, in a row `width` wide.
+    fn scope_buttons(width: f32, row: f32) -> f32 {
+        (width * 0.5).min(14.0 * row)
+    }
+
+    /// The height of the scope's row: its text wrapped beside the buttons.
+    fn scope_height(ui: &mut Ui<'_>, width: f32) -> f32 {
+        let row = ui.styles().button.height;
+        let gap = ui.styles().property_group.row_gap;
+        let label = ui.styles().text.label.clone();
+        let text = (width - Self::scope_buttons(width, row) - gap).max(1.0);
+        ui.paragraph_height(Self::scope_text(), text, &label)
+            .max(row)
     }
 
     /// Shows the section below what `stack` holds.
@@ -94,24 +177,34 @@ impl ColorsSection {
         self.refresh_labels(design);
         let row = ui.styles().button.height;
         let gap = ui.styles().property_group.row_gap;
-        let line = Self::row_height(ui) + gap;
         let bounds = stack.bounds;
-        let height = 2.0 * (row + gap) + MAIN as f32 * line;
+        // Every row measured first, for the section's width.
+        let width = stack.content(ui).width();
+        let layout = self.layout(ui, width);
+        let scope = Self::scope_height(ui, width);
+        self.heights.clear();
+        for index in 0..self.palettes.len() {
+            let height = self.row_height(ui, index, layout);
+            self.heights.push(height);
+        }
+        let rows: f32 = self.heights[..MAIN].iter().map(|height| height + gap).sum();
+        let height = row + gap + scope + gap + rows;
         stack.container(ui, height, |ui, content| {
             let title = Rect::from_origin_size(content.min, Vec2::new(content.width(), row));
             ui.section_title(title, tr("Colors"));
-            let scope = Rect::from_origin_size(
+            let at = Rect::from_origin_size(
                 Vec2::new(content.min.x, title.max.y + gap),
-                Vec2::new(content.width(), row),
+                Vec2::new(content.width(), scope),
             );
-            self.scope(ui, scope);
-            let mut y = scope.max.y + gap;
+            self.scope(ui, at);
+            let mut y = at.max.y + gap;
             for index in 0..MAIN {
+                let line = self.heights[index] + gap;
                 let at = Rect::from_min_max(
                     Vec2::new(content.min.x, y),
                     Vec2::new(content.max.x, y + line),
                 );
-                self.palette_row(ui, at, index, design, bounds);
+                self.palette_row(ui, at, index, design, bounds, layout);
                 y += line;
             }
         });
@@ -121,34 +214,35 @@ impl ColorsSection {
             ui,
             CollapsiblePanel::new(ID.with(1), &mut state, tr("Hue palettes")),
             |ui, rect| {
-                for index in 0..hues {
-                    let y = rect.min.y + index as f32 * line;
+                let mut y = rect.min.y;
+                for index in MAIN..MAIN + hues {
+                    let line = self.heights[index] + gap;
                     let at = Rect::from_min_max(
                         Vec2::new(rect.min.x, y),
                         Vec2::new(rect.max.x, y + line),
                     );
-                    self.palette_row(ui, at, MAIN + index, design, bounds);
+                    self.palette_row(ui, at, index, design, bounds, layout);
+                    y += line;
                 }
-                hues as f32 * line
+                y - rect.min.y
             },
         );
         self.hues = state;
     }
 
-    /// The choice of the themes a change applies to.
+    /// The choice of the themes a change applies to: its text wraps beside the buttons.
     fn scope(&mut self, ui: &mut Ui<'_>, rect: Rect) {
+        let row = ui.styles().button.height;
+        let gap = ui.styles().property_group.row_gap;
         let label = ui.styles().text.label.clone();
         let secondary = ui.styles().text.secondary;
-        let width = (rect.width() * 0.5).min(14.0 * rect.height());
-        let text = Rect::from_min_max(rect.min, Vec2::new(rect.max.x - width, rect.max.y));
-        ui.label(
-            tr("One color makes a palette: its steps keep their contrast."),
-            text,
-            &label,
-            secondary,
-            Align::Start,
+        let width = Self::scope_buttons(rect.width(), row);
+        let text = Rect::from_min_max(rect.min, Vec2::new(rect.max.x - width - gap, rect.max.y));
+        ui.paragraph(Self::scope_text(), text, &label, secondary);
+        let at = Rect::from_min_max(
+            Vec2::new(rect.max.x - width, rect.min.y),
+            Vec2::new(rect.max.x, rect.min.y + row),
         );
-        let at = Rect::from_min_max(Vec2::new(rect.max.x - width, rect.min.y), rect.max);
         let mut cells = [
             GroupCell::new(
                 Button::new(ID.with(10))
@@ -174,7 +268,7 @@ impl ColorsSection {
         }
     }
 
-    /// The row of the palette at `index` in `rect`.
+    /// The row of the palette at `index` in `rect`, its parts where `layout` puts them.
     fn palette_row(
         &mut self,
         ui: &mut Ui<'_>,
@@ -182,6 +276,7 @@ impl ColorsSection {
         index: usize,
         design: &mut DesignSystem,
         bounds: Rect,
+        layout: RowLayout,
     ) {
         let palette = self.palettes[index];
         let id = ID.with(100 + index as u64 * 4);
@@ -208,28 +303,22 @@ impl ColorsSection {
         let label = ui.styles().text.label.clone();
         let detail = ui.styles().text.detail.clone();
         let (primary, secondary) = (ui.styles().text.primary, ui.styles().text.secondary);
-        let names = 12.0 * row;
         let name = Rect::from_origin_size(
             Vec2::new(dot.max.x + gap, rect.min.y),
-            Vec2::new(names, row),
+            Vec2::new(layout.names, row),
         );
         ui.label(tr(palette.name), name, &label, primary, Align::Start);
-        let description = Rect::from_origin_size(
+        // Under the name and the field, wrapped: the row is as high as it needs.
+        let description = Rect::from_min_max(
             Vec2::new(name.min.x, name.max.y + gap),
-            Vec2::new(names, row),
+            Vec2::new(name.min.x + layout.description(gap), rect.max.y),
         );
-        ui.label(
-            tr(palette.description),
-            description,
-            &detail,
-            secondary,
-            Align::Start,
-        );
+        ui.paragraph(tr(palette.description), description, &detail, secondary);
 
         // The source, in a color field.
         let field = Rect::from_origin_size(
             Vec2::new(name.max.x + gap, rect.min.y),
-            Vec2::new(3.0 * row, row),
+            Vec2::new(layout.field, row),
         );
         let mut color = palettes::source(design, active, &palette).unwrap_or(Color::BLACK);
         let own = design
@@ -244,8 +333,10 @@ impl ColorsSection {
                 _ => None,
             })
             .unwrap_or(color);
+        // A palette is made from an opaque color: no opacity to edit.
         if ColorField::new(id.with(2), &mut color, &mut self.fields[index])
             .dropdown(true)
+            .opacity(false)
             .original(own)
             .title(tr(palette.name))
             .show(ui, field, bounds)
@@ -259,7 +350,7 @@ impl ColorsSection {
         }
 
         // The palette on the theme's background, each step's contrast below it, then samples.
-        let samples = 3.0 * 2.0 * row + 2.0 * gap;
+        let samples = layout.samples;
         let strip = Rect::from_min_max(
             Vec2::new(field.max.x + 2.0 * gap, rect.min.y),
             Vec2::new(
@@ -271,7 +362,25 @@ impl ColorsSection {
         let steps = steps(design, &palette);
         ui.scene()
             .push_rect(&RectPrimitive::new(strip, background).with_corner_radius(row * 0.2));
-        let width = strip.width() / steps.len() as f32;
+        let width = strip.width() / steps.len().max(1) as f32;
+        // The contrasts of as many steps as their width allows: every step, or every second,
+        // third... from the first. The swatch under the pointer tells its own.
+        let widest = self.labels[index]
+            .iter()
+            .map(|label| ui.text_width(label, &detail))
+            .fold(0.0_f32, f32::max)
+            .ceil()
+            + 2.0;
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "a whole number of steps, between 1 and 16"
+        )]
+        let every = ((widest / width.max(1.0)).ceil() as usize).clamp(1, steps.len().max(1));
+        let numbers = match palette.family {
+            Family::Neutral => &NEUTRAL_STEPS,
+            Family::Role | Family::Hue => &HUE_STEPS,
+        };
         for (step, color) in steps.iter().enumerate() {
             let x = strip.min.x + step as f32 * width;
             let swatch = Rect::from_min_max(
@@ -280,15 +389,37 @@ impl ColorsSection {
             );
             ui.scene()
                 .push_rect(&RectPrimitive::new(swatch, *color).with_corner_radius(2.0));
-            let under =
-                Rect::from_origin_size(Vec2::new(x, strip.max.y + gap), Vec2::new(width, row));
-            ui.label(
-                &self.labels[index][step],
-                under,
-                &detail,
-                secondary,
-                Align::Center,
-            );
+            let key = id.with(40 + step as u64);
+            if ui.interact(key, swatch).hovered {
+                let [r, g, b, _] = color.to_rgba8();
+                let hex = format_args!("#{r:02X}{g:02X}{b:02X}");
+                koebi_i18n::fill_into(
+                    &mut self.tip,
+                    tr("Step {step}: {contrast}:1 against the background, {color}"),
+                    &[
+                        ("step", &numbers.get(step).copied().unwrap_or_default()),
+                        ("contrast", &self.labels[index][step]),
+                        ("color", &hex),
+                    ],
+                );
+                ui.tooltip(key, &self.tip, swatch);
+            }
+            if step % every == 0 {
+                // Centred under its swatch, inside the strip.
+                let left = (x + width * 0.5 - widest * 0.5)
+                    .clamp(strip.min.x, (strip.max.x - widest).max(strip.min.x));
+                let under = Rect::from_origin_size(
+                    Vec2::new(left, strip.max.y + gap),
+                    Vec2::new(widest, row),
+                );
+                ui.label(
+                    &self.labels[index][step],
+                    under,
+                    &detail,
+                    secondary,
+                    Align::Center,
+                );
+            }
         }
         let at = Vec2::new(strip.max.x + gap, rect.min.y);
         samples_of(ui, at, row, gap, design, &palette, &steps);

@@ -9,7 +9,7 @@ use koebi_render::HueModel;
 use koebi_ui::{
     Align, Checkbox, ColorField, ColorFieldState, ColorPicker, ColorPickerState, ColorStrip,
     ColorStripState, Dropdown, MenuItem, MenuState, PanelLevel, PickerSection, PickerShape,
-    StripFill, Transparency, Ui, WidgetId,
+    StripFill, Track, Transparency, Ui, WidgetId, layout,
 };
 
 use super::{Metrics, cut_left, cut_top};
@@ -70,8 +70,8 @@ impl Colors {
     pub(super) fn height(&self, ui: &Ui<'_>, metrics: Metrics) -> f32 {
         let panel = &ui.styles().panel;
         let picker = self.picker_size(ui);
-        2.0 * metrics.row
-            + 2.0 * metrics.row_gap()
+        3.0 * metrics.row
+            + 3.0 * metrics.row_gap()
             + picker.y
             + 2.0 * (panel.padding + panel.border_width)
     }
@@ -97,21 +97,65 @@ impl Colors {
         let mut content = ui.panel(rect, PanelLevel::First);
         let (row, gap) = (metrics.row, metrics.row_gap());
 
-        // The settings.
-        let mut line = cut_top(&mut content, row, gap);
-        let fifth = ((line.width() - 4.0 * gap) / 5.0).floor();
+        // The settings, each as wide as it asks: the dropdowns on a row, the checkboxes on the
+        // next, each row sharing what is left.
+        let line = cut_top(&mut content, row, gap);
+        let checks = cut_top(&mut content, row, gap);
         let shapes = PickerShape::ALL.map(|shape| MenuItem::action(shape.label()));
+        let ways = Transparency::ALL.map(|way| MenuItem::action(way.label()));
+        let naturals = [
+            Dropdown::new(ID.with(1), &mut self.shape.1, &shapes)
+                .label(self.shape.0.label())
+                .size(ui)
+                .x,
+            Dropdown::new(ID.with(2), &mut self.left.1, &ways)
+                .label(self.left.0.label())
+                .size(ui)
+                .x,
+            Dropdown::new(ID.with(3), &mut self.right.1, &ways)
+                .label(self.right.0.label())
+                .size(ui)
+                .x,
+            Checkbox::new(ID.with(4), &mut self.titled)
+                .label(tr("Title"))
+                .size(ui)
+                .x,
+            Checkbox::new(ID.with(5), &mut self.palette)
+                .label(tr("Palette"))
+                .size(ui)
+                .x,
+            Checkbox::new(ID.with(6), &mut self.values_first)
+                .label(tr("Values first"))
+                .size(ui)
+                .x,
+        ];
+        let [shape, left, right, titled, palette, values] = naturals;
+        let [shape_at, left_at, right_at] = layout::row_fitting(
+            line,
+            gap,
+            [(Track::Fit, shape), (Track::Fit, left), (Track::Fit, right)],
+        );
+        let [titled_at, palette_at, values_at] = layout::row_fitting(
+            checks,
+            gap,
+            [
+                (Track::Fit, titled),
+                (Track::Fit, palette),
+                (Track::Fit, values),
+            ],
+        );
         if let Some(choice) = Dropdown::new(ID.with(1), &mut self.shape.1, &shapes)
             .label(self.shape.0.label())
-            .show(ui, cut_left(&mut line, fifth, gap), window)
+            .show(ui, shape_at, window)
             && let Some(&shape) = PickerShape::ALL.get(choice.index())
         {
             self.shape.0 = shape;
         }
-        let ways = Transparency::ALL.map(|way| MenuItem::action(way.label()));
-        for (index, half) in [&mut self.left, &mut self.right].into_iter().enumerate() {
+        for (index, (half, at)) in [(&mut self.left, left_at), (&mut self.right, right_at)]
+            .into_iter()
+            .enumerate()
+        {
             let id = ID.with(2 + index as u64);
-            let at = cut_left(&mut line, fifth, gap);
             if let Some(choice) = Dropdown::new(id, &mut half.1, &ways)
                 .label(half.0.label())
                 .show(ui, at, window)
@@ -126,16 +170,15 @@ impl Colors {
             };
             ui.tooltip(id, tip, at);
         }
-        let third = ((line.width() - 2.0 * gap) / 3.0).floor();
         Checkbox::new(ID.with(4), &mut self.titled)
             .label(tr("Title"))
-            .show(ui, cut_left(&mut line, third, gap));
+            .show(ui, titled_at);
         Checkbox::new(ID.with(5), &mut self.palette)
             .label(tr("Palette"))
-            .show(ui, cut_left(&mut line, third, gap));
+            .show(ui, palette_at);
         Checkbox::new(ID.with(6), &mut self.values_first)
             .label(tr("Values first"))
-            .show(ui, line);
+            .show(ui, values_at);
 
         // A field opening its picker as a dropdown, one as a panel, a horizontal strip.
         let mut line = cut_top(&mut content, row, gap);
@@ -151,7 +194,9 @@ impl Colors {
         .enumerate()
         {
             let mut cell = cut_left(&mut line, quarter, gap);
-            let caption = cut_left(&mut cell, quarter * 0.45, gap);
+            // The caption as wide as its text, the field the rest.
+            let width = ui.text_width(label, &font).ceil().min(cell.width() * 0.6);
+            let caption = cut_left(&mut cell, width, gap);
             ui.label(label, caption, &font, secondary, Align::Start);
             let mut field = ColorField::new(ID.with(10 + index as u64), color, state)
                 .halves(left, right)
@@ -166,14 +211,10 @@ impl Colors {
             field.show(ui, cell, window);
         }
         let mut strip = line;
-        let caption = cut_left(&mut strip, quarter * 0.45, gap);
-        ui.label(
-            tr("A horizontal strip"),
-            caption,
-            &font,
-            secondary,
-            Align::Start,
-        );
+        let text = tr("A horizontal strip");
+        let width = ui.text_width(text, &font).ceil().min(strip.width() * 0.6);
+        let caption = cut_left(&mut strip, width, gap);
+        ui.label(text, caption, &font, secondary, Align::Start);
         let strip = Rect::from_min_max(
             Vec2::new(strip.min.x, strip.center().y - row * 0.3),
             Vec2::new(strip.max.x, strip.center().y + row * 0.3),

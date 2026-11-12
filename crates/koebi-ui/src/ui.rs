@@ -38,6 +38,10 @@ pub struct UiState {
     /// The regions of the last complete frame, and of the frame being built.
     previous: Regions,
     current: Regions,
+    /// The labels cut short in the last complete frame, and in the frame being built: a label
+    /// under the pointer shows its whole text in a tooltip ([`Ui::label`]).
+    pub(crate) truncated: Truncated,
+    truncated_previous: Truncated,
     /// The widget on top under the pointer, and under the press, resolved when a frame starts.
     hovered: Option<WidgetId>,
     press_target: Option<WidgetId>,
@@ -172,6 +176,13 @@ impl UiState {
     /// Nothing holds the pointer.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// The texts of the labels the last complete frame cut short with an ellipsis, in the
+    /// order they were drawn. An interface built from measured widths cuts none: tests check
+    /// screens with it.
+    pub fn truncated_labels(&self) -> impl Iterator<Item = &str> {
+        self.truncated_previous.texts()
     }
 
     /// When the last frame asked to be drawn again (an animation, a delay running out), on the
@@ -385,6 +396,61 @@ impl Response {
     }
 }
 
+/// A label cut short, for its tooltip.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct CutLabel {
+    pub(crate) id: WidgetId,
+    /// What shows of it, its clip applied.
+    pub(crate) rect: Rect,
+    pub(crate) layer: Layer,
+    /// Its text, in [`Truncated::text`].
+    text: core::ops::Range<usize>,
+}
+
+/// The labels of a frame cut short, their texts one after the other: the storage stays from
+/// frame to frame.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct Truncated {
+    labels: Vec<CutLabel>,
+    text: String,
+}
+
+impl Truncated {
+    fn clear(&mut self) {
+        self.labels.clear();
+        self.text.clear();
+    }
+
+    pub(crate) fn push(&mut self, id: WidgetId, rect: Rect, layer: Layer, text: &str) {
+        let start = self.text.len();
+        self.text.push_str(text);
+        self.labels.push(CutLabel {
+            id,
+            rect,
+            layer,
+            text: start..self.text.len(),
+        });
+    }
+
+    /// The label drawn last under `point`, on `floor` or above it: the layer of what is on top
+    /// there.
+    fn under(&self, point: Vec2, floor: Option<Layer>) -> Option<WidgetId> {
+        self.labels
+            .iter()
+            .rev()
+            .find(|label| {
+                label.rect.contains(point) && floor.is_none_or(|floor| label.layer >= floor)
+            })
+            .map(|label| label.id)
+    }
+
+    fn texts(&self) -> impl Iterator<Item = &str> {
+        self.labels
+            .iter()
+            .filter_map(|label| self.text.get(label.text.clone()))
+    }
+}
+
 /// One frame of interface: components draw into a [`Scene`] and react to the [`Input`].
 ///
 /// Create one per frame, call components on it, then drop it: dropping ends the frame for
@@ -424,9 +490,19 @@ impl<'a> Ui<'a> {
                 .and_then(|(_, region)| region.widget)
         };
         state.hovered = topmost(input.pointer());
+        state.truncated.clear();
+        // A label cut short under the pointer, on top of what lies there, shows its whole
+        // text: the tooltip follows it rather than the widget below.
+        let cut_label = input.pointer().and_then(|point| {
+            let floor = state
+                .previous
+                .topmost(point)
+                .map(|(_, region)| region.layer);
+            state.truncated_previous.under(point, floor)
+        });
         let dismiss = input.any_pressed() || input.wheel() != Vec2::ZERO;
         state.tooltip.update(
-            state.hovered,
+            cut_label.or(state.hovered),
             input.pointer(),
             dismiss,
             styles.input.drag_threshold,
@@ -551,6 +627,11 @@ impl<'a> Ui<'a> {
     /// The scene, for custom drawing between components.
     pub fn scene(&mut self) -> &mut Scene {
         self.scene
+    }
+
+    /// The clip in force: what components drawn now may show, `None` without one.
+    pub fn clip_rect(&self) -> Option<Rect> {
+        self.clip
     }
 
     /// The layer components are drawn on.
@@ -884,6 +965,7 @@ impl Drop for Ui<'_> {
         }
         // The regions and grabs of this frame decide where the next one's input goes.
         core::mem::swap(&mut state.previous, &mut state.current);
+        core::mem::swap(&mut state.truncated_previous, &mut state.truncated);
         core::mem::swap(&mut state.grabs, &mut state.grabbing);
         state.holding = core::mem::take(&mut state.holding_next);
         state.wheel_claimed = core::mem::take(&mut state.wheel_claiming);

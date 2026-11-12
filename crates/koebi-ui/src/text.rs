@@ -7,6 +7,7 @@ use koebi_design::Resolve;
 use koebi_text::{TextLine, TextStyle};
 use koebi_tokens::semantic;
 
+use crate::id::WidgetId;
 use crate::ui::Ui;
 
 /// A font role of the typography tokens: family, weight, size and tracking.
@@ -93,6 +94,25 @@ pub enum Align {
     End,
 }
 
+/// What a label does with a text wider than its rectangle ([`Ui::label_with`]). Whatever it
+/// does, a label cut short shows its whole text in a tooltip.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum Overflow {
+    /// Cut at the last characters that fit, followed by an ellipsis ("…"): the label says it
+    /// goes on.
+    #[default]
+    Ellipsis,
+    /// Cut at the rectangle's edge, without an ellipsis: for text that scrolls or that a
+    /// neighbour continues.
+    Clip,
+    /// Set smaller, down to `min_size` pixels per em, then cut with an ellipsis if it still
+    /// does not fit: for short values in tight cells.
+    Shrink {
+        /// The least size the text takes.
+        min_size: f32,
+    },
+}
+
 impl Ui<'_> {
     /// The text style of `font` in the fonts of the [`crate::UiState`], if it has the family.
     fn text_style(&self, font: &FontStyle) -> Option<TextStyle> {
@@ -143,6 +163,11 @@ impl Ui<'_> {
 
     /// Draws `text` on one line in `rect`: centred vertically, placed by `align`, cut with an
     /// ellipsis when wider than the rectangle. Returns the width drawn.
+    ///
+    /// A label cut short shows its whole text in a tooltip when the pointer rests on it, over
+    /// whatever widget it lies on: nothing a caller must do. Cutting stays a last resort: lay
+    /// the interface out from measured widths ([`Ui::text_width`]) so that labels fit, and see
+    /// [`Ui::label_with`] for other ways to fit.
     pub fn label(
         &mut self,
         text: &str,
@@ -151,25 +176,74 @@ impl Ui<'_> {
         color: Color,
         align: Align,
     ) -> f32 {
-        let Some(style) = self.text_style(font) else {
+        self.label_with(text, rect, font, color, align, Overflow::Ellipsis)
+    }
+
+    /// [`Ui::label`], fitting a text wider than `rect` the way `overflow` says.
+    pub fn label_with(
+        &mut self,
+        text: &str,
+        rect: Rect,
+        font: &FontStyle,
+        color: Color,
+        align: Align,
+        overflow: Overflow,
+    ) -> f32 {
+        let Some(mut style) = self.text_style(font) else {
             return 0.0;
         };
+        if let Overflow::Shrink { min_size } = overflow {
+            // Widths grow with the size: the size at which the text fits, not below the least.
+            let natural = self.text_width(text, font);
+            if natural > rect.width() && natural > 0.0 {
+                style.size = (style.size * rect.width() / natural).max(min_size.min(style.size));
+            }
+        }
+        let limit = (overflow != Overflow::Clip).then_some(rect.width());
         let state = &mut *self.state;
         let line = {
             koebi_core::profile_scope!("text.label");
-            state
-                .lines
-                .line(&state.fonts, text, &style, Some(rect.width()))
+            state.lines.line(&state.fonts, text, &style, limit)
         };
         let width = line.width();
+        let cut = line.is_truncated() || width > rect.width() + 0.5;
         let x = match align {
+            _ if overflow == Overflow::Clip && width > rect.width() => rect.min.x,
             Align::Start => rect.min.x,
             Align::Center => rect.min.x + (rect.width() - width) * 0.5,
             Align::End => rect.max.x - width,
         };
         let baseline = line.centered_baseline(rect.min.y, rect.height());
-        self.scene.push_text(line, Vec2::new(x, baseline), color);
-        width
+        if overflow == Overflow::Clip && cut {
+            self.scene.push_clip(rect);
+            self.scene.push_text(line, Vec2::new(x, baseline), color);
+            self.scene.pop_clip();
+        } else {
+            self.scene.push_text(line, Vec2::new(x, baseline), color);
+        }
+        if cut {
+            self.cut_label(text, rect);
+        }
+        width.min(rect.width())
+    }
+
+    /// Records that the label `text` in `rect` was cut short, and shows its whole text in a
+    /// tooltip while the pointer rests on it.
+    fn cut_label(&mut self, text: &str, rect: Rect) {
+        const CUT: WidgetId = WidgetId::new("cut-label");
+        let visible = match self.clip_rect() {
+            Some(clip) => clip.intersection(&rect),
+            None => Some(rect),
+        };
+        let Some(visible) = visible else { return };
+        // Its text and its place, to the pixel: the same label from frame to frame.
+        let id = CUT
+            .with_text(text)
+            .with(u64::from(rect.min.x.round().to_bits()))
+            .with(u64::from(rect.min.y.round().to_bits()));
+        let layer = self.layer();
+        self.state.truncated.push(id, visible, layer, text);
+        self.tooltip(id, text, rect);
     }
 
     /// Draws `text` wrapped to the width of `rect`, line under line from its top, breaking
@@ -255,6 +329,68 @@ mod tests {
         drop(ui);
         // "Viewport" (8 glyphs), then a shorter cut ending with the ellipsis.
         assert!(scene.glyph_count() > 8 && scene.glyph_count() < 16);
+    }
+
+    #[test]
+    fn a_label_cut_short_shows_its_whole_text_where_the_pointer_rests() {
+        let styles = crate::test_styles();
+        let mut state = UiState::new();
+        state.set_fonts(Fonts::with_embedded());
+        let mut input = Input::new();
+        let font = styles.text.label.clone();
+        let text = "A label far too long for its place";
+        let place = rect(0.0, 0.0, 60.0, 20.0);
+        let button = WidgetId::new("button");
+        let frame = |state: &mut UiState, input: &Input| {
+            let mut scene = Scene::new();
+            let mut ui = Ui::new(&mut scene, &styles, input, state);
+            // On a button, whose label it is.
+            let response = ui.interact(button, place);
+            ui.label(text, place, &font, Color::WHITE, Align::Start);
+            drop(ui);
+            (scene, response)
+        };
+        frame(&mut state, &input);
+        assert_eq!(state.truncated_labels().collect::<Vec<_>>(), [text]);
+        input.pointer_moved(Vec2::new(30.0, 10.0));
+        let (_, response) = frame(&mut state, &input);
+        // The button stays hovered: the label takes nothing from it.
+        assert!(response.hovered);
+        assert!(state.tooltip.shown.is_none());
+        // Once the pointer has rested, the tooltip holds the whole text.
+        input.set_time(core::time::Duration::from_secs(5));
+        let (cut, _) = frame(&mut state, &input);
+        assert!(state.tooltip.shown.is_some());
+        let whole = text.chars().filter(|c| !c.is_whitespace()).count();
+        assert!(cut.glyph_count() > whole, "{} glyphs", cut.glyph_count());
+    }
+
+    #[test]
+    fn overflow_ways_fit_a_long_text() {
+        let styles = crate::test_styles();
+        let (mut scene, mut state, input) = (Scene::new(), UiState::new(), Input::new());
+        state.set_fonts(Fonts::with_embedded());
+        let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+        let font = styles.text.label.clone();
+        let full = ui.text_width("Viewport", &font);
+        let short = rect(0.0, 0.0, full * 0.6, 20.0);
+        let (white, start) = (Color::WHITE, Align::Start);
+        // Smaller and whole.
+        let shrink = Overflow::Shrink {
+            min_size: font.size * 0.5,
+        };
+        let drawn = ui.label_with("Viewport", short, &font, white, start, shrink);
+        assert!(drawn <= short.width() + 0.5, "{drawn}");
+        // Not as small as it would need: cut after all.
+        let at_most = Overflow::Shrink {
+            min_size: font.size,
+        };
+        ui.label_with("Overview", short, &font, white, start, at_most);
+        // Clipped at the edge, without an ellipsis: whole glyphs, cut too.
+        ui.label_with("Outliner", short, &font, white, start, Overflow::Clip);
+        drop(ui);
+        let cut: Vec<_> = state.truncated_labels().collect();
+        assert_eq!(cut, ["Overview", "Outliner"]);
     }
 
     #[test]

@@ -6,7 +6,8 @@ use koebi_core::Rect;
 use koebi_core::expr::MILLIMETER;
 use koebi_i18n::tr;
 use koebi_ui::{
-    Align, BarMapping, EditEnd, NumberField, PanelLevel, SelectOnFocus, TextField, Ui, WidgetId,
+    Align, BarMapping, EditEnd, NumberField, PanelLevel, SelectOnFocus, TextField, Track, Ui,
+    WidgetId, layout,
 };
 
 use super::{Metrics, cut_left, cut_top};
@@ -91,19 +92,48 @@ impl Fields {
             .enabled(false)
             .show(ui, line)
             .ended;
-        let mut line = cut_top(&mut content, row, gap);
-        let fifth = ((line.width() - 4.0 * gap) / 5.0).floor();
+        // The number fields as wide as they ask, sharing the row.
+        let line = cut_top(&mut content, row, gap);
+        let naturals = [
+            NumberField::new(ID.with(10), &mut self.width)
+                .label(tr("Width"))
+                .unit(&MILLIMETER)
+                .size(ui)
+                .x,
+            NumberField::new(ID.with(11), &mut self.opacity)
+                .label(tr("Opacity"))
+                .range(0.0, 1.0)
+                .size(ui)
+                .x,
+            NumberField::new(ID.with(12), &mut self.frequency)
+                .label(tr("Frequency"))
+                .range(20.0, 20_000.0)
+                .decimals(0)
+                .size(ui)
+                .x,
+            NumberField::new(ID.with(13), &mut self.samples)
+                .label(tr("Samples"))
+                .range(1, 256)
+                .size(ui)
+                .x,
+            NumberField::new(ID.with(14), &mut self.locked)
+                .label(tr("Locked"))
+                .size(ui)
+                .x,
+        ];
+        let [width, opacity, frequency, samples, locked] =
+            layout::row_fitting(line, gap, naturals.map(|natural| (Track::Fit, natural)));
         let numbers = [
             NumberField::new(ID.with(10), &mut self.width)
                 .label(tr("Width"))
                 .unit(&MILLIMETER)
-                .show(ui, cut_left(&mut line, fifth, gap))
+                .show(ui, width)
                 .ended,
             NumberField::new(ID.with(11), &mut self.opacity)
                 .label(tr("Opacity"))
                 .range(0.0, 1.0)
                 .bar(BarMapping::Linear)
-                .show(ui, cut_left(&mut line, fifth, gap))
+                .show(ui, opacity)
                 .ended,
             NumberField::new(ID.with(12), &mut self.frequency)
                 .label(tr("Frequency"))
@@ -111,17 +141,17 @@ impl Fields {
                 .decimals(0)
                 .step(10.0)
                 .bar(BarMapping::Logarithmic)
-                .show(ui, cut_left(&mut line, fifth, gap))
+                .show(ui, frequency)
                 .ended,
             NumberField::new(ID.with(13), &mut self.samples)
                 .label(tr("Samples"))
                 .range(1, 256)
-                .show(ui, cut_left(&mut line, fifth, gap))
+                .show(ui, samples)
                 .ended,
             NumberField::new(ID.with(14), &mut self.locked)
                 .label(tr("Locked"))
                 .enabled(false)
-                .show(ui, line)
+                .show(ui, locked)
                 .ended,
         ];
         // Step buttons: on a field that has none by default, and off one that has them.

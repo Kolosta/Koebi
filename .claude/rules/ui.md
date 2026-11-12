@@ -15,3 +15,9 @@ paths:
 - Values come from component tokens through `Styles`; texts through `koebi_i18n`.
 - Text measured or drawn every frame goes through the line cache (`Ui::text_width`,
   `Ui::label`): never shape the same line twice a frame.
+- Text fits by construction: widths from measured texts and component sizes
+  (`Ui::text_width`, `*::size`, `layout::row_fitting`), sentences wrapped (`Ui::paragraph`),
+  in English, French and Japanese alike; never a fixed fraction of a width for a label.
+- A cut label shows its whole text in a tooltip by itself; choose `Ui::label_with` and an
+  `Overflow` when an ellipsis is not the right way. Screens get a test on
+  `UiState::truncated_labels` at their default size in every language.

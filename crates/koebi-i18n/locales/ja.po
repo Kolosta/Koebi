@@ -568,14 +568,6 @@ msgid "Cannot change here"
 msgstr "ここでは変更できません"
 
 #: apps/koebi/src/gallery/colors.rs
-msgid "How the left half of the fields shows transparency"
-msgstr "フィールドの左半分での透明度の表示方法"
-
-#: apps/koebi/src/gallery/colors.rs
-msgid "How the right half of the fields shows transparency"
-msgstr "フィールドの右半分での透明度の表示方法"
-
-#: apps/koebi/src/gallery/colors.rs
 msgid "Title"
 msgstr "タイトル"
 
@@ -586,6 +578,14 @@ msgstr "パレット"
 #: apps/koebi/src/gallery/colors.rs
 msgid "Values first"
 msgstr "値を先に表示"
+
+#: apps/koebi/src/gallery/colors.rs
+msgid "How the left half of the fields shows transparency"
+msgstr "フィールドの左半分での透明度の表示方法"
+
+#: apps/koebi/src/gallery/colors.rs
+msgid "How the right half of the fields shows transparency"
+msgstr "フィールドの右半分での透明度の表示方法"
 
 #: apps/koebi/src/gallery/colors.rs
 msgid "As a dropdown"
@@ -998,12 +998,12 @@ msgid "Strength"
 msgstr "強さ"
 
 #: apps/koebi/src/settings/colors.rs
-msgid "Hue palettes"
-msgstr "色相パレット"
-
-#: apps/koebi/src/settings/colors.rs
 msgid "One color makes a palette: its steps keep their contrast."
 msgstr "1色からパレットを作ります。各段階のコントラストは保たれます。"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Hue palettes"
+msgstr "色相パレット"
 
 #: apps/koebi/src/settings/colors.rs
 msgid "This theme"
@@ -1016,6 +1016,10 @@ msgstr "すべてのテーマ"
 #: apps/koebi/src/settings/colors.rs
 msgid "Back to the theme's own palette"
 msgstr "テーマ本来のパレットに戻す"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Step {step}: {contrast}:1 against the background, {color}"
+msgstr "段階 {step}：背景とのコントラスト {contrast}:1、{color}"
 
 #: apps/koebi/src/settings/colors.rs
 #: crates/koebi-ui/src/widgets/theme_card.rs
@@ -1300,10 +1304,6 @@ msgid ""
 msgstr "各コンポーネントの動作、状態、試せる見本、ショートカット、トークンです。"
 
 #: apps/koebi/src/settings/dev.rs
-msgid "Diagnostics"
-msgstr "診断"
-
-#: apps/koebi/src/settings/dev.rs
 msgid "Show the frame times"
 msgstr "フレーム時間を表示"
 
@@ -1312,6 +1312,10 @@ msgid ""
 "Frames per second, CPU and GPU time of a frame, above the status "
 "bar. F12 too."
 msgstr "毎秒のフレーム数と、1フレームのCPU時間・GPU時間をステータスバーの上に表示します。F12キーでも切り替えられます。"
+
+#: apps/koebi/src/settings/dev.rs
+msgid "Diagnostics"
+msgstr "診断"
 
 #: apps/koebi/src/settings/icons.rs
 msgid "Cursors"

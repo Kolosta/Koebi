@@ -75,13 +75,13 @@ impl Harness {
 
     /// The middle of the button at `index` of the row below the graph: "Add key", then
     /// "Remove key".
+    /// The middle of the button at `index`: two squares the row's height wide, add then
+    /// remove.
     fn button(&self, index: usize) -> Vec2 {
         let style = self.styles.curve_editor;
-        let gap = self.styles.property_group.column_gap;
-        let width = ((WIDTH - gap) * 0.5).floor();
         let row = self.styles.number_field.height;
         let y = ORIGIN.y + style.graph_height + self.styles.property_group.row_gap + row * 0.5;
-        Vec2::new(ORIGIN.x + width * (0.25 + 0.5 * index as f32), y)
+        Vec2::new(ORIGIN.x + row * (0.5 + index as f32), y)
     }
 
     fn press(&mut self, at: Vec2) -> bool {

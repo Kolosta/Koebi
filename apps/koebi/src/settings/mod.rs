@@ -233,8 +233,25 @@ impl SettingsView {
             self.inputs = inputs::InputsPage::new();
             self.keymaps.language_changed();
         }
-        let width = design.get(component::SIDE_PANEL_WIDTH_DEFAULT);
         let margin = ui.whole_pixels(design.get(component::SIDE_PANEL_MARGIN_DEFAULT));
+        // At least the token's width, as wide as the widest page's button: no name is cut in
+        // any language. Half the window at most, the page keeping its room.
+        let widest = shown_groups()
+            .iter()
+            .flat_map(|pages| pages.iter())
+            .map(|page| {
+                Button::new(ID)
+                    .label(page.title())
+                    .leading_icon(page.icon())
+                    .align(Align::Start)
+                    .size(ui)
+                    .x
+            })
+            .fold(0.0_f32, f32::max);
+        let width = design
+            .get(component::SIDE_PANEL_WIDTH_DEFAULT)
+            .max(ui.whole_pixels(widest + 2.0 * margin))
+            .min((rect.width() * 0.5).max(0.0));
         let column = Rect::from_min_max(
             rect.min,
             Vec2::new((rect.min.x + width).min(rect.max.x), rect.max.y),
@@ -386,6 +403,11 @@ pub(crate) mod tests {
                 input: Input::new(),
                 time: 0,
             }
+        }
+
+        /// The labels the last frame cut short.
+        pub(crate) fn cut_labels(&self) -> Vec<String> {
+            self.state.truncated_labels().map(str::to_owned).collect()
         }
 
         pub(super) fn window() -> Rect {
@@ -739,6 +761,35 @@ pub(crate) mod tests {
             harness.click(at);
             assert_eq!(harness.settings.page(), page);
             harness.settle();
+        }
+    }
+
+    #[test]
+    fn no_page_cuts_a_label_at_the_window_s_size_in_any_language() {
+        // Widths come from what the labels measure, in every language: the window as it
+        // opens cuts nothing (what a narrower one cuts shows whole in a tooltip).
+        let pages = [
+            Page::General,
+            Page::Language,
+            Page::Theme,
+            Page::Customisation,
+            Page::Accessibility,
+            Page::Inputs,
+            Page::Keymaps,
+            Page::Navigation,
+            Page::Icons,
+            Page::Dev,
+        ];
+        for language in koebi_i18n::languages() {
+            koebi_i18n::with_language(language, || {
+                for page in pages {
+                    let mut harness = Harness::new();
+                    harness.settings.page = page;
+                    harness.settle();
+                    let cut = harness.cut_labels();
+                    assert!(cut.is_empty(), "{} {page:?}: {cut:?}", language.code());
+                }
+            });
         }
     }
 }

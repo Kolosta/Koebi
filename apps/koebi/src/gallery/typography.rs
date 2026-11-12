@@ -13,7 +13,7 @@ use koebi_text::system::SystemFont;
 use koebi_text::{Align as TextAlign, Features, Paragraph, TextBlock, TextStyle};
 use koebi_ui::{
     Align, BarMapping, Button, ButtonGroup, Dropdown, GroupCell, MenuItem, MenuState, NumberField,
-    PanelLevel, Track, Ui, WidgetId,
+    Overflow, PanelLevel, Track, Ui, WidgetId,
 };
 
 use super::{Metrics, cut_left, cut_top};
@@ -151,12 +151,11 @@ impl Typography {
         } else {
             tr("List system fonts")
         };
-        if Button::new(ID.with(2))
+        let button = Button::new(ID.with(2))
             .label(label)
-            .enabled(self.system.is_none())
-            .show(ui, cut_left(&mut line, 6.0 * row, gap))
-            .clicked
-        {
+            .enabled(self.system.is_none());
+        let width = button.size(ui).x;
+        if button.show(ui, cut_left(&mut line, width, gap)).clicked {
             self.system = Some(koebi_text::system::scan());
         }
         ui.tooltip(
@@ -269,12 +268,15 @@ impl Typography {
         }
         let secondary = ui.styles().text.secondary;
         let detail = ui.styles().text.detail.clone();
-        ui.label(
+        ui.label_with(
             tr("Drawn from the glyphs' curves: any size, any turn."),
             line,
             &detail,
             secondary,
             Align::End,
+            Overflow::Shrink {
+                min_size: detail.size * 0.8,
+            },
         );
 
         // The preview: the block on the panel's background, cut at its edges.
