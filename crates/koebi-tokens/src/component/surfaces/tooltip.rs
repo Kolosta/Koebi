@@ -8,10 +8,11 @@ use koebi_design::define::*;
 koebi_design::tokens! {
     group TOOLTIP: Component, start = MENU::END;
 
-    /// Tooltip: background color, the window's own background: in the theme's colors, deeper
-    /// than the panels, controls and menus it covers, so that it stands out from them.
+    /// Tooltip: background color, the deepest surface: below the panels, the menus and the
+    /// hovered control it covers (a tooltip opens over the control under the pointer), so that
+    /// it stands out from each of them.
     TOOLTIP_BACKGROUND_COLOR_DEFAULT = "tooltip.background.color.default": Color ->
-        semantic::BACKGROUND_BASE_DEFAULT;
+        semantic::BACKGROUND_SUNKEN_DEFAULT;
     /// Tooltip: label color.
     TOOLTIP_LABEL_COLOR_DEFAULT = "tooltip.label.color.default": Color ->
         semantic::TEXT_COLOR_PRIMARY_DEFAULT;
