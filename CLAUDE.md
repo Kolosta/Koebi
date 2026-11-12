@@ -20,13 +20,14 @@ Vulkan surface. Performance, precise color control and a clean architecture are 
 3. **Done means verified**: run `/check` (or `cargo xtask ci`) before saying a task is finished.
    New behaviour ships with tests at the right level (see Testing); a bug fix starts with a
    failing regression test.
-4. **Unsafe**: allowed only in `koebi-gpu`, `koebi-platform` and FFI glue. Every `unsafe` block
-   has a `// SAFETY:` comment stating why its invariants hold. Safe public APIs must make
-   undefined behaviour impossible.
+4. **Unsafe**: allowed only in `koebi-gpu`, `koebi-platform`, FFI glue and the test-only counting
+   allocator of `koebi-testkit` (ADR 0026). Every `unsafe` block has a `// SAFETY:` comment
+   stating why its invariants hold. Safe public APIs must make undefined behaviour impossible.
 5. **Errors, not panics**: library code returns `Result` with its crate's `Error` type.
    `unwrap()` only in tests; `expect("why this cannot fail")` only for real invariants.
 6. **Hot paths**: no allocation per frame (reuse buffers, `Scene::clear`), no hidden GPU waits
-   (`wait_idle`, `submit_and_wait`) outside init, resize and teardown.
+   (`wait_idle`, `submit_and_wait`) outside init, resize and teardown. Tests count the
+   allocations of steady frames (`koebi_testkit::allocations`): a new screen gets one.
 7. **Language**: answer the user in the language they write in; write code, comments, docs,
    commits and PRs in English.
 

@@ -20,7 +20,9 @@ paths:
 - Casts: prefer `From`/`TryFrom`; an `as` cast that can truncate needs a local
   `#[allow(clippy::cast_possible_truncation, reason = "...")]` explaining why it cannot.
 - Lints: fix warnings, do not silence them. Every `#[allow]` carries `reason = "..."`.
-- Performance: no allocation in per-frame paths (reuse `Vec`s with `clear()`), pass small
+- Performance: no allocation in per-frame paths (reuse `Vec`s with `clear()`; data derived
+  the same way every frame, such as token ids from paths, is found once and kept); a steady
+  frame's allocations are counted by tests (`koebi_testkit::allocations`). Pass small
   `Copy` types by value, avoid `clone()` of buffers, prefer slices over `Vec` parameters.
 - Docs: every public item documented; fallible functions have `# Errors`, panicking ones
   `# Panics`, unsafe ones `# Safety`. Examples in docs must compile (doctests run in CI).

@@ -5,10 +5,12 @@ These rules apply to humans and AI agents alike. Claude Code loads the same rule
 
 ## Principles
 
-1. **Performance by design**: no allocation in per-frame paths, no hidden GPU waits, data laid
-   out for the GPU (instancing, batching).
+1. **Performance by design**: no allocation in per-frame paths (tests count them, see
+   [Testing](testing.md#allocations-per-frame)), no hidden GPU waits, data laid out for the GPU
+   (instancing, batching).
 2. **Safety at the boundary**: `unsafe` lives in `koebi-gpu`, `koebi-platform` and FFI glue,
-   behind safe APIs that make undefined behaviour impossible.
+   behind safe APIs that make undefined behaviour impossible; the only other `unsafe` is the
+   test-only counting allocator of `koebi-testkit` ([ADR 0026](../adr/0026-counting-allocations-in-tests.md)).
 3. **Explicit over clever**: small modules with one concept each, readable names, comments that
    explain *why*.
 4. **Two runtime dependencies**: `ash` and `sdl3-sys` ([ADR 0003](../adr/0003-minimal-dependencies.md)).

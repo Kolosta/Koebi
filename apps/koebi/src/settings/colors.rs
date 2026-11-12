@@ -18,9 +18,9 @@ use koebi_i18n::tr;
 
 use koebi_core::palette::HUE_STEPS;
 use koebi_core::{Color, Rect, Vec2};
-use koebi_design::{DesignSystem, Layers, ThemeId};
+use koebi_design::{DesignSystem, ThemeId};
 use koebi_render::RectPrimitive;
-use koebi_tokens::palettes::{self, Editable, Family, NEUTRAL_STEPS};
+use koebi_tokens::palettes::{self, Editable, Family, NEUTRAL_STEPS, PaletteTokens};
 use koebi_tokens::semantic;
 use koebi_ui::{
     Align, Button, ButtonGroup, CollapsiblePanel, CollapsiblePanelState, ColorField,
@@ -38,6 +38,9 @@ const MAIN: usize = 6;
 #[derive(Debug)]
 pub(super) struct ColorsSection {
     palettes: Vec<Editable>,
+    /// The tokens of each palette, found once in the design system: frames read them without
+    /// writing their paths (`None` for a palette missing from the schema, not shown).
+    tokens: Vec<Option<PaletteTokens>>,
     fields: Vec<ColorFieldState>,
     /// The palettes' contrast labels, written again when the design system changes.
     labels: Vec<[String; 16]>,
@@ -74,6 +77,7 @@ impl ColorsSection {
         Self {
             fields: palettes.iter().map(|_| ColorFieldState::new()).collect(),
             labels: palettes.iter().map(|_| Default::default()).collect(),
+            tokens: Vec::new(),
             palettes,
             revision: None,
             every_theme: false,
@@ -83,13 +87,13 @@ impl ColorsSection {
         }
     }
 
-    /// The themes a change applies to.
-    fn themes(&self, design: &DesignSystem) -> Vec<ThemeId> {
-        if self.every_theme {
-            design.themes().map(|(id, _)| id).collect()
-        } else {
-            vec![design.active_theme()]
-        }
+    /// The themes a change applies to: every theme, or the active one.
+    fn themes<'d>(&self, design: &'d DesignSystem) -> impl Iterator<Item = ThemeId> + 'd {
+        let (every, active) = (self.every_theme, design.active_theme());
+        design
+            .themes()
+            .map(|(id, _)| id)
+            .filter(move |&id| every || id == active)
     }
 
     /// Writes the contrast of every step of every palette with the active theme's background.
@@ -98,9 +102,17 @@ impl ColorsSection {
             return;
         }
         self.revision = Some(design.revision());
+        if self.tokens.len() != self.palettes.len() {
+            self.tokens = self
+                .palettes
+                .iter()
+                .map(|palette| palette.tokens(design))
+                .collect();
+        }
         let background = design.get(semantic::BACKGROUND_BASE_DEFAULT);
-        for (palette, labels) in self.palettes.iter().zip(&mut self.labels) {
-            for (label, color) in labels.iter_mut().zip(steps(design, palette)) {
+        for (tokens, labels) in self.tokens.iter().zip(&mut self.labels) {
+            let Some(tokens) = tokens else { continue };
+            for (label, color) in labels.iter_mut().zip(tokens.steps(design)) {
                 label.clear();
                 let ratio = color.contrast_ratio(background);
                 let _ = if ratio < 10.0 {
@@ -279,21 +291,24 @@ impl ColorsSection {
         layout: RowLayout,
     ) {
         let palette = self.palettes[index];
+        let Some(tokens) = self.tokens.get(index).copied().flatten() else {
+            return;
+        };
         let id = ID.with(100 + index as u64 * 4);
         let row = ui.styles().button.height;
         let gap = ui.styles().property_group.row_gap;
         let active = design.active_theme();
-        let themes = self.themes(design);
         // The reset dot, beside the name: the palette shows other colors than the theme's own.
-        let changed = themes
-            .iter()
-            .any(|&theme| palettes::is_changed(design, theme, &palette));
+        let changed = self
+            .themes(design)
+            .any(|theme| tokens.is_changed(design, theme));
         let dot = Rect::from_origin_size(rect.min, Vec2::splat(row));
         if changed
             && ui
                 .reset_dot(id.with(1), dot, tr("Back to the theme's own palette"))
                 .clicked
         {
+            let themes: Vec<ThemeId> = self.themes(design).collect();
             for &theme in &themes {
                 if let Err(error) = palettes::reset(design, theme, &palette) {
                     koebi_core::warn!("cannot reset the {} palette: {error}", palette.key);
@@ -320,19 +335,8 @@ impl ColorsSection {
             Vec2::new(name.max.x + gap, rect.min.y),
             Vec2::new(layout.field, row),
         );
-        let mut color = palettes::source(design, active, &palette).unwrap_or(Color::BLACK);
-        let own = design
-            .view(active, Layers::THEME)
-            .and_then(|view| {
-                design
-                    .find(&palette.source_path())
-                    .and_then(|token| view.value(token))
-            })
-            .and_then(|value| match value {
-                koebi_design::value::Value::Color(color) => Some(color),
-                _ => None,
-            })
-            .unwrap_or(color);
+        let mut color = tokens.source(design, active).unwrap_or(Color::BLACK);
+        let own = tokens.own_source(design, active).unwrap_or(color);
         // A palette is made from an opaque color: no opacity to edit.
         if ColorField::new(id.with(2), &mut color, &mut self.fields[index])
             .dropdown(true)
@@ -342,6 +346,7 @@ impl ColorsSection {
             .show(ui, field, bounds)
             .changed
         {
+            let themes: Vec<ThemeId> = self.themes(design).collect();
             for &theme in &themes {
                 if let Err(error) = palettes::seed(design, theme, &palette, color) {
                     koebi_core::warn!("cannot make the {} palette: {error}", palette.key);
@@ -359,7 +364,7 @@ impl ColorsSection {
             ),
         );
         let background = design.get(semantic::BACKGROUND_BASE_DEFAULT);
-        let steps = steps(design, &palette);
+        let steps = tokens.steps(design);
         ui.scene()
             .push_rect(&RectPrimitive::new(strip, background).with_corner_radius(row * 0.2));
         let width = strip.width() / steps.len().max(1) as f32;
@@ -424,19 +429,6 @@ impl ColorsSection {
         let at = Vec2::new(strip.max.x + gap, rect.min.y);
         samples_of(ui, at, row, gap, design, &palette, &steps);
     }
-}
-
-/// The steps of `palette` in the active theme.
-fn steps(design: &DesignSystem, palette: &Editable) -> Vec<Color> {
-    palette
-        .step_paths()
-        .iter()
-        .filter_map(|path| design.find(path))
-        .filter_map(|token| match design.value(token) {
-            Some(koebi_design::value::Value::Color(color)) => Some(*color),
-            _ => None,
-        })
-        .collect()
 }
 
 /// What the palette's main steps hold, from `at`: a fill with its content (step 900 and the

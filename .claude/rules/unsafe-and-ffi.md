@@ -2,6 +2,7 @@
 paths:
   - "crates/koebi-gpu/**/*.rs"
   - "crates/koebi-platform/**/*.rs"
+  - "crates/koebi-testkit/src/alloc.rs"
   - "apps/koebi/src/lib.rs"
 ---
 
@@ -20,6 +21,9 @@ paths:
   truncating. Read returned C strings immediately (`CStr::from_ptr(..).to_string_lossy()`).
 - `#[repr(C)]` structs uploaded to the GPU implement `koebi_gpu::Pod` with a `// SAFETY:`
   comment and a `const _: () = assert!(size_of::<T>() == N);` padding check.
+- Outside `koebi-gpu`, `koebi-platform` and FFI glue, the only `unsafe` is the counting
+  allocator of `koebi-testkit` (ADR 0026), installed by test binaries alone. Never install it
+  in the application.
 - `transmute` only between function pointers of identical signatures (loader symbols), with a
   `// SAFETY:` citing the specification.
 - Edition 2024: `extern` blocks are `unsafe extern "C" { }`, exported symbols use

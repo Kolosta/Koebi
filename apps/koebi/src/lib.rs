@@ -9,6 +9,12 @@
 //! Until Koebi has editors, the window shows the design system gallery: theme cards, every
 //! component, a token editor, the color vision modes and a grid of components.
 
+/// The unit tests count the allocations of a frame (`koebi_testkit::allocations`): a steady
+/// frame makes none.
+#[cfg(test)]
+#[global_allocator]
+static ALLOCATOR: koebi_testkit::CountingAllocator = koebi_testkit::CountingAllocator;
+
 mod actions;
 mod app;
 mod app_icon;

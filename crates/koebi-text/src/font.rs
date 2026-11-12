@@ -65,10 +65,10 @@ pub struct Font {
     gpos: Option<Range<usize>>,
     gsub: Option<Range<usize>>,
     kern: Option<Range<usize>>,
-    /// The `GPOS` lookups of the `kern` feature.
-    kerning_lookups: Vec<u16>,
-    /// The `GSUB` lookups of the `liga` and `clig` features.
-    ligature_lookups: Vec<u16>,
+    /// The `GPOS` pair adjustment subtables of the `kern` feature, in lookup order.
+    kerning_subtables: Vec<usize>,
+    /// The `GSUB` ligature subtables of the `liga` and `clig` features, in lookup order.
+    ligature_subtables: Vec<usize>,
 }
 
 impl Font {
@@ -171,13 +171,14 @@ impl Font {
         let gpos = directory.find(&data, Tag::GPOS)?;
         let gsub = directory.find(&data, Tag::GSUB)?;
         let kern = directory.find(&data, Tag::KERN)?;
-        let kerning_lookups = gpos
+        // Pair adjustments (type 2, extension 9) and ligatures (type 4, extension 7).
+        let kerning_subtables = gpos
             .clone()
-            .map(|range| crate::otl::feature_lookups(&data[range], &[*b"kern"]))
+            .map(|range| crate::otl::feature_subtables(&data[range], &[*b"kern"], 2, 9))
             .unwrap_or_default();
-        let ligature_lookups = gsub
+        let ligature_subtables = gsub
             .clone()
-            .map(|range| crate::otl::feature_lookups(&data[range], &[*b"liga", *b"clig"]))
+            .map(|range| crate::otl::feature_subtables(&data[range], &[*b"liga", *b"clig"], 4, 7))
             .unwrap_or_default();
         let family = directory
             .find(&data, Tag::NAME)?
@@ -201,8 +202,8 @@ impl Font {
             gpos,
             gsub,
             kern,
-            kerning_lookups,
-            ligature_lookups,
+            kerning_subtables,
+            ligature_subtables,
         };
         let mut ascii = [0; 128];
         for (code, glyph) in (0_u32..).zip(&mut ascii) {
@@ -250,11 +251,11 @@ impl Font {
     /// adjustment, else the `kern` table's; 0 without one.
     pub fn kerning(&self, left: GlyphId, right: GlyphId) -> i16 {
         if let Some(gpos) = &self.gpos
-            && !self.kerning_lookups.is_empty()
+            && !self.kerning_subtables.is_empty()
         {
             return crate::otl::gpos_kerning(
                 &self.data[gpos.clone()],
-                &self.kerning_lookups,
+                &self.kerning_subtables,
                 left.0,
                 right.0,
             )
@@ -268,14 +269,14 @@ impl Font {
 
     /// `true` when the font kerns pairs (a `kern` feature or table).
     pub fn has_kerning(&self) -> bool {
-        !self.kerning_lookups.is_empty() || self.kern.is_some()
+        !self.kerning_subtables.is_empty() || self.kern.is_some()
     }
 
     /// The ligature (`liga` and `clig` features) the glyphs of `run` start with: the ligature
     /// glyph and how many glyphs of the run it replaces.
     pub fn ligature(&self, run: &[GlyphId]) -> Option<(GlyphId, usize)> {
         let gsub = self.gsub.as_ref()?;
-        if self.ligature_lookups.is_empty() || run.len() < 2 {
+        if self.ligature_subtables.is_empty() || run.len() < 2 {
             return None;
         }
         let mut glyphs = [0_u16; 8];
@@ -285,7 +286,7 @@ impl Font {
         }
         crate::otl::ligature(
             &self.data[gsub.clone()],
-            &self.ligature_lookups,
+            &self.ligature_subtables,
             &glyphs[..len],
         )
         .filter(|&(glyph, _)| glyph < self.glyph_count)

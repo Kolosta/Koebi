@@ -335,21 +335,32 @@ fn accent_rows(
     let Some(palette) = palettes::editable().find(|palette| palette.key == "accent") else {
         return;
     };
+    // Its tokens, found once: frames read them without writing their paths.
+    if gallery.accent_tokens.is_none() {
+        gallery.accent_tokens = palette.tokens(design);
+    }
+    let Some(tokens) = gallery.accent_tokens else {
+        return;
+    };
     let active = design.active_theme();
-    let themes: Vec<ThemeId> = if gallery.scope == Scope::Global {
-        design.themes().map(|(theme, _)| theme).collect()
-    } else {
-        vec![active]
+    let every = gallery.scope == Scope::Global;
+    // The themes a change applies to, listed only for a change.
+    let themes = |design: &DesignSystem| -> Vec<ThemeId> {
+        design
+            .themes()
+            .map(|(theme, _)| theme)
+            .filter(|&theme| every || theme == active)
+            .collect()
     };
     // Follow changes made elsewhere: a theme switch, a reset, the settings.
-    let current = palettes::source(design, active, &palette).unwrap_or(Color::BLACK);
+    let current = tokens.source(design, active).unwrap_or(Color::BLACK);
     if gallery.accent_source != Some(current) {
         gallery.accent = current.to_oklch();
         gallery.accent_source = Some(current);
     }
-    let changed_palette = themes
-        .iter()
-        .any(|&theme| palettes::is_changed(design, theme, &palette));
+    let changed_palette = design
+        .themes()
+        .any(|(theme, _)| (every || theme == active) && tokens.is_changed(design, theme));
     let frame = design.get(semantic::BORDER_COLOR_DEFAULT);
     let mut accent = gallery.accent;
     let (mut changed, mut cleared) = (false, false);
@@ -373,14 +384,14 @@ fn accent_rows(
             .changed;
     }
     let result = if cleared {
-        themes
-            .iter()
-            .try_for_each(|&theme| palettes::reset(design, theme, &palette))
+        themes(design)
+            .into_iter()
+            .try_for_each(|theme| palettes::reset(design, theme, &palette))
     } else if changed {
         gallery.accent = accent;
-        themes
-            .iter()
-            .try_for_each(|&theme| palettes::seed(design, theme, &palette, accent.to_color()))
+        themes(design)
+            .into_iter()
+            .try_for_each(|theme| palettes::seed(design, theme, &palette, accent.to_color()))
     } else {
         Ok(())
     };
@@ -389,7 +400,7 @@ fn accent_rows(
     }
     if changed {
         // What the source holds now: the fields keep the channels they show.
-        gallery.accent_source = palettes::source(design, active, &palette);
+        gallery.accent_source = tokens.source(design, active);
     }
 }
 

@@ -416,12 +416,20 @@ pub(crate) mod tests {
 
         pub(crate) fn frame(&mut self) -> Scene {
             let mut scene = Scene::new();
+            self.frame_into(&mut scene);
+            scene
+        }
+
+        /// A frame drawn into `scene`, cleared first: as the application does, keeping the
+        /// scene's storage from frame to frame.
+        pub(crate) fn frame_into(&mut self, scene: &mut Scene) {
+            scene.clear();
             self.time += 16;
             self.input
                 .set_time(core::time::Duration::from_millis(self.time));
             {
                 let styles = self.styles.update(&self.design, self.state.scale_factor());
-                let mut ui = Ui::new(&mut scene, styles, &self.input, &mut self.state);
+                let mut ui = Ui::new(scene, styles, &self.input, &mut self.state);
                 self.settings.show(
                     &mut ui,
                     Self::window(),
@@ -432,7 +440,6 @@ pub(crate) mod tests {
                 );
             }
             self.input.end_frame();
-            scene
         }
 
         /// Frames until what changed has settled: heights and animations.
@@ -791,5 +798,35 @@ pub(crate) mod tests {
                 }
             });
         }
+    }
+
+    /// Koebi's rule for hot paths (CLAUDE.md): once a page has settled, its frames allocate
+    /// nothing. The test binary counts allocations (`koebi_testkit::CountingAllocator`), so a
+    /// `format!`, a collected `Vec` or a cloned `String` in a frame fails here.
+    #[test]
+    fn no_page_allocates_in_a_steady_frame() {
+        let mut failures = Vec::new();
+        for &page in GROUPS.iter().flat_map(|pages| pages.iter()) {
+            let mut harness = Harness::new();
+            harness.settings.page = page;
+            let mut scene = Scene::new();
+            // Still, then with the pointer over the page, where hovers and tooltips show.
+            for pointer in [None, Some(Vec2::new(600.0, 300.0))] {
+                if let Some(at) = pointer {
+                    harness.input.pointer_moved(at);
+                }
+                for _ in 0..10 {
+                    harness.frame_into(&mut scene);
+                }
+                let (count, ()) = koebi_testkit::allocations(|| harness.frame_into(&mut scene));
+                if count > 0 {
+                    failures.push(format!("{page:?} (pointer {pointer:?}): {count}"));
+                }
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "allocations in steady frames: {failures:#?}"
+        );
     }
 }

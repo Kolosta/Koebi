@@ -54,6 +54,21 @@ pub(crate) fn feature_lookups(table: &[u8], tags: &[[u8; 4]]) -> Vec<u16> {
     lookups
 }
 
+/// The subtables of type `kind` (`extension` the extension lookup type) of the features
+/// `tags`, in lookup order: resolved once, when the font loads, so that a kerning pair or a
+/// ligature reads them without walking the lookup list, and without allocating.
+pub(crate) fn feature_subtables(
+    table: &[u8],
+    tags: &[[u8; 4]],
+    kind: u16,
+    extension: u16,
+) -> Vec<usize> {
+    feature_lookups(table, tags)
+        .into_iter()
+        .flat_map(|lookup| subtables(table, lookup, kind, extension))
+        .collect()
+}
+
 /// The offset of the default language system to use, from the script list at `scripts`.
 fn default_lang_sys(table: &[u8], scripts: usize) -> Option<usize> {
     let count = usize::from(u16_at(table, scripts)?);
@@ -195,16 +210,17 @@ fn x_advance(table: &[u8], at: usize, format: u16) -> Option<i16> {
     i16_at(table, at + 2 * (format & 0x0003).count_ones() as usize)
 }
 
-/// The kerning of the pair (`left`, `right`) in a `GPOS` table through `lookups`, in font units.
-pub(crate) fn gpos_kerning(table: &[u8], lookups: &[u16], left: u16, right: u16) -> Option<i16> {
-    for &lookup in lookups {
-        for subtable in subtables(table, lookup, 2, 9) {
-            if let Some(kern) = pair_pos(table, subtable, left, right) {
-                return Some(kern);
-            }
-        }
-    }
-    None
+/// The kerning of the pair (`left`, `right`) in a `GPOS` table, from its pair adjustment
+/// `subtables` ([`feature_subtables`]), in font units: the first that has the pair.
+pub(crate) fn gpos_kerning(
+    table: &[u8],
+    subtables: &[usize],
+    left: u16,
+    right: u16,
+) -> Option<i16> {
+    subtables
+        .iter()
+        .find_map(|&subtable| pair_pos(table, subtable, left, right))
 }
 
 fn pair_pos(table: &[u8], at: usize, left: u16, right: u16) -> Option<i16> {
@@ -278,18 +294,14 @@ pub(crate) fn kern_table(table: &[u8], left: u16, right: u16) -> Option<i16> {
     None
 }
 
-/// The ligature starting the glyphs of `run` in a `GSUB` table through `lookups`: the ligature
-/// glyph and how many glyphs it replaces (2 or more).
-pub(crate) fn ligature(table: &[u8], lookups: &[u16], run: &[u16]) -> Option<(u16, usize)> {
+/// The ligature starting the glyphs of `run` in a `GSUB` table, from its ligature
+/// `subtables` ([`feature_subtables`]): the ligature glyph and how many glyphs it replaces (2
+/// or more), from the first subtable that has one.
+pub(crate) fn ligature(table: &[u8], subtables: &[usize], run: &[u16]) -> Option<(u16, usize)> {
     let (&first, rest) = run.split_first()?;
-    for &lookup in lookups {
-        for subtable in subtables(table, lookup, 4, 7) {
-            if let Some(found) = ligature_subst(table, subtable, first, rest) {
-                return Some(found);
-            }
-        }
-    }
-    None
+    subtables
+        .iter()
+        .find_map(|&subtable| ligature_subst(table, subtable, first, rest))
 }
 
 fn ligature_subst(table: &[u8], at: usize, first: u16, rest: &[u16]) -> Option<(u16, usize)> {

@@ -199,3 +199,47 @@ impl<'a> MenuItem<'a> {
         }
     }
 }
+
+/// The items of a menu kept from frame to frame, whatever their labels borrow: a menu of names
+/// known only at run time (font families, files) fills this list each frame, in storage kept
+/// from the frames before, instead of collecting a new one (CLAUDE.md, *Hot paths*). Once the
+/// list stops growing, a frame costs no allocation.
+#[derive(Debug, Default)]
+pub struct MenuItems {
+    /// Empty between frames: only its allocation is kept.
+    storage: Vec<MenuItem<'static>>,
+}
+
+impl MenuItems {
+    /// An empty list, allocating nothing until it is filled.
+    pub const fn new() -> Self {
+        Self {
+            storage: Vec::new(),
+        }
+    }
+
+    /// Calls `show` with `items` in a slice, held in the kept storage; empties it afterwards.
+    pub fn with<'a, R>(
+        &mut self,
+        items: impl IntoIterator<Item = MenuItem<'a>>,
+        show: impl FnOnce(&[MenuItem<'a>]) -> R,
+    ) -> R {
+        let mut list = recycle(core::mem::take(&mut self.storage));
+        list.extend(items);
+        let result = show(&list);
+        self.storage = recycle(list);
+        result
+    }
+}
+
+/// An empty list of items borrowing for another lifetime, in the same storage: the items of
+/// both have the same layout, so collecting the emptied list's iterator reuses its allocation
+/// (`Vec`'s in-place collection; the tests check that nothing is allocated).
+#[allow(
+    clippy::unnecessary_filter_map,
+    reason = "the items change lifetime: `filter` would keep the old one"
+)]
+fn recycle<'b>(mut list: Vec<MenuItem<'_>>) -> Vec<MenuItem<'b>> {
+    list.clear();
+    list.into_iter().filter_map(|_| None).collect()
+}

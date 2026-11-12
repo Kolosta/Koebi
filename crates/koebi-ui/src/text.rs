@@ -439,4 +439,48 @@ mod tests {
         let letters = text.chars().filter(|c| !c.is_whitespace()).count();
         assert_eq!(scene.glyph_count(), letters);
     }
+
+    /// Paragraphs are laid out once and kept: drawn again, at any width, they allocate nothing
+    /// (the hot-path rule of CLAUDE.md, counted by `koebi_testkit::CountingAllocator`).
+    #[test]
+    fn a_paragraph_drawn_again_allocates_nothing() {
+        let styles = crate::test_styles();
+        let (mut scene, mut state, input) = (Scene::new(), UiState::new(), Input::new());
+        state.set_fonts(Fonts::with_embedded());
+        let font = styles.text.body.clone();
+        for text in [
+            "Frames per second, CPU and GPU time of a frame, above the status bar.",
+            "A message not translated yet shows in English: Koebi is written in English, the              other languages come from translators.",
+        ] {
+            for width in [2000.0, 300.0] {
+                let mut draw = || {
+                    scene.clear();
+                    let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+                    ui.paragraph(text, rect(0.0, 0.0, width, 200.0), &font, Color::WHITE);
+                };
+                for _ in 0..3 {
+                    draw();
+                }
+                let (count, ()) = koebi_testkit::allocations(draw);
+                assert_eq!(count, 0, "{width} px: {text}");
+            }
+        }
+    }
+
+    /// Shaping reads the font's kerning and ligature subtables, resolved when it loads: laying
+    /// a line out again, kerned pairs and ligatures included, allocates nothing.
+    #[test]
+    fn a_line_laid_out_again_allocates_nothing() {
+        let fonts = Fonts::with_embedded();
+        let font = fonts
+            .select(koebi_text::embedded::NOTO_SANS, 400)
+            .expect("embedded font");
+        let style = TextStyle::new(font, 14.0);
+        let mut line = TextLine::new();
+        for text in ["abcdefghij", "a b c d e f", "office affair", "AVAWAY Te"] {
+            line.layout(&fonts, text, &style);
+            let (count, ()) = koebi_testkit::allocations(|| line.layout(&fonts, text, &style));
+            assert_eq!(count, 0, "{text}");
+        }
+    }
 }

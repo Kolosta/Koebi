@@ -6,6 +6,8 @@
 //! - [`HeadlessGpu::render_offscreen`]: renders into a texture and reads the pixels back.
 //! - [`Image`] and [`assert_golden!`]: golden-image regression tests stored as PNG files,
 //!   which GitHub renders side by side in pull request diffs.
+//! - [`CountingAllocator`] and [`allocations`]: the allocations a frame makes, in a test binary
+//!   that installs the allocator (a steady frame makes none).
 //!
 //! Only ever use this crate from `[dev-dependencies]`.
 
@@ -18,12 +20,14 @@
     reason = "skips and blessings are reported on stderr"
 )]
 
+mod alloc;
 mod deflate;
 mod golden;
 mod gpu;
 mod image;
 mod png;
 
+pub use alloc::{CountingAllocator, allocations};
 pub use golden::{Tolerance, assert_golden_at};
 pub use gpu::{HeadlessGpu, gpu_or_skip, require_gpu};
 pub use image::{Image, ImageDiff};

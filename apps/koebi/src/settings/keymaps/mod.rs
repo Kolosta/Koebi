@@ -111,6 +111,9 @@ pub(super) struct KeymapsPage {
     choices: Choices,
     /// Reused to check an edit.
     conflicts: Vec<Conflict>,
+    /// Reused for the features of a zone and their actions, frame after frame.
+    zone_features: Vec<&'static koebi_input::ActionGroup>,
+    zone_actions: Vec<&'static ActionDef>,
 }
 
 impl KeymapsPage {
@@ -133,6 +136,8 @@ impl KeymapsPage {
             analysis: Analysis::default(),
             choices: Choices::new(),
             conflicts: Vec::new(),
+            zone_features: Vec::new(),
+            zone_actions: Vec::new(),
         }
     }
 
@@ -353,24 +358,27 @@ impl KeymapsPage {
     ) -> f32 {
         let mut y = rect.min.y;
         let gap = ui.styles().collapsible_panel.gap;
-        let groups = keymap.groups();
-        let features: Vec<&'static koebi_input::ActionGroup> = groups
-            .iter()
-            .copied()
-            .filter(|group| {
+        // The features with actions here, in a buffer kept by the page: taken out while the
+        // actions draw, put back before the zones inside reuse it.
+        let mut features = core::mem::take(&mut self.zone_features);
+        features.clear();
+        features.extend(keymap.groups().iter().copied().filter(|group| {
+            group
+                .actions
+                .iter()
+                .any(|action| action.context == context && self.found.shows(action.id))
+        }));
+        let several = features.len() > 1;
+        for &group in &features {
+            let mut actions = core::mem::take(&mut self.zone_actions);
+            actions.clear();
+            actions.extend(
                 group
                     .actions
                     .iter()
-                    .any(|action| action.context == context && self.found.shows(action.id))
-            })
-            .collect();
-        let several = features.len() > 1;
-        for group in features {
-            let actions = group
-                .actions
-                .iter()
-                .copied()
-                .filter(|action| action.context == context && self.found.shows(action.id));
+                    .copied()
+                    .filter(|action| action.context == context && self.found.shows(action.id)),
+            );
             let at = Rect::from_min_max(Vec2::new(rect.min.x, y), rect.max);
             if several {
                 let key = (context, group.name);
@@ -379,7 +387,6 @@ impl KeymapsPage {
                     .remove(&key)
                     .unwrap_or_else(|| CollapsiblePanelState::new(true));
                 let id = ID.with(context_key(context)).with(name_key(group.name));
-                let actions: Vec<&'static ActionDef> = actions.collect();
                 let shown = CollapsiblePanel::new(id, &mut state, tr(group.name)).show(
                     ui,
                     at,
@@ -388,10 +395,11 @@ impl KeymapsPage {
                 self.features.insert(key, state);
                 y += shown.height + gap;
             } else {
-                let actions: Vec<&'static ActionDef> = actions.collect();
                 y += self.actions_in(ui, at, &actions, design, keymap, bounds);
             }
+            self.zone_actions = actions;
         }
+        self.zone_features = features;
         for info in CONTEXTS
             .iter()
             .filter(|info| info.within == Within::Zone(context))
