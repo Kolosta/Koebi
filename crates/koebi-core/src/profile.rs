@@ -41,6 +41,10 @@ struct Recorder {
 }
 
 std::thread_local! {
+    #[allow(
+        clippy::missing_const_for_thread_local,
+        reason = "the initializer is const: clippy misreads the macro's expansion on Android"
+    )]
     static RECORDER: RefCell<Recorder> = const {
         RefCell::new(Recorder {
             scopes: Vec::new(),
