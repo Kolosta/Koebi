@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use koebi_design::DesignSystem;
 use koebi_design::persist::Store;
 use koebi_input::{Context, InputSettings, Keymap};
-use koebi_platform::{AppContext, AppError, exit_code};
+use koebi_platform::{AppContext, AppError, PlatformError, exit_code};
 use koebi_text::Fonts;
 use koebi_tokens::semantic;
 use koebi_ui::StyleCache;
@@ -62,23 +62,13 @@ impl Interface {
         options: &Options,
         fonts: Fonts,
     ) -> Result<(Self, Workspace, Editors), AppError> {
-        let mut design = DesignSystem::new(&koebi_tokens::KOEBI).map_err(|error| {
-            AppError::new(exit_code::FAILURE, format!("design system: {error}"))
-        })?;
-        let directory = data_directory(context, options);
-        let mut store = directory
-            .as_deref()
-            .map(|directory| open_store(directory, &mut design));
-        design_options::apply(&mut design, options)
-            .map_err(|message| AppError::new(exit_code::USAGE, message))?;
-        koebi_core::info!("{}", design_options::summary(&design));
+        let directory = data_directory(|| context.preferences_dir(), options);
+        let (design, mut store) = restored_design(directory.as_deref(), options)?;
         // Changes asked on the command line, an imported theme above all, are kept at once.
         if let Some(store) = &mut store {
             let result = store.save(&design);
             report_save(store, result);
         }
-        design_options::export(&design, options)
-            .map_err(|message| AppError::new(exit_code::FAILURE, message))?;
         let mut keymap = Keymap::new(&actions::GROUPS)
             .map_err(|error| AppError::new(exit_code::FAILURE, format!("shortcuts: {error}")))?;
         let mut preferences = directory
@@ -209,10 +199,43 @@ impl Interface {
 
 /// Where the design state, the workspace and the shortcuts are saved: the command line's
 /// directory, else the platform's preferences directory; `None` when there is none.
-fn data_directory(context: &AppContext, options: &Options) -> Option<PathBuf> {
+/// Writes the exports the command line asks for, from the saved design state with the command
+/// line's changes on top, and saves nothing: a command, run before SDL video starts (#85).
+///
+/// # Errors
+///
+/// A usage error for a change the design refuses, a failure for a file that cannot be written.
+pub(crate) fn export(options: &Options) -> Result<(), AppError> {
+    let directory = data_directory(koebi_platform::preferences_dir, options);
+    let (design, _) = restored_design(directory.as_deref(), options)?;
+    design_options::export(&design, options)
+        .map_err(|message| AppError::new(exit_code::FAILURE, message))
+}
+
+/// The design system with the state saved in `directory` restored, then the command line's
+/// changes applied; with the store it was restored from.
+fn restored_design(
+    directory: Option<&Path>,
+    options: &Options,
+) -> Result<(DesignSystem, Option<Store>), AppError> {
+    let mut design = DesignSystem::new(&koebi_tokens::KOEBI)
+        .map_err(|error| AppError::new(exit_code::FAILURE, format!("design system: {error}")))?;
+    let store = directory.map(|directory| open_store(directory, &mut design));
+    design_options::apply(&mut design, options)
+        .map_err(|message| AppError::new(exit_code::USAGE, message))?;
+    koebi_core::info!("{}", design_options::summary(&design));
+    Ok((design, store))
+}
+
+/// Where the design state is kept: the directory of `--data-dir`, else the platform's
+/// preferences directory, asked for only then (finding it creates it).
+fn data_directory(
+    preferences: impl FnOnce() -> Result<PathBuf, PlatformError>,
+    options: &Options,
+) -> Option<PathBuf> {
     match &options.data_dir {
         Some(directory) => Some(directory.clone()),
-        None => match context.preferences_dir() {
+        None => match preferences() {
             Ok(directory) => Some(directory),
             Err(error) => {
                 koebi_core::warn!("no preferences directory ({error}): changes will not be saved");

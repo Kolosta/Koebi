@@ -126,6 +126,10 @@ the file with every problem and its line if anything is wrong, activates the the
 the state at once. `--override` sets a global override: a value of the token's kind (`#rrggbb`
 colors, numbers with an optional `px` or `ms` unit) or an alias written `{path}`. `--export`
 writes the active theme (what it changes from the base theme, overrides included) once the
-other options are applied, and `--export-schema` every token with its base definition.
+other options are applied, and `--export-schema` every token with its base definition. Both are
+commands: they start from the saved design state, apply the other options, write their files
+and exit, without a window or a display. Nothing is saved, so
+`koebi --import a.tokens.json --export b.tokens.json` reads one file and writes the other
+without changing the saved state.
 `koebi --help` lists every option. The end-to-end tests (`apps/koebi/tests/e2e.rs`) use these options to check that the
 state survives a restart.

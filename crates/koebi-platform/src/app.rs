@@ -191,18 +191,7 @@ impl AppContext {
     ///
     /// Returns the SDL error when the directory cannot be found or created.
     pub fn preferences_dir(&self) -> Result<PathBuf, PlatformError> {
-        // SAFETY: both arguments are valid NUL-terminated strings.
-        let raw = unsafe { SDL_GetPrefPath(c"Kolosta".as_ptr(), c"Koebi".as_ptr()) };
-        if raw.is_null() {
-            return Err(PlatformError::from_sdl("SDL_GetPrefPath"));
-        }
-        // SAFETY: SDL returned a non-null, NUL-terminated UTF-8 string.
-        let path = unsafe { CStr::from_ptr(raw) }
-            .to_string_lossy()
-            .into_owned();
-        // SAFETY: the string was allocated by SDL for the caller and is not used afterwards.
-        unsafe { SDL_free(raw.cast()) };
-        Ok(PathBuf::from(path))
+        preferences_dir()
     }
 
     /// The languages the user prefers, best first, as the system lists them: `fr-FR`, `en`.
@@ -408,6 +397,29 @@ fn take_exit_code(fallback: c_int) -> i32 {
         UNSET => fallback,
         code => code,
     }
+}
+
+/// The directory where the application keeps its settings and user data, created if needed
+/// ([`AppContext::preferences_dir`]). It needs neither SDL's video nor an application running:
+/// commands of the command line read it before either starts (#85).
+///
+/// # Errors
+///
+/// Returns the SDL error when the directory cannot be found or created.
+pub fn preferences_dir() -> Result<PathBuf, PlatformError> {
+    // SAFETY: both arguments are valid NUL-terminated strings, and SDL_GetPrefPath needs no
+    // part of SDL initialized.
+    let raw = unsafe { SDL_GetPrefPath(c"Kolosta".as_ptr(), c"Koebi".as_ptr()) };
+    if raw.is_null() {
+        return Err(PlatformError::from_sdl("SDL_GetPrefPath"));
+    }
+    // SAFETY: SDL returned a non-null, NUL-terminated UTF-8 string.
+    let path = unsafe { CStr::from_ptr(raw) }
+        .to_string_lossy()
+        .into_owned();
+    // SAFETY: the string was allocated by SDL for the caller and is not used afterwards.
+    unsafe { SDL_free(raw.cast()) };
+    Ok(PathBuf::from(path))
 }
 
 /// Runs the application until it quits and returns the process exit code.

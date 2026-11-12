@@ -279,7 +279,8 @@ store.save(&design)?;                                      // an imported theme 
 
 The application does the same from the command line: `--import <FILE>` imports a theme,
 activates it and saves the state at once, `--export <FILE>` writes the active theme and
-`--export-schema <FILE>` every token (see the [gallery](gallery.md#command-line)).
+`--export-schema <FILE>` every token, then exit without opening a window or saving anything
+(see the [gallery](gallery.md#command-line)).
 
 An exported token looks like this:
 

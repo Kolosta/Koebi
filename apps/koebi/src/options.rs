@@ -41,9 +41,10 @@ pub struct Options {
     /// Design Tokens files to import as themes, in command-line order; the last one becomes
     /// the active theme unless `theme` names another.
     pub imports: Vec<PathBuf>,
-    /// File to write the active theme to, once the other options are applied.
+    /// File to write the active theme to, once the other options are applied: a command, which
+    /// exits without opening a window ([`Options::exports`]).
     pub export: Option<PathBuf>,
-    /// File to write every token to, with its base definition.
+    /// File to write every token to, with its base definition: a command, as `export` is.
     pub export_schema: Option<PathBuf>,
     /// What the window shows as when it opens.
     pub window_state: WindowState,
@@ -91,6 +92,12 @@ impl fmt::Display for ParseError {
 impl std::error::Error for ParseError {}
 
 impl Options {
+    /// Whether the command line asks for exports: Koebi then writes them and exits, without
+    /// opening a window, and saves nothing.
+    pub fn exports(&self) -> bool {
+        self.export.is_some() || self.export_schema.is_some()
+    }
+
     /// Whether the frame-time overlay is shown: as asked, or in debug builds.
     pub fn shows_frame_times(&self) -> bool {
         self.frame_times.unwrap_or(cfg!(debug_assertions))
@@ -117,8 +124,10 @@ Options:
                            simulate-achromatopsia, correct-protan, correct-deutan or
                            correct-tritan
   --import <FILE>          Import a theme from a Design Tokens (JSON) file and activate it
-  --export <FILE>          Write the active theme to FILE in the Design Tokens format
-  --export-schema <FILE>   Write every token, with its base definition, to FILE
+  --export <FILE>          Write the active theme to FILE in the Design Tokens format,
+                           then exit
+  --export-schema <FILE>   Write every token, with its base definition, to FILE, then
+                           exit
   --maximized              Open the window maximized
   --fullscreen             Open the window in fullscreen
   --open-window <WINDOW>   Open another window as well: floating, main or settings
@@ -129,6 +138,8 @@ Options:
   -V, --version            Print the version
 
 Design changes made with these options are saved as soon as the application starts.
+With --export or --export-schema, Koebi applies them to the saved design state, writes
+the files and exits without opening a window: nothing is saved, no display is needed.
 
 Environment:
   KOEBI_LOG=<level>        off, error, warn, info (default), debug, trace
@@ -398,6 +409,14 @@ mod tests {
         );
         assert_eq!(files.export, Some(PathBuf::from("out.json")));
         assert_eq!(files.export_schema, Some(PathBuf::from("schema.json")));
+        // Exports are commands: either one, and Koebi exits once they are written (#85).
+        assert!(files.exports());
+        assert!(
+            Options::parse(["--export-schema", "s.json"])
+                .unwrap()
+                .exports()
+        );
+        assert!(!Options::parse(["--import", "a.json"]).unwrap().exports());
         assert_eq!(Options::parse(["--fps"]).unwrap().frame_times, Some(true));
         assert_eq!(
             Options::parse(["--fps", "--no-fps"]).unwrap().frame_times,

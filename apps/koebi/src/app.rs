@@ -609,6 +609,14 @@ impl App for KoebiApp {
             }
             return Err(AppError::new(exit_code::SUCCESS, String::new()));
         }
+        // Exports are commands: written from the saved design state and the command line's
+        // changes, without a window or a display (#85).
+        if options.exports() {
+            return Err(match crate::interface::export(&options) {
+                Ok(()) => AppError::new(exit_code::SUCCESS, String::new()),
+                Err(error) => error,
+            });
+        }
         Ok(options)
     }
 

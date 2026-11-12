@@ -308,15 +308,11 @@ const SUNSET: &str = r##"{
 }"##;
 
 #[test]
-fn imported_themes_are_saved_and_exports_written() {
+fn imported_themes_are_saved() {
     let dir = data_dir("e2e-design-import");
     std::fs::create_dir_all(&dir).expect("writable target directory");
     let theme = dir.join("sunset.tokens.json");
     std::fs::write(&theme, SUNSET).expect("writable target directory");
-    let (export, schema) = (
-        dir.join("export.tokens.json"),
-        dir.join("schema.tokens.json"),
-    );
     let path = |path: &std::path::Path| path.to_str().expect("UTF-8 path").to_owned();
     let dir_arg = path(&dir);
     let first = run_koebi(
@@ -327,10 +323,6 @@ fn imported_themes_are_saved_and_exports_written() {
             &dir_arg,
             "--import",
             &path(&theme),
-            "--export",
-            &path(&export),
-            "--export-schema",
-            &path(&schema),
         ],
         Duration::from_secs(120),
     );
@@ -348,11 +340,6 @@ fn imported_themes_are_saved_and_exports_written() {
         "{}",
         first.stderr
     );
-    let exported = std::fs::read_to_string(&export).expect("the active theme was exported");
-    assert!(exported.contains("\"#ff7a3d\""), "{exported}");
-    let tokens = std::fs::read_to_string(&schema).expect("every token was exported");
-    assert!(tokens.contains("\"$type\": \"typography\""));
-
     let second = run_koebi(
         &["--frames", "3", "--data-dir", &dir_arg],
         Duration::from_secs(120),
@@ -363,6 +350,72 @@ fn imported_themes_are_saved_and_exports_written() {
         "{}",
         second.stderr
     );
+}
+
+#[test]
+fn exports_are_written_without_a_window_and_save_nothing() {
+    // #85: an export is a command, as `--help` is. A video driver that does not exist, as on a
+    // build machine without a display: the files are written all the same.
+    let headless = [
+        ("SDL_VIDEO_DRIVER", "koebi-no-display"),
+        ("SDL_VIDEODRIVER", "koebi-no-display"),
+    ];
+    let dir = data_dir("e2e-design-export");
+    std::fs::create_dir_all(&dir).expect("writable target directory");
+    let theme = dir.join("sunset.tokens.json");
+    std::fs::write(&theme, SUNSET).expect("writable target directory");
+    let (export, schema) = (
+        dir.join("export.tokens.json"),
+        dir.join("schema.tokens.json"),
+    );
+    let path = |path: &std::path::Path| path.to_str().expect("UTF-8 path").to_owned();
+    let dir_arg = path(&dir);
+    let run = run_koebi_with(
+        &[
+            "--data-dir",
+            &dir_arg,
+            "--import",
+            &path(&theme),
+            "--export",
+            &path(&export),
+            "--export-schema",
+            &path(&schema),
+        ],
+        &headless,
+        Duration::from_secs(60),
+    );
+    assert_eq!(run.code, Some(exit_code::SUCCESS), "{}", run.stderr);
+    let exported = std::fs::read_to_string(&export).expect("the active theme was exported");
+    assert!(exported.contains("\"#ff7a3d\""), "{exported}");
+    let tokens = std::fs::read_to_string(&schema).expect("every token was exported");
+    assert!(tokens.contains("\"$type\": \"typography\""));
+    // The import shaped the export, and was not kept.
+    assert!(!dir.join("design.kds").exists(), "{}", run.stderr);
+    // A change the design refuses is a usage error, and nothing is written.
+    std::fs::remove_file(&export).expect("written above");
+    let run = run_koebi_with(
+        &[
+            "--data-dir",
+            &dir_arg,
+            "--override",
+            "semantic.radius.control=wide",
+            "--export",
+            &path(&export),
+        ],
+        &headless,
+        Duration::from_secs(60),
+    );
+    assert_eq!(run.code, Some(exit_code::USAGE), "{}", run.stderr);
+    assert!(!export.exists());
+    // A file that cannot be written fails, naming its option.
+    let nowhere = dir.join("missing").join("theme.tokens.json");
+    let run = run_koebi_with(
+        &["--data-dir", &dir_arg, "--export", &path(&nowhere)],
+        &headless,
+        Duration::from_secs(60),
+    );
+    assert_eq!(run.code, Some(exit_code::FAILURE), "{}", run.stderr);
+    assert!(run.stderr.contains("--export"), "{}", run.stderr);
 }
 
 #[test]
