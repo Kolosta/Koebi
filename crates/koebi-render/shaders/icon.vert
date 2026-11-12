@@ -1,4 +1,5 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
 // Instanced vector icon: a square whose pixels the fragment shader covers from the icon's curves.
 //
 // One instance per icon, drawn as a 4-vertex triangle strip over the largest square centered in
@@ -15,6 +16,8 @@ layout(push_constant) uniform ViewportConstants {
     float scale_factor; // logical -> physical pixels
     float _padding;
 } pc;
+
+#include "clip_vertex.glsl"
 
 layout(location = 0) in vec4 in_rect;   // x, y, width, height (logical px)
 layout(location = 1) in vec4 in_params; // icon, mask of the zones recolored, opacity, rotation
@@ -81,4 +84,5 @@ void main() {
     v_color5 = in_color5;
     v_color6 = in_color6;
     v_color7 = in_color7;
+    pass_clip();
 }

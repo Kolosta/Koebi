@@ -84,6 +84,12 @@ must_use_candidate = "allow"
 similar_names = "allow"
 too_many_lines = "allow"
 
+[profile.dev]
+# Koebi's own crates lightly optimized in debug builds: a frame of the interface takes ~13 ms
+# at opt-level 0 against ~1 ms in release; at 1, debug builds stay interactive and debuggable
+# (line info, overflow checks, debug assertions all kept).
+opt-level = 1
+
 [profile.dev.package."*"]
 # Dependencies (ash, SDL) are optimized even in debug builds: a GPU app must stay interactive.
 opt-level = 2

@@ -60,9 +60,11 @@ pub struct UiState {
     scale_factor: Option<f32>,
     /// Whose keyboard keys are named for.
     keyboard: Keyboard,
-    /// The fonts labels are laid out with, a line reused for each label and a block for each
+    /// The fonts labels are laid out with, the lines laid out so far (labels and widths come
+    /// from it, shaped once), a line reused for text being edited and a block for each
     /// paragraph.
     pub(crate) fonts: Fonts,
+    pub(crate) lines: koebi_text::LineCache,
     pub(crate) line: TextLine,
     pub(crate) block: koebi_text::TextBlock,
     /// When the last frame wants to be drawn again, if it does.
@@ -182,6 +184,7 @@ impl UiState {
     /// glyphs from. Without fonts, labels draw nothing.
     pub fn set_fonts(&mut self, fonts: Fonts) {
         self.fonts = fonts;
+        self.lines.clear();
     }
 
     /// Sets the physical pixels per logical pixel of the window, for what is drawn on whole
@@ -573,6 +576,16 @@ impl<'a> Ui<'a> {
         result
     }
 
+    /// `true` when nothing in `rect` can be seen or reached this frame: it lies outside the
+    /// clip in force (scrolled out of view), and nothing holds the input (an open menu, an
+    /// operation under way, text being edited), which a component there could own. What a
+    /// caller would build there may then be skipped: a long page builds only what shows.
+    pub fn is_hidden(&self, rect: Rect) -> bool {
+        self.clip
+            .is_some_and(|clip| clip.intersection(&rect).is_none())
+            && self.state.grabs.is_empty()
+    }
+
     /// Draws with `add` clipped to `clip`, and hit tests its components only inside it (a
     /// scrolling list: rows scrolled out of view are neither drawn nor clicked).
     pub fn clipped<R>(&mut self, clip: Rect, add: impl FnOnce(&mut Self) -> R) -> R {
@@ -850,6 +863,7 @@ impl Drop for Ui<'_> {
         // The cursor shown until the next frame comes from what this frame drew: the widget
         // holding the pointer, or what is on top under it.
         let state = &mut *self.state;
+        state.lines.end_frame();
         let held = state
             .active
             .and_then(|widget| state.current.of_widget(widget))
@@ -1080,6 +1094,28 @@ mod tests {
         drop(Ui::new(&mut scene, &styles, &input, &mut state));
         state.chain_at(Some(Vec2::new(5.0, 5.0)), &mut chain);
         assert_eq!(chain, Vec::<Context>::new());
+    }
+
+    #[test]
+    fn what_lies_outside_the_clip_is_hidden_while_nothing_holds_the_input() {
+        let styles = crate::test_styles();
+        let (mut scene, mut state, input) = (Scene::new(), UiState::new(), Input::new());
+        let view = rect(0.0, 0.0, 100.0, 100.0);
+        let below = rect(0.0, 150.0, 100.0, 20.0);
+        {
+            let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+            // Without a clip, everything may show.
+            assert!(!ui.is_hidden(below));
+            ui.clipped(view, |ui| {
+                assert!(ui.is_hidden(below));
+                assert!(!ui.is_hidden(rect(0.0, 90.0, 100.0, 20.0)));
+                // A menu opened from down there.
+                ui.grab(Context::new("menu"));
+            });
+        }
+        // The next frame: the menu holds the input, what lies below is built as ever.
+        let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+        ui.clipped(view, |ui| assert!(!ui.is_hidden(below)));
     }
 
     #[test]

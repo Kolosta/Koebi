@@ -486,7 +486,8 @@ mod tests {
         let mut harness = Harness::new(short());
         harness.settle();
         assert_near(harness.view.height, harness.expected(true, false));
-        assert!(harness.frame().glyph_count() > 100);
+        // The labels and values of the panels shown, spaces aside.
+        assert!(harness.frame().glyph_count() > 60);
         // Opening the delta transform adds its content to the transform panel's.
         harness.view.delta.set_open(true);
         harness.settle();

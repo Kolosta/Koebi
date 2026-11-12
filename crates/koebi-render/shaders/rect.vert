@@ -1,4 +1,5 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
 // Instanced signed-distance-field rectangle.
 //
 // One instance per rectangle, drawn as a 4-vertex triangle strip. The quad is inflated by
@@ -11,6 +12,8 @@ layout(push_constant) uniform ViewportConstants {
     float scale_factor; // logical -> physical pixels
     float _padding;
 } pc;
+
+#include "clip_vertex.glsl"
 
 layout(location = 0) in vec4 in_rect;          // x, y, width, height (logical px)
 layout(location = 1) in vec4 in_fill;          // premultiplied, gamma-encoded
@@ -71,4 +74,5 @@ void main() {
     v_radii = min(in_radii * pc.scale_factor, vec4(min(half_size.x, half_size.y)));
     v_borders = borders;
     v_inverted = inverted ? 1.0 : 0.0;
+    pass_clip();
 }

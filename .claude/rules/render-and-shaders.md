@@ -14,8 +14,9 @@ paths:
   Targets are UNORM and blending is `ONE, ONE_MINUS_SRC_ALPHA` (ADR 0004). Never output
   straight alpha from a fragment shader.
 - One primitive type = one instance struct (`#[repr(C)]`, `Pod`, size asserted) + one pipeline
-  + GLSL pair. Batch consecutive primitives of the same type into one instanced draw. Follow
-  the `/render-primitive` skill when adding one.
+  + GLSL pair. A push gives the scene the primitive's bounds: it joins the latest batch of its
+  type and clip unless something drawn after that batch overlaps it (`Scene::join_batch`).
+  Follow the `/render-primitive` skill when adding one.
 - Instance layouts and push-constant blocks must match the GLSL exactly; update both sides and
   the comment at the top of the shader together.
 - GLSL: `#version 450`, explicit `layout(location = N)` on every input/output, `flat` for

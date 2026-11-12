@@ -34,3 +34,4 @@ one and link both.
 | [0022](0022-text-on-the-gpu.md) | Text on the GPU from glyph curves, shaping and paragraphs | Accepted |
 | [0023](0023-translations.md) | Translations: gettext catalogs compiled into the binary | Accepted |
 | [0024](0024-layout.md) | Layout: rectangles handed out in immediate mode, no retained tree | Accepted |
+| [0025](0025-batching-across-clips.md) | Batching across clips: each instance carries its clip, overlaps found in a grid | Accepted |

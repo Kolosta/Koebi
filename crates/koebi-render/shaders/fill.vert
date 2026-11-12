@@ -1,4 +1,5 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
 // Instanced fill: a shape whose color the fragment shader computes for each pixel.
 //
 // One instance per fill, drawn as a 4-vertex triangle strip, its edges on the pixel grid like
@@ -11,6 +12,8 @@ layout(push_constant) uniform ViewportConstants {
     float scale_factor; // logical -> physical pixels
     float _padding;
 } pc;
+
+#include "clip_vertex.glsl"
 
 layout(location = 0) in vec4 in_rect;    // x, y, width, height (logical px)
 layout(location = 1) in vec4 in_radii;   // top-left, top-right, bottom-right, bottom-left
@@ -72,4 +75,5 @@ void main() {
         v_params.z = in_params.z * pc.scale_factor;
     }
     v_extra = in_options.y;
+    pass_clip();
 }

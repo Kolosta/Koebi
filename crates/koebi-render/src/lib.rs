@@ -26,6 +26,7 @@
 //! - **Shaders**: GLSL in `shaders/`, compiled ahead of time to `shaders/spirv/` by
 //!   `cargo xtask shaders` and embedded in the binary.
 
+mod batch;
 mod fill;
 mod glyphs;
 mod icon;

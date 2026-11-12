@@ -186,6 +186,7 @@ impl AppWindow {
         }
         let revision = interface.design.revision();
         let input = self.input;
+        koebi_core::profile_scope!("frame.build");
         self.draw(interface, area, &input, times);
         if interface.design.revision() != revision {
             self.draw(interface, area, &input.settled(), times);
@@ -225,10 +226,16 @@ impl AppWindow {
             ..
         } = interface;
         scene.clear();
-        let styles = styles.update(design, state.scale_factor());
+        let styles = {
+            koebi_core::profile_scope!("ui.styles");
+            styles.update(design, state.scale_factor())
+        };
         scene.set_clear_color(styles.background);
         // The shortcuts where the pointer is, from the zones of the last frame.
-        let entries = status.refresh(state, input.pointer(), keymap);
+        let entries = {
+            koebi_core::profile_scope!("ui.status.refresh");
+            status.refresh(state, input.pointer(), keymap)
+        };
         state.set_window(area);
         let mut ui = Ui::new(scene, styles, input, state);
         shown.messages.collect();
@@ -236,12 +243,16 @@ impl AppWindow {
         let mut above_bar = area;
         let mut frame_times = overlay.is_shown();
         ui.zone(area, actions::APP, |ui| {
-            let (rest, asked) = chrome.show(ui, area, view, labels);
+            let (rest, asked) = {
+                koebi_core::profile_scope!("ui.chrome");
+                chrome.show(ui, area, view, labels)
+            };
             if asked.is_some() {
                 *command = asked;
             }
             match (settings_in_place.as_mut(), content) {
                 (Some(settings), _) | (None, WindowContent::Settings(settings)) => {
+                    koebi_core::profile_scope!("ui.settings");
                     settings.show(ui, rest, design, keymap, &mut frame_times, language);
                 }
                 (
@@ -264,9 +275,15 @@ impl AppWindow {
                     let bar = ui.styles().status_bar.height.min(rest.height());
                     let split = rest.max.y - bar;
                     let work = Rect::from_min_max(rest.min, Vec2::new(rest.max.x, split));
-                    ui.workspace(view, workspace, work, &mut host);
+                    {
+                        koebi_core::profile_scope!("ui.workspace");
+                        ui.workspace(view, workspace, work, &mut host);
+                    }
                     let bar = Rect::from_min_max(Vec2::new(rest.min.x, split), rest.max);
-                    ui.status_bar(bar, entries, VERSION);
+                    {
+                        koebi_core::profile_scope!("ui.status_bar");
+                        ui.status_bar(bar, entries, VERSION);
+                    }
                     above_bar = Rect::from_min_max(area.min, Vec2::new(area.max.x, split));
                 }
             }

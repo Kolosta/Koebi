@@ -76,7 +76,8 @@ cargo xtask android | ios --run     # mobile builds (docs/development/platforms.
 ```
 
 Useful environment: `KOEBI_LOG=debug`, `KOEBI_VALIDATION=1|required`, `KOEBI_ADAPTER=<name>`,
-`KOEBI_REQUIRE_GPU=1` (GPU tests fail instead of skipping, as in CI).
+`KOEBI_REQUIRE_GPU=1` (GPU tests fail instead of skipping, as in CI), `KOEBI_PROFILE=1` (time of
+each `profile_scope!`, logged at exit).
 
 ## Git workflow (gitflow)
 

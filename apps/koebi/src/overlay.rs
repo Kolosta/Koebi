@@ -267,9 +267,10 @@ mod tests {
         let fonts = Fonts::with_embedded();
         overlay.draw(&mut scene, &design, &fonts, &times, area);
         assert_eq!(text(&overlay.lines[0]), "1000 FPS");
-        // One panel and the glyphs of "1000 FPS", "CPU 1.00 ms" and "GPU -".
+        // One panel and the glyphs of "1000 FPS", "CPU 1.00 ms" and "GPU -", spaces aside:
+        // they draw nothing.
         assert_eq!(scene.rect_count(), 1);
-        assert_eq!(scene.glyph_count(), 8 + 11 + 5);
+        assert_eq!(scene.glyph_count(), 7 + 9 + 4);
         // Without fonts, the overlay shows nothing rather than failing the frame.
         let mut empty = Scene::new();
         Overlay::new().draw(&mut empty, &design, &Fonts::new(), &times, area);

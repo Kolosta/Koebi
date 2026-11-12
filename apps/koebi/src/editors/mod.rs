@@ -320,6 +320,14 @@ impl EditorHost for Host<'_> {
         let id = WidgetId::new("editor").with(u64::from(editor.get()));
         let content = &mut *self.content;
         let entry = self.editors.entry(editor);
+        let _scope = koebi_core::profile::scope(match entry.kind {
+            EditorKind::Gallery => "editor.gallery",
+            EditorKind::Outliner => "editor.outliner",
+            EditorKind::Info => "editor.info",
+            EditorKind::Viewport => "editor.viewport",
+            EditorKind::Properties => "editor.properties",
+            EditorKind::Timeline => "editor.timeline",
+        });
         match entry.kind {
             EditorKind::Gallery => content.gallery.show(ui, self.design, rect, self.window),
             EditorKind::Outliner => outliner::show(

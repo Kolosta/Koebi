@@ -1,13 +1,13 @@
-// The rounded clip of a draw, and the signed distance to a rounded box it shares with rectangles.
+// The clip of a fragment, and the signed distance to a rounded box it shares with rectangles.
 //
-// Included by the fragment shaders. The clip continues `ViewportConstants` of the vertex shaders;
-// keep it in sync with `ViewportConstants` (crates/koebi-render/src/renderer.rs).
+// Included by the fragment shaders. The clip comes from the instance (clip_vertex.glsl): the
+// pixels kept, as a scissor keeps them, and the rounded shape cutting them, if any.
 
-layout(push_constant) uniform ClipConstants {
-    layout(offset = 16) vec4 clip_rect; // low.xy, high.xy (physical px, snapped like rectangles);
-                                        // all zero without a rounded clip
-    layout(offset = 32) vec4 clip_radii; // top-left, top-right, bottom-right, bottom-left (px)
-} clip;
+layout(location = 13) flat in vec4 v_clip_rect;    // low.xy, high.xy: whole physical pixels
+layout(location = 14) flat in vec4 v_clip_rounded; // low.xy, high.xy (physical px, snapped like
+                                                   // rectangles); all zero without one
+layout(location = 15) flat in vec4 v_clip_radii;   // top-left, top-right, bottom-right,
+                                                   // bottom-left (px)
 
 // The radius of the corner of the quadrant `p` lies in (y points down).
 float corner_radius(vec2 p, vec4 radii) {
@@ -22,14 +22,19 @@ float sd_rounded_box(vec2 p, vec2 half_size, vec4 radii) {
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
 }
 
-// How much of this pixel the rounded clip keeps, with the coverage ramp of rectangles: a corner
-// of the clip cuts what is drawn inside exactly where a rectangle of the same shape ends.
+// How much of this pixel the clip keeps: none outside its pixels, exactly as a scissor (pixel
+// centers lie at half pixels), then the coverage ramp of rectangles at the rounded corners: a
+// corner of the clip cuts what is drawn inside exactly where a rectangle of the same shape ends.
 float clip_coverage() {
-    if (clip.clip_rect.z <= clip.clip_rect.x) {
+    vec2 p = gl_FragCoord.xy;
+    if (any(lessThan(p, v_clip_rect.xy)) || any(greaterThanEqual(p, v_clip_rect.zw))) {
+        return 0.0;
+    }
+    if (v_clip_rounded.z <= v_clip_rounded.x) {
         return 1.0;
     }
-    vec2 half_size = 0.5 * (clip.clip_rect.zw - clip.clip_rect.xy);
-    vec2 center = clip.clip_rect.xy + half_size;
-    float dist = sd_rounded_box(gl_FragCoord.xy - center, half_size, clip.clip_radii);
+    vec2 half_size = 0.5 * (v_clip_rounded.zw - v_clip_rounded.xy);
+    vec2 center = v_clip_rounded.xy + half_size;
+    float dist = sd_rounded_box(p - center, half_size, v_clip_radii);
     return clamp(0.5 - dist, 0.0, 1.0);
 }

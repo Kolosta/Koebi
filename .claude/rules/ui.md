@@ -13,3 +13,5 @@ paths:
   the results eagerly (`let picked = swatches(ui); changed.or(picked)`).
 - Test an interaction by comparing what a frame draws during it with a frame at rest.
 - Values come from component tokens through `Styles`; texts through `koebi_i18n`.
+- Text measured or drawn every frame goes through the line cache (`Ui::text_width`,
+  `Ui::label`): never shape the same line twice a frame.

@@ -1,4 +1,5 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
 // Instanced glyph: a quad over the glyph's bounds whose pixels the fragment shader covers from
 // the glyph's curves (crates/koebi-render/src/glyphs.rs).
 //
@@ -13,6 +14,8 @@ layout(push_constant) uniform ViewportConstants {
     float scale_factor; // unused: instances are in physical pixels
     float _padding;
 } pc;
+
+#include "clip_vertex.glsl"
 
 layout(location = 0) in vec4 in_origin_axis_x; // pen position, the em's x axis (physical px)
 layout(location = 1) in vec4 in_axis_y_record; // the em's y axis, the record's texel, a margin
@@ -46,4 +49,5 @@ void main() {
     v_scale_side = vec4(1.0 / size, size * vec2(length(ax), length(ay)));
     v_color = in_color;
     v_record = in_axis_y_record.z;
+    pass_clip();
 }

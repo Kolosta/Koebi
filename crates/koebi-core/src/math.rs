@@ -211,6 +211,12 @@ impl Rect {
         (!result.is_empty()).then_some(result)
     }
 
+    /// The smallest rectangle holding both.
+    #[must_use]
+    pub fn union(&self, other: &Self) -> Self {
+        Self::from_min_max(self.min.min(other.min), self.max.max(other.max))
+    }
+
     /// Shrinks the rectangle by `amount` on every side (grows it when negative).
     #[must_use]
     pub fn inset(&self, amount: f32) -> Self {

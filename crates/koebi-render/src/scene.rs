@@ -4,6 +4,7 @@ use koebi_core::{Color, Rect, Vec2};
 use koebi_gpu::Pod;
 use koebi_text::{FontId, GlyphId, TextBlock, TextLine};
 
+use crate::batch::{Batch, Batches};
 use crate::fill::{FillInstance, FillPrimitive};
 use crate::icon::{IconInstance, IconPrimitive};
 
@@ -366,39 +367,23 @@ pub(crate) enum PrimitiveKind {
     Icon,
 }
 
-/// What primitives are clipped to.
+impl PrimitiveKind {
+    /// How many types there are.
+    pub(crate) const COUNT: usize = 5;
+
+    /// Every type.
+    pub(crate) const ALL: [Self; Self::COUNT] =
+        [Self::Rect, Self::Line, Self::Glyph, Self::Fill, Self::Icon];
+}
+
+/// What primitives are clipped to. Each instance carries its own ([`Scene::clip_ids`]): clips
+/// never split a batch.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Clip {
-    /// The rectangle they stay in, in logical pixels: a scissor.
+    /// The rectangle they stay in, in logical pixels, its edges on whole pixels once drawn.
     pub(crate) rect: Rect,
     /// The rounded shape cutting them, its rectangle in logical pixels, if any.
     pub(crate) rounded: Option<(Rect, Corners)>,
-}
-
-/// Consecutive primitives of one type and clip, on one layer: one instanced draw.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct Batch {
-    pub(crate) kind: PrimitiveKind,
-    /// First instance, in the instances of `kind`.
-    start: u32,
-    /// One past the last instance.
-    end: u32,
-    /// What its primitives are clipped to.
-    pub(crate) clip: Option<Clip>,
-}
-
-impl Batch {
-    /// How to draw the batch from a buffer of instances of `stride` bytes: the byte offset of
-    /// its first instance, where to bind the buffer, and its number of instances.
-    ///
-    /// Draws always start at instance zero: MoltenVK rejects non-zero base instances on
-    /// GPUs without them, such as the iOS simulator's.
-    pub(crate) fn window(self, stride: u32) -> (u64, u32) {
-        (
-            u64::from(self.start) * u64::from(stride),
-            self.end - self.start,
-        )
-    }
 }
 
 /// The 2D primitives of one frame.
@@ -411,6 +396,9 @@ impl Batch {
 ///   in its area, a scrolled list in its viewport. A layer pushed inside clips starts unclipped:
 ///   a menu is not limited to the area that opened it. [`Scene::push_rounded_clip`] also cuts
 ///   them at rounded corners, whatever they are: an area cuts all it holds.
+/// - **Batches**: primitives of a type draw together in one instanced draw unless something
+///   drawn between them overlaps them (ADR 0025): pushing in painter's order is all a
+///   caller does.
 ///
 /// Reuse one scene across frames with [`Scene::clear`]: storage is kept, so steady-state
 /// frames do not allocate.
@@ -421,14 +409,20 @@ pub struct Scene {
     lines: Vec<LineInstance>,
     fills: Vec<FillInstance>,
     icons: Vec<IconInstance>,
-    /// Glyphs stay descriptions: their instances depend on the atlas and the scale factor.
+    /// Glyphs stay descriptions: their instances depend on the glyph store and the scale factor.
     glyphs: Vec<GlyphPrimitive>,
-    /// The runs of each layer, by layer number, each in painter's order.
-    layers: Vec<Vec<Batch>>,
+    /// The batch of each instance of each type, by type: the instances in push order.
+    owners: [Vec<u32>; PrimitiveKind::COUNT],
+    /// The clip of each instance of each type, by type ([`Scene::clip_ids`]).
+    clip_ids: [Vec<u32>; PrimitiveKind::COUNT],
+    /// Every clip pushed this frame: clip number `n` is `clip_table[n - 1]`, 0 none.
+    clip_table: Vec<Clip>,
+    batches: Batches,
     /// The layer primitives go to.
     layer: u8,
-    /// The clips in force, each intersected with the one before it in its layer context.
-    clips: Vec<Clip>,
+    /// The clips in force, each intersected with the one before it in its layer context, and
+    /// their numbers.
+    clips: Vec<(Clip, u32)>,
     /// Where the clips of the current layer context start in `clips`.
     clip_base: usize,
     /// The layer and clip base of each enclosing layer context.
@@ -448,9 +442,14 @@ impl Scene {
         self.fills.clear();
         self.icons.clear();
         self.glyphs.clear();
-        for layer in &mut self.layers {
-            layer.clear();
+        for owners in &mut self.owners {
+            owners.clear();
         }
+        for clips in &mut self.clip_ids {
+            clips.clear();
+        }
+        self.clip_table.clear();
+        self.batches.clear();
         self.layer = 0;
         self.clips.clear();
         self.clip_base = 0;
@@ -484,7 +483,7 @@ impl Scene {
     pub fn push_clip(&mut self, rect: Rect) {
         let rounded = self.current_clip().and_then(|clip| clip.rounded);
         let rect = self.clipped_rect(rect);
-        self.clips.push(Clip { rect, rounded });
+        self.enter_clip(Clip { rect, rounded });
     }
 
     /// Like [`Scene::push_clip`], the primitives also cut at the corners of `rect`, each rounded
@@ -493,10 +492,18 @@ impl Scene {
     /// edges.
     pub fn push_rounded_clip(&mut self, rect: Rect, radii: Corners) {
         let clipped = self.clipped_rect(rect);
-        self.clips.push(Clip {
+        self.enter_clip(Clip {
             rect: clipped,
             rounded: Some((rect, radii)),
         });
+    }
+
+    /// Numbers `clip` and puts it in force.
+    fn enter_clip(&mut self, clip: Clip) {
+        self.clip_table.push(clip);
+        // More than 4 billion clips in a frame: the last ones share a number.
+        let id = u32::try_from(self.clip_table.len()).unwrap_or(u32::MAX);
+        self.clips.push((clip, id));
     }
 
     /// `rect` within the current clip.
@@ -508,7 +515,12 @@ impl Scene {
     }
 
     fn current_clip(&self) -> Option<Clip> {
-        self.clips[self.clip_base..].last().copied()
+        self.clips[self.clip_base..].last().map(|&(clip, _)| clip)
+    }
+
+    /// The number of the clip in force, 0 without one.
+    fn current_clip_id(&self) -> u32 {
+        self.clips[self.clip_base..].last().map_or(0, |&(_, id)| id)
     }
 
     /// Ends the innermost clip of the current layer context.
@@ -552,7 +564,8 @@ impl Scene {
             return;
         }
         self.rects.push(RectInstance::from_primitive(primitive));
-        self.extend_batch(PrimitiveKind::Rect, self.rects.len());
+        // A pixel around for the coverage of the edges.
+        self.join_batch(PrimitiveKind::Rect, primitive.rect.inset(-1.0));
     }
 
     /// Appends a fill ([`FillPrimitive`]). Empty fills are culled.
@@ -561,7 +574,7 @@ impl Scene {
             return;
         }
         self.fills.push(FillInstance::from_primitive(primitive));
-        self.extend_batch(PrimitiveKind::Fill, self.fills.len());
+        self.join_batch(PrimitiveKind::Fill, primitive.rect.inset(-1.0));
     }
 
     /// Appends an icon ([`IconPrimitive`]). Icons without size or opacity, or with a
@@ -577,7 +590,12 @@ impl Scene {
             return;
         }
         self.icons.push(IconInstance::from_primitive(primitive));
-        self.extend_batch(PrimitiveKind::Icon, self.icons.len());
+        // A turned icon reaches past its square: the circle around it.
+        let reach = rect.width().max(rect.height()) * 0.5 + 1.0;
+        self.join_batch(
+            PrimitiveKind::Icon,
+            Rect::from_center_size(rect.center(), Vec2::splat(2.0 * reach)),
+        );
     }
 
     /// Appends a segment, or two joined. Strokes without width or color are culled, and so are
@@ -602,34 +620,50 @@ impl Scene {
             return;
         }
         self.lines.push(LineInstance::from_primitive(primitive));
-        self.extend_batch(PrimitiveKind::Line, self.lines.len());
+        self.join_batch(PrimitiveKind::Line, bounds.inset(-1.0));
     }
 
     /// Appends a glyph. Glyphs without size or color, or with a non-finite position, are
-    /// culled.
+    /// culled. Its outline unknown here, it is taken to cover two ems around its pen, whatever
+    /// its turn: text pushed with [`Scene::push_text`] and the like gives each glyph its own box.
     pub fn push_glyph(&mut self, glyph: &GlyphPrimitive) {
+        let bounds = Rect::from_center_size(glyph.origin, Vec2::splat(4.0 * glyph.size));
+        self.push_glyph_covering(glyph, bounds);
+    }
+
+    /// Appends `glyph`, whose outline lies inside `bounds` (logical pixels).
+    fn push_glyph_covering(&mut self, glyph: &GlyphPrimitive, bounds: Rect) {
         let finite = [glyph.origin.x, glyph.origin.y, glyph.size, glyph.rotation]
             .iter()
             .all(|v| v.is_finite());
         if !finite || glyph.size <= 0.0 || glyph.color.a <= 0.0 {
             return;
         }
+        // A pixel around for the coverage of the edges.
+        let bounds = bounds.inset(-1.0);
+        if !self.visible(bounds) {
+            return;
+        }
         self.glyphs.push(*glyph);
-        self.extend_batch(PrimitiveKind::Glyph, self.glyphs.len());
+        self.join_batch(PrimitiveKind::Glyph, bounds);
     }
 
     /// Appends the glyphs of `line`, its baseline starting at `origin` (logical pixels), at
     /// the size it was laid out at.
     pub fn push_text(&mut self, line: &TextLine, origin: Vec2, color: Color) {
         for placed in line.glyphs() {
-            self.push_glyph(&GlyphPrimitive {
+            // Without an outline, a glyph draws nothing.
+            let Some(ink) = placed.ink else { continue };
+            let pen = Vec2::new(origin.x + placed.x, origin.y);
+            let glyph = GlyphPrimitive {
                 font: placed.font,
                 glyph: placed.glyph,
                 size: line.size(),
-                origin: Vec2::new(origin.x + placed.x, origin.y),
+                origin: pen,
                 rotation: 0.0,
                 color,
-            });
+            };
+            self.push_glyph_covering(&glyph, ink.translate(pen));
         }
     }
 
@@ -644,14 +678,17 @@ impl Scene {
     ) {
         let (sin, cos) = rotation.sin_cos();
         for placed in line.glyphs() {
-            self.push_glyph(&GlyphPrimitive {
+            let Some(ink) = placed.ink else { continue };
+            let pen = origin + Vec2::new(placed.x * cos, placed.x * sin);
+            let glyph = GlyphPrimitive {
                 font: placed.font,
                 glyph: placed.glyph,
                 size: line.size(),
-                origin: origin + Vec2::new(placed.x * cos, placed.x * sin),
+                origin: pen,
                 rotation,
                 color,
-            });
+            };
+            self.push_glyph_covering(&glyph, turned(ink, sin, cos).translate(pen));
         }
     }
 
@@ -661,40 +698,33 @@ impl Scene {
         let (sin, cos) = rotation.sin_cos();
         for line in block.lines() {
             for placed in &block.glyphs()[line.glyphs.clone()] {
+                let Some(ink) = placed.ink else { continue };
                 let (x, y) = (placed.x, line.baseline);
-                self.push_glyph(&GlyphPrimitive {
+                let pen = origin + Vec2::new(x * cos - y * sin, x * sin + y * cos);
+                let glyph = GlyphPrimitive {
                     font: placed.font,
                     glyph: placed.glyph,
                     size: block.size(),
-                    origin: origin + Vec2::new(x * cos - y * sin, x * sin + y * cos),
+                    origin: pen,
                     rotation,
                     color,
-                });
+                };
+                self.push_glyph_covering(&glyph, turned(ink, sin, cos).translate(pen));
             }
         }
     }
 
-    /// Records the instance just pushed (`count` instances of `kind` so far) in the current
-    /// layer.
-    fn extend_batch(&mut self, kind: PrimitiveKind, count: usize) {
-        // More than 4 billion primitives cannot be drawn anyway: saturate.
-        let end = u32::try_from(count).unwrap_or(u32::MAX);
-        let clip = self.current_clip();
-        let index = usize::from(self.layer);
-        if self.layers.len() <= index {
-            // A new layer number: grows once, then reused frame after frame.
-            self.layers.resize_with(index + 1, Vec::new);
-        }
-        let batches = &mut self.layers[index];
-        match batches.last_mut() {
-            Some(batch) if batch.kind == kind && batch.clip == clip => batch.end = end,
-            _ => batches.push(Batch {
-                kind,
-                start: end - 1,
-                end,
-                clip,
-            }),
-        }
+    /// Files the primitive just pushed, of `kind`, painting inside `bounds`, in a batch
+    /// ([`Batches::join`]), with the clip in force.
+    fn join_batch(&mut self, kind: PrimitiveKind, bounds: Rect) {
+        // Nothing is drawn outside the clip: what lies there overlaps nothing.
+        let bounds = self
+            .current_clip()
+            .and_then(|clip| clip.rect.intersection(&bounds))
+            .unwrap_or(bounds);
+        let batch = self.batches.join(kind, self.layer, bounds);
+        self.owners[kind as usize].push(batch);
+        self.clip_ids[kind as usize].push(self.current_clip_id());
     }
 
     /// Number of rectangles.
@@ -725,12 +755,12 @@ impl Scene {
     /// Number of draw calls the scene needs: one per run of consecutive primitives of the
     /// same type and clip on one layer.
     pub fn draw_count(&self) -> usize {
-        self.layers.iter().map(Vec::len).sum()
+        self.batches.len()
     }
 
     /// `true` when nothing will be drawn (the target is still cleared).
     pub fn is_empty(&self) -> bool {
-        self.layers.iter().all(Vec::is_empty)
+        self.batches.is_empty()
     }
 
     pub(crate) fn rect_instances(&self) -> &[RectInstance] {
@@ -753,15 +783,55 @@ impl Scene {
         &self.glyphs
     }
 
-    /// The runs in drawing order: layer by layer, each in painter's order.
-    pub(crate) fn batches(&self) -> impl Iterator<Item = &Batch> + '_ {
-        self.layers.iter().flatten()
+    /// The batch of each instance of `kind`, in push order.
+    pub(crate) fn owners(&self, kind: PrimitiveKind) -> &[u32] {
+        &self.owners[kind as usize]
     }
+
+    /// The clip of each instance of `kind`, in push order: 0 for none, `n` for
+    /// `clip_table()[n - 1]`.
+    pub(crate) fn clip_ids(&self, kind: PrimitiveKind) -> &[u32] {
+        &self.clip_ids[kind as usize]
+    }
+
+    /// Every clip pushed this frame, by number from 1.
+    pub(crate) fn clip_table(&self) -> &[Clip] {
+        &self.clip_table
+    }
+
+    /// The batches of the frame.
+    pub(crate) fn batching(&self) -> &Batches {
+        &self.batches
+    }
+
+    /// The batches in drawing order, with their numbers: layer by layer, each in painter's
+    /// order.
+    pub(crate) fn batches(&self) -> impl Iterator<Item = (u32, &Batch)> + '_ {
+        self.batches.in_order()
+    }
+}
+
+/// The box around `rect` (about the origin) turned clockwise by the angle of `sin` and `cos`.
+fn turned(rect: Rect, sin: f32, cos: f32) -> Rect {
+    let turn = |p: Vec2| Vec2::new(p.x * cos - p.y * sin, p.x * sin + p.y * cos);
+    let corners = [
+        turn(rect.min),
+        turn(Vec2::new(rect.max.x, rect.min.y)),
+        turn(rect.max),
+        turn(Vec2::new(rect.min.x, rect.max.y)),
+    ];
+    let (low, high) = corners[1..]
+        .iter()
+        .fold((corners[0], corners[0]), |(low, high), p| {
+            (low.min(*p), high.max(*p))
+        });
+    Rect::from_min_max(low, high)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::batch::DrawOrder;
 
     fn rect() -> Rect {
         Rect::from_origin_size(Vec2::new(10.0, 20.0), Vec2::new(30.0, 40.0))
@@ -769,6 +839,16 @@ mod tests {
 
     fn line() -> LinePrimitive {
         LinePrimitive::new(Vec2::new(1.0, 2.0), Vec2::new(3.0, 4.0), 2.0, Color::WHITE)
+    }
+
+    /// A segment across [`rect`]: what follows it there draws after it.
+    fn line_across() -> LinePrimitive {
+        LinePrimitive::new(
+            Vec2::new(5.0, 30.0),
+            Vec2::new(50.0, 30.0),
+            2.0,
+            Color::WHITE,
+        )
     }
 
     #[test]
@@ -886,14 +966,15 @@ mod tests {
         let rect = RectPrimitive::new(rect(), Color::WHITE);
         scene.push_rect(&rect);
         scene.push_rect(&rect);
-        scene.push_line(&line());
-        scene.push_line(&line());
-        scene.push_line(&line());
+        scene.push_line(&line_across());
+        scene.push_line(&line_across());
+        scene.push_line(&line_across());
+        // Over the segments: after them, in a batch of its own.
         scene.push_rect(&rect);
         // With a stride of 1, a window is (first instance, instance count).
         let batches: Vec<_> = scene
             .batches()
-            .map(|batch| (batch.kind, batch.window(1)))
+            .map(|(id, batch)| (batch.kind, order(&scene).window(id, *batch, 1)))
             .collect();
         assert_eq!(
             batches,
@@ -914,13 +995,73 @@ mod tests {
         let rect = RectPrimitive::new(rect(), Color::WHITE);
         scene.push_rect(&rect);
         scene.push_rect(&rect);
-        scene.push_line(&line());
+        scene.push_line(&line_across());
         scene.push_rect(&rect);
         let windows: Vec<_> = scene
             .batches()
-            .map(|batch| batch.window(RectInstance::STRIDE))
+            .map(|(id, batch)| order(&scene).window(id, *batch, RectInstance::STRIDE))
             .collect();
         assert_eq!(windows, [(0, 2), (0, 1), (192, 1)]);
+    }
+
+    /// Where the batches of `scene` lie once gathered.
+    fn order(scene: &Scene) -> DrawOrder {
+        let mut order = DrawOrder::default();
+        order.compute(scene.batching());
+        order
+    }
+
+    #[test]
+    fn primitives_that_overlap_nothing_between_join_the_batch_of_their_type() {
+        // Controls in a row: a background, then its label, then the next control's.
+        let mut scene = Scene::new();
+        for column in 0..4_u8 {
+            let x = f32::from(column) * 100.0;
+            let background = Rect::from_origin_size(Vec2::new(x, 0.0), Vec2::new(80.0, 24.0));
+            scene.push_rect(&RectPrimitive::new(background, Color::WHITE));
+            scene.push_glyph(&GlyphPrimitive {
+                origin: Vec2::new(x + 10.0, 16.0),
+                ..glyph()
+            });
+        }
+        // One draw per type, the rectangles first: each label stays above its background.
+        assert_eq!(scene.draw_count(), 2);
+        let order = order(&scene);
+        let kinds: Vec<_> = scene
+            .batches()
+            .map(|(id, batch)| (batch.kind, order.window(id, *batch, 1)))
+            .collect();
+        assert_eq!(
+            kinds,
+            [
+                (PrimitiveKind::Rect, (0, 4)),
+                (PrimitiveKind::Glyph, (0, 4)),
+            ]
+        );
+        // A rectangle over a label: drawn after it, in a batch of its own.
+        let over = Rect::from_origin_size(Vec2::new(0.0, 0.0), Vec2::new(40.0, 24.0));
+        scene.push_rect(&RectPrimitive::new(over, Color::WHITE));
+        assert_eq!(scene.draw_count(), 3);
+    }
+
+    #[test]
+    fn instances_are_gathered_batch_after_batch_in_drawing_order() {
+        let mut scene = Scene::new();
+        let far = Rect::from_origin_size(Vec2::new(500.0, 0.0), Vec2::new(10.0, 10.0));
+        scene.push_rect(&RectPrimitive::new(rect(), Color::WHITE));
+        scene.push_line(&line());
+        // Overlaps nothing drawn after the first rectangle: joins it, ahead of the line.
+        scene.push_rect(&RectPrimitive::new(far, Color::BLACK));
+        let mut order = order(&scene);
+        let mut gathered = Vec::new();
+        order.gather(
+            scene.rect_instances(),
+            scene.owners(PrimitiveKind::Rect),
+            &mut gathered,
+        );
+        assert_eq!(gathered.len(), 2);
+        assert_eq!(gathered[1], scene.rect_instances()[1]);
+        assert_eq!(scene.draw_count(), 2);
     }
 
     fn glyph() -> GlyphPrimitive {
@@ -960,7 +1101,7 @@ mod tests {
         scene.push_glyph(&glyph());
         let batches: Vec<_> = scene
             .batches()
-            .map(|batch| (batch.kind, batch.window(1)))
+            .map(|(id, batch)| (batch.kind, order(&scene).window(id, *batch, 1)))
             .collect();
         assert_eq!(
             batches,
@@ -976,7 +1117,7 @@ mod tests {
     }
 
     #[test]
-    fn clips_split_batches_and_nest() {
+    fn clips_nest_and_go_with_each_instance() {
         let mut scene = Scene::new();
         let rect = RectPrimitive::new(rect(), Color::WHITE);
         scene.push_rect(&rect);
@@ -996,14 +1137,25 @@ mod tests {
         scene.push_rect(&rect);
         scene.pop_clip();
         scene.push_rect(&rect);
+        let clip = |id: u32| {
+            id.checked_sub(1)
+                .map(|at| scene.clip_table()[at as usize].rect)
+        };
         let clips: Vec<_> = scene
-            .batches()
-            .map(|batch| batch.clip.map(|clip| clip.rect))
+            .clip_ids(PrimitiveKind::Rect)
+            .iter()
+            .map(|&id| clip(id))
             .collect();
-        assert_eq!(clips, [None, Some(area), Some(inner), Some(area), None]);
+        assert_eq!(
+            clips,
+            [None, Some(area), Some(area), Some(inner), Some(area), None]
+        );
+        // One draw: the clips go with the instances.
+        assert_eq!(scene.draw_count(), 1);
         scene.push_clip(area);
         scene.clear();
         assert_eq!(scene.clip(), None);
+        assert_eq!(scene.clip_table(), []);
     }
 
     #[test]
@@ -1025,11 +1177,11 @@ mod tests {
                 Vec2::new(100.0, 100.0)
             ))
         );
-        // A primitive remembers it, and a change of clip splits the batch.
+        // A primitive remembers it.
         scene.push_rect(&RectPrimitive::new(rect(), Color::WHITE));
-        let batch = scene.batches().next().copied().unwrap();
+        let id = scene.clip_ids(PrimitiveKind::Rect)[0];
         assert_eq!(
-            batch.clip.and_then(|clip| clip.rounded),
+            scene.clip_table()[id as usize - 1].rounded,
             Some((panel, radii))
         );
         // A menu opened from inside is not cut.
@@ -1089,7 +1241,7 @@ mod tests {
         let capacities = (
             scene.rects.capacity(),
             scene.lines.capacity(),
-            scene.layers[0].capacity(),
+            scene.batches.base_capacity(),
         );
         scene.clear();
         assert!(scene.is_empty());
@@ -1098,7 +1250,7 @@ mod tests {
             (
                 scene.rects.capacity(),
                 scene.lines.capacity(),
-                scene.layers[0].capacity()
+                scene.batches.base_capacity()
             ),
             capacities
         );
@@ -1116,7 +1268,7 @@ mod tests {
         scene.push_rect(&rect);
         let batches: Vec<_> = scene
             .batches()
-            .map(|batch| (batch.kind, batch.window(1)))
+            .map(|(id, batch)| (batch.kind, order(&scene).window(id, *batch, 1)))
             .collect();
         assert_eq!(
             batches,

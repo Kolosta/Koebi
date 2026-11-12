@@ -6,23 +6,25 @@ Wall times, in microseconds, of release builds. Compare them on one machine only
 
 | Screen | Measure | Median (µs) | p95 (µs) | Max (µs) | Scene |
 | --- | --- | ---: | ---: | ---: | --- |
-| Settings › Theme | CPU scene | 534 | 846 | 2892 | 250 rects, 1093 glyphs, 10 icons, 400 draws |
-| Settings › Customisation | CPU scene | 166 | 255 | 552 | 16 rects, 221 glyphs, 14 icons, 46 draws |
-| Settings › Keymaps | CPU scene | 160 | 285 | 713 | 28 rects, 250 glyphs, 19 icons, 73 draws |
-| Settings › Inputs | CPU scene | 290 | 466 | 995 | 78 rects, 572 glyphs, 33 icons, 160 draws |
-| Settings › Icons | CPU scene | 170 | 314 | 3766 | 11 rects, 294 glyphs, 122 icons, 57 draws |
-| Settings › Language | CPU scene | 249 | 424 | 500 | 14 rects, 311 glyphs, 9 icons, 38 draws |
-| Gallery | CPU scene | 1108 | 1548 | 2329 | 274 rects, 1667 glyphs, 24 icons, 354 draws |
-| Paragraph (Latin) | text layout | 52 | 71 | 107 |  |
-| Paragraph (Japanese) | text layout | 19 | 29 | 101 |  |
-| Settings › Theme | offscreen frame | 6453 | 8110 | 9013 |  |
-| Settings › Customisation | offscreen frame | 3042 | 3681 | 4018 |  |
-| Settings › Keymaps | offscreen frame | 3042 | 3873 | 4331 |  |
-| Settings › Inputs | offscreen frame | 3906 | 4807 | 7126 |  |
-| Settings › Icons | offscreen frame | 3000 | 3532 | 3776 |  |
-| Settings › Language | offscreen frame | 2912 | 3469 | 3917 |  |
-| Gallery | offscreen frame | 7631 | 8990 | 9613 |  |
+| Settings › Theme | CPU scene | 426 | 621 | 1001 | 250 rects, 1033 glyphs, 10 icons, 41 draws |
+| Settings › Customisation | CPU scene | 92 | 157 | 421 | 16 rects, 204 glyphs, 14 icons, 18 draws |
+| Settings › Keymaps | CPU scene | 78 | 105 | 214 | 28 rects, 238 glyphs, 19 icons, 18 draws |
+| Settings › Inputs | CPU scene | 141 | 240 | 505 | 78 rects, 467 glyphs, 33 icons, 18 draws |
+| Settings › Icons | CPU scene | 100 | 140 | 314 | 11 rects, 156 glyphs, 122 icons, 18 draws |
+| Settings › Language | CPU scene | 100 | 137 | 245 | 14 rects, 281 glyphs, 9 icons, 24 draws |
+| Gallery | CPU scene | 512 | 734 | 1714 | 274 rects, 1034 glyphs, 24 icons, 26 draws |
+| Gallery, a token dragged | CPU scene | 786 | 1137 | 1667 |  |
+| Gallery, the accent dragged | CPU scene | 911 | 1394 | 2469 |  |
+| Paragraph (Latin) | text layout | 51 | 82 | 163 |  |
+| Paragraph (Japanese) | text layout | 30 | 35 | 244 |  |
+| Settings › Theme | offscreen frame | 2738 | 3259 | 3395 |  |
+| Settings › Customisation | offscreen frame | 2311 | 2621 | 2710 |  |
+| Settings › Keymaps | offscreen frame | 2279 | 2438 | 2671 |  |
+| Settings › Inputs | offscreen frame | 2398 | 2592 | 3464 |  |
+| Settings › Icons | offscreen frame | 2520 | 2853 | 3114 |  |
+| Settings › Language | offscreen frame | 2360 | 2563 | 2905 |  |
+| Gallery | offscreen frame | 4656 | 5263 | 5508 |  |
 
 ## Start-up
 
-`koebi --frames 1` to its exit, 5 runs: median 1631 ms, fastest 1447 ms (window, Vulkan, pipelines, fonts and the first frame).
+`koebi --frames 1` to its exit, 5 runs: median 2052 ms, fastest 1358 ms (window, Vulkan, pipelines, fonts and the first frame).
