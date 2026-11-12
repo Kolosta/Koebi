@@ -232,6 +232,8 @@ pub struct ColorPicker<'a> {
     sections: &'a [PickerSection],
     /// Whether it has an eyedropper.
     eyedropper: bool,
+    /// Whether the color has an opacity to edit.
+    opacity: bool,
 }
 
 impl<'a> ColorPicker<'a> {
@@ -247,7 +249,18 @@ impl<'a> ColorPicker<'a> {
             palette: &[],
             sections: &PICKER_SECTIONS,
             eyedropper: false,
+            opacity: true,
         }
+    }
+
+    /// Whether the color has an opacity to edit (on by default). Without one (the source of
+    /// a palette, always opaque), neither the opacity strip nor the opacity field shows, the
+    /// hexadecimal form has six digits, and the color stays opaque: a picker shows only what
+    /// changes its color.
+    #[must_use]
+    pub fn opacity(mut self, opacity: bool) -> Self {
+        self.opacity = opacity;
+        self
     }
 
     /// Shows the color as `shape` does.
@@ -305,8 +318,9 @@ impl<'a> ColorPicker<'a> {
             shape: self.shape,
             titled: self.title.is_some(),
             swatches: self.palette.len(),
-            fields: field_count(self.state.mode),
+            fields: field_count(self.state.mode, self.opacity),
             sections: self.sections,
+            opacity: self.opacity,
         }
     }
 
@@ -341,6 +355,17 @@ impl<'a> ColorPicker<'a> {
             y += height + gap;
         }
         changed = self.eyedrop(ui).or(changed);
+        if !self.opacity {
+            // Whatever the source of the change (a hexadecimal form with an opacity, the
+            // eyedropper on a translucent pixel), the color stays opaque.
+            changed = changed.map(|change| match change {
+                Change::Color(color) => Change::Color(color.with_alpha(1.0)),
+                Change::Components => {
+                    self.state.alpha = 1.0;
+                    Change::Components
+                }
+            });
+        }
         match changed {
             Some(Change::Components) => {
                 let color = self.state.color_of(self.shape);
@@ -369,13 +394,15 @@ pub(super) struct PickerLayout<'a> {
     /// How many fields the model edited has.
     pub(super) fields: usize,
     pub(super) sections: &'a [PickerSection],
+    /// Whether the picker has its opacity strip.
+    pub(super) opacity: bool,
 }
 
 impl PickerLayout<'_> {
     /// The size the picker takes.
     pub(super) fn size(&self, ui: &Ui<'_>) -> Vec2 {
         let style = ui.styles().color_picker;
-        let strips = if self.shape.has_strip() { 2.0 } else { 1.0 };
+        let strips = f32::from(u8::from(self.shape.has_strip()) + u8::from(self.opacity));
         let width = style.area_size
             + strips * (style.strip_width + style.gap)
             + style.gap
@@ -441,27 +468,28 @@ impl ColorPicker<'_> {
             changed = self.third_strip(ui, at).or(changed);
             x = at.max.x + style.gap;
         }
-        let at = strip(x);
-        let opaque = self.state.color_of(self.shape).with_alpha(1.0);
-        let stops = [opaque, opaque.with_alpha(0.0)];
-        let mut transparency = 1.0 - self.state.alpha;
-        let moved = ColorStrip::new(
-            self.id.with(3),
-            &mut self.state.opacity,
-            &mut transparency,
-            StripFill::Stops(&stops),
-        )
-        .checker(true)
-        .show(ui, at);
-        if moved.changed {
-            self.state.alpha = (1.0 - transparency).clamp(0.0, 1.0);
-            changed = Some(Change::Components);
+        if self.opacity {
+            let at = strip(x);
+            let opaque = self.state.color_of(self.shape).with_alpha(1.0);
+            let stops = [opaque, opaque.with_alpha(0.0)];
+            let mut transparency = 1.0 - self.state.alpha;
+            let moved = ColorStrip::new(
+                self.id.with(3),
+                &mut self.state.opacity,
+                &mut transparency,
+                StripFill::Stops(&stops),
+            )
+            .checker(true)
+            .show(ui, at);
+            if moved.changed {
+                self.state.alpha = (1.0 - transparency).clamp(0.0, 1.0);
+                changed = Some(Change::Components);
+            }
+            x = at.max.x + style.gap;
         }
         // The swatches: current, previous, original.
-        let column = Rect::from_min_max(
-            Vec2::new(at.max.x + style.gap, area.min.y),
-            Vec2::new(rect.max.x, area.max.y),
-        );
+        let column =
+            Rect::from_min_max(Vec2::new(x, area.min.y), Vec2::new(rect.max.x, area.max.y));
         // Drawn every frame, a drag or not: a widget never hides in a lazy branch.
         let picked = self.swatches(ui, column);
         changed.or(picked)
@@ -762,7 +790,9 @@ impl ColorPicker<'_> {
             values,
             limits,
         } = fields_of(self.state.mode, color, &self.state.components);
-        let count = labels.iter().filter(|label| !label.is_empty()).count();
+        // The opacity is the last field of every model: without one, it does not show.
+        let count =
+            labels.iter().filter(|label| !label.is_empty()).count() - usize::from(!self.opacity);
         let style = &ui.styles().number_field;
         // Stacked, each as wide as the picker: a label and a bar each.
         let group = FieldGroup::vertical(rect, count, style.corner_radius, style.border_width);
@@ -881,12 +911,14 @@ fn palette_grid(width: f32, row: f32, gap: f32, count: usize) -> (usize, f32) {
     (columns, side)
 }
 
-/// How many fields `mode` has: its components and the opacity, one text for hex.
-pub(super) const fn field_count(mode: ColorMode) -> usize {
+/// How many fields `mode` has: its components and, with `opacity`, the opacity; one text for
+/// hex.
+pub(super) const fn field_count(mode: ColorMode, opacity: bool) -> usize {
+    let opacity = if opacity { 1 } else { 0 };
     match mode {
         ColorMode::Hex => 1,
-        ColorMode::Cmyk => 5,
-        _ => 4,
+        ColorMode::Cmyk => 4 + opacity,
+        _ => 3 + opacity,
     }
 }
 

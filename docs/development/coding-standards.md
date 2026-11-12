@@ -84,6 +84,18 @@ Details: [gpu-abstraction.md](../architecture/gpu-abstraction.md).
   after an early `return` or `?`. A frame that skips a part shows as a flicker.
 - Test an interaction by comparing what a frame draws during it with what a frame draws at
   rest (the color picker's and the menu bar's tests).
+- **Text fits by construction.** Widths come from what texts measure (`Ui::text_width`,
+  `Button::size`, `Checkbox::size`, `layout::row_fitting`), in every language: a column is as
+  wide as its longest label, a sentence wraps (`Ui::paragraph`, `Checkbox::height`), a row
+  whose controls do not fit becomes two. Fixed fractions of a width (a third, a fifth) only for
+  what has no text.
+- **Cutting is a last resort, and never hides anything.** `Ui::label` cuts with an ellipsis;
+  `Ui::label_with` chooses another way (`Overflow::Clip`, `Overflow::Shrink` for miniatures and
+  short values). Whatever the way, a label cut short shows its whole text in a tooltip when the
+  pointer rests on it, over whatever widget lies below: nothing to do at the call site.
+- `settings::tests::no_page_cuts_a_label_at_the_window_s_size_in_any_language` checks every
+  settings page at the window's opening size in every language
+  (`UiState::truncated_labels`); a new screen gets the same test.
 
 ## Platform code
 

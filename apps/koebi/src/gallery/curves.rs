@@ -9,7 +9,8 @@ use koebi_i18n::n_;
 use koebi_i18n::tr;
 use koebi_render::RectPrimitive;
 use koebi_ui::{
-    Align, Button, ButtonGroup, CurveEditor, CurveEditorState, GroupCell, PanelLevel, Ui, WidgetId,
+    Align, Button, ButtonGroup, CurveEditor, CurveEditorState, GroupCell, Overflow, PanelLevel, Ui,
+    WidgetId,
 };
 
 use super::{Metrics, cut_left, cut_top};
@@ -127,12 +128,15 @@ impl Curves {
         let editor = cut_left(&mut content, EDITOR_WIDTH, metrics.gap);
         CurveEditor::new(ID.with(10), &mut self.curve, &mut self.editor).show(ui, editor);
         let caption = cut_top(&mut content, row, gap);
-        ui.label(
+        ui.label_with(
             tr("Where a square moving by the curve lies at equal times"),
             caption,
             &font,
             secondary,
             Align::Start,
+            Overflow::Shrink {
+                min_size: font.size * 0.8,
+            },
         );
         let preview_area = Rect::from_min_max(
             content.min,

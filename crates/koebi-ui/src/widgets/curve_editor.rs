@@ -496,28 +496,34 @@ fn key_fields(
     state: &mut CurveEditorState,
 ) -> bool {
     let gap = ui.styles().property_group.column_gap;
-    let buttons = Rect::from_min_max(
-        rect.min,
-        Vec2::new(
-            rect.min.x + ((rect.width() - gap) * 0.5).floor(),
-            rect.max.y,
-        ),
-    );
-    let fields = Rect::from_min_max(Vec2::new(buttons.max.x + gap, rect.min.y), rect.max);
     let selected = state.selected;
     let removable = selected.is_some_and(|index| keys.is_inner(index));
     let mut cells = [
         GroupCell::new(
             Button::new(id.with(10))
-                .label(tr("Add key"))
+                .icon(koebi_icons::interface::PLUS)
                 .enabled(keys.len < Curve::MAX_KEYS),
         ),
         GroupCell::new(
             Button::new(id.with(11))
-                .label(tr("Remove key"))
+                .icon(koebi_icons::interface::MINUS)
                 .enabled(removable),
         ),
     ];
+    // Two square buttons, their names in tooltips; the fields take the rest of the row.
+    let width = (2.0 * rect.height()).min(rect.width());
+    let buttons = Rect::from_min_max(rect.min, Vec2::new(rect.min.x + width, rect.max.y));
+    let fields = Rect::from_min_max(Vec2::new(buttons.max.x + gap, rect.min.y), rect.max);
+    let half = Rect::from_min_max(
+        buttons.min,
+        Vec2::new(buttons.min.x + width * 0.5, buttons.max.y),
+    );
+    ui.tooltip(id.with(10), tr("Add key"), half);
+    ui.tooltip(
+        id.with(11),
+        tr("Remove key"),
+        Rect::from_min_max(Vec2::new(half.max.x, buttons.min.y), buttons.max),
+    );
     let mut changed = false;
     match ButtonGroup::horizontal()
         .show(ui, buttons, &mut cells)

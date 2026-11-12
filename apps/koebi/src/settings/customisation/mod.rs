@@ -19,7 +19,7 @@ use koebi_core::{Rect, Vec2};
 use koebi_design::DesignSystem;
 use koebi_i18n::tr;
 use koebi_input::Keymap;
-use koebi_ui::{Align, Button, ButtonGroup, GroupCell, Ui, WidgetId};
+use koebi_ui::{Button, ButtonGroup, GroupCell, Ui, WidgetId};
 
 use super::Stack;
 
@@ -107,11 +107,15 @@ impl CustomisationPage {
         }
         let font = ui.styles().text.body.clone();
         let color = ui.styles().text.secondary;
+        // Wrapped to the page's width: a line at least, more where the language needs it.
+        let text = self.view.description();
+        let width = stack.right - stack.left;
+        let height = ui.paragraph_height(text, width, &font).max(row);
         let line = Rect::from_min_max(
             Vec2::new(stack.left, tabs.max.y + gap),
-            Vec2::new(stack.right, tabs.max.y + gap + row),
+            Vec2::new(stack.right, tabs.max.y + gap + height),
         );
-        ui.label(self.view.description(), line, &font, color, Align::Start);
+        ui.paragraph(text, line, &font, color);
         stack.y = line.max.y + stack.gap;
         match self.view {
             View::ByFeature => self

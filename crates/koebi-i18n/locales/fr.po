@@ -572,14 +572,6 @@ msgid "Cannot change here"
 msgstr "Non modifiable ici"
 
 #: apps/koebi/src/gallery/colors.rs
-msgid "How the left half of the fields shows transparency"
-msgstr "Comment la moitié gauche des champs montre la transparence"
-
-#: apps/koebi/src/gallery/colors.rs
-msgid "How the right half of the fields shows transparency"
-msgstr "Comment la moitié droite des champs montre la transparence"
-
-#: apps/koebi/src/gallery/colors.rs
 msgid "Title"
 msgstr "Titre"
 
@@ -590,6 +582,14 @@ msgstr "Palette"
 #: apps/koebi/src/gallery/colors.rs
 msgid "Values first"
 msgstr "Valeurs d'abord"
+
+#: apps/koebi/src/gallery/colors.rs
+msgid "How the left half of the fields shows transparency"
+msgstr "Comment la moitié gauche des champs montre la transparence"
+
+#: apps/koebi/src/gallery/colors.rs
+msgid "How the right half of the fields shows transparency"
+msgstr "Comment la moitié droite des champs montre la transparence"
 
 #: apps/koebi/src/gallery/colors.rs
 msgid "As a dropdown"
@@ -1011,12 +1011,12 @@ msgid "Strength"
 msgstr "Intensité"
 
 #: apps/koebi/src/settings/colors.rs
-msgid "Hue palettes"
-msgstr "Palettes de teintes"
-
-#: apps/koebi/src/settings/colors.rs
 msgid "One color makes a palette: its steps keep their contrast."
 msgstr "Une couleur donne une palette : ses paliers gardent leur contraste."
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Hue palettes"
+msgstr "Palettes de teintes"
 
 #: apps/koebi/src/settings/colors.rs
 msgid "This theme"
@@ -1029,6 +1029,10 @@ msgstr "Tous les thèmes"
 #: apps/koebi/src/settings/colors.rs
 msgid "Back to the theme's own palette"
 msgstr "Revenir à la palette du thème"
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Step {step}: {contrast}:1 against the background, {color}"
+msgstr "Palier {step} : contraste de {contrast}:1 avec le fond, {color}"
 
 #: apps/koebi/src/settings/colors.rs
 #: crates/koebi-ui/src/widgets/theme_card.rs
@@ -1361,10 +1365,6 @@ msgstr ""
 "essayer, ses raccourcis et ses jetons."
 
 #: apps/koebi/src/settings/dev.rs
-msgid "Diagnostics"
-msgstr "Diagnostic"
-
-#: apps/koebi/src/settings/dev.rs
 msgid "Show the frame times"
 msgstr "Afficher les temps de rendu"
 
@@ -1375,6 +1375,10 @@ msgid ""
 msgstr ""
 "Images par seconde, temps CPU et GPU d'une image, au-dessus "
 "de la barre d'état. F12 aussi."
+
+#: apps/koebi/src/settings/dev.rs
+msgid "Diagnostics"
+msgstr "Diagnostic"
 
 #: apps/koebi/src/settings/icons.rs
 msgid "Cursors"

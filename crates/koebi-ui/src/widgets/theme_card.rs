@@ -11,7 +11,7 @@ use koebi_tokens::{component, semantic};
 
 use crate::icon::{Mark, draw_mark};
 use crate::id::WidgetId;
-use crate::text::{Align, FontStyle};
+use crate::text::{Align, FontStyle, Overflow};
 use crate::ui::{Response, Ui};
 
 /// Colors and metrics of the card around a preview, from the `component.theme-card.*`
@@ -172,6 +172,21 @@ pub struct CardResponse {
 }
 
 impl Ui<'_> {
+    /// A label of a miniature: set smaller when its text does not fit, down to half its size,
+    /// then cut ([`Overflow::Shrink`]). A miniature's room is its own, whatever the language.
+    fn mini_label(&mut self, text: &str, rect: Rect, font: &FontStyle, color: Color, align: Align) {
+        self.label_with(
+            text,
+            rect,
+            font,
+            color,
+            align,
+            Overflow::Shrink {
+                min_size: font.size * 0.5,
+            },
+        );
+    }
+
     /// A card filling `rect`: a frame in the style of theme cards, marked when `selected` and
     /// lighter under the pointer, around what the caller draws in
     /// [`CardResponse::content`]. Clicks are reported.
@@ -258,7 +273,7 @@ impl Ui<'_> {
                 Vec2::new(logo.max.x + unit * 0.5, bar.min.y),
                 Vec2::new(bar.max.x, bar.max.y),
             );
-            ui.label("Koebi", name, &font, p.text_secondary, Align::Start);
+            ui.mini_label("Koebi", name, &font, p.text_secondary, Align::Start);
             // The status bar.
             let status =
                 Rect::from_min_max(Vec2::new(rect.min.x, rect.max.y - unit * 1.5), rect.max);
@@ -268,7 +283,7 @@ impl Ui<'_> {
                 Vec2::new(status.min.x + unit * 0.6, status.min.y),
                 status.max,
             );
-            ui.label(tr("Ready"), ready, &font, p.text_secondary, Align::Start);
+            ui.mini_label(tr("Ready"), ready, &font, p.text_secondary, Align::Start);
             // A side panel: a list, its second row selected.
             let side = Rect::from_min_max(
                 Vec2::new(rect.min.x + unit * 0.5, bar.max.y + unit * 0.5),
@@ -295,7 +310,7 @@ impl Ui<'_> {
                 };
                 let text =
                     Rect::from_min_max(Vec2::new(row.min.x + unit * 0.6, row.min.y), row.max);
-                ui.label(item, text, &font, ink, Align::Start);
+                ui.mini_label(item, text, &font, ink, Align::Start);
             }
             // The editor: a title, a line of text, a field, a checkbox and two buttons.
             let left = side.max.x + unit * 0.8;
@@ -306,7 +321,7 @@ impl Ui<'_> {
                 size: font.size * 1.35,
                 ..font.clone()
             };
-            ui.label(
+            ui.mini_label(
                 tr("Aa Title"),
                 title,
                 &heading,
@@ -314,7 +329,7 @@ impl Ui<'_> {
                 Align::Start,
             );
             let body = Rect::from_min_max(Vec2::new(left, line(1.0)), Vec2::new(right, line(1.9)));
-            ui.label(
+            ui.mini_label(
                 tr("Text over the theme"),
                 body,
                 &font,
@@ -333,7 +348,7 @@ impl Ui<'_> {
             );
             ui.scene.push_rect(&rounded(fill, p.field_fill, radius));
             let value = field.inset(unit * 0.3);
-            ui.label("0.60", value, &font, p.text_primary, Align::End);
+            ui.mini_label("0.60", value, &font, p.text_primary, Align::End);
             let check = Rect::from_origin_size(
                 Vec2::new(field.max.x + unit * 0.6, field.min.y + unit * 0.15),
                 Vec2::splat(unit),
@@ -356,10 +371,10 @@ impl Ui<'_> {
             };
             let ok = button(left);
             ui.scene.push_rect(&rounded(ok, p.accent, radius));
-            ui.label("OK", ok, &font, p.accent_label, Align::Center);
+            ui.mini_label("OK", ok, &font, p.accent_label, Align::Center);
             let cancel = button(ok.max.x + unit * 0.4);
             ui.scene.push_rect(&rounded(cancel, p.button, radius));
-            ui.label(tr("No"), cancel, &font, p.button_label, Align::Center);
+            ui.mini_label(tr("No"), cancel, &font, p.button_label, Align::Center);
             // A chart beside them: bars of its first colors, standing on the buttons' line.
             let chart_left = cancel.max.x + unit * 0.8;
             let column = ((right - chart_left) / 6.5).max(0.0);
@@ -413,7 +428,7 @@ impl Ui<'_> {
                 tile = tile.with_border(1.0, p.panel_border);
             }
             self.scene.push_rect(&tile);
-            self.label(tr("Aa"), at, &big, ink, Align::Center);
+            self.mini_label(tr("Aa"), at, &big, ink, Align::Center);
         }
         // The colors of states, with their labels.
         let tones_top = inner.min.y + tile_height + gap * 2.0;
@@ -426,7 +441,7 @@ impl Ui<'_> {
             self.scene
                 .push_rect(&RectPrimitive::new(at, color).with_corner_radius(radius));
             let name = [tr("Done"), tr("Error"), tr("Note"), tr("Info")][index];
-            self.label(name, at, &small, ink, Align::Center);
+            self.mini_label(name, at, &small, ink, Align::Center);
         }
         // The colors of charts, side by side: what a mode confuses shows as neighbours alike.
         let chart_top = tones_top + chip_height + gap * 2.0;

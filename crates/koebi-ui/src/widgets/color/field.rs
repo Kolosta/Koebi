@@ -152,6 +152,10 @@ pub struct ColorFieldResponse {
 
 /// A color field editing `color` in a picker, configured then shown with [`ColorField::show`].
 #[derive(Debug)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "a builder's independent switches, each set by its own method"
+)]
 pub struct ColorField<'a> {
     id: WidgetId,
     color: &'a mut Color,
@@ -164,6 +168,7 @@ pub struct ColorField<'a> {
     palette: &'a [Color],
     sections: Option<&'a [PickerSection]>,
     eyedropper: bool,
+    opacity: bool,
     enabled: bool,
 }
 
@@ -182,8 +187,17 @@ impl<'a> ColorField<'a> {
             palette: &[],
             sections: None,
             eyedropper: true,
+            opacity: true,
             enabled: true,
         }
+    }
+
+    /// Whether the color has an opacity to edit (on by default): without one, the picker
+    /// shows neither its opacity strip nor its opacity field ([`ColorPicker::opacity`]).
+    #[must_use]
+    pub fn opacity(mut self, opacity: bool) -> Self {
+        self.opacity = opacity;
+        self
     }
 
     /// How its left and right halves show the color's transparency.
@@ -297,6 +311,7 @@ impl<'a> ColorField<'a> {
             palette,
             sections,
             eyedropper,
+            opacity,
             ..
         } = self;
         let sections = sections.unwrap_or(&PICKER_SECTIONS);
@@ -304,8 +319,9 @@ impl<'a> ColorField<'a> {
             shape,
             titled: title.is_some(),
             swatches: palette.len(),
-            fields: field_count(state.picker.mode()),
+            fields: field_count(state.picker.mode(), opacity),
             sections,
+            opacity,
         };
         let size = layout.size(ui);
         // The panel takes the menu, the picker the rest.
@@ -315,7 +331,8 @@ impl<'a> ColorField<'a> {
                 let mut shown = ColorPicker::new(id.with(1), picker, color)
                     .shape(shape)
                     .palette(palette)
-                    .sections(sections);
+                    .sections(sections)
+                    .opacity(opacity);
                 if let Some(title) = title {
                     shown = shown.title(title);
                 }

@@ -28,6 +28,13 @@ impl WidgetId {
     pub const fn with(self, index: u64) -> Self {
         Self(fnv1a(self.0, &index.to_le_bytes()))
     }
+
+    /// The id of this widget's child named by `text`, known only at run time (a label's own
+    /// text).
+    #[must_use]
+    pub(crate) fn with_text(self, text: &str) -> Self {
+        Self(fnv1a(self.0, text.as_bytes()))
+    }
 }
 
 const fn fnv1a(mut hash: u64, bytes: &[u8]) -> u64 {

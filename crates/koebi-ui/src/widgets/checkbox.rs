@@ -350,6 +350,18 @@ impl<'a> Checkbox<'a> {
         Vec2::new((self.side(ui) + gap).ceil(), height)
     }
 
+    /// The height the checkbox takes `width` wide: its first line, then its description
+    /// wrapped to the room beside the box ([`Checkbox::size`] gives it on one line).
+    pub fn height(&self, ui: &mut Ui<'_>, width: f32) -> f32 {
+        let (first, second) = self.lines(ui);
+        let Some(description) = self.description else {
+            return first;
+        };
+        let room = (width - self.side(ui) - ui.styles().checkbox.gap).max(1.0);
+        let detail = ui.styles().text.detail.clone();
+        first + ui.paragraph_height(description, room, &detail).max(second)
+    }
+
     /// Shows the checkbox in `rect`: a click anywhere in it flips the value (a mixed box
     /// becomes checked) and reports `changed`.
     pub fn show(self, ui: &mut Ui<'_>, rect: Rect) -> Response {
@@ -415,11 +427,12 @@ impl<'a> Checkbox<'a> {
             ui.label(label, slot, &styles.text.label, color, Align::Start);
         }
         if let Some(description) = self.description {
+            // Wrapped below the label: [`Checkbox::height`] gives the room it takes.
             let slot = Rect::from_min_max(
                 Vec2::new(text_left, line.max.y),
-                Vec2::new(rect.max.x, (line.max.y + second).min(rect.max.y)),
+                Vec2::new(rect.max.x, rect.max.y.max(line.max.y + second)),
             );
-            ui.label(
+            ui.paragraph(
                 description,
                 slot,
                 &styles.text.detail,
@@ -428,7 +441,6 @@ impl<'a> Checkbox<'a> {
                 } else {
                     style.description_disabled
                 },
-                Align::Start,
             );
         }
         response
@@ -569,5 +581,38 @@ mod tests {
                 .tokens
                 .get(koebi_tokens::semantic::TEXT_COLOR_PRIMARY_DEFAULT)
         );
+    }
+
+    #[test]
+    fn a_description_wraps_and_the_checkbox_measures_it() {
+        let styles = crate::test_styles();
+        let (mut scene, mut state, input) = (Scene::new(), UiState::new(), Input::new());
+        state.set_fonts(Fonts::with_embedded());
+        let mut ui = Ui::new(&mut scene, &styles, &input, &mut state);
+        let mut on = false;
+        let description = "Frames per second, CPU and GPU time of a frame, above the status bar.";
+        let checkbox = Checkbox::new(WidgetId::new("option"), &mut on)
+            .label("Show the frame times")
+            .description(description);
+        let natural = checkbox.size(&mut ui);
+        // As wide as it asks: one line of description, its paragraph's line at least as high
+        // as the line `size` counts.
+        let one_line = checkbox.height(&mut ui, natural.x);
+        assert!(
+            one_line >= natural.y - 1e-3,
+            "{one_line} against {}",
+            natural.y
+        );
+        // Narrower: the description takes more lines, and nothing is cut.
+        let narrow = natural.x * 0.4;
+        let height = checkbox.height(&mut ui, narrow);
+        assert!(height > one_line + 1.0, "{height} against {one_line}");
+        checkbox.show(
+            &mut ui,
+            Rect::from_origin_size(Vec2::ZERO, Vec2::new(narrow, height)),
+        );
+        drop(ui);
+        // The label keeps its line (cut here, at 40 % of its width); the description wraps.
+        assert!(state.truncated_labels().all(|cut| cut != description));
     }
 }

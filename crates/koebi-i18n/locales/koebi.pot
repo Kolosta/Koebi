@@ -568,14 +568,6 @@ msgid "Cannot change here"
 msgstr ""
 
 #: apps/koebi/src/gallery/colors.rs
-msgid "How the left half of the fields shows transparency"
-msgstr ""
-
-#: apps/koebi/src/gallery/colors.rs
-msgid "How the right half of the fields shows transparency"
-msgstr ""
-
-#: apps/koebi/src/gallery/colors.rs
 msgid "Title"
 msgstr ""
 
@@ -585,6 +577,14 @@ msgstr ""
 
 #: apps/koebi/src/gallery/colors.rs
 msgid "Values first"
+msgstr ""
+
+#: apps/koebi/src/gallery/colors.rs
+msgid "How the left half of the fields shows transparency"
+msgstr ""
+
+#: apps/koebi/src/gallery/colors.rs
+msgid "How the right half of the fields shows transparency"
 msgstr ""
 
 #: apps/koebi/src/gallery/colors.rs
@@ -998,11 +998,11 @@ msgid "Strength"
 msgstr ""
 
 #: apps/koebi/src/settings/colors.rs
-msgid "Hue palettes"
+msgid "One color makes a palette: its steps keep their contrast."
 msgstr ""
 
 #: apps/koebi/src/settings/colors.rs
-msgid "One color makes a palette: its steps keep their contrast."
+msgid "Hue palettes"
 msgstr ""
 
 #: apps/koebi/src/settings/colors.rs
@@ -1015,6 +1015,10 @@ msgstr ""
 
 #: apps/koebi/src/settings/colors.rs
 msgid "Back to the theme's own palette"
+msgstr ""
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Step {step}: {contrast}:1 against the background, {color}"
 msgstr ""
 
 #: apps/koebi/src/settings/colors.rs
@@ -1289,10 +1293,6 @@ msgid ""
 msgstr ""
 
 #: apps/koebi/src/settings/dev.rs
-msgid "Diagnostics"
-msgstr ""
-
-#: apps/koebi/src/settings/dev.rs
 msgid "Show the frame times"
 msgstr ""
 
@@ -1300,6 +1300,10 @@ msgstr ""
 msgid ""
 "Frames per second, CPU and GPU time of a frame, above the status "
 "bar. F12 too."
+msgstr ""
+
+#: apps/koebi/src/settings/dev.rs
+msgid "Diagnostics"
 msgstr ""
 
 #: apps/koebi/src/settings/icons.rs

@@ -21,21 +21,26 @@ pub(super) fn show(
 ) {
     let row = design.get(semantic::SIZE_CONTROL_HEIGHT);
     let gap = ui.styles().property_group.row_gap;
-    // The section's title, then the option on two lines: its label and what it does.
-    let height = row + gap + 2.0 * row;
-    stack.container(ui, height, |ui, content| {
-        let title = Rect::from_origin_size(content.min, Vec2::new(content.width(), row));
-        ui.section_title(title, tr("Diagnostics"));
-        let option = Rect::from_origin_size(
-            Vec2::new(content.min.x, title.max.y + gap),
-            Vec2::new(content.width(), 2.0 * row),
-        );
+    let option = |frame_times| {
         Checkbox::new(ID.with(1), frame_times)
             .label(tr("Show the frame times"))
             .description(tr(
                 "Frames per second, CPU and GPU time of a frame, above the status bar. F12 too.",
             ))
-            .show(ui, option);
+    };
+    // The section's title, then the option: its label and what it does, wrapped.
+    let width = stack.content(ui).width();
+    let mut shown = *frame_times;
+    let option_height = option(&mut shown).height(ui, width);
+    let height = row + gap + option_height;
+    stack.container(ui, height, |ui, content| {
+        let title = Rect::from_origin_size(content.min, Vec2::new(content.width(), row));
+        ui.section_title(title, tr("Diagnostics"));
+        let at = Rect::from_origin_size(
+            Vec2::new(content.min.x, title.max.y + gap),
+            Vec2::new(content.width(), option_height),
+        );
+        option(frame_times).show(ui, at);
     });
 }
 
