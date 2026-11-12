@@ -9,11 +9,11 @@
 use core::time::Duration;
 use std::time::Instant;
 
-use koebi_core::{Extent, Rect, Vec2};
-use koebi_design::DesignSystem;
+use koebi_core::{Color, Extent, Rect, Vec2};
+use koebi_design::{DesignSystem, Scope};
 use koebi_render::{Renderer2D, Scene};
 use koebi_text::{Align as TextAlign, Fonts, Paragraph, TextBlock, TextStyle};
-use koebi_tokens::{KOEBI, component};
+use koebi_tokens::{KOEBI, component, palettes, semantic};
 use koebi_ui::{Input, StyleCache, Ui, UiState};
 
 use crate::gallery::Gallery;
@@ -136,6 +136,38 @@ fn baseline() {
     last.set_clear_color(design.get(component::WINDOW_BACKGROUND_COLOR_DEFAULT));
     row("Gallery", "CPU scene", &mut times, Some(&last));
     scenes.push(("Gallery", last, Extent::new(1600, 1000)));
+
+    // A drag that edits the design: a token every frame, then a theme's accent, whose palette
+    // is made again every frame. The styles follow each change at once.
+    let mut times = Vec::with_capacity(FRAMES);
+    for frame in 0..FRAMES {
+        let shade = if frame % 2 == 0 { 0.30 } else { 0.32 };
+        let start = Instant::now();
+        design
+            .set_value(
+                Scope::Global,
+                semantic::BACKGROUND_APP_CONTROL,
+                Color::rgb(shade, shade, shade),
+            )
+            .expect("a color for a color token");
+        gallery_frame(&mut gallery, &mut design, &mut styles, &mut state, size);
+        times.push(start.elapsed());
+    }
+    row("Gallery, a token dragged", "CPU scene", &mut times, None);
+    let accent = palettes::editable()
+        .find(|palette| palette.key == "accent")
+        .expect("an accent palette");
+    let theme = design.active_theme();
+    let mut times = Vec::with_capacity(FRAMES);
+    for frame in 0..FRAMES {
+        let hue = if frame % 2 == 0 { 0.55 } else { 0.6 };
+        let start = Instant::now();
+        palettes::seed(&mut design, theme, &accent, Color::rgb(0.2, hue, 0.9))
+            .expect("a palette made from a color");
+        gallery_frame(&mut gallery, &mut design, &mut styles, &mut state, size);
+        times.push(start.elapsed());
+    }
+    row("Gallery, the accent dragged", "CPU scene", &mut times, None);
 
     // Text laid out in paragraphs, Latin and Japanese.
     let fonts = Fonts::with_embedded();

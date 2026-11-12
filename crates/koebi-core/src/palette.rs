@@ -133,18 +133,38 @@ impl ColorScale {
     /// the background's lightness.
     pub fn with_contrast(&self, background: Color, ratio: f32) -> Color {
         let below = background.with_alpha(1.0).to_oklch().l;
+        // The background's side of the contrast, once ([`Color::contrast_ratio`]).
+        let luminance = background.relative_luminance();
+        let contrast = |color: Color| {
+            let other = color.relative_luminance();
+            let (lighter, darker) = if other >= luminance {
+                (other, luminance)
+            } else {
+                (luminance, other)
+            };
+            (lighter + 0.05) / (darker + 0.05)
+        };
         // A background darker than middle gray takes lighter colors; the other side otherwise.
-        let lighter = background.relative_luminance() < 0.18;
+        let lighter = luminance < 0.18;
         let (mut near, mut far) = if lighter { (below, 1.0) } else { (below, 0.0) };
-        if self.at(far).contrast_ratio(background) <= ratio {
+        if contrast(self.at(far)) <= ratio {
             return self.at(far);
         }
         for _ in 0..ITERATIONS {
             let middle = near.midpoint(far);
-            if self.at(middle).contrast_ratio(background) < ratio {
+            // No other `f32` lies between the ends: past this step, nothing changes.
+            #[allow(
+                clippy::float_cmp,
+                reason = "exact on purpose: the midpoint is one of the ends once no other f32                           lies between them"
+            )]
+            let last = middle == near || middle == far;
+            if contrast(self.at(middle)) < ratio {
                 near = middle;
             } else {
                 far = middle;
+            }
+            if last {
+                break;
             }
         }
         self.at(far)

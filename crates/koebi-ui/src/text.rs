@@ -113,8 +113,8 @@ impl Ui<'_> {
             return 0.0;
         };
         let state = &mut *self.state;
-        state.line.layout(&state.fonts, "", &style);
-        state.line.ascent() + state.line.descent()
+        let line = state.lines.line(&state.fonts, "", &style, None);
+        line.ascent() + line.descent()
     }
 
     /// Lays `text` out in `font` on the shared line (`UiState::line`), for components that
@@ -137,8 +137,8 @@ impl Ui<'_> {
             return 0.0;
         };
         let state = &mut *self.state;
-        state.line.layout(&state.fonts, text, &style);
-        state.line.width()
+        koebi_core::profile_scope!("text.width");
+        state.lines.line(&state.fonts, text, &style, None).width()
     }
 
     /// Draws `text` on one line in `rect`: centred vertically, placed by `align`, cut with an
@@ -155,8 +155,12 @@ impl Ui<'_> {
             return 0.0;
         };
         let state = &mut *self.state;
-        let line: &mut TextLine = &mut state.line;
-        line.layout_truncated(&state.fonts, text, &style, rect.width());
+        let line = {
+            koebi_core::profile_scope!("text.label");
+            state
+                .lines
+                .line(&state.fonts, text, &style, Some(rect.width()))
+        };
         let width = line.width();
         let x = match align {
             Align::Start => rect.min.x,
@@ -201,6 +205,7 @@ impl Ui<'_> {
             align: koebi_text::Align::Start,
         };
         let state = &mut *self.state;
+        koebi_core::profile_scope!("text.paragraph.layout");
         state.block.layout(&state.fonts, text, &style, &paragraph);
         state.block.height()
     }
@@ -293,16 +298,9 @@ mod tests {
         let drawn = ui.paragraph(text, rect(0.0, 0.0, word * 2.2, 400.0), &font, Color::WHITE);
         assert!((drawn - narrow).abs() < 1e-4);
         drop(ui);
-        // Every letter drawn once, and the spaces between the words of a line: wrapping cuts
-        // nothing and drops the spaces where lines break.
+        // Every letter drawn once: wrapping cuts nothing. Spaces draw nothing and take no
+        // instance.
         let letters = text.chars().filter(|c| !c.is_whitespace()).count();
-        let spaces = text.matches(' ').count();
-        #[allow(
-            clippy::cast_possible_truncation,
-            clippy::cast_sign_loss,
-            reason = "a few lines"
-        )]
-        let lines = (narrow / one).round() as usize;
-        assert_eq!(scene.glyph_count(), letters + spaces - (lines - 1));
+        assert_eq!(scene.glyph_count(), letters);
     }
 }

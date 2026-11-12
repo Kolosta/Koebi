@@ -330,9 +330,9 @@ fn fields_show_their_label_value_unit_bar_and_steps_on_hover() {
             .1
     };
     let idle = draw(&mut harness, &mut value, Some(true));
-    // The box and the bar; "Size", "2.50" and " mm".
+    // The box and the bar; "Size", "2.50" and " mm", whose space draws nothing.
     assert_eq!(idle.rect_count(), 2);
-    assert_eq!(idle.glyph_count(), 4 + 4 + 3);
+    assert_eq!(idle.glyph_count(), 4 + 4 + 2);
     assert_eq!(idle.icon_count(), 0);
     harness.input.pointer_moved(field().center());
     draw(&mut harness, &mut value, Some(true));

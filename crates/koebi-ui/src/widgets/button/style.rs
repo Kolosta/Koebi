@@ -2,11 +2,15 @@
 //! toggle buttons, and the metrics of buttons, read from the `component.button.*` and
 //! `component.toggle.*` tokens.
 
+use core::cell::OnceCell;
+
 use koebi_core::Color;
 use koebi_design::Resolve;
 use koebi_tokens::component;
 
-use crate::widgets::parts::{HueColors, Shades, States, Tone, ToneColors, Variant, hued, shade};
+use crate::widgets::parts::{
+    HueColors, HueLadders, Shades, States, Tone, ToneColors, Variant, shade,
+};
 
 /// Colors and metrics of buttons, from the `component.button.*` tokens.
 ///
@@ -34,8 +38,12 @@ pub struct ButtonStyle {
     pub icon_size: f32,
     /// Colors of each variant, in the order of [`Variant::ALL`].
     pub variants: [ToneColors; 7],
-    /// Colors of each variant in each color family: `hues[hue][variant]`.
-    pub hues: [[ToneColors; 7]; 8],
+    /// The colors of each color family, by [`Hue::index`](crate::Hue), and how their states
+    /// derive from them.
+    families: [HueColors; 8],
+    shades: Shades,
+    /// The colors of each variant in each family, derived on first use ([`Self::colors`]).
+    hues: HueTones,
     /// Colors of toggle buttons of the default tone (`component.toggle.*`).
     pub toggle: ToneColors,
     /// Share of its selected colors a selected button keeps once disabled.
@@ -221,13 +229,10 @@ impl ButtonStyle {
                 c::BUTTON_HUE_PURPLE_TEXT,
             ),
         ];
-        let hues = families.map(|(fill, subtle, text)| {
-            let family = HueColors {
-                fill: get(fill),
-                subtle: get(subtle),
-                text: get(text),
-            };
-            Variant::ALL.map(|variant| hued(variant, &variants[variant.index()], family, shades))
+        let families = families.map(|(fill, subtle, text)| HueColors {
+            fill: get(fill),
+            subtle: get(subtle),
+            text: get(text),
         });
         let toggle_label = States {
             normal: get(c::TOGGLE_LABEL_COLOR_DEFAULT),
@@ -269,7 +274,6 @@ impl ButtonStyle {
         // Switched on, then disabled: the disabled colors, tinted with the selected ones.
         let tint = tokens.get(c::BUTTON_SELECTED_DISABLED_TINT);
         let variants = variants.map(|colors| colors.with_selected_disabled(tint));
-        let hues = hues.map(|row| row.map(|colors| colors.with_selected_disabled(tint)));
         let toggle = toggle.with_selected_disabled(tint);
         Self {
             height: tokens.get(c::BUTTON_HEIGHT_DEFAULT),
@@ -282,7 +286,9 @@ impl ButtonStyle {
             dot_size: tokens.get(c::BUTTON_STATUS_DOT_SIZE_DEFAULT),
             icon_size: crate::style::icon_size(tokens),
             variants,
-            hues,
+            families,
+            shades,
+            hues: HueTones::default(),
             toggle,
             selected_disabled_tint: tint,
             toggle_corner_radius: tokens.get(c::TOGGLE_CORNER_RADIUS_DEFAULT),
@@ -290,11 +296,37 @@ impl ButtonStyle {
         }
     }
 
-    /// The colors of `tone` in every state.
+    /// The colors of `tone` in every state. Those of a color family are derived the first time
+    /// one of its buttons is drawn: each of its colors is a shade or a mix in OKLab, and most
+    /// screens show no colored button.
     pub fn colors(&self, tone: Tone) -> &ToneColors {
         match tone.hue {
-            Some(hue) => &self.hues[hue.index()][tone.variant.index()],
+            Some(hue) => {
+                let tones = self.hues.0[hue.index()].get_or_init(|| {
+                    let family = HueLadders::new(self.families[hue.index()], self.shades);
+                    // The variants' own selected and disabled colors, derived already, are
+                    // derived again for the family: only the others come from the variant.
+                    Variant::ALL.map(|variant| {
+                        family
+                            .tone(variant, &self.variants[variant.index()])
+                            .with_selected_disabled(self.selected_disabled_tint)
+                    })
+                });
+                &tones[tone.variant.index()]
+            }
             None => &self.variants[tone.variant.index()],
         }
+    }
+}
+
+/// The colors of each variant in each color family, `[hue][variant]`, derived on first use: a
+/// cache. They follow from the rest of the style, so that two styles equal in the rest are
+/// equal whatever their caches hold.
+#[derive(Clone, Debug, Default)]
+struct HueTones([OnceCell<[ToneColors; 7]>; 8]);
+
+impl PartialEq for HueTones {
+    fn eq(&self, _: &Self) -> bool {
+        true
     }
 }

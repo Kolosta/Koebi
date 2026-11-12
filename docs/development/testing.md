@@ -126,4 +126,12 @@ The benchmark is an ignored test, `apps/koebi/src/bench.rs`. The report goes to
 `target/bench/latest.md`; `--save` writes it to
 [`docs/performance/baseline.md`](../performance/baseline.md), the baseline to compare a change
 with on the same machine. Timings vary between machines and CI runners: the benchmark is not
-a CI check.
+a CI check. Two of its rows edit the design every frame (a token, then a theme's accent), as a
+drag on a field or a color does.
+
+To see where a frame's time goes in the running application, start it with `KOEBI_PROFILE=1`
+(`KOEBI_PROFILE=1 cargo run -p koebi -- --frames 600`): at exit it logs the time of each scope,
+per frame and per call, with the worst frame. Scopes are opened with
+`koebi_core::profile_scope!("name")` (`koebi_core::profile`); while profiling is off, a scope
+costs one atomic load. A debug build is lightly optimized (`opt-level = 1` in the workspace `Cargo.toml`) so
+that its frames stay representative; the validation layers it enables add about 0.7 ms.

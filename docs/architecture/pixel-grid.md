@@ -23,7 +23,9 @@ with [`Edges::Snapped`](../../crates/koebi-render/src/scene.rs). The vertex shad
 
 - **Each edge goes to the nearest pixel edge**, not the position and the size separately. Two
   rectangles sharing an edge compute the same pixel for it, so they stay joined at every scale.
-  Scissors round the same way, so clipped content meets its container.
+  Clips round the same way: each instance carries its clip in whole pixels, kept by the
+  fragment shaders as a scissor would keep them, so clipped content meets its container
+  ([ADR 0025](../adr/0025-batching-across-clips.md)).
   A rounded clip (`Scene::push_rounded_clip`) lies on the same pixels and ends its corners with
   the same coverage as a rectangle of that shape, so an area cuts what it holds exactly at its
   own edge.
@@ -45,7 +47,7 @@ Positions meant to lie exactly half way between two pixels are common (an intege
 position at 1.25 or 1.75), and floating point cannot hold lengths such as `3 / 1.75` exactly:
 such an edge lands a hair below or above the half. Edges therefore round up from
 [`TIE_TOLERANCE`](../../crates/koebi-render/src/scene.rs) (1/256 of a pixel) below the half, in
-the shader, the scissors and [`koebi_render::pixel_edge`](../../crates/koebi-render/src/scene.rs)
+the shaders, the clips and [`koebi_render::pixel_edge`](../../crates/koebi-render/src/scene.rs)
 alike, so that edges meant to be a whole number of pixels apart always are.
 
 ## Lengths on whole pixels

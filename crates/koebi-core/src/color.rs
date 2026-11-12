@@ -438,24 +438,28 @@ impl Oklch {
     /// token asks for more colorfulness than sRGB can display.
     #[must_use]
     pub fn to_color(self) -> Color {
-        let base = Self {
-            l: self.l.clamp(0.0, 1.0),
-            c: self.c.max(0.0),
-            ..self
+        let (l, c) = (self.l.clamp(0.0, 1.0), self.c.max(0.0));
+        // The hue's direction, once: the search only moves along it ([`Oklch::to_oklab`]).
+        let (sin, cos) = self.h.to_radians().sin_cos();
+        let at = |chroma: f32| Oklab {
+            l,
+            a: chroma * cos,
+            b: chroma * sin,
+            alpha: self.alpha,
         };
-        if base.to_oklab().to_linear().is_in_gamut() {
-            return base.to_oklab().to_color();
+        if at(c).to_linear().is_in_gamut() {
+            return at(c).to_color();
         }
-        let (mut low, mut high) = (0.0_f32, base.c);
+        let (mut low, mut high) = (0.0_f32, c);
         for _ in 0..24 {
             let mid = f32::midpoint(low, high);
-            if base.with_chroma(mid).to_oklab().to_linear().is_in_gamut() {
+            if at(mid).to_linear().is_in_gamut() {
                 low = mid;
             } else {
                 high = mid;
             }
         }
-        base.with_chroma(low).to_oklab().to_color()
+        at(low).to_color()
     }
 }
 

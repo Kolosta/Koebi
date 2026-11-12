@@ -35,6 +35,7 @@
 
 mod block;
 pub mod breaks;
+pub mod cache;
 mod error;
 mod font;
 mod fonts;
@@ -47,6 +48,7 @@ mod shape;
 pub mod system;
 
 pub use block::{Align, LaidLine, Paragraph, TextBlock};
+pub use cache::LineCache;
 pub use error::{Error, Result};
 pub use font::{Font, FontMetrics, GlyphId};
 pub use fonts::{FontId, Fonts, embedded};

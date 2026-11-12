@@ -318,8 +318,8 @@ mod tests {
         assert_eq!(location[0].min.y, name.max.y + style.group_gap);
         assert_eq!(location[1].min.y, location[0].max.y + style.row_gap);
         assert_eq!(after.min.y, location[2].max.y + style.group_gap);
-        // "Name", "Location X" (three parts), "Y", "Z", "Mode".
-        assert_eq!(scene.glyph_count(), 4 + 8 + 1 + 1 + 1 + 1 + 4);
+        // "Name", "Location X" (three parts, its space drawing nothing), "Y", "Z", "Mode".
+        assert_eq!(scene.glyph_count(), 4 + 8 + 1 + 1 + 1 + 4);
         assert_eq!(height, after.max.y - area().min.y);
         frame(|ui| {
             let group = PropertyGroup::new(ui, area());

@@ -187,57 +187,74 @@ pub(crate) fn shade(color: Color, delta: f32) -> Color {
         .with_alpha(color.a)
 }
 
-/// The colors of `variant` in the family `hue`: filled variants take the family's fill, the
-/// default variant its subtle background with its text color; `base` gives the colors of the
-/// variant itself (content of filled variants, disabled colors), `shades` the hovered, pressed
-/// and disabled shades.
-pub(crate) fn hued(
-    variant: Variant,
-    base: &ToneColors,
+/// The states of a family's colors, derived once for all its variants: each shade is an OKLCH
+/// round trip, the dearest part of resolving the styles, and the filled variants of a family
+/// share theirs.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct HueLadders {
     hue: HueColors,
     shades: Shades,
-) -> ToneColors {
-    let disabled = |base: Color, color: Color| base.mix_oklab(color, shades.disabled_tint);
-    let ladder = |color: Color, selected: Color| States {
-        normal: color,
-        hovered: shade(color, shades.hover),
-        pressed: shade(color, shades.pressed),
-        selected,
-        selected_hovered: shade(selected, shades.hover),
-        selected_pressed: shade(selected, shades.pressed),
-        active: selected,
-        disabled: color,
-        // Derived with the rest of the style's colors.
-        selected_disabled: color,
-    };
-    let (mut background, mut border, mut content) = if variant.is_filled() {
-        let pressed = shade(hue.fill, shades.pressed);
-        (
-            ladder(hue.fill, pressed),
-            ladder(hue.fill, pressed),
-            base.content,
-        )
-    } else {
-        (
-            ladder(hue.subtle, hue.fill),
-            ladder(hue.text, hue.fill),
-            States {
-                selected: base.content.selected,
-                selected_hovered: base.content.selected_hovered,
-                selected_pressed: base.content.selected_pressed,
-                active: base.content.active,
-                ..States::all(hue.text)
-            },
-        )
-    };
-    background.disabled = disabled(base.background.disabled, background.normal);
-    border.disabled = disabled(base.border.disabled, border.normal);
-    content.disabled = disabled(base.content.disabled, content.normal);
-    ToneColors {
-        background,
-        border,
-        content,
-        icon: content,
+    /// Background and border of the filled variants: the fill, pressed when selected.
+    filled: States<Color>,
+    /// Background of the default variant: the subtle color, filled when selected.
+    subtle: States<Color>,
+    /// Border of the default variant: the text color, filled when selected.
+    text: States<Color>,
+}
+
+impl HueLadders {
+    /// The ladders of the family `hue`, with the hovered, pressed and disabled `shades`.
+    pub(crate) fn new(hue: HueColors, shades: Shades) -> Self {
+        let ladder = |color: Color, selected: Color| States {
+            normal: color,
+            hovered: shade(color, shades.hover),
+            pressed: shade(color, shades.pressed),
+            selected,
+            selected_hovered: shade(selected, shades.hover),
+            selected_pressed: shade(selected, shades.pressed),
+            active: selected,
+            disabled: color,
+            // Derived with the rest of the style's colors.
+            selected_disabled: color,
+        };
+        Self {
+            hue,
+            shades,
+            filled: ladder(hue.fill, shade(hue.fill, shades.pressed)),
+            subtle: ladder(hue.subtle, hue.fill),
+            text: ladder(hue.text, hue.fill),
+        }
+    }
+
+    /// The colors of `variant` in the family: filled variants take the family's fill, the
+    /// default variant its subtle background with its text color; `base` gives the colors of
+    /// the variant itself (content of filled variants, disabled colors).
+    pub(crate) fn tone(&self, variant: Variant, base: &ToneColors) -> ToneColors {
+        let disabled = |base: Color, color: Color| base.mix_oklab(color, self.shades.disabled_tint);
+        let (mut background, mut border, mut content) = if variant.is_filled() {
+            (self.filled, self.filled, base.content)
+        } else {
+            (
+                self.subtle,
+                self.text,
+                States {
+                    selected: base.content.selected,
+                    selected_hovered: base.content.selected_hovered,
+                    selected_pressed: base.content.selected_pressed,
+                    active: base.content.active,
+                    ..States::all(self.hue.text)
+                },
+            )
+        };
+        background.disabled = disabled(base.background.disabled, background.normal);
+        border.disabled = disabled(base.border.disabled, border.normal);
+        content.disabled = disabled(base.content.disabled, content.normal);
+        ToneColors {
+            background,
+            border,
+            content,
+            icon: content,
+        }
     }
 }
 
@@ -280,7 +297,7 @@ mod tests {
 
     #[test]
     fn filled_variants_take_the_family_fill_and_keep_their_content() {
-        let colors = hued(Variant::Accent, &base(), blue(), SHADES);
+        let colors = HueLadders::new(blue(), SHADES).tone(Variant::Accent, &base());
         assert_eq!(colors.background.normal, blue().fill);
         assert!(colors.background.hovered.to_oklch().l > blue().fill.to_oklch().l);
         assert!(colors.background.pressed.to_oklch().l < blue().fill.to_oklch().l);
@@ -293,7 +310,7 @@ mod tests {
 
     #[test]
     fn the_default_variant_takes_the_subtle_background_and_text_color() {
-        let colors = hued(Variant::Default, &base(), blue(), SHADES);
+        let colors = HueLadders::new(blue(), SHADES).tone(Variant::Default, &base());
         assert_eq!(colors.background.normal, blue().subtle);
         assert_eq!(colors.content.normal, blue().text);
         assert_eq!(colors.border.normal, blue().text);

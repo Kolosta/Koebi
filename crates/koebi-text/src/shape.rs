@@ -41,6 +41,7 @@ pub(crate) fn shape(
             glyph,
             x: 0.0,
             cluster: u32::try_from(offset).unwrap_or(u32::MAX),
+            ink: None,
         });
     }
     if style.features.ligatures && style.tracking == 0.0 {
@@ -61,6 +62,7 @@ pub(crate) fn shape(
             }
         }
         placed.x = x;
+        placed.ink = font.ink(placed.glyph, style.size);
         x += f32::from(font.advance(placed.glyph)) * scale;
         previous = Some(*placed);
     }

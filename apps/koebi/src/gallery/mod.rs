@@ -287,8 +287,11 @@ impl Gallery {
         if rest.is_empty() {
             return;
         }
+        // Each part is built only when it shows ([`Ui::is_hidden`]): the gallery is long.
         let cards = cut_top(&mut rest, (metrics.row * 4.5).round(), metrics.gap);
-        theme_cards(ui, design, cards, metrics.gap);
+        if !ui.is_hidden(cards) {
+            theme_cards(ui, design, cards, metrics.gap);
+        }
 
         let sheet_height = metrics.panel_height(ui, 5);
         let editor_height = metrics.panel_height(ui, editor::ROWS);
@@ -297,48 +300,74 @@ impl Gallery {
             let mut top = cut_top(&mut rest, sheet_height.max(editor_height), metrics.gap);
             let half = ((top.width() - metrics.gap) * 0.5).round();
             let left = cut_left(&mut top, half, metrics.gap);
-            self.components(ui, design, left, metrics);
-            editor::tokens(self, ui, design, top, metrics);
+            if !ui.is_hidden(left) {
+                self.components(ui, design, left, metrics);
+            }
+            if !ui.is_hidden(top) {
+                editor::tokens(self, ui, design, top, metrics);
+            }
         } else {
             let sheet = cut_top(&mut rest, sheet_height, metrics.gap);
-            self.components(ui, design, sheet, metrics);
+            if !ui.is_hidden(sheet) {
+                self.components(ui, design, sheet, metrics);
+            }
             let tokens = cut_top(&mut rest, editor_height, metrics.gap);
-            editor::tokens(self, ui, design, tokens, metrics);
+            if !ui.is_hidden(tokens) {
+                editor::tokens(self, ui, design, tokens, metrics);
+            }
         }
         let buttons = cut_top(
             &mut rest,
             metrics.panel_height(ui, buttons::ROWS),
             metrics.gap,
         );
-        self.buttons.show(ui, buttons, metrics);
+        if !ui.is_hidden(buttons) {
+            self.buttons.show(ui, buttons, metrics);
+        }
         let menus = cut_top(
             &mut rest,
             metrics.panel_height(ui, menus::ROWS),
             metrics.gap,
         );
-        self.menus.show(ui, menus, window, metrics);
+        if !ui.is_hidden(menus) {
+            self.menus.show(ui, menus, window, metrics);
+        }
         let fields = cut_top(
             &mut rest,
             metrics.panel_height(ui, fields::ROWS),
             metrics.gap,
         );
-        self.fields.show(ui, fields, metrics);
+        if !ui.is_hidden(fields) {
+            self.fields.show(ui, fields, metrics);
+        }
         let colors = cut_top(&mut rest, self.colors.height(ui, metrics), metrics.gap);
-        self.colors.show(ui, colors, window, metrics);
+        if !ui.is_hidden(colors) {
+            self.colors.show(ui, colors, window, metrics);
+        }
         let curves = cut_top(&mut rest, curves::Curves::height(ui, metrics), metrics.gap);
-        self.curves.show(ui, curves, metrics);
+        if !ui.is_hidden(curves) {
+            self.curves.show(ui, curves, metrics);
+        }
         let icons_height = self.icons.height(ui, rest.width(), metrics);
         let icons = cut_top(&mut rest, icons_height, metrics.gap);
-        self.icons.show(ui, icons, metrics);
+        if !ui.is_hidden(icons) {
+            self.icons.show(ui, icons, metrics);
+        }
         let typography = cut_top(
             &mut rest,
             typography::Typography::height(ui, metrics),
             metrics.gap,
         );
-        self.typography.show(ui, typography, window, metrics);
+        if !ui.is_hidden(typography) {
+            self.typography.show(ui, typography, window, metrics);
+        }
         let vision = cut_top(&mut rest, vision_height, metrics.gap);
-        editor::color_vision(ui, design, vision, metrics, &mut self.vision_menu, window);
-        self.grid(ui, design, rest, metrics);
+        if !ui.is_hidden(vision) {
+            editor::color_vision(ui, design, vision, metrics, &mut self.vision_menu, window);
+        }
+        if !ui.is_hidden(rest) {
+            self.grid(ui, design, rest, metrics);
+        }
     }
 
     /// Every component, interactive.

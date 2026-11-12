@@ -13,5 +13,5 @@ pub(crate) use content::{ContentColors, ContentMetrics};
 pub use placement::{PanelAlign, Placed, Placement, Side};
 pub use states::{ControlState, States};
 pub use tone::{Hue, HueColors, Shades, Tone, ToneColors, Variant};
-pub(crate) use tone::{hued, shade};
+pub(crate) use tone::{HueLadders, shade};
 pub(crate) use tween::Tween;

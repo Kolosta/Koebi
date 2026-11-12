@@ -1,5 +1,7 @@
 //! Single-line layout: glyphs shaped ([`crate::shape`]), cut with an ellipsis to fit a width.
 
+use koebi_core::Rect;
+
 use crate::font::GlyphId;
 use crate::fonts::{FontId, Fonts};
 
@@ -59,6 +61,9 @@ pub struct PlacedGlyph {
     pub x: f32,
     /// Byte offset of its character in the text.
     pub cluster: u32,
+    /// What its outline covers, in the style's pixels from its pen on the baseline, y down
+    /// ([`crate::Font::ink`]); `None` for a glyph that draws nothing, such as a space.
+    pub ink: Option<Rect>,
 }
 
 /// One line of laid-out text. Reuse one across frames: layout keeps its storage.
@@ -165,6 +170,7 @@ impl TextLine {
                 glyph: ellipsis,
                 x,
                 cluster,
+                ink: font.ink(ellipsis, style.size),
             });
             x += advance(ellipsis);
         }

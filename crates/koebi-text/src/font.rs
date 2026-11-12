@@ -6,6 +6,8 @@ use std::borrow::Cow;
 use std::fmt;
 use std::ops::Range;
 
+use koebi_core::{Rect, Vec2};
+
 use crate::read::{Tag, slice, u16_at, u32_at};
 use crate::{Error, Result};
 
@@ -295,6 +297,27 @@ impl Font {
         let index = usize::from(glyph.0.min(self.h_metrics - 1));
         // Within the table: its length was checked at load.
         u16_at(&self.data[self.hmtx.clone()], 4 * index).unwrap_or(0)
+    }
+
+    /// The box the outline of `glyph` lies in, in font units, y up: `[x_min, y_min, x_max,
+    /// y_max]` from its header in the `glyf` table. `None` for a glyph without outline (a space)
+    /// or one that cannot be read.
+    pub fn glyph_box(&self, glyph: GlyphId) -> Option<[i16; 4]> {
+        let data = self.glyph_data(glyph).ok()?;
+        let at = |offset| crate::read::i16_at(data, offset);
+        let [x_min, y_min, x_max, y_max] = [at(2)?, at(4)?, at(6)?, at(8)?];
+        (x_min <= x_max && y_min <= y_max).then_some([x_min, y_min, x_max, y_max])
+    }
+
+    /// The box the outline of `glyph` covers at `size` pixels per em, in pixels from its pen
+    /// on the baseline, y down ([`Font::glyph_box`]).
+    pub fn ink(&self, glyph: GlyphId, size: f32) -> Option<Rect> {
+        let [x_min, y_min, x_max, y_max] = self.glyph_box(glyph)?;
+        let scale = size / f32::from(self.units_per_em());
+        Some(Rect::from_min_max(
+            Vec2::new(f32::from(x_min) * scale, -f32::from(y_max) * scale),
+            Vec2::new(f32::from(x_max) * scale, -f32::from(y_min) * scale),
+        ))
     }
 
     /// The outline data of `glyph` in the `glyf` table; empty for glyphs without outline.

@@ -391,6 +391,7 @@ impl KoebiApp {
         // What an eyedropper read back from a frame shown earlier, then what it wants next.
         shown.state.set_screen_readable(shown.gpu.can_read_pixels());
         shown.gpu.deliver_pixels(&mut shown.state);
+        koebi_core::profile_scope!("frame");
         shown.build(
             interface,
             Rect::from_origin_size(Vec2::ZERO, logical_size),
@@ -410,12 +411,17 @@ impl KoebiApp {
         }
         shown.chrome.update_regions(&shown.state, &mut shown.window);
         let built = started.elapsed();
-        match shown.gpu.render(gpu, &shown.scene, scale_factor) {
+        let rendered = {
+            koebi_core::profile_scope!("frame.render");
+            shown.gpu.render(gpu, &shown.scene, scale_factor)
+        };
+        match rendered {
             Ok((RenderOutcome::Presented, recording)) => {
                 if shown.is_main() {
                     let gpu_time = shown.gpu.gpu_frame_time();
                     frame_times.record(built + recording, gpu_time, Instant::now());
                     *frames_presented += 1;
+                    koebi_core::profile::end_frame();
                 }
                 shown.needs_redraw = false;
             }
@@ -607,6 +613,11 @@ impl App for KoebiApp {
     }
 
     fn init(context: &mut AppContext, options: Options) -> Result<Self, AppError> {
+        // A development aid: the time of each part of a frame, reported when Koebi exits.
+        if std::env::var_os("KOEBI_PROFILE").is_some_and(|value| value == "1") {
+            koebi_core::profile::set_enabled(true);
+        }
+
         // A UI only needs to draw after input; benchmarks and tests draw continuously.
         let rate = if options.frames.is_some() {
             IterationRate::Unlimited
@@ -785,6 +796,9 @@ impl App for KoebiApp {
             koebi_core::warn!("waiting for the GPU at exit failed: {error}");
         }
         koebi_core::info!("Koebi exits after {} frames", self.frames_presented);
+        if koebi_core::profile::enabled() {
+            koebi_core::info!("profile:\n{}", koebi_core::profile::report_text());
+        }
     }
 }
 

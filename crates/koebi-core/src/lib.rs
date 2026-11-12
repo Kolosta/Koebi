@@ -22,6 +22,7 @@ pub mod input;
 pub mod log;
 pub mod math;
 pub mod palette;
+pub mod profile;
 
 pub use color::{Color, LinearRgba, Oklab, Oklch, ParseColorError};
 pub use color_model::{Cmyk, Hsl, Hsv};

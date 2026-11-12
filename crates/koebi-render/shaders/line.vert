@@ -1,4 +1,5 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
 // Instanced straight segment with round caps (a capsule), or two joined at a corner.
 //
 // One instance per stroke, drawn as a 4-vertex triangle strip: a quad aligned with the
@@ -12,6 +13,8 @@ layout(push_constant) uniform ViewportConstants {
     float scale_factor; // logical -> physical pixels
     float _padding;
 } pc;
+
+#include "clip_vertex.glsl"
 
 layout(location = 0) in vec4 in_points; // from.xy, to.xy (logical px)
 layout(location = 1) in vec4 in_color;  // premultiplied, gamma-encoded
@@ -58,4 +61,5 @@ void main() {
     v_half_width = half_width;
     v_color = in_color;
     v_next = vec3(next, joined ? 1.0 : 0.0);
+    pass_clip();
 }
