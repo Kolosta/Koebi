@@ -19,6 +19,8 @@ use koebi_design::value::{Definition, Value};
 use koebi_design::{DesignSystem, Layers, Scope, ThemeId, Token, TokenId};
 use koebi_i18n::n_;
 
+use crate::generate::rules::{CONTENT, TEXT_ROOM};
+
 use crate::semantic;
 
 /// A hue's palette: its name (`color.<name>.<step>`) and the key colors its scale passes
@@ -294,9 +296,24 @@ pub struct ThemePalettes {
     pub chroma: f32,
     /// Hues made from one chosen color instead of Spectrum's keys: (name, `0xRRGGBB`).
     pub seeds: &'static [(&'static str, u32)],
+    /// Whether every text of the theme keeps 7:1 (WCAG 1.4.6), as in High contrast: what a
+    /// theme made from chosen colors keeps too ([`Self::text_room`], [`Self::content`]).
+    pub high_contrast: bool,
 }
 
 impl ThemePalettes {
+    /// The contrast the text of a background chosen in the color settings needs room for
+    /// ([`crate::generate::rules::readable`]): [`TEXT_ROOM`], or in a high-contrast theme its
+    /// secondary text's own (14:1), every text keeping 7:1 there.
+    pub const fn text_room(&self) -> f32 {
+        if self.high_contrast { 14.0 } else { TEXT_ROOM }
+    }
+
+    /// The contrast content needs on its fill: [`CONTENT`], or 7:1 in a high-contrast theme.
+    pub const fn content(&self) -> f32 {
+        if self.high_contrast { 7.0 } else { CONTENT }
+    }
+
     /// The contrast of each hue step with the background.
     pub const fn hue_contrasts(&self) -> [f32; 16] {
         self.scheme.hue_contrasts()
@@ -330,6 +347,36 @@ impl ThemePalettes {
         hold_white_content(self.scheme, scale, fills);
     }
 
+    /// The palette of `hue` made for another background than the theme's (a background chosen
+    /// in the color settings, `crate::generate`): the theme's own scale of the hue, each step
+    /// at its contrast with `background`, the fills of a dark one held for white content
+    /// ([`crate::generate::rules::hold_white`]). `None` for an unknown hue.
+    pub fn hue_on(&self, hue: &str, background: Color) -> Option<[Color; 16]> {
+        let scale = self.hue_scale(hue)?;
+        let scheme = Scheme::of(background);
+        let mut steps = scale.steps(background, &scheme.hue_contrasts());
+        crate::generate::rules::hold_white(
+            scheme,
+            &scale,
+            background,
+            &mut steps[..=LAST_HUE_FILL],
+        );
+        Some(steps)
+    }
+
+    /// The theme's scale of `hue`: from its seed, or from Spectrum's keys at the theme's chroma.
+    fn hue_scale(&self, hue: &str) -> Option<ColorScale> {
+        let palette = HUES.iter().find(|palette| palette.name == hue)?;
+        if let Some(&(_, seed)) = self.seeds.iter().find(|(name, _)| *name == hue) {
+            return Some(ColorScale::from_seed(Color::from_hex(seed)));
+        }
+        let keys = palette.keys.map(|key| {
+            let lch = Color::from_hex(key).to_oklch();
+            Oklch::new(lch.l, lch.c * self.chroma, lch.h).to_color()
+        });
+        ColorScale::new(&keys)
+    }
+
     /// The palette of `hue`, step by step ([`koebi_core::palette::HUE_STEPS`]); `None` for an
     /// unknown hue.
     pub fn hue(&self, hue: &str) -> Option<[Color; 16]> {
@@ -360,6 +407,7 @@ pub const THEMES: [ThemePalettes; 6] = [
         neutral_contrasts: NEUTRAL_CONTRASTS,
         chroma: 1.0,
         seeds: &[],
+        high_contrast: false,
     },
     ThemePalettes {
         theme: "dark-pink",
@@ -370,6 +418,7 @@ pub const THEMES: [ThemePalettes; 6] = [
         neutral_contrasts: NEUTRAL_CONTRASTS,
         chroma: 1.0,
         seeds: &[],
+        high_contrast: false,
     },
     // `RapidRAW`'s Muted Green: dark green surfaces, warm off-white text going to sepia.
     ThemePalettes {
@@ -383,6 +432,7 @@ pub const THEMES: [ThemePalettes; 6] = [
         neutral_contrasts: NEUTRAL_CONTRASTS,
         chroma: 0.8,
         seeds: &[("celery", 0x8E_A0_66)],
+        high_contrast: false,
     },
     // Warm light: reddish brown text, salmon accent (RapidRAW's Snow).
     ThemePalettes {
@@ -394,6 +444,7 @@ pub const THEMES: [ThemePalettes; 6] = [
         neutral_contrasts: NEUTRAL_CONTRASTS,
         chroma: 1.0,
         seeds: &[("cinnamon", 0xD7_7B_6B)],
+        high_contrast: false,
     },
     // Cool light: blue-gray text, slate accent (RapidRAW's Arctic).
     ThemePalettes {
@@ -405,6 +456,7 @@ pub const THEMES: [ThemePalettes; 6] = [
         neutral_contrasts: NEUTRAL_CONTRASTS,
         chroma: 1.0,
         seeds: &[("indigo", 0x64_78_8C)],
+        high_contrast: false,
     },
     // Black surfaces and white content: every surface below the borders black or nearly.
     ThemePalettes {
@@ -419,6 +471,7 @@ pub const THEMES: [ThemePalettes; 6] = [
         ],
         chroma: 1.0,
         seeds: &[],
+        high_contrast: true,
     },
 ];
 
@@ -574,7 +627,7 @@ pub const ROLES: [ColorRole; 5] = [
 pub enum Family {
     /// A color role (`semantic.<key>.color.<step>`), made like a hue.
     Role,
-    /// The neutral palette (`primitive.color.gray.<step>`), tinted by a color.
+    /// The neutral palette (`primitive.color.gray.<step>`), made from the background.
     Neutral,
     /// A hue palette (`primitive.color.<key>.<step>`).
     Hue,
@@ -620,21 +673,6 @@ impl Editable {
                 .iter()
                 .map(|step| format!("primitive.color.{}.{step}", self.key))
                 .collect(),
-        }
-    }
-
-    /// Its steps made from `seed` for a theme whose deepest surface is `deepest` and whose
-    /// background is `background`; a neutral palette keeps `contrasts`, its theme's.
-    pub fn generate(
-        &self,
-        seed: Color,
-        deepest: Color,
-        background: Color,
-        contrasts: &[f32; 16],
-    ) -> [Color; 16] {
-        match self.family {
-            Family::Neutral => neutral_from_seed(seed, deepest, background, contrasts),
-            Family::Role | Family::Hue => from_seed(seed, background),
         }
     }
 
@@ -709,38 +747,6 @@ impl PaletteTokens {
     }
 }
 
-/// The most chroma a tint gives the neutral palette: grays stay grays.
-pub const MAX_TINT: f32 = 0.06;
-
-/// The neutral palette tinted by `seed`: the hue of the seed, its chroma up to [`MAX_TINT`],
-/// the theme's own lightness for the deepest surface and the background, then each step at its
-/// contrast with the new background.
-pub fn neutral_from_seed(
-    seed: Color,
-    deepest: Color,
-    background: Color,
-    contrasts: &[f32; 16],
-) -> [Color; 16] {
-    let tint = seed.with_alpha(1.0).to_oklch();
-    let chroma = tint.c.min(MAX_TINT);
-    let keys = [
-        Oklch::new(0.08, chroma, tint.h).to_color(),
-        Oklch::new(0.5, chroma, tint.h).to_color(),
-        Oklch::new(0.96, chroma * 0.5, tint.h).to_color(),
-    ];
-    let scale = ColorScale::new(&keys).unwrap_or_else(|| ColorScale::from_seed(seed));
-    let background = scale.at(background.to_oklch().l);
-    let mut steps = contrasts.map(|ratio| scale.with_contrast(background, ratio));
-    steps[0] = scale.at(deepest.to_oklch().l);
-    steps[1] = background;
-    hold_white_content(
-        Scheme::of(background),
-        &scale,
-        &mut steps[..=LAST_NEUTRAL_FILL],
-    );
-    steps
-}
-
 /// Every palette the color settings edit: the roles, the neutral palette, then the hues.
 pub fn editable() -> impl Iterator<Item = Editable> {
     const HUE_NAMES: [&str; 18] = [
@@ -771,8 +777,8 @@ pub fn editable() -> impl Iterator<Item = Editable> {
     });
     let neutral = core::iter::once(Editable {
         key: "gray",
-        name: n_!("Neutral"),
-        description: n_!("A tint of every gray."),
+        name: n_!("Background"),
+        description: n_!("The window's background: every surface, text and border follows it."),
         family: Family::Neutral,
     });
     let hues = HUES.iter().zip(HUE_NAMES).map(|(hue, name)| Editable {
@@ -782,10 +788,6 @@ pub fn editable() -> impl Iterator<Item = Editable> {
         family: Family::Hue,
     });
     roles.chain(neutral).chain(hues)
-}
-
-fn find(design: &DesignSystem, path: &str) -> Option<TokenId> {
-    design.find(path)
 }
 
 fn color_in(design: &DesignSystem, theme: ThemeId, token: TokenId) -> Option<Color> {
@@ -839,11 +841,12 @@ fn clear_global(design: &mut DesignSystem, palette: &Editable) -> koebi_design::
     Ok(())
 }
 
-/// Makes `palette` again from `seed` in `theme`: its source and its steps become overrides of
-/// the theme, each step at its contrast with the theme's background, and the overrides of its
+/// Chooses `seed` as `palette`'s color in `theme` and makes the theme again
+/// ([`crate::generate`]): the palette from that color, and everything that follows it (for
+/// the neutral palette, the background: every palette and the structure). The overrides of its
 /// tokens for every theme go (see [`is_changed`]). The theme's own source color gives the
-/// theme's own palette back ([`reset`]): its steps are the theme's, drawn as they are, and
-/// nothing is left to bring back.
+/// theme's own palette back ([`reset`]). What could not be honored is in
+/// [`crate::generate::report`].
 ///
 /// # Errors
 ///
@@ -854,46 +857,27 @@ pub fn seed(
     palette: &Editable,
     seed: Color,
 ) -> koebi_design::Result<()> {
-    let missing = |path: &str| koebi_design::Error::UnknownToken(path.to_owned());
     let tokens = tokens_of(design, palette)?;
+    let seed = seed.with_alpha(1.0);
     let own = design
         .view(theme, Layers::THEME)
         .and_then(|view| view.value(tokens.source));
-    if own.is_some_and(|own| own.same_as(&Value::Color(seed.with_alpha(1.0)))) {
+    if own.is_some_and(|own| own.same_as(&Value::Color(seed))) {
         return reset(design, theme, palette);
     }
-    let gray = |design: &DesignSystem, step: u16| {
-        let path = format!("primitive.color.gray.{step}");
-        let token = find(design, &path).ok_or_else(|| missing(&path))?;
-        color_in(design, theme, token).ok_or_else(|| missing(&path))
-    };
-    // A tinted neutral palette starts from the theme's own grays, not from a former tint.
-    let neutral_reset = palette.family == Family::Neutral && is_seeded(design, theme, palette);
-    if neutral_reset {
-        reset(design, theme, palette)?;
-    }
-    let deepest = gray(design, 25)?;
-    let background = gray(design, 50)?;
-    let key = design.theme(theme).map(|info| info.key().to_owned());
-    let contrasts = key
-        .as_deref()
-        .and_then(self::theme)
-        .map_or(NEUTRAL_CONTRASTS, |palettes| palettes.neutral_contrasts);
-    let steps = palette.generate(seed.with_alpha(1.0), deepest, background, &contrasts);
-    let scope = Scope::Theme(theme);
-    design.set_override(
-        scope,
-        tokens.source,
-        Definition::Value(Value::Color(seed.with_alpha(1.0))),
-    )?;
-    for (token, color) in tokens.steps.into_iter().zip(steps) {
-        design.set_override(scope, token, Definition::Value(Value::Color(color)))?;
-    }
+    crate::generate::regenerate(design, theme, |design| {
+        design.set_override(
+            Scope::Theme(theme),
+            tokens.source,
+            Definition::Value(Value::Color(seed)),
+        )
+    })?;
     clear_global(design, palette)
 }
 
-/// Gives `palette` back its theme's own steps in `theme`: removes the overrides [`seed`] made,
-/// and those of its tokens for every theme.
+/// Gives `palette` back its theme's own color in `theme` and makes the theme again
+/// ([`crate::generate`]): its source and steps lose their overrides, in the theme and for every
+/// theme, and what followed from them follows the theme again.
 ///
 /// # Errors
 ///
@@ -903,12 +887,16 @@ pub fn reset(
     theme: ThemeId,
     palette: &Editable,
 ) -> koebi_design::Result<()> {
+    let tokens = tokens_of(design, palette)?;
     let scope = Scope::Theme(theme);
-    for token in tokens_of(design, palette)?.all() {
-        if design.override_of(scope, token).is_some() {
-            design.reset(scope, token)?;
+    crate::generate::regenerate(design, theme, |design| {
+        for token in tokens.all() {
+            if design.override_of(scope, token).is_some() {
+                design.reset(scope, token)?;
+            }
         }
-    }
+        Ok(())
+    })?;
     clear_global(design, palette)
 }
 

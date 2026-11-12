@@ -168,6 +168,31 @@ fn baseline() {
         times.push(start.elapsed());
     }
     row("Gallery, the accent dragged", "CPU scene", &mut times, None);
+    // The background dragged: the whole theme is made again every frame (ADR 0027), its
+    // neutral palette, 18 hues, roles and structure.
+    let neutral = palettes::editable()
+        .find(|palette| palette.family == palettes::Family::Neutral)
+        .expect("the neutral palette");
+    let mut times = Vec::with_capacity(FRAMES);
+    for frame in 0..FRAMES {
+        let shade = if frame % 2 == 0 { 0.10 } else { 0.12 };
+        let start = Instant::now();
+        palettes::seed(
+            &mut design,
+            theme,
+            &neutral,
+            Color::rgb(shade, shade, shade * 1.3),
+        )
+        .expect("a theme made from a background");
+        gallery_frame(&mut gallery, &mut design, &mut styles, &mut state, size);
+        times.push(start.elapsed());
+    }
+    row(
+        "Gallery, the background dragged",
+        "CPU scene",
+        &mut times,
+        None,
+    );
 
     // Text laid out in paragraphs, Latin and Japanese.
     let fonts = Fonts::with_embedded();

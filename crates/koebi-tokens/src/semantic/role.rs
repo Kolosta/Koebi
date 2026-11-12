@@ -175,10 +175,9 @@ koebi_design::tokens! {
     NEUTRAL_COLOR_900 = "neutral.color.900": Color -> primitive::COLOR_GRAY_900;
     /// Neutral, step 1000: `color.gray.1000`.
     NEUTRAL_COLOR_1000 = "neutral.color.1000": Color -> primitive::COLOR_GRAY_1000;
-    /// The tint the neutral palette is made from: the panels' gray (step 150) until the color
-    /// settings tint it (`crate::palettes::Editable`); its hue and chroma count, not its
-    /// lightness.
-    NEUTRAL_COLOR_SOURCE = "neutral.color.source": Color -> primitive::COLOR_GRAY_150;
+    /// The color the neutral palette is made from: the window's background (step 50), until
+    /// the color settings make the theme from another (`crate::generate`).
+    NEUTRAL_COLOR_SOURCE = "neutral.color.source": Color -> primitive::COLOR_GRAY_50;
 
     /// Vivid neutral color, for indicators and data visualization.
     NEUTRAL_COLOR_VISUAL_DEFAULT = "neutral.color.visual.default": Color ->

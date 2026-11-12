@@ -36,3 +36,4 @@ one and link both.
 | [0024](0024-layout.md) | Layout: rectangles handed out in immediate mode, no retained tree | Accepted |
 | [0025](0025-batching-across-clips.md) | Batching across clips: each instance carries its clip, overlaps found in a grid | Accepted |
 | [0026](0026-counting-allocations-in-tests.md) | Counting allocations in tests with a global allocator of the test binaries | Accepted |
+| [0027](0027-themes-generated-from-chosen-colors.md) | Themes generated from chosen colors, by contrast rules | Accepted |

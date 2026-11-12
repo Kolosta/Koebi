@@ -8,8 +8,10 @@
 //!   their own value (`component::BUTTON_BACKGROUND_COLOR_DEFAULT`).
 //! - [`themes`]: the built-in themes, one module each: Dark (the base theme), Dark pink,
 //!   Muted green, Snow, Arctic and High contrast.
-//! - [`palettes`]: what the themes' palettes are made of, and how a palette is made from one
-//!   color.
+//! - [`palettes`]: what the themes' palettes are made of, and the palettes the color settings
+//!   edit.
+//! - [`generate`]: a theme made from chosen colors by contrast rules (a background, an accent,
+//!   any palette's color), written as overrides of the theme.
 //!
 //! [`KOEBI`] puts everything together; it is checked while compiling.
 //!
@@ -32,6 +34,7 @@
 )]
 
 pub mod component;
+pub mod generate;
 pub mod palettes;
 pub mod primitive;
 pub mod semantic;

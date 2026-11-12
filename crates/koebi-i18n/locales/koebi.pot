@@ -213,6 +213,7 @@ msgid "Document"
 msgstr ""
 
 #: apps/koebi/src/editors/outliner.rs
+#: crates/koebi-tokens/src/palettes.rs
 msgid "Background"
 msgstr ""
 
@@ -461,7 +462,6 @@ msgstr ""
 
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/settings/icons.rs
-#: crates/koebi-tokens/src/palettes.rs
 msgid "Neutral"
 msgstr ""
 
@@ -998,7 +998,51 @@ msgid "Strength"
 msgstr ""
 
 #: apps/koebi/src/settings/colors.rs
-msgid "One color makes a palette: its steps keep their contrast."
+msgid "Each palette"
+msgstr ""
+
+#: apps/koebi/src/settings/colors.rs
+msgid "The background"
+msgstr ""
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Background and accent"
+msgstr ""
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Every palette from its own color: the theme's, or one you choose."
+msgstr ""
+
+#: apps/koebi/src/settings/colors.rs
+msgid ""
+"One color makes the theme: the background. The accent takes "
+"its hue, the other colors lean to it."
+msgstr ""
+
+#: apps/koebi/src/settings/colors.rs
+msgid ""
+"Two colors make the theme: the background and the accent. The "
+"other colors lean to the background's hue."
+msgstr ""
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Moved to {color}: in the mid-tones, no text reads well enough."
+msgstr ""
+
+#: apps/koebi/src/settings/colors.rs
+msgid ""
+"So close to black or white that no surface fits beyond it: it "
+"is the deepest surface, and the background lies a step away."
+msgstr ""
+
+#: apps/koebi/src/settings/colors.rs
+msgid "Moved to {color}: a fill keeps the theme's contrast with the background."
+msgstr ""
+
+#: apps/koebi/src/settings/colors.rs
+msgid ""
+"The colors chosen here make the theme again, every step keeping "
+"its contrast."
 msgstr ""
 
 #: apps/koebi/src/settings/colors.rs
@@ -1019,6 +1063,14 @@ msgstr ""
 
 #: apps/koebi/src/settings/colors.rs
 msgid "Step {step}: {contrast}:1 against the background, {color}"
+msgstr ""
+
+#: apps/koebi/src/settings/colors.rs
+msgid "The accent takes the background's hue."
+msgstr ""
+
+#: apps/koebi/src/settings/colors.rs
+msgid "This color leans to the background's hue."
 msgstr ""
 
 #: apps/koebi/src/settings/colors.rs
@@ -2252,7 +2304,7 @@ msgid "Silver"
 msgstr ""
 
 #: crates/koebi-tokens/src/palettes.rs
-msgid "A tint of every gray."
+msgid "The window's background: every surface, text and border follows it."
 msgstr ""
 
 #: crates/koebi-tokens/src/palettes.rs

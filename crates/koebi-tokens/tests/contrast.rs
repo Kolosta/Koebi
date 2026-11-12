@@ -151,14 +151,22 @@ fn palettes_made_from_any_color_keep_every_contrast() {
                     .into_iter()
                     .map(|failure| format!("seed {seed}: {failure}")),
             );
-            let on = design.get(semantic::TEXT_COLOR_ON_ACCENT_DEFAULT);
             let needed = if key == "high-contrast" { 7.0 } else { 4.5 };
-            for fill in [
-                semantic::BACKGROUND_ACCENT_DEFAULT,
-                semantic::BACKGROUND_NEGATIVE_DEFAULT,
-                semantic::BACKGROUND_POSITIVE_DEFAULT,
+            for (fill, content) in [
+                (
+                    semantic::BACKGROUND_ACCENT_DEFAULT,
+                    semantic::TEXT_COLOR_ON_ACCENT_DEFAULT,
+                ),
+                (
+                    semantic::BACKGROUND_NEGATIVE_DEFAULT,
+                    semantic::TEXT_COLOR_ON_NEGATIVE_DEFAULT,
+                ),
+                (
+                    semantic::BACKGROUND_POSITIVE_DEFAULT,
+                    semantic::TEXT_COLOR_ON_POSITIVE_DEFAULT,
+                ),
             ] {
-                let ratio = on.contrast_ratio(design.get(fill));
+                let ratio = design.get(content).contrast_ratio(design.get(fill));
                 if ratio < needed {
                     failures.push(format!(
                         "seed {seed}: {key}: content on {}: {ratio:.2}",
@@ -370,4 +378,146 @@ fn the_high_contrast_theme_meets_its_own_rules() {
             name(&design, surface)
         );
     }
+}
+
+/// What a generated theme guarantees beyond the component pairs (ADR 0027): its text on the
+/// background, its fills apart from it, the content on every state of every role's fills, the
+/// neutral steps in contrast order and its surfaces apart.
+fn generated_failures(design: &DesignSystem, key: &str, label: &str) -> Vec<String> {
+    use koebi_tokens::generate::{ROLE_FILLS, rules};
+    let mut failures = Vec::new();
+    let high = key == "high-contrast";
+    let background = design.get(semantic::BACKGROUND_BASE_DEFAULT);
+    let mut check = |what: &str, ratio: f32, needed: f32| {
+        if ratio < needed {
+            failures.push(format!("{label}: {what}: {ratio:.2} < {needed}"));
+        }
+    };
+    let on_background = |token: koebi_design::Token<
+        koebi_design::kind::Color,
+        koebi_design::tier::Semantic,
+    >| design.get(token).contrast_ratio(background);
+    check(
+        "primary text",
+        on_background(semantic::TEXT_COLOR_PRIMARY_DEFAULT),
+        7.0,
+    );
+    let secondary = if high { 7.0 } else { 4.5 };
+    check(
+        "secondary text",
+        on_background(semantic::TEXT_COLOR_SECONDARY_DEFAULT),
+        secondary,
+    );
+    let color_of = |token: koebi_design::TokenId| match design.value(token) {
+        Some(Value::Color(color)) => *color,
+        _ => Color::TRANSPARENT,
+    };
+    for fills in &ROLE_FILLS {
+        let default = color_of(fills.default);
+        if fills.key != "neutral" {
+            check(
+                &format!("{} fill on the background", fills.key),
+                default.contrast_ratio(background),
+                rules::FILL_APART,
+            );
+        }
+        let content = color_of(fills.content);
+        let needed = if high { 7.0 } else { 4.5 };
+        for (state, fill) in [
+            ("default", default),
+            ("hover", color_of(fills.hover[0])),
+            ("pressed", color_of(fills.pressed[0])),
+        ] {
+            check(
+                &format!("content on the {} {state} fill", fills.key),
+                content.contrast_ratio(fill),
+                needed,
+            );
+        }
+    }
+    // The neutral steps from the background to the strongest text, in contrast order.
+    let steps = koebi_tokens::palettes::NEUTRAL_STEPS.map(|step| {
+        color(design, &format!("primitive.color.gray.{step}")).unwrap_or(Color::TRANSPARENT)
+    });
+    for (index, pair) in steps[1..15].windows(2).enumerate() {
+        let (near, far) = (
+            pair[0].contrast_ratio(background),
+            pair[1].contrast_ratio(background),
+        );
+        check(
+            &format!("neutral step {} in contrast order", index + 2),
+            far / near,
+            0.999,
+        );
+    }
+    if !high {
+        check(
+            "deepest surface apart from the background",
+            steps[0].contrast_ratio(background),
+            rules::SURFACE_APART - 1e-3,
+        );
+    }
+    failures
+}
+
+#[test]
+fn generated_themes_keep_every_contrast() {
+    // ADR 0027: whatever background and accent are chosen, in whichever mode, every component
+    // keeps its contrast, because each rule keeps it.
+    use koebi_core::Oklch;
+    use koebi_tokens::generate::{self, Mode};
+    use koebi_tokens::palettes::{self, Family};
+    let pairs = pairs();
+    let neutral = palettes::editable()
+        .find(|palette| palette.family == Family::Neutral)
+        .expect("the neutral palette");
+    let accent = palettes::editable().next().expect("the accent first");
+    let mut backgrounds = Vec::new();
+    for l in [0.0, 0.1, 0.2, 0.3, 0.45, 0.55, 0.65, 0.8, 0.9, 0.97, 1.0] {
+        for (c, h) in [(0.0, 0.0), (0.05, 250.0), (0.12, 30.0), (0.1, 140.0)] {
+            backgrounds.push(Oklch::new(l, c, h).to_color());
+        }
+    }
+    let accents = [
+        None,
+        Some(Color::from_hex(0xFF_88_00)),
+        Some(Color::from_hex(0x30_50_FF)),
+        Some(Color::from_hex(0xFF_E0_F0)),
+        Some(Color::from_hex(0x20_20_20)),
+        Some(Color::from_hex(0x80_80_80)),
+    ];
+    let mut failures = Vec::new();
+    for key in ["dark", "snow", "high-contrast"] {
+        for mode in Mode::ALL {
+            for (index, &background) in backgrounds.iter().enumerate() {
+                let mut design = design();
+                let theme = design.find_theme(key).expect("a built-in theme");
+                design.set_active_theme(theme).unwrap();
+                generate::set_mode(&mut design, theme, mode).unwrap();
+                palettes::seed(&mut design, theme, &neutral, background).unwrap();
+                let chosen = accents[index % accents.len()];
+                if let Some(color) = chosen {
+                    palettes::seed(&mut design, theme, &accent, color).unwrap();
+                }
+                let label = format!("{key} {mode:?} background {background} accent {chosen:?}");
+                failures.extend(
+                    pair_failures(&design, key, &pairs)
+                        .into_iter()
+                        .map(|failure| format!("{label}: {failure}")),
+                );
+                failures.extend(generated_failures(&design, key, &label));
+            }
+        }
+    }
+    let shown: Vec<&String> = failures.iter().take(60).collect();
+    assert!(
+        failures.is_empty(),
+        "{} failures:\n{}",
+        failures.len(),
+        shown
+            .iter()
+            .map(|failure| failure.as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
 }
