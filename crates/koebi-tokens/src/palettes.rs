@@ -777,8 +777,10 @@ pub fn editable() -> impl Iterator<Item = Editable> {
     });
     let neutral = core::iter::once(Editable {
         key: "gray",
-        name: n_!("Background"),
-        description: n_!("The window's background: every surface, text and border follows it."),
+        name: n_!("Neutral"),
+        description: n_!(
+            "The grays of surfaces, text and borders, made from the window's background."
+        ),
         family: Family::Neutral,
     });
     let hues = HUES.iter().zip(HUE_NAMES).map(|(hue, name)| Editable {

@@ -3,10 +3,10 @@
 //! A theme is made from chosen colors by contrast rules (`koebi_tokens::generate`, ADR 0027,
 //! `docs/design-system/color.md`), in one of three modes: every palette from its own color,
 //! everything from the background, or from the background and the accent. The section shows the
-//! mode, then the background, the roles and the hues: a field for each color the mode asks for,
-//! the fill of the others, which follow the background. A chosen color is used as it is; when a
-//! rule had to move it (a background in the mid-tones, a fill too close to the background), a
-//! note under it says where and why.
+//! mode, then the neutral grays (made from the background), the roles and the hues: a field for
+//! each color the mode asks for, the fill of the others, which follow the background. A chosen
+//! color is used as it is; when a rule had to move it (a background in the mid-tones, a fill too
+//! close to the background), a note under it says where and why.
 //!
 //! A row shows the palette as it lies on the theme's background, each step's contrast with it,
 //! and what its main steps hold: a fill with its content, text on a panel, a fill under the
@@ -37,7 +37,7 @@ use super::Stack;
 
 const ID: WidgetId = WidgetId::new("settings-colors");
 
-/// The palettes of the first container: the background (the neutral grays) and the roles.
+/// The palettes of the first container: the neutral grays and the roles.
 const MAIN: usize = 6;
 
 /// The mode buttons' labels, in the order of [`Mode::ALL`].
@@ -71,7 +71,7 @@ pub(super) struct ColorsSection {
     /// What a rule did to each palette's chosen color (moved, used as the deepest surface),
     /// written again when the design system changes; empty when nothing.
     notes: Vec<String>,
-    /// The palettes of the first container in the order shown: the background, then the roles.
+    /// The palettes of the first container in the order shown: the neutral grays, then the roles.
     main: [usize; MAIN],
     revision: Option<u64>,
     every_theme: bool,
@@ -667,7 +667,7 @@ impl ColorsSection {
     }
 }
 
-/// The palettes of the first container in the order shown: the background, then the roles.
+/// The palettes of the first container in the order shown: the neutral grays, then the roles.
 fn main_order(palettes: &[Editable]) -> [usize; MAIN] {
     let mut order = [0; MAIN];
     order[0] = palettes
