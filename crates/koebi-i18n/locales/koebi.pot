@@ -213,7 +213,6 @@ msgid "Document"
 msgstr ""
 
 #: apps/koebi/src/editors/outliner.rs
-#: crates/koebi-tokens/src/palettes.rs
 msgid "Background"
 msgstr ""
 
@@ -462,6 +461,7 @@ msgstr ""
 
 #: apps/koebi/src/gallery/buttons.rs
 #: apps/koebi/src/settings/icons.rs
+#: crates/koebi-tokens/src/palettes.rs
 msgid "Neutral"
 msgstr ""
 
@@ -2304,7 +2304,9 @@ msgid "Silver"
 msgstr ""
 
 #: crates/koebi-tokens/src/palettes.rs
-msgid "The window's background: every surface, text and border follows it."
+msgid ""
+"The grays of surfaces, text and borders, made from the window's "
+"background."
 msgstr ""
 
 #: crates/koebi-tokens/src/palettes.rs
