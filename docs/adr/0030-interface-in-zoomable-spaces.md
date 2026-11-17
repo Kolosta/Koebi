@@ -1,6 +1,6 @@
 # 0030. The interface in zoomable spaces: every component scales with the space it lies in
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-17
 - Deciders: @Kolosta
 

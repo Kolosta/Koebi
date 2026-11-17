@@ -1,6 +1,6 @@
 # 0028. The document is a typed node graph; layers and collections are views of it
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-17
 - Deciders: @Kolosta
 
@@ -123,7 +123,7 @@ feed it.
   - bounds.
 - **Placement in a page:** a page's content is a Merge, its *stack*. An object enters a stack
   through one of the Merge's inputs, which carries its blend mode and opacity. A group object
-  holds a Merge of its children, and its transform applies to them.
+  holds a Merge of its children (see *Transforms, parents and groups* below).
 - **Parenting** is a link from the parent's world transform to the child's `Parent` input. It
   is independent of the stacks, as in Carto.
 - **Instances** (linked duplicates) take another object's `Local layer`, with their own
@@ -134,6 +134,49 @@ feed it.
 - **The canonical form** of an object is that cluster wired the standard way. Automated
   operations (below) produce and maintain it. A cluster that differs is *customized*. It
   renders the same way, since rendering only reads the graph, and the views mark it.
+
+### Transforms, parents and groups
+
+The maintainer's rule is Blender's. Carto's parent transforms had translation bugs and are not
+ported.
+
+- **Local transform.** Every object has its geometry in its own space, and a local transform:
+  location, rotation and scale. Its world transform is an affine in f64:
+  `world = space × parent_inverse × local`.
+  - Its *space* is its parent's world transform if it has a parent. Otherwise it is its
+    group's world transform if it lies in a group, otherwise the identity.
+  - A non-uniform scale under a rotation shears in world space, as in Blender. Local values
+    stay exact.
+- **Parenting (Ctrl+P)**, as in Blender:
+  - The child keeps its place: parenting stores the inverse of the parent's world transform at
+    that moment (`parent_inverse`). The child's own location, rotation and scale do not change.
+  - Scaling, rotating or moving a parent carries its children along, while their own scale
+    stays theirs, unapplied.
+  - **Clear Parent** (Alt+P) offers:
+    - *Clear Parent*: the child takes its local transform in the identity space;
+    - *Clear and Keep Transformation*: its world transform is baked into its local one;
+    - *Clear Parent Inverse*.
+- **Apply (Ctrl+A)**, as in Blender: Location, Rotation, Scale, or All bakes those parts into
+  the geometry and resets them. The object keeps its look: its *original* scale becomes the
+  applied one, and its children compensate so that they keep their world placement.
+- **A group is not a physical object.** It has no geometry and no paints: it holds objects.
+  - Its children composite together through its Merge, and blend into its parent's stack as a
+    unit.
+  - It has an origin (the center of its bounds when created, movable like any origin) and a
+    transform: the space of its children that have no parent of their own. Moving, rotating
+    or scaling a group carries them, their own transforms unchanged, like an empty parent in
+    Blender.
+  - A child with an explicit parent follows its parent, not its group: parenting wins, as in
+    Blender where a parent wins over a collection.
+  - Applying a group's transform bakes it into its children's local transforms and resets it.
+- **Correctness:**
+  - World transforms are computed from the chain each evaluation, never stored and patched.
+  - Tests cover chains of parents and groups:
+    - parenting then clearing with *Keep Transformation* restores world placements within
+      10^-9;
+    - applying keeps every world placement;
+    - non-uniform scales under rotations;
+    - cycles refused.
 
 ### Views computed from the graph
 

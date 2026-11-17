@@ -1,6 +1,6 @@
 # 0031. The `.koebi` document: a versioned binary container with its preview, known to each system
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-17
 - Deciders: @Kolosta
 - Settles #18

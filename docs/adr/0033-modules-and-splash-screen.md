@@ -1,6 +1,6 @@
 # 0033. Modules specialize the application; the splash screen starts documents and modules
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-17
 - Deciders: @Kolosta
 

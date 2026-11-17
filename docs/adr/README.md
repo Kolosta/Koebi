@@ -37,9 +37,9 @@ one and link both.
 | [0025](0025-batching-across-clips.md) | Batching across clips: each instance carries its clip, overlaps found in a grid | Accepted |
 | [0026](0026-counting-allocations-in-tests.md) | Counting allocations in tests with a global allocator of the test binaries | Accepted |
 | [0027](0027-themes-generated-from-chosen-colors.md) | Themes generated from chosen colors, by contrast rules | Accepted |
-| [0028](0028-document-as-a-typed-node-graph.md) | The document is a typed node graph; layers and collections are views of it | Proposed |
-| [0029](0029-canvas-rendering-from-curves.md) | Canvas rendering: paths from their curves, compositing as a program, exact at any zoom | Proposed |
-| [0030](0030-interface-in-zoomable-spaces.md) | The interface in zoomable spaces: every component scales with the space it lies in | Proposed |
-| [0031](0031-koebi-document-file.md) | The `.koebi` document: a versioned binary container with its preview, known to each system | Proposed |
-| [0032](0032-editing-across-editors.md) | Editing across editors: one session, operations as live transactions, tool visuals where the pointer is | Proposed |
-| [0033](0033-modules-and-splash-screen.md) | Modules specialize the application; the splash screen starts documents and modules | Proposed |
+| [0028](0028-document-as-a-typed-node-graph.md) | The document is a typed node graph; layers and collections are views of it | Accepted |
+| [0029](0029-canvas-rendering-from-curves.md) | Canvas rendering: paths from their curves, compositing as a program, exact at any zoom | Accepted |
+| [0030](0030-interface-in-zoomable-spaces.md) | The interface in zoomable spaces: every component scales with the space it lies in | Accepted |
+| [0031](0031-koebi-document-file.md) | The `.koebi` document: a versioned binary container with its preview, known to each system | Accepted |
+| [0032](0032-editing-across-editors.md) | Editing across editors: one session, operations as live transactions, tool visuals where the pointer is | Accepted |
+| [0033](0033-modules-and-splash-screen.md) | Modules specialize the application; the splash screen starts documents and modules | Accepted |

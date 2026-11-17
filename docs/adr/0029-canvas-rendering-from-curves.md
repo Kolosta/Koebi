@@ -1,6 +1,6 @@
 # 0029. Canvas rendering: paths from their curves, compositing as a program, exact at any zoom
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-17
 - Deciders: @Kolosta
 

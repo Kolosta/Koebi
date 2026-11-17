@@ -1,6 +1,6 @@
 # 0032. Editing across editors: one session, operations as live transactions, tool visuals where the pointer is
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-17
 - Deciders: @Kolosta
 - Settles #17 with ADR 0028
@@ -107,12 +107,13 @@ Two Outliners never share a filter.
 | What | Where |
 |---|---|
 | The document, including an open transaction's edits | every editor |
-| The selection: object outlines, origin dots, Edit mode's points and handles of selected anchors, selected marks, the 2D cursor | every Viewport, as Blender shows them: session state, not tool visuals |
-| Hover highlights; a tool's cursor and glyph; construction lines; the pen's rubber band; snapping candidates and the engaged marker; a modal operation's pivot cross, axis line and guide; the line mark ghost; box selection; the transform cursor | **the hovered editor, or the editor that owns the operation**, only |
+| The selection: object outlines, origin dots, Edit mode's points and handles of selected anchors, selected marks, the 2D cursor; selected rows in Outliners; selected nodes in Node Graphs | **every editor**, as in Blender and Carto: session state, not tool visuals |
+| Previews of the action in progress: a modal operation's pivot cross, axis line and dashed guides (scale, rotate); the transform cursor; snapping candidates and the engaged marker; construction lines; the pen's rubber band; the line mark ghost; box selection | **the editor the action runs from**, only |
+| Hover highlights; a tool's cursor and glyph | the hovered editor's |
 | Status-bar shortcut hints, tooltips | the hovered editor's |
 
-*The selection drawn in every Viewport is a proposal:* the maintainer may prefer it in the
-hovered one only. It is one flag of the overlay policy.
+This is the maintainer's rule, from Blender and Carto: what the session holds shows everywhere,
+what an action in progress shows only where the action runs.
 
 ### Tools and modes
 

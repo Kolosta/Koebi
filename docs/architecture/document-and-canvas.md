@@ -27,7 +27,8 @@ is in [`docs/development/feature-parity.md`](../development/feature-parity.md).
   touching it: add a shape, set a blend mode, group, parent, add a modifier. Every editor calls
   them, and the graph stays in canonical form.
 - **A modal gesture is a live transaction** (ADR 0032): the document is in its intermediate
-  state, so every editor shows the gesture. Only the owner editor draws the tool's visuals.
+  state, so every editor shows the gesture. The selection shows in every editor; the previews
+  of an action in progress (guides, axis lines, pivot) only in the editor it runs from.
 - **The canvas** is drawn from the curves of every outline, with coverage computed per pixel
   (ADR 0029): exact at every zoom, with no tessellation. Compositing runs the evaluated program
   with every blend mode, Erase and masks.
