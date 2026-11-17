@@ -41,7 +41,8 @@ crates/koebi-design/   design token engine: typed tiers, token tables, themes, o
 crates/koebi-geom/     document geometry in f64: points, affines, Bézier/NURBS/poly paths, contours,
                        measures, hit tests, strokes, booleans, curves for the GPU (ADR 0029); core only
 crates/koebi-doc/      the document as a typed node graph: sockets, links kept when invalid, node
-                       kinds, node groups (ADR 0028); depends on core and geom
+                       kinds, node groups, edits with inverses, history, collections, operations
+                       (ADR 0028); depends on core and geom
 crates/koebi-tokens/   Koebi's design tokens (primitive, semantic, component) and built-in themes
 crates/koebi-ui/       components drawn from typed token styles, immediate-mode interaction
 crates/koebi-input/    actions and shortcuts: keymap, contexts, gestures, conflicts, overrides

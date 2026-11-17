@@ -29,15 +29,26 @@
 //! assert!(matches!(graph.status(link.id), Some(LinkStatus::Valid(_))));
 //! ```
 //!
-//! Edits and history come with #260, evaluation with #261.
+//! - [`Document`]: the graph and its [`collection`]s, changed only by [`Edit`]s, each
+//!   returning its inverse, grouped in transactions kept in a bounded history.
+//!
+//! Evaluation comes with #261.
 //!
 //! [ADR 0028]: https://github.com/Kolosta/Koebi/blob/develop/docs/adr/0028-document-as-a-typed-node-graph.md
 
+pub mod collection;
+mod document;
+mod edit;
 mod graph;
 pub mod kind;
 pub mod kinds;
+pub mod ops;
+pub mod transforms;
 pub mod value;
 
+pub use collection::{Collection, CollectionId, Collections, ColorTag};
+pub use document::{Document, HISTORY, Transaction};
+pub use edit::{Edit, EditError, PlacedLink};
 pub use graph::{
     Graph, GroupId, GroupSocket, Interface, Invalid, KindRef, Link, LinkError, LinkId, LinkStatus,
     Linked, MergeEntry, Node, NodeGroup, NodeId, NodeRef, Opaque, Removed, Settings, SocketRef,
