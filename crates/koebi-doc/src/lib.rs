@@ -32,13 +32,16 @@
 //! - [`Document`]: the graph and its [`collection`]s, changed only by [`Edit`]s, each
 //!   returning its inverse, grouped in transactions kept in a bounded history.
 //!
-//! Evaluation comes with #261.
+//! - [`eval::Evaluator`]: the graph evaluated into one [`eval::Program`] per page, a DAG of
+//!   draw, merge, blend and mask steps in document coordinates, an edit re-evaluating only what
+//!   depends on it.
 //!
 //! [ADR 0028]: https://github.com/Kolosta/Koebi/blob/develop/docs/adr/0028-document-as-a-typed-node-graph.md
 
 pub mod collection;
 mod document;
 mod edit;
+pub mod eval;
 mod graph;
 pub mod kind;
 pub mod kinds;

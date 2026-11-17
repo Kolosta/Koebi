@@ -9,8 +9,9 @@
 use std::collections::VecDeque;
 
 use crate::collection::{CollectionId, Collections};
-use crate::edit::{self, Edit, EditError};
-use crate::graph::Graph;
+use crate::edit::{self, Edit, EditError, PlacedLink};
+use crate::graph::{Graph, KindRef, Link, LinkId, NodeId, SocketRef};
+use crate::kind::NodeKind;
 
 /// How many steps the history keeps by default (Settings › General).
 pub const HISTORY: usize = 256;
@@ -72,6 +73,46 @@ impl Document {
     /// added.
     pub(crate) const fn graph_mut(&mut self) -> &mut Graph {
         &mut self.graph
+    }
+
+    /// Adds a node of the application's `kind`, as an edit; returns its id.
+    ///
+    /// # Errors
+    ///
+    /// When the edit does not apply (it always does on a well-formed document).
+    pub fn add_node(&mut self, kind: &'static NodeKind) -> Result<NodeId, EditError> {
+        let node = self.graph.new_node(KindRef::Static(kind), kind.name);
+        let id = node.id();
+        self.apply(Edit::AddNode(Box::new(node)))?;
+        Ok(id)
+    }
+
+    /// Links output `from` to input `to`, as edits: appended to a multi-input; a single
+    /// input's link unlinked first. Returns the new link.
+    ///
+    /// # Errors
+    ///
+    /// When a node or socket does not exist.
+    pub fn link(&mut self, from: SocketRef, to: SocketRef) -> Result<LinkId, EditError> {
+        let multi = self
+            .graph
+            .node(to.node)
+            .ok_or(EditError::NoNode(to.node))?
+            .kind()
+            .input(to.index)
+            .map(|(_, multi)| multi);
+        if multi == Some(false) {
+            for old in self.graph.links_into(to).to_vec() {
+                self.apply(Edit::Unlink(old))?;
+            }
+        }
+        let id = self.graph.new_link_id();
+        self.apply(Edit::Link(PlacedLink {
+            link: Link { id, from, to },
+            position: usize::MAX,
+            entry: None,
+        }))?;
+        Ok(id)
     }
 
     /// A fresh collection id.
