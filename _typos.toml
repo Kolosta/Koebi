@@ -24,6 +24,8 @@ loca = "loca"
 tme = "tme"
 # French key names in the translation guide (docs/development/translation.md).
 espace = "espace"
+# The International Orienteering Federation, whose map standard an application module follows.
+iof = "iof"
 
 [default.extend-identifiers]
 PNGs = "PNGs"
