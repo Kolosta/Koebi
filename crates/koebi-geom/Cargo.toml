@@ -1,0 +1,19 @@
+[package]
+name = "koebi-geom"
+description = "Koebi's document geometry in f64: paths of Bézier, NURBS and polyline subpaths, affine transforms, measures and hit tests (ADR 0029). Dependency-free."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[dependencies]
+koebi-core.workspace = true
+
+[dev-dependencies]
+koebi-testkit.workspace = true
+
+[lints]
+workspace = true
