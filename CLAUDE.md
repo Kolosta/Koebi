@@ -39,7 +39,9 @@ crates/koebi-core/     geometry, color science (sRGB, linear, OKLab/OKLCH, WCAG,
                        vocabulary (keys, modifiers, buttons), logging; no deps
 crates/koebi-design/   design token engine: typed tiers, token tables, themes, overrides, views
 crates/koebi-geom/     document geometry in f64: points, affines, Bézier/NURBS/poly paths, contours,
-                       measures, hit tests (ADR 0029); depends on core only
+                       measures, hit tests, strokes, booleans, curves for the GPU (ADR 0029); core only
+crates/koebi-doc/      the document as a typed node graph: sockets, links kept when invalid, node
+                       kinds, node groups (ADR 0028); depends on core and geom
 crates/koebi-tokens/   Koebi's design tokens (primitive, semantic, component) and built-in themes
 crates/koebi-ui/       components drawn from typed token styles, immediate-mode interaction
 crates/koebi-input/    actions and shortcuts: keymap, contexts, gestures, conflicts, overrides
@@ -60,7 +62,7 @@ docs/                  architecture, ADRs, development guides, AI workflow
 
 Layering (enforced by Cargo): `app -> ui -> render -> gpu -> core`, `render -> text -> core`,
 `app -> platform -> core`, `ui -> tokens -> design -> core` and `ui -> icons -> svg`,
-`render -> svg` (`svg` depends on nothing), `geom -> core`, `app, ui, tokens -> i18n` (`i18n` depends on nothing).
+`render -> svg` (`svg` depends on nothing), `geom -> core`, `doc -> geom`, `app, ui, tokens -> i18n` (`i18n` depends on nothing).
 `render`, `gpu` and `ui` never see SDL; `platform` never sees the renderer; `core` depends on
 nothing.
 

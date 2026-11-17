@@ -1,0 +1,17 @@
+[package]
+name = "koebi-doc"
+description = "Koebi's document as a typed dataflow graph: nodes, typed sockets, links that stay when invalid, node groups, the first node kinds (ADR 0028)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[dependencies]
+koebi-core.workspace = true
+koebi-geom.workspace = true
+
+[lints]
+workspace = true

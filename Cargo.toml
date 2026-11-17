@@ -17,6 +17,7 @@ publish = false
 # --- Internal crates -------------------------------------------------------------------------
 koebi-core = { path = "crates/koebi-core" }
 koebi-design = { path = "crates/koebi-design" }
+koebi-doc = { path = "crates/koebi-doc" }
 koebi-geom = { path = "crates/koebi-geom" }
 koebi-gpu = { path = "crates/koebi-gpu" }
 koebi-i18n = { path = "crates/koebi-i18n" }
