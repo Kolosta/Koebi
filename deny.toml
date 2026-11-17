@@ -49,6 +49,7 @@ allow = [
     "koebi",
     "koebi-core",
     "koebi-design",
+    "koebi-doc",
     "koebi-geom",
     "koebi-gpu",
     "koebi-i18n",

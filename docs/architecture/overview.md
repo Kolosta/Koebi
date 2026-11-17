@@ -20,6 +20,7 @@ flowchart TD
     workspace["koebi-workspace<br/>areas, lines, joins, editor stacks"]
     i18n["koebi-i18n<br/>translations compiled from catalogs"]
     geom["koebi-geom<br/>document geometry in f64: paths, contours, strokes, booleans"]
+    doc["koebi-doc<br/>the document as a typed node graph"]
     core["koebi-core<br/>geometry, color science, logging"]
     app --> ui --> render --> gpu --> core
     render --> text
@@ -32,6 +33,8 @@ flowchart TD
     text --> core
     workspace --> core
     geom --> core
+    doc --> geom
+    doc --> core
     app --> i18n
     ui --> i18n
     tokens --> i18n
@@ -52,6 +55,7 @@ flowchart TD
 | `koebi-i18n` | Translations: GNU gettext catalogs (`locales/*.po`) checked and compiled into static tables by its build script, `tr`/`trc`/`trn` lookups, placeholders, the language chosen ([ADR 0023](../adr/0023-translations.md), [translation guide](../development/translation.md)) | nothing |
 | `koebi-svg` | Icon compiler: a checked SVG subset compiled into quadratic curves per color zone, packed for the GPU, and a CPU rasterizer of the shader's coverage ([ADR 0020](../adr/0020-vector-icons.md)) | nothing |
 | `koebi-geom` | The document's geometry in f64: `Point`, `Vector`, `Affine` and `Transform`, segments up to rational degree 5 (exact NURBS and circles), `Path` of Bézier, NURBS and polyline subpaths, `Contours` measured and hit-tested without allocating, stroke outlines (`outline`, `Stroker`), booleans and region offsets (`boolean`, `simplify`, `offset_region`), curves prepared for the canvas by zoom octave (`prepare`) ([ADR 0029](../adr/0029-canvas-rendering-from-curves.md)) | `koebi-core` |
+| `koebi-doc` | The document as a typed dataflow graph: `SocketType` and values, node kinds with typed socket handles checked at compile time, the first kinds, links kept when invalid with their reason, pass-through outputs, node groups, opaque nodes of unknown kinds ([ADR 0028](../adr/0028-document-as-a-typed-node-graph.md)) | `koebi-core`, `koebi-geom` |
 | `koebi-icons` | The SVG icons of `icons/<category>/`, checked and compiled by its build script into constants and the packed set ([icons](../development/icons.md)) | svg |
 | `koebi-testkit` | Headless GPU, offscreen readback, PNG golden images (tests only) | gpu, core |
 | `koebi` (app) | Wires the layers, owns application state, theme tokens | all |
