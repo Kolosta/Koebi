@@ -359,7 +359,7 @@ pub struct NodeGroup {
 }
 
 /// A document's graph.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default)]
 pub struct Graph {
     nodes: BTreeMap<NodeId, Node>,
     links: BTreeMap<LinkId, Link>,
@@ -368,6 +368,17 @@ pub struct Graph {
     groups: BTreeMap<GroupId, NodeGroup>,
     /// The next id, for nodes, links and groups alike: never reused.
     next: u64,
+}
+
+/// Graphs are equal when their nodes, links and groups are: the next id, which never goes
+/// back, is not part of what they hold.
+impl PartialEq for Graph {
+    fn eq(&self, other: &Self) -> bool {
+        self.nodes == other.nodes
+            && self.links == other.links
+            && self.into == other.into
+            && self.groups == other.groups
+    }
 }
 
 impl Graph {
@@ -656,6 +667,91 @@ impl Graph {
         from.conversion(to)
             .is_none()
             .then_some(LinkStatus::Invalid(Invalid::Types { from, to }))
+    }
+
+    /// A node of `kind` named `name`, with a fresh id, not yet in the graph: what an
+    /// [`crate::Edit::AddNode`] adds.
+    ///
+    /// # Panics
+    ///
+    /// Never: the node is made, then taken out at once.
+    pub fn new_node(&mut self, kind: KindRef, name: impl Into<String>) -> Node {
+        let id = self.add(kind, name);
+        self.nodes.remove(&id).expect("just added")
+    }
+
+    /// A copy of node `id` with a fresh id, not yet in the graph: same kind, values, settings
+    /// and place, unlinked.
+    pub fn copy_node(&mut self, id: NodeId) -> Option<Node> {
+        let mut copy = self.nodes.get(&id)?.clone();
+        copy.id = NodeId(self.fresh());
+        Some(copy)
+    }
+
+    /// A fresh link id, for an [`crate::Edit::Link`].
+    pub fn new_link_id(&mut self) -> LinkId {
+        LinkId(self.fresh())
+    }
+
+    /// A fresh id for something outside the graph, such as a collection.
+    pub(crate) fn new_id(&mut self) -> u64 {
+        self.fresh()
+    }
+
+    /// Puts `node` in, with its own id. False when the id is taken.
+    pub(crate) fn insert_node(&mut self, node: Node) -> bool {
+        if self.nodes.contains_key(&node.id) {
+            return false;
+        }
+        self.next = self.next.max(node.id.0);
+        self.nodes.insert(node.id, node);
+        true
+    }
+
+    /// Puts `link` in with its own id, at `position` in its input's list. False when its id
+    /// is taken, a node or socket is missing, or a single input already has a link.
+    pub(crate) fn insert_link(&mut self, link: Link, position: usize) -> bool {
+        let fits = !self.links.contains_key(&link.id)
+            && self
+                .nodes
+                .get(&link.from.node)
+                .and_then(|node| node.kind.output(link.from.index))
+                .is_some()
+            && self
+                .nodes
+                .get(&link.to.node)
+                .and_then(|node| node.kind.input(link.to.index))
+                .is_some_and(|(_, multi)| multi || !self.into.contains_key(&link.to));
+        if fits {
+            self.next = self.next.max(link.id.0);
+            self.links.insert(link.id, link);
+            let list = self.into.entry(link.to).or_default();
+            list.insert(position.min(list.len()), link.id);
+        }
+        fits
+    }
+
+    /// Where link `id` sits in its input's list.
+    pub fn position_of(&self, id: LinkId) -> Option<usize> {
+        let link = self.links.get(&id)?;
+        self.into
+            .get(&link.to)?
+            .iter()
+            .position(|other| *other == id)
+    }
+
+    /// The links leaving output `from`.
+    pub fn links_from(&self, from: SocketRef) -> impl Iterator<Item = &Link> {
+        self.links.values().filter(move |link| link.from == from)
+    }
+
+    /// The Merge entry of link `id`, when it enters a Merge that has one.
+    pub fn merge_entry(&self, id: LinkId) -> Option<MergeEntry> {
+        let link = self.links.get(&id)?;
+        match &self.nodes.get(&link.to.node)?.settings {
+            Settings::Merge(entries) => entries.get(&id).copied(),
+            _ => None,
+        }
     }
 
     /// Adds a node group named `name` with `interface`: a graph holding its Group input and
