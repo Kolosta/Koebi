@@ -25,9 +25,11 @@ you work on.
 ## Architecture
 
 - [Overview](architecture/overview.md): layers, crates, frame lifecycle, ownership.
+- [The document, its canvas and the editors](architecture/document-and-canvas.md): the document
+  graph, its rendering, editing across editors, files and modules, and the roadmap in phases.
 - [Rectangles and the pixel grid](architecture/pixel-grid.md): why straight edges snap to pixels
-- [Windows](architecture/windows.md): the application bar, several windows and the settings
   and curves stay smooth.
+- [Windows](architecture/windows.md): the application bar, several windows and the settings.
 - [GPU abstraction](architecture/gpu-abstraction.md): the Vulkan RHI, and why it differs from
   Blender's GPU module.
 - [Architecture decision records](adr/README.md): the reasons behind every structural choice.
@@ -54,6 +56,8 @@ you work on.
 - [Actions and shortcuts](development/actions-and-shortcuts.md): declaring actions, when they
   run, modal conventions, input settings.
 - [Editors](development/editors.md): kinds and their state, templates, their shortcuts.
+- [Feature parity with Carto](development/feature-parity.md): every feature of the previous C++
+  application, the phase that brings it back, and its defects not to repeat.
 - [Icons](development/icons.md): the SVG subset icons are drawn in, adding one, color zones.
 - [Translation](development/translation.md): catalogs, tools and workflow for translators, marking
   messages, adding a language.
