@@ -126,6 +126,20 @@ fn de_casteljau(
     (work[0], left, right)
 }
 
+/// The control points of the derivative of the homogeneous curve of `degree` (its hodograph),
+/// of degree `degree - 1`.
+fn hodograph(control: &Homogeneous, degree: usize) -> Homogeneous {
+    let mut diff = [[0.0; 3]; MAX_DEGREE + 1];
+    #[allow(clippy::cast_precision_loss, reason = "a degree of at most 5")]
+    let scale = degree as f64;
+    for (slot, pair) in diff.iter_mut().zip(control.windows(2)).take(degree) {
+        for k in 0..3 {
+            slot[k] = (pair[1][k] - pair[0][k]) * scale;
+        }
+    }
+    diff
+}
+
 fn project(h: [f64; 3]) -> Point {
     Point::new(h[0] / h[2], h[1] / h[2])
 }
@@ -251,12 +265,7 @@ impl Segment {
                 let (degree, h) = self.homogeneous();
                 let (point, _, _) = de_casteljau(&h, degree, t);
                 // The hodograph of the homogeneous curve, of degree n - 1.
-                let mut diff = [[0.0; 3]; MAX_DEGREE + 1];
-                for i in 0..degree {
-                    for k in 0..3 {
-                        diff[i][k] = (h[i + 1][k] - h[i][k]) * degree as f64;
-                    }
-                }
+                let diff = hodograph(&h, degree);
                 let (d, _, _) = if degree == 1 {
                     (diff[0], diff, diff)
                 } else {
@@ -269,6 +278,113 @@ impl Segment {
                 )
             }
         }
+    }
+
+    /// The second derivative with respect to `t` at `t`.
+    pub fn second_derivative(&self, t: f64) -> Vector {
+        match self {
+            Self::Line(_) => Vector::ZERO,
+            Self::Quad([a, b, c]) => 2.0 * ((*c - *b) - (*b - *a)),
+            Self::Cubic([a, b, c, d]) => {
+                let (first, second) = ((*c - *b) - (*b - *a), (*d - *c) - (*c - *b));
+                6.0 * ((1.0 - t) * first + t * second)
+            }
+            Self::Rational(_) => {
+                // With H = w·P: P' = (H' - w'·P) / w and P'' = (H'' - 2·w'·P' - w''·P) / w.
+                let (degree, h) = self.homogeneous();
+                let first = hodograph(&h, degree);
+                let (h0, _, _) = de_casteljau(&h, degree, t);
+                let (h1, _, _) = de_casteljau(&first, degree - 1, t);
+                let h2 = if degree >= 2 {
+                    de_casteljau(&hodograph(&first, degree - 1), degree - 2, t).0
+                } else {
+                    [0.0; 3]
+                };
+                let w = h0[2];
+                let p = Vector::new(h0[0] / w, h0[1] / w);
+                let d1 = Vector::new((h1[0] - h1[2] * p.x) / w, (h1[1] - h1[2] * p.y) / w);
+                Vector::new(
+                    (h2[0] - 2.0 * h1[2] * d1.x - h2[2] * p.x) / w,
+                    (h2[1] - 2.0 * h1[2] * d1.y - h2[2] * p.y) / w,
+                )
+            }
+        }
+    }
+
+    /// The unit tangent at `t`, also where the derivative vanishes (a control point on an end
+    /// point): then the direction in which the curve leaves. `None` only for a segment reduced
+    /// to a point.
+    pub fn tangent(&self, t: f64) -> Option<Vector> {
+        if let Some(tangent) = self.derivative(t).normalized() {
+            return Some(tangent);
+        }
+        // The derivative vanishes at t, but the curve still runs along a direction: the one of
+        // a short chord from t toward the inside of the segment.
+        for step in [1e-7, 1e-5, 1e-3] {
+            let chord = if t + step <= 1.0 {
+                self.eval(t + step) - self.eval(t)
+            } else {
+                self.eval(t) - self.eval(t - step)
+            };
+            if let Some(tangent) = chord.normalized() {
+                return Some(tangent);
+            }
+        }
+        (self.end() - self.start()).normalized()
+    }
+
+    /// The signed curvature at `t`: positive where the curve turns from x toward y, that is
+    /// toward its normal (the tangent turned a quarter that way); 0 on a line, and where the
+    /// speed vanishes.
+    pub fn curvature(&self, t: f64) -> f64 {
+        let first = self.derivative(t);
+        let speed = first.length();
+        if speed <= f64::MIN_POSITIVE || !speed.is_finite() {
+            return 0.0;
+        }
+        first.cross(self.second_derivative(t)) / (speed * speed * speed)
+    }
+
+    /// The same curve, run backward.
+    #[must_use]
+    pub fn reversed(&self) -> Self {
+        match self {
+            Self::Line([a, b]) => Self::Line([*b, *a]),
+            Self::Quad([a, b, c]) => Self::Quad([*c, *b, *a]),
+            Self::Cubic([a, b, c, d]) => Self::Cubic([*d, *c, *b, *a]),
+            Self::Rational(r) => {
+                let mut out = *r;
+                out.points[..=r.degree].reverse();
+                out.weights[..=r.degree].reverse();
+                out.normalize_weights();
+                Self::Rational(out)
+            }
+        }
+    }
+
+    /// The segment with its first control point moved to `start`: how pieces computed apart
+    /// are joined end to end once they agree within a rounding error.
+    #[must_use]
+    pub(crate) fn with_start(mut self, start: Point) -> Self {
+        match &mut self {
+            Self::Line(p) => p[0] = start,
+            Self::Quad(p) => p[0] = start,
+            Self::Cubic(p) => p[0] = start,
+            Self::Rational(r) => r.points[0] = start,
+        }
+        self
+    }
+
+    /// The segment with its last control point moved to `end`.
+    #[must_use]
+    pub(crate) fn with_end(mut self, end: Point) -> Self {
+        match &mut self {
+            Self::Line(p) => p[1] = end,
+            Self::Quad(p) => p[2] = end,
+            Self::Cubic(p) => p[3] = end,
+            Self::Rational(r) => r.points[r.degree] = end,
+        }
+        self
     }
 
     /// The two halves at `t`.
@@ -464,47 +580,49 @@ impl Segment {
             };
             return (t, self.eval(t).distance_squared(point));
         }
-        // Sample, then refine each local minimum of the samples by a golden-section search: the
-        // distance is unimodal within a sample's neighbourhood for a fine enough grid.
+        // Sample, then refine each local minimum of the samples, the end samples included, by a
+        // golden-section search over its neighbours: the distance is unimodal there for a fine
+        // enough grid.
         let distance = |t: f64| self.eval(t).distance_squared(point);
         let at = |i: u32| f64::from(i) / f64::from(SAMPLES);
-        let mut best = (0.0, distance(0.0));
-        let end = distance(1.0);
-        if end < best.1 {
-            best = (1.0, end);
-        }
-        let mut prev = distance(0.0);
-        let mut current = distance(at(1));
-        for i in 1..SAMPLES {
-            let next = distance(at(i + 1));
-            if current <= prev && current <= next {
-                let (mut lo, mut hi) = (at(i - 1), at(i + 1));
-                let ratio = 0.618_033_988_749_894_9;
-                let (mut x1, mut x2) = (hi - ratio * (hi - lo), lo + ratio * (hi - lo));
-                let (mut f1, mut f2) = (distance(x1), distance(x2));
-                for _ in 0..80 {
-                    if f1 < f2 {
-                        hi = x2;
-                        x2 = x1;
-                        f2 = f1;
-                        x1 = hi - ratio * (hi - lo);
-                        f1 = distance(x1);
-                    } else {
-                        lo = x1;
-                        x1 = x2;
-                        f1 = f2;
-                        x2 = lo + ratio * (hi - lo);
-                        f2 = distance(x2);
-                    }
-                }
-                let t = lo.midpoint(hi);
-                let d = distance(t);
-                if d < best.1 {
-                    best = (t, d);
+        let samples: [f64; SAMPLES as usize + 1] = core::array::from_fn(|i| {
+            #[allow(clippy::cast_possible_truncation, reason = "at most 64")]
+            distance(at(i as u32))
+        });
+        let mut best = (0.0, samples[0]);
+        for i in 0..=SAMPLES {
+            let (before, after) = (i.saturating_sub(1), (i + 1).min(SAMPLES));
+            let current = samples[i as usize];
+            if current > samples[before as usize] || current > samples[after as usize] {
+                continue;
+            }
+            if current < best.1 {
+                best = (at(i), current);
+            }
+            let (mut lo, mut hi) = (at(before), at(after));
+            let ratio = 0.618_033_988_749_894_9;
+            let (mut x1, mut x2) = (hi - ratio * (hi - lo), lo + ratio * (hi - lo));
+            let (mut f1, mut f2) = (distance(x1), distance(x2));
+            for _ in 0..80 {
+                if f1 < f2 {
+                    hi = x2;
+                    x2 = x1;
+                    f2 = f1;
+                    x1 = hi - ratio * (hi - lo);
+                    f1 = distance(x1);
+                } else {
+                    lo = x1;
+                    x1 = x2;
+                    f1 = f2;
+                    x2 = lo + ratio * (hi - lo);
+                    f2 = distance(x2);
                 }
             }
-            prev = current;
-            current = next;
+            let t = lo.midpoint(hi);
+            let d = distance(t);
+            if d < best.1 {
+                best = (t, d);
+            }
         }
         best
     }
@@ -516,14 +634,9 @@ impl Segment {
         if let Self::Line([a, b]) = self {
             return line_winding(*a, *b, point);
         }
-        let bounds_y = (
-            self.start().y.min(self.end().y),
-            self.start().y.max(self.end().y),
-        );
-        let extrema = self.extrema(1);
-        // Quick reject: the ray misses every control point's band.
+        // Quick reject: the ray passes above or below every control point, so the curve.
         let (degree, h) = self.homogeneous();
-        let (mut min_y, mut max_y) = bounds_y;
+        let (mut min_y, mut max_y) = (f64::INFINITY, f64::NEG_INFINITY);
         for p in h.iter().take(degree + 1) {
             let y = p[1] / p[2];
             min_y = min_y.min(y);
@@ -532,6 +645,7 @@ impl Segment {
         if point.y < min_y || point.y > max_y {
             return 0;
         }
+        let extrema = self.extrema(1);
         let mut winding = 0;
         let mut t0: f64 = 0.0;
         let mut y0 = self.start().y;
@@ -735,6 +849,27 @@ mod tests {
         let p = quarter.eval(t);
         // An arc of length π/8 on the unit circle spans an angle of π/8.
         assert!((p.y.atan2(p.x) - PI / 8.0).abs() < 1e-9, "{p:?}");
+    }
+
+    #[test]
+    fn the_nearest_point_is_found_near_an_end() {
+        // Regression: a minimum between the first two samples was never refined, so the start
+        // itself came out as the nearest point.
+        let curve = Segment::cubic(
+            Point::new(0.0, 0.0),
+            Point::new(40.0, 0.0),
+            Point::new(40.0, 6.0),
+            Point::new(0.0, 6.0),
+        );
+        let query = Point::new(0.5625, -4.968);
+        let (t, squared) = curve.nearest(query);
+        let dense = (0..=100_000)
+            .map(|i| curve.eval(f64::from(i) / 100_000.0).distance_squared(query))
+            .fold(f64::INFINITY, f64::min);
+        assert!(t > 0.0 && squared <= dense + 1e-12, "{t} {squared} {dense}");
+        // The same near the end.
+        let (t, squared) = curve.nearest(Point::new(0.5625, 10.968));
+        assert!(t < 1.0 && squared < 4.97 * 4.97, "{t} {squared}");
     }
 
     #[test]
