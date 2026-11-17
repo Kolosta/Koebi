@@ -196,11 +196,14 @@ pub enum Settings {
 }
 
 /// A node.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Node {
     id: NodeId,
     kind: KindRef,
     inputs: Vec<Value>,
+    /// Advanced whenever something its outputs depend on changes: its inputs' values, its
+    /// settings, the links into it. Evaluation caches by it.
+    revision: u64,
     /// Its name.
     pub name: String,
     /// Its settings.
@@ -209,7 +212,24 @@ pub struct Node {
     pub position: Point,
 }
 
+/// Nodes are equal when they hold the same: their revisions only count changes.
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+            && self.kind == other.kind
+            && self.inputs == other.inputs
+            && self.name == other.name
+            && self.settings == other.settings
+            && self.position == other.position
+    }
+}
+
 impl Node {
+    /// Its revision: it changes whenever what its outputs depend on does.
+    pub const fn revision(&self) -> u64 {
+        self.revision
+    }
+
     /// Its id.
     pub const fn id(&self) -> NodeId {
         self.id
@@ -365,9 +385,15 @@ pub struct Graph {
     links: BTreeMap<LinkId, Link>,
     /// The links into each input, in order.
     into: BTreeMap<SocketRef, Vec<LinkId>>,
+    /// The links out of each output.
+    out_of: BTreeMap<SocketRef, Vec<LinkId>>,
     groups: BTreeMap<GroupId, NodeGroup>,
     /// The next id, for nodes, links and groups alike: never reused.
     next: u64,
+    /// The last revision given.
+    clock: u64,
+    /// Advanced when nodes or links are added or removed: what links' statuses depend on.
+    structure: u64,
 }
 
 /// Graphs are equal when their nodes, links and groups are: the next id, which never goes
@@ -392,9 +418,32 @@ impl Graph {
         self.next
     }
 
+    /// The revision of the graph's structure: it changes when a node or a link is added or
+    /// removed, which is what links' statuses depend on.
+    pub const fn structure(&self) -> u64 {
+        self.structure
+    }
+
+    /// The last revision given to a node: it changes whenever anything a node's outputs depend
+    /// on does.
+    pub const fn clock(&self) -> u64 {
+        self.clock
+    }
+
+    /// Advances node `id`'s revision: what its outputs depend on changed.
+    pub(crate) fn touch(&mut self, id: NodeId) {
+        self.clock += 1;
+        if let Some(node) = self.nodes.get_mut(&id) {
+            node.revision = self.clock;
+        }
+    }
+
     /// Adds a node of `kind` named `name`, its inputs at their initial values.
     pub fn add(&mut self, kind: KindRef, name: impl Into<String>) -> NodeId {
         let id = NodeId(self.fresh());
+        self.clock += 1;
+        self.structure += 1;
+        let revision = self.clock;
         let (inputs, settings) = match &kind {
             KindRef::Static(definition) => (
                 definition
@@ -417,6 +466,7 @@ impl Graph {
                 id,
                 kind,
                 inputs,
+                revision,
                 name: name.into(),
                 settings,
                 position: Point::ORIGIN,
@@ -465,10 +515,9 @@ impl Graph {
     ) -> Option<Value> {
         self.typed::<K>(id)?;
         let node = self.nodes.get_mut(&id)?;
-        Some(core::mem::replace(
-            &mut node.inputs[socket.index()],
-            value.into_value(),
-        ))
+        let old = core::mem::replace(&mut node.inputs[socket.index()], value.into_value());
+        self.touch(id);
+        Some(old)
     }
 
     /// Sets input `index` of node `id` to `value`, when it is of the input's type (or
@@ -481,17 +530,23 @@ impl Graph {
             Some(found) => found == ty,
             None => matches!(zero(ty), Value::None),
         };
-        fits.then(|| core::mem::replace(&mut node.inputs[index], value))
+        let old = fits.then(|| core::mem::replace(&mut node.inputs[index], value))?;
+        self.touch(id);
+        Some(old)
     }
 
     /// Removes node `id` and its links.
     pub fn remove(&mut self, id: NodeId) -> Option<Removed> {
         let node = self.nodes.remove(&id)?;
+        self.structure += 1;
         let touching: Vec<LinkId> = self
-            .links
-            .values()
-            .filter(|link| link.from.node == id || link.to.node == id)
-            .map(|link| link.id)
+            .into
+            .range(SocketRef::new(id, 0)..=SocketRef::new(id, usize::MAX))
+            .chain(
+                self.out_of
+                    .range(SocketRef::new(id, 0)..=SocketRef::new(id, usize::MAX)),
+            )
+            .flat_map(|(_, links)| links.iter().copied())
             .collect();
         let links = touching
             .into_iter()
@@ -566,6 +621,9 @@ impl Graph {
         self.links.insert(id, Link { id, from, to });
         let list = self.into.entry(to).or_default();
         list.insert(position.min(list.len()), id);
+        self.out_of.entry(from).or_default().push(id);
+        self.touch(to.node);
+        self.structure += 1;
         Ok(Linked { id, replaced })
     }
 
@@ -578,11 +636,19 @@ impl Graph {
                 self.into.remove(&link.to);
             }
         }
+        if let Some(list) = self.out_of.get_mut(&link.from) {
+            list.retain(|other| *other != id);
+            if list.is_empty() {
+                self.out_of.remove(&link.from);
+            }
+        }
         if let Some(node) = self.nodes.get_mut(&link.to.node)
             && let Settings::Merge(entries) = &mut node.settings
         {
             entries.remove(&id);
         }
+        self.touch(link.to.node);
+        self.structure += 1;
         Some(link)
     }
 
@@ -704,7 +770,10 @@ impl Graph {
             return false;
         }
         self.next = self.next.max(node.id.0);
-        self.nodes.insert(node.id, node);
+        let id = node.id;
+        self.nodes.insert(id, node);
+        self.touch(id);
+        self.structure += 1;
         true
     }
 
@@ -727,6 +796,9 @@ impl Graph {
             self.links.insert(link.id, link);
             let list = self.into.entry(link.to).or_default();
             list.insert(position.min(list.len()), link.id);
+            self.out_of.entry(link.from).or_default().push(link.id);
+            self.touch(link.to.node);
+            self.structure += 1;
         }
         fits
     }
@@ -740,9 +812,23 @@ impl Graph {
             .position(|other| *other == id)
     }
 
+    /// The links into or out of node `id`.
+    pub fn links_of(&self, id: NodeId) -> impl Iterator<Item = &Link> {
+        let range = SocketRef::new(id, 0)..=SocketRef::new(id, usize::MAX);
+        self.into
+            .range(range.clone())
+            .chain(self.out_of.range(range))
+            .flat_map(|(_, links)| links.iter())
+            .filter_map(|link| self.links.get(link))
+    }
+
     /// The links leaving output `from`.
     pub fn links_from(&self, from: SocketRef) -> impl Iterator<Item = &Link> {
-        self.links.values().filter(move |link| link.from == from)
+        self.out_of
+            .get(&from)
+            .into_iter()
+            .flatten()
+            .filter_map(|id| self.links.get(id))
     }
 
     /// The Merge entry of link `id`, when it enters a Merge that has one.

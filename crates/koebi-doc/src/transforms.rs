@@ -21,6 +21,10 @@ pub(crate) struct Placement {
     pub(crate) rotation: usize,
     pub(crate) scale: usize,
     pub(crate) parent: usize,
+    /// Its opacity input.
+    pub(crate) opacity: usize,
+    /// Its visibility input.
+    pub(crate) visible: usize,
     /// Its world transform output.
     pub(crate) world: usize,
     /// Its layer output.
@@ -38,6 +42,8 @@ pub(crate) fn placement(graph: &Graph, node: NodeId) -> Option<Placement> {
             rotation: path_object::ROTATION.index(),
             scale: path_object::SCALE.index(),
             parent: path_object::PARENT.index(),
+            opacity: path_object::OPACITY.index(),
+            visible: path_object::VISIBLE.index(),
             world: path_object::WORLD.index(),
             layer: path_object::LAYER.index(),
         })
@@ -47,6 +53,8 @@ pub(crate) fn placement(graph: &Graph, node: NodeId) -> Option<Placement> {
             rotation: group_object::ROTATION.index(),
             scale: group_object::SCALE.index(),
             parent: group_object::PARENT.index(),
+            opacity: group_object::OPACITY.index(),
+            visible: group_object::VISIBLE.index(),
             world: group_object::WORLD.index(),
             layer: group_object::LAYER.index(),
         })
@@ -56,6 +64,8 @@ pub(crate) fn placement(graph: &Graph, node: NodeId) -> Option<Placement> {
             rotation: instance_object::ROTATION.index(),
             scale: instance_object::SCALE.index(),
             parent: instance_object::PARENT.index(),
+            opacity: instance_object::OPACITY.index(),
+            visible: instance_object::VISIBLE.index(),
             world: instance_object::WORLD.index(),
             layer: instance_object::LAYER.index(),
         })

@@ -137,14 +137,16 @@ pub(crate) fn apply(
             }
             // Each link's place and entry, read before anything is removed.
             let mut links: Vec<PlacedLink> = graph
-                .links()
-                .filter(|link| link.from.node == id || link.to.node == id)
+                .links_of(id)
                 .map(|link| PlacedLink {
                     link: *link,
                     position: graph.position_of(link.id).unwrap_or(0),
                     entry: graph.merge_entry(link.id),
                 })
                 .collect();
+            // A link from the node to itself is both in and out: once.
+            links.sort_by_key(|placed| placed.link.id);
+            links.dedup_by_key(|placed| placed.link.id);
             // Put back in order of place, so that each lands where it was.
             links.sort_by_key(|placed| placed.position);
             let removed = graph.remove(id).ok_or(EditError::NoNode(id))?;
@@ -193,6 +195,7 @@ pub(crate) fn apply(
         Edit::SetSettings { node, settings } => {
             let target = graph.node_mut(node).ok_or(EditError::NoNode(node))?;
             let old = core::mem::replace(&mut target.settings, *settings);
+            graph.touch(node);
             Ok(Edit::SetSettings {
                 node,
                 settings: Box::new(old),
@@ -251,6 +254,7 @@ fn place(graph: &mut Graph, placed: &PlacedLink) -> Result<(), EditError> {
     {
         entries.insert(placed.link.id, entry);
     }
+    graph.touch(placed.link.to.node);
     Ok(())
 }
 

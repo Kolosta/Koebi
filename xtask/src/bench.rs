@@ -5,7 +5,8 @@
 //! start-up of the release binary to its first frame. The report goes to
 //! `target/bench/latest.md`, and with `--save` to `docs/performance/baseline.md`, the baseline
 //! later changes are compared with on the same machine. The geometry benchmark
-//! (`crates/koebi-geom/tests/bench.rs`) adds the time stroke outlines take.
+//! (`crates/koebi-geom/tests/bench.rs`) adds the time stroke outlines take, and the document's
+//! (`crates/koebi-doc/tests/bench.rs`) the time evaluation takes.
 
 use std::fmt::Write as _;
 use std::fs;
@@ -48,27 +49,9 @@ pub(crate) fn run(save: bool) -> Result<()> {
         .to_owned();
 
     util::step("bench: stroke outlines (release)");
-    let output = util::cargo()
-        .args([
-            "test",
-            "--release",
-            "-p",
-            "koebi-geom",
-            "--test",
-            "bench",
-            "--",
-            "--ignored",
-            "--nocapture",
-            "--test-threads=1",
-        ])
-        .output()
-        .map_err(|error| format!("cannot run the geometry benchmark: {error}"))?;
-    let geometry_stdout = String::from_utf8_lossy(&output.stdout);
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("the geometry benchmark failed:\n{geometry_stdout}\n{stderr}").into());
-    }
-    let geometry = bench_table(&geometry_stdout)?;
+    let geometry = crate_bench("koebi-geom")?;
+    util::step("bench: document evaluation (release)");
+    let document = crate_bench("koebi-doc")?;
 
     util::step("bench: start-up to the first frame (release)");
     util::run(util::cargo().args(["build", "--release", "-p", "koebi"]))?;
@@ -107,6 +90,16 @@ pub(crate) fn run(save: bool) -> Result<()> {
     for line in &geometry {
         let _ = writeln!(report, "{line}");
     }
+    let _ = writeln!(report, "\n## Document\n");
+    let _ = writeln!(
+        report,
+        "Evaluation of `koebi-doc` into per-page programs (11 runs after a warm-up), on a page \
+         of 10 000 rectangles with a fill each: from nothing, then again with one evaluator \
+         that keeps its caches. See issue #261.\n"
+    );
+    for line in &document {
+        let _ = writeln!(report, "{line}");
+    }
     let _ = writeln!(report, "\n## Start-up\n");
     match startup {
         Some(times) => {
@@ -136,6 +129,34 @@ pub(crate) fn run(save: bool) -> Result<()> {
         println!("saved to docs/performance/baseline.md");
     }
     Ok(())
+}
+
+/// Runs the ignored `bench` test of `package` in release, and returns its table.
+fn crate_bench(package: &str) -> Result<Vec<String>> {
+    let output = util::cargo()
+        .args([
+            "test",
+            "--release",
+            "-p",
+            package,
+            "--test",
+            "bench",
+            "--",
+            "--ignored",
+            "--nocapture",
+            "--test-threads=1",
+        ])
+        .output()
+        .map_err(|error| format!("cannot run the {package} benchmark: {error}"))?;
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("the {package} benchmark failed:\n{stdout}\n{stderr}").into());
+    }
+    Ok(bench_table(&stdout)?
+        .into_iter()
+        .map(str::to_owned)
+        .collect())
 }
 
 /// The table a benchmark printed between `BENCH-BEGIN` and `BENCH-END`.
