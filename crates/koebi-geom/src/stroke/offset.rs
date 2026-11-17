@@ -237,6 +237,13 @@ impl Corner {
     }
 }
 
+/// Whether the offset of `segment` at distance `d` runs backward all along: `d` beyond the
+/// radius of curvature everywhere, on the concave side.
+pub(super) fn folds_throughout(segment: &Segment, d: f64) -> bool {
+    !matches!(segment, Segment::Line(_))
+        && (0..=16).all(|i| d * segment.curvature(f64::from(i) / 16.0) >= 1.0)
+}
+
 /// Appends the offset at distance `d` of `segment` over `t0..t1`, within `tolerance`. The
 /// cursor is at its start. `points` is scratch.
 pub(super) fn offset(
@@ -311,6 +318,85 @@ fn span(
             depth - 1,
         );
     }
+}
+
+/// Appends the raw offset at distance `d` of the whole `segment`, within `tolerance`: fitted
+/// with quadratics where it runs along the curve, and where it folds back the offset curve
+/// itself, cusps and loop, as a polyline (a raw offset keeps its swallowtails, which wind the
+/// other way).
+pub(super) fn raw(
+    chain: &mut Chain<'_>,
+    segment: &Segment,
+    d: f64,
+    tolerance: f64,
+    points: &mut Vec<Point>,
+) {
+    if d == 0.0 {
+        chain.push(*segment);
+        return;
+    }
+    if let Segment::Line(_) = segment {
+        chain.push(Segment::line(
+            offset_point(segment, 0.0, d),
+            offset_point(segment, 1.0, d),
+        ));
+        return;
+    }
+    let folds = (0..=16).any(|i| d * segment.curvature(f64::from(i) / 16.0) > FOLD);
+    if !folds {
+        let (kept, cursor) = (chain.segments.len(), chain.cursor);
+        if fit(chain, segment, (0.0, 1.0), d, tolerance, DEPTH) {
+            return;
+        }
+        chain.segments.truncate(kept);
+        chain.cursor = cursor;
+    }
+    points.clear();
+    sampled(segment, (0.0, 1.0), d, tolerance, 20, points);
+    for point in points.iter() {
+        chain.line_to(*point);
+    }
+}
+
+/// Appends points of the offset at distance `d` over `a..b` (its end, not its start), so
+/// that the polyline through them strays from it by at most `tolerance`.
+fn sampled(
+    segment: &Segment,
+    (a, b): (f64, f64),
+    d: f64,
+    tolerance: f64,
+    depth: u32,
+    out: &mut Vec<Point>,
+) {
+    let (start, end) = (offset_point(segment, a, d), offset_point(segment, b, d));
+    let chord = end - start;
+    let length = chord.length();
+    let off = |t: f64| {
+        let p = offset_point(segment, t, d) - start;
+        if length > 0.0 {
+            chord.cross(p).abs() / length
+        } else {
+            p.length()
+        }
+    };
+    // Quarter points too: a loop can come back through the chord's middle.
+    let flat = [0.25, 0.5, 0.75]
+        .iter()
+        .all(|s| off(a + (b - a) * s) <= tolerance);
+    if depth == 0 || (flat && depth < 18) {
+        out.push(end);
+    } else {
+        let middle = a.midpoint(b);
+        sampled(segment, (a, middle), d, tolerance, depth - 1, out);
+        sampled(segment, (middle, b), d, tolerance, depth - 1, out);
+    }
+}
+
+/// Fits `segment` itself with quadratics within `tolerance`, into `out`: its offset at
+/// distance 0. False when it cannot be fitted (a degenerate curve).
+pub(super) fn fit_curve(segment: &Segment, tolerance: f64, out: &mut Vec<Segment>) -> bool {
+    let mut chain = Chain::new(out, segment.start(), 0.0);
+    fit(&mut chain, segment, (0.0, 1.0), 0.0, tolerance, DEPTH)
 }
 
 /// Fits the offset over `a..b` with quadratics whose control point is where the end

@@ -462,6 +462,21 @@ impl Segment {
                     params.push(t);
                 }
             }
+            Self::Rational(r) if r.degree == 2 => {
+                // A conic: with X = w·x and W the weight, both quadratic, the numerator of the
+                // derivative, X'·W - X·W', is quadratic too (its cubic terms cancel).
+                let (h, w) = ([0, 1, 2].map(|i| c(r.points[i]) * r.weights[i]), r.weights);
+                let power = |v: [f64; 3]| [v[0], 2.0 * (v[1] - v[0]), v[0] - 2.0 * v[1] + v[2]];
+                let ([a0, a1, a2], [b0, b1, b2]) = (power(h), power([w[0], w[1], w[2]]));
+                let roots = solve::quadratic(
+                    a2 * b1 - a1 * b2,
+                    2.0 * (a2 * b0 - a0 * b2),
+                    a1 * b0 - a0 * b1,
+                );
+                for &t in roots.as_slice() {
+                    params.push(t);
+                }
+            }
             Self::Rational(_) => {
                 // No closed form: sign changes of the derivative on a fine grid, then bisection.
                 const STEPS: u32 = 64;

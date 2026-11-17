@@ -36,9 +36,10 @@
 //! and the stroke swaps sides where the path bends the other way, across its normal at an
 //! inflection or along the bisector at a corner.
 //!
-//! An aligned stroke is exact where its band is narrower than the parts of the path it runs
-//! along. Where the band reaches across a part of a closed shape, it is cut against the shape
-//! itself by the booleans (#259).
+//! Inside and outside on closed subpaths are exact whatever the shape's size against the band:
+//! the region between two offsets of the shape, made by the booleans (a band wider than a thin
+//! shape fills it, never more). Elsewhere, and for dashes, the band is cut where its edges cross
+//! at corners, exact where the band is narrower than the parts of the path it runs along.
 //!
 //! # Dashes
 //!
@@ -237,6 +238,66 @@ pub enum DashCenter {
     Gap,
 }
 
+/// The raw offset of the closed `contour` at distance `distance` along its normal: one loop,
+/// the join on the outer side of corners, through the corner point on the inner side, and the
+/// offset curve itself where it folds back. Its ears and swallowtails wind the other way, so
+/// the points it winds positively are the contour's region offset (as Clipper offsets).
+/// `None` for a contour of no length, or one whose offset folds all round.
+pub(crate) fn raw_offset(
+    contour: &Contour,
+    distance: f64,
+    join: Join,
+    tolerance: f64,
+) -> Option<Contour> {
+    let mut pieces_of = Vec::new();
+    pieces(contour, tolerance * 1e-3, false, &mut pieces_of);
+    // Folded all round, the offset lies beyond every radius of curvature: everything on that
+    // side is within the distance, so the region shrinks to nothing there (or a hole fills in).
+    // Its raw offset would turn the right way round, as an antipodal copy: left out.
+    if pieces_of
+        .iter()
+        .all(|piece| offset::folds_throughout(&piece.segment, distance))
+    {
+        return None;
+    }
+    let first = pieces_of.first()?;
+    let mut segments = Vec::new();
+    let mut points = Vec::new();
+    let start = offset::offset_point(&first.segment, 0.0, distance);
+    let mut chain = offset::Chain::new(&mut segments, start, tolerance * 1e-3);
+    let count = pieces_of.len();
+    for (index, piece) in pieces_of.iter().enumerate() {
+        offset::raw(&mut chain, &piece.segment, distance, tolerance, &mut points);
+        let next = &pieces_of[(index + 1) % count];
+        let (into, out_of) = (
+            offset::tangent(&piece.segment, 1.0),
+            offset::tangent(&next.segment, 0.0),
+        );
+        let corner = offset::Corner {
+            point: piece.segment.end(),
+            from: into.perpendicular(),
+            to: out_of.perpendicular(),
+            turn: offset::turn(into, out_of),
+        };
+        if corner.turn.abs() > offset::CORNER {
+            if corner.is_outer(distance) {
+                corner.join(&mut chain, distance, join);
+            } else {
+                chain.line_to(corner.point);
+            }
+        }
+        chain.line_to(offset::offset_point(&next.segment, 0.0, distance));
+    }
+    chain.close();
+    Some(Contour::new(segments, true))
+}
+
+/// Fits `segment` with quadratics within `tolerance`, into `out`, as offsets are fitted. False
+/// when it cannot be (a degenerate curve).
+pub(crate) fn fit_quadratics(segment: &Segment, tolerance: f64, out: &mut Vec<Segment>) -> bool {
+    offset::fit_curve(segment, tolerance, out)
+}
+
 /// The outline of the stroke of `contours` in `style`, within `tolerance` (document units) of
 /// the exact one: contours to fill with the non-zero rule.
 pub fn outline(contours: &Contours, style: &StrokeStyle, tolerance: f64) -> Contours {
@@ -295,8 +356,17 @@ impl Stroker {
             tolerance,
             snap: tolerance * 1e-3,
         };
-        for index in 0..contours.contours().len() {
-            self.contour(contours, index, style, &params, out);
+        // Inside and outside on closed subpaths are cut against the shape itself; the rest is
+        // the band.
+        let exact = matches!(style.align, Align::Inside | Align::Outside)
+            && style.dashes.pattern.is_empty();
+        for (index, contour) in contours.contours().iter().enumerate() {
+            if !(exact && contour.is_closed()) {
+                self.contour(contours, index, style, &params, out);
+            }
+        }
+        if exact && contours.contours().iter().any(Contour::is_closed) {
+            aligned(contours, style, &params, out);
         }
     }
 
@@ -364,6 +434,32 @@ impl Stroker {
                 self.scratch.run(&self.dash, false, cap, params, out);
             }
         }
+    }
+}
+
+/// The inside or outside stroke of the closed subpaths of `contours`, exactly: with `a..b`
+/// the band's distances toward its side, the points of that side between distances `a` and
+/// `b` of the outline, each distance measured as the join measures it, whatever the shape's
+/// size against the band. With `O(s)` the shape grown by `s` (shrunk when negative), the
+/// inside stroke is `O(-a) ∖ O(-b)` and the outside one `O(b) ∖ O(a)`.
+fn aligned(contours: &Contours, style: &StrokeStyle, params: &Params, out: &mut Contours) {
+    use crate::boolean::grown;
+    use crate::{BooleanOp, FillRule, boolean, simplify};
+    let mut closed = Contours::default();
+    for contour in contours.contours().iter().filter(|c| c.is_closed()) {
+        closed.push(contour.clone());
+    }
+    let shape = simplify(&closed, FillRule::NonZero);
+    let offset_by = |distance: f64| grown(&shape, distance, params.join, params.tolerance);
+    let (a, b) = (params.offset - params.half, params.offset + params.half);
+    let (outer, inner) = if style.align == Align::Inside {
+        (offset_by(-a), offset_by(-b))
+    } else {
+        (offset_by(b), offset_by(a))
+    };
+    let rule = FillRule::NonZero;
+    for contour in boolean(&outer, rule, &inner, rule, BooleanOp::Subtract).contours() {
+        out.push(contour.clone());
     }
 }
 
