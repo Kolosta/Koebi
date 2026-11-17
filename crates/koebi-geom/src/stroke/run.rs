@@ -120,8 +120,17 @@ impl Scratch {
         self.cut(pieces);
 
         if closed {
-            // Two loops: the lo edge, and the hi edge run backward.
+            // Two loops: the lo edge, and the hi edge run backward. An edge whose offset folds
+            // all round lies farther than every radius of curvature on its side: everything
+            // on that side is within its distance, so it bounds nothing and is left out.
             for edge in 0..2 {
+                let folded = pieces
+                    .iter()
+                    .zip(&self.bands)
+                    .all(|(piece, band)| offset::folds_throughout(&piece.segment, band[edge]));
+                if folded {
+                    continue;
+                }
                 let first = (0, self.ranges[0][edge].0);
                 let last = (count - 1, self.ranges[count - 1][edge].1);
                 let mut segments = Vec::new();

@@ -14,6 +14,11 @@
 //! - [`outline`] and [`Stroker`]: a stroke ([`StrokeStyle`]) turned into contours to fill, so
 //!   that strokes are drawn with the coverage of fills. Every align, cap, join and dash, and
 //!   a stroke over itself united rather than darkened.
+//! - [`boolean`] ([`BooleanOp`]), [`simplify`], [`offset_region`]: union, intersection,
+//!   difference and exclusive or of filled outlines under their fill rules, a region made of
+//!   loops that neither overlap nor cross, a region grown or shrunk; as curves.
+//! - [`prepare`] ([`Octave`], [`Cell`]): an outline made quadratic and monotone within a
+//!   sixteenth of a pixel, cut into cells with f64 origins, for the canvas at any zoom.
 //!
 //! ```
 //! use koebi_geom::{FillRule, Path, Point, Vector};
@@ -26,8 +31,7 @@
 //! assert!((length - 20.0 * core::f64::consts::PI).abs() < 1e-8);
 //! ```
 //!
-//! Booleans and the preparation of curves for the GPU come next (#259). The crate depends on
-//! nothing but `koebi-core`.
+//! The crate depends on nothing but `koebi-core`.
 //!
 //! [ADR 0029]: https://github.com/Kolosta/Koebi/blob/develop/docs/adr/0029-canvas-rendering-from-curves.md
 
@@ -41,20 +45,24 @@
 )]
 
 mod affine;
+mod boolean;
 mod contour;
 mod nurbs;
 mod path;
 mod point;
+mod prepare;
 mod rect;
 mod segment;
 mod solve;
 mod stroke;
 
 pub use affine::{Affine, Decomposed, Transform};
+pub use boolean::{BooleanOp, boolean, offset_region, simplify};
 pub use contour::{Contour, Contours, FillRule, Nearest};
 pub use nurbs::NurbsKnots;
 pub use path::{Anchor, HandleKind, Path, Spline, Subpath};
 pub use point::{Point, Vector};
+pub use prepare::{Cell, Octave, Quadratic, cells, prepare, quadratics};
 pub use rect::Rect;
 pub use segment::{MAX_DEGREE, RationalBez, Segment};
 pub use stroke::{

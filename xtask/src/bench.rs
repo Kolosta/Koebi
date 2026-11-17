@@ -101,7 +101,8 @@ pub(crate) fn run(save: bool) -> Result<()> {
         "Stroke outlines in `koebi-geom`, within 1/16 of a unit, one stroker kept from stroke to \
          stroke (11 runs after a warm-up). *Smooth strokes* are drawn paths of five cubics; \
          *scribbles* have handles at random, full of loops and near cusps, where the offsets \
-         fold. See issue #258.\n"
+         fold; *closed shapes* are ellipses and polygons stroked inside, exactly (the region \
+         between two offsets of the shape, by booleans). See issues #258 and #259.\n"
     );
     for line in &geometry {
         let _ = writeln!(report, "{line}");
