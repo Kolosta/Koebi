@@ -4,7 +4,8 @@
 //! screens built on the CPU, text laid out, frames rendered offscreen. Then it measures the
 //! start-up of the release binary to its first frame. The report goes to
 //! `target/bench/latest.md`, and with `--save` to `docs/performance/baseline.md`, the baseline
-//! later changes are compared with on the same machine.
+//! later changes are compared with on the same machine. The geometry benchmark
+//! (`crates/koebi-geom/tests/bench.rs`) adds the time stroke outlines take.
 
 use std::fmt::Write as _;
 use std::fs;
@@ -39,21 +40,35 @@ pub(crate) fn run(save: bool) -> Result<()> {
     if !output.status.success() {
         return Err(format!("the benchmark failed:\n{stdout}\n{stderr}").into());
     }
-    let table: Vec<&str> = stdout
-        .lines()
-        // libtest writes the test's name on the line where its output starts.
-        .skip_while(|line| !line.contains("BENCH-BEGIN"))
-        .skip(1)
-        .take_while(|line| !line.contains("BENCH-END"))
-        .collect();
-    if table.is_empty() {
-        return Err(format!("the benchmark printed no table:\n{stdout}").into());
-    }
+    let table = bench_table(&stdout)?;
     let gpu = stderr
         .lines()
         .find_map(|line| line.split_once("GPU device: ").map(|(_, rest)| rest.trim()))
         .unwrap_or("none (GPU frames skipped)")
         .to_owned();
+
+    util::step("bench: stroke outlines (release)");
+    let output = util::cargo()
+        .args([
+            "test",
+            "--release",
+            "-p",
+            "koebi-geom",
+            "--test",
+            "bench",
+            "--",
+            "--ignored",
+            "--nocapture",
+            "--test-threads=1",
+        ])
+        .output()
+        .map_err(|error| format!("cannot run the geometry benchmark: {error}"))?;
+    let geometry_stdout = String::from_utf8_lossy(&output.stdout);
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("the geometry benchmark failed:\n{geometry_stdout}\n{stderr}").into());
+    }
+    let geometry = bench_table(&geometry_stdout)?;
 
     util::step("bench: start-up to the first frame (release)");
     util::run(util::cargo().args(["build", "--release", "-p", "koebi"]))?;
@@ -78,6 +93,17 @@ pub(crate) fn run(save: bool) -> Result<()> {
          store glyphs and icons). See issue #30.\n"
     );
     for line in &table {
+        let _ = writeln!(report, "{line}");
+    }
+    let _ = writeln!(report, "\n## Geometry\n");
+    let _ = writeln!(
+        report,
+        "Stroke outlines in `koebi-geom`, within 1/16 of a unit, one stroker kept from stroke to \
+         stroke (11 runs after a warm-up). *Smooth strokes* are drawn paths of five cubics; \
+         *scribbles* have handles at random, full of loops and near cusps, where the offsets \
+         fold. See issue #258.\n"
+    );
+    for line in &geometry {
         let _ = writeln!(report, "{line}");
     }
     let _ = writeln!(report, "\n## Start-up\n");
@@ -109,6 +135,21 @@ pub(crate) fn run(save: bool) -> Result<()> {
         println!("saved to docs/performance/baseline.md");
     }
     Ok(())
+}
+
+/// The table a benchmark printed between `BENCH-BEGIN` and `BENCH-END`.
+fn bench_table(stdout: &str) -> Result<Vec<&str>> {
+    let table: Vec<&str> = stdout
+        .lines()
+        // libtest writes the test's name on the line where its output starts.
+        .skip_while(|line| !line.contains("BENCH-BEGIN"))
+        .skip(1)
+        .take_while(|line| !line.contains("BENCH-END"))
+        .collect();
+    if table.is_empty() {
+        return Err(format!("the benchmark printed no table:\n{stdout}").into());
+    }
+    Ok(table)
 }
 
 /// The median and fastest start-up of the release binary, `None` when it cannot start.

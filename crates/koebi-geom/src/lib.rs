@@ -11,6 +11,9 @@
 //!   editable ellipse, an exact one, regular polygons.
 //! - [`Contours`]: a path's segments, built once per edit, then measured (bounds, lengths,
 //!   points at a length, nearest points) and hit-tested ([`FillRule`]) without allocating.
+//! - [`outline`] and [`Stroker`]: a stroke ([`StrokeStyle`]) turned into contours to fill, so
+//!   that strokes are drawn with the coverage of fills. Every align, cap, join and dash, and
+//!   a stroke over itself united rather than darkened.
 //!
 //! ```
 //! use koebi_geom::{FillRule, Path, Point, Vector};
@@ -23,8 +26,8 @@
 //! assert!((length - 20.0 * core::f64::consts::PI).abs() < 1e-8);
 //! ```
 //!
-//! Stroke outlines, booleans and the preparation of curves for the GPU come next (#258, #259).
-//! The crate depends on nothing but `koebi-core`.
+//! Booleans and the preparation of curves for the GPU come next (#259). The crate depends on
+//! nothing but `koebi-core`.
 //!
 //! [ADR 0029]: https://github.com/Kolosta/Koebi/blob/develop/docs/adr/0029-canvas-rendering-from-curves.md
 
@@ -45,6 +48,7 @@ mod point;
 mod rect;
 mod segment;
 mod solve;
+mod stroke;
 
 pub use affine::{Affine, Decomposed, Transform};
 pub use contour::{Contour, Contours, FillRule, Nearest};
@@ -53,3 +57,7 @@ pub use path::{Anchor, HandleKind, Path, Spline, Subpath};
 pub use point::{Point, Vector};
 pub use rect::Rect;
 pub use segment::{MAX_DEGREE, RationalBez, Segment};
+pub use stroke::{
+    Align, Cap, DashAnchor, DashCenter, DashFit, Dashes, Join, StrokeOffset, StrokeStyle, Stroker,
+    outline,
+};

@@ -101,9 +101,10 @@ impl Vector {
         Self::new(cos, sin)
     }
 
-    /// Its length.
+    /// Its length: the square root of the squares, several times faster than `hypot`, whose
+    /// guard against overflow only matters beyond 1e154, far from any document.
     pub fn length(self) -> f64 {
-        self.x.hypot(self.y)
+        (self.x * self.x + self.y * self.y).sqrt()
     }
 
     /// Its squared length.

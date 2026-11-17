@@ -19,7 +19,7 @@ flowchart TD
     icons["koebi-icons<br/>SVG icons compiled at build time"]
     workspace["koebi-workspace<br/>areas, lines, joins, editor stacks"]
     i18n["koebi-i18n<br/>translations compiled from catalogs"]
-    geom["koebi-geom<br/>document geometry in f64: paths, contours"]
+    geom["koebi-geom<br/>document geometry in f64: paths, contours, stroke outlines"]
     core["koebi-core<br/>geometry, color science, logging"]
     app --> ui --> render --> gpu --> core
     render --> text
@@ -51,7 +51,7 @@ flowchart TD
 | `koebi-text` | TrueType reading, glyph rasterization to coverage, single-line layout with ellipsis, embedded Noto Sans ([ADR 0014](../adr/0014-text-basics.md)) | core |
 | `koebi-i18n` | Translations: GNU gettext catalogs (`locales/*.po`) checked and compiled into static tables by its build script, `tr`/`trc`/`trn` lookups, placeholders, the language chosen ([ADR 0023](../adr/0023-translations.md), [translation guide](../development/translation.md)) | nothing |
 | `koebi-svg` | Icon compiler: a checked SVG subset compiled into quadratic curves per color zone, packed for the GPU, and a CPU rasterizer of the shader's coverage ([ADR 0020](../adr/0020-vector-icons.md)) | nothing |
-| `koebi-geom` | The document's geometry in f64: `Point`, `Vector`, `Affine` and `Transform`, segments up to rational degree 5 (exact NURBS and circles), `Path` of Bézier, NURBS and polyline subpaths, `Contours` measured and hit-tested without allocating ([ADR 0029](../adr/0029-canvas-rendering-from-curves.md)) | `koebi-core` |
+| `koebi-geom` | The document's geometry in f64: `Point`, `Vector`, `Affine` and `Transform`, segments up to rational degree 5 (exact NURBS and circles), `Path` of Bézier, NURBS and polyline subpaths, `Contours` measured and hit-tested without allocating, stroke outlines (`outline`, `Stroker`) ([ADR 0029](../adr/0029-canvas-rendering-from-curves.md)) | `koebi-core` |
 | `koebi-icons` | The SVG icons of `icons/<category>/`, checked and compiled by its build script into constants and the packed set ([icons](../development/icons.md)) | svg |
 | `koebi-testkit` | Headless GPU, offscreen readback, PNG golden images (tests only) | gpu, core |
 | `koebi` (app) | Wires the layers, owns application state, theme tokens | all |

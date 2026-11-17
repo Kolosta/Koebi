@@ -85,7 +85,7 @@ impl Contour {
 
     /// The winding of the ray from `point` toward +x, the contour closed by a line if it is
     /// open (as fills treat open subpaths).
-    fn winding(&self, point: Point) -> i32 {
+    pub(crate) fn winding(&self, point: Point) -> i32 {
         let mut winding: i32 = self.segments.iter().map(|s| s.winding(point)).sum();
         if !self.closed
             && let (Some(first), Some(last)) = (self.segments.first(), self.segments.last())
