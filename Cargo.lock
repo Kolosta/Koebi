@@ -65,6 +65,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "koebi-geom"
+version = "0.1.0"
+dependencies = [
+ "koebi-core",
+ "koebi-testkit",
+]
+
+[[package]]
 name = "koebi-gpu"
 version = "0.1.0"
 dependencies = [
