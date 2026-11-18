@@ -41,35 +41,37 @@ pub struct DotLevels {
 
 impl DotGrid {
     /// The levels shown at `zoom` logical pixels per canvas unit; `None` when no dot can be
-    /// placed (a zoom or a step that is not positive and finite).
+    /// placed: a zoom, a step or a minimum distance that is not positive and finite, or a view
+    /// so far zoomed out that the spacing in canvas units is beyond `f64`.
     pub fn levels(&self, zoom: f64) -> Option<DotLevels> {
         let base = self.step * zoom;
-        let min = f64::from(self.min_distance).max(f64::MIN_POSITIVE);
-        if !(base > 0.0 && base.is_finite() && min.is_finite()) {
+        let min = f64::from(self.min_distance);
+        if !(base > 0.0 && base.is_finite() && min > 0.0 && min.is_finite()) {
             return None;
         }
         let factor = f64::from(self.subdivisions.max(2));
-        // The power of `factor` bringing `base` into [min, min × factor), corrected for the
-        // rounding of the logarithm.
-        let mut power = (min / base).log(factor).ceil();
-        let mut on_screen = base * factor.powf(power);
-        while on_screen < min {
+        // The power of `factor` bringing `base` into [min, min × factor), in logarithms: finite
+        // for every positive finite input, however far the zoom.
+        let (log_base, log_factor) = (base.ln(), factor.ln());
+        let on_screen = |power: f64| (log_base + power * log_factor).exp();
+        let mut power = ((min.ln() - log_base) / log_factor).ceil();
+        // The logarithms round: one correction either way.
+        if on_screen(power) < min {
             power += 1.0;
-            on_screen = base * factor.powf(power);
-        }
-        while on_screen / factor >= min {
+        } else if on_screen(power - 1.0) >= min {
             power -= 1.0;
-            on_screen = base * factor.powf(power);
         }
-        if !on_screen.is_finite() {
+        let shown = on_screen(power);
+        let spacing = self.step * factor.powf(power);
+        if !(shown >= min && shown.is_finite() && spacing > 0.0 && spacing.is_finite()) {
             return None;
         }
         // From nothing, its dots `min / factor` apart, to full, `min` apart.
         #[allow(clippy::cast_possible_truncation, reason = "a share between 0 and 1")]
-        let fine = ((on_screen - min) / (min * factor - min)).clamp(0.0, 1.0) as f32;
+        let fine = ((shown - min) / (min * factor - min)).clamp(0.0, 1.0) as f32;
         Some(DotLevels {
-            spacing: self.step * factor.powf(power),
-            on_screen,
+            spacing,
+            on_screen: shown,
             fine,
         })
     }
@@ -159,6 +161,31 @@ mod tests {
         let after = grid.levels(96.0 * (1.0 + 1e-9)).expect("a zoom");
         assert!(before.fine > 0.999 && after.fine < 0.001);
         assert!((before.spacing / 4.0 - after.spacing).abs() < 1e-12);
+    }
+
+    #[test]
+    fn extreme_zooms_and_distances_end_with_levels_or_nothing() {
+        // Regression test: the logarithm of a ratio that overflowed or vanished was infinite,
+        // and the loops correcting it never ended.
+        let grid = grid();
+        for zoom in [1e-308, 2e-307, 1e-200, 1e200, 1e300, f64::MAX] {
+            if let Some(levels) = grid.levels(zoom) {
+                assert!(
+                    (24.0..96.0 + 1e-6).contains(&levels.on_screen),
+                    "{zoom}: {levels:?}"
+                );
+                assert!(levels.spacing.is_finite() && levels.spacing > 0.0);
+            }
+        }
+        // A view zoomed out past what canvas units hold places nothing.
+        assert_eq!(grid.levels(1e-308), None);
+        for min_distance in [0.0, -1.0, f32::NAN, f32::INFINITY] {
+            let flat = DotGrid {
+                min_distance,
+                ..grid
+            };
+            assert_eq!(flat.levels(1e17), None, "{min_distance}");
+        }
     }
 
     #[test]

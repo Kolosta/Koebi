@@ -26,6 +26,7 @@ layout(location = 1) out vec2 v_uv;             // texture coordinates
 layout(location = 2) flat out vec2 v_half_size; // px
 layout(location = 3) flat out vec4 v_radii;     // px
 layout(location = 4) flat out float v_opacity;
+layout(location = 5) flat out vec4 v_part;      // the part shown: low.xy, high.xy
 
 const float AA_MARGIN = 1.0;
 // How far below a half pixel a position still rounds up (TIE_TOLERANCE in scene.rs).
@@ -58,5 +59,6 @@ void main() {
     v_half_size = half_size;
     v_radii = min(max(in_radii, vec4(0.0)) * pc.scale_factor, vec4(min(half_size.x, half_size.y)));
     v_opacity = clamp(in_params.x, 0.0, 1.0);
+    v_part = vec4(min(in_uv.xy, in_uv.zw), max(in_uv.xy, in_uv.zw));
     pass_clip();
 }

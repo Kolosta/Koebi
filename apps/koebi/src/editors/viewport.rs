@@ -221,7 +221,7 @@ impl View {
     }
 }
 
-/// The step between grid lines or ruler ticks, in canvas units: 1, 2 or 5 times a power of
+/// The step between ruler ticks, in canvas units: 1, 2 or 5 times a power of
 /// ten, the smallest at least `spacing` logical pixels apart at `zoom`.
 fn step(zoom: f32, spacing: f32) -> f32 {
     let wanted = spacing / zoom;
@@ -507,7 +507,7 @@ mod tests {
     }
 
     #[test]
-    fn grid_steps_are_round_and_far_enough_apart() {
+    fn ruler_steps_are_round_and_far_enough_apart() {
         assert_eq!(step(1.0, 24.0), 50.0);
         assert_eq!(step(2.0, 24.0), 20.0);
         assert_eq!(step(0.1, 24.0), 500.0);

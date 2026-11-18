@@ -33,7 +33,8 @@ pub struct Viewport {
     pub scale_factor: f32,
 }
 
-/// Push constants of every 2D pipeline. Must match `ViewportConstants` in the vertex shaders.
+/// Push constants of every 2D pipeline. Must match `ViewportConstants` in the shaders (the
+/// image pipeline's fragment shader reads it too).
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 struct ViewportConstants {
@@ -421,8 +422,9 @@ impl Renderer2D {
     ///
     /// # Errors
     ///
-    /// Fails for a texture without [`koebi_gpu::TextureUsage::SAMPLED`] usage, or of another
-    /// device, or when the device cannot bind it.
+    /// Fails for a texture without [`koebi_gpu::TextureUsage::SAMPLED`] usage, of a format
+    /// that does not hold `content` ([`ImageContent::accepts`]), of another device, or when the
+    /// device cannot bind it.
     pub fn add_image(&mut self, texture: &Texture, content: ImageContent) -> Result<ImageId> {
         self.image_store.add(&self.device, texture, content)
     }
@@ -622,8 +624,8 @@ impl Renderer2D {
         }
     }
 
-    /// Records the scene's draw calls into an active pass: one instanced draw per run of
-    /// consecutive primitives of the same type, in painter's order. Call
+    /// Records the scene's draw calls into an active pass: one instanced draw per batch
+    /// (primitives of one type, and of one texture for images), in painter's order. Call
     /// [`Renderer2D::prepare`] with the same `frame_index` and scale factor first.
     ///
     /// # Errors
@@ -663,7 +665,7 @@ impl Renderer2D {
         // Every instance carries its clip: the whole target stays open.
         pass.set_scissor(0, 0, viewport.extent.width, viewport.extent.height);
         // The pipeline and the image bound last: a draw binds only what differs.
-        let mut bound = None;
+        let mut bound: Option<(PrimitiveKind, u32)> = None;
         for (id, batch) in scene.batches() {
             let (primitives, buffers) = match batch.kind {
                 PrimitiveKind::Rect => (&self.rects, rects),
@@ -700,7 +702,9 @@ impl Renderer2D {
                     bound = None;
                     continue;
                 }
-                pass.set_pipeline(&primitives.pipeline);
+                if bound.map(|(kind, _)| kind) != Some(batch.kind) {
+                    pass.set_pipeline(&primitives.pipeline);
+                }
                 if let Some(store) = store {
                     pass.set_bind_group(&primitives.pipeline, 0, store)?;
                 }

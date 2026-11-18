@@ -1557,6 +1557,32 @@ mod tests {
     }
 
     #[test]
+    fn spaces_map_dot_grids_onto_the_lattice_they_show() {
+        let mut scene = Scene::new();
+        scene.push_space(zoomed());
+        let dots = |origin: Vec2, spacing: f32, size: f32| Fill::Dots {
+            origin,
+            spacing,
+            subdivisions: 4,
+            size,
+            color: Color::WHITE,
+            fine: 0.5,
+        };
+        scene.push_fill(&FillPrimitive::new(
+            rect(),
+            dots(Vec2::new(3.0, -2.0), 8.0, 1.5),
+        ));
+        let mapped = Rect::from_origin_size(Vec2::new(120.0, 90.0), Vec2::new(60.0, 80.0));
+        assert_eq!(
+            scene.fill_instances(),
+            [FillInstance::from_primitive(&FillPrimitive::new(
+                mapped,
+                dots(Vec2::new(106.0, 46.0), 16.0, 3.0)
+            ))]
+        );
+    }
+
+    #[test]
     fn spaces_map_clips_and_nest() {
         let mut scene = Scene::new();
         scene.push_space(zoomed());

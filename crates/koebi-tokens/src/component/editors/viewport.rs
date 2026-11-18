@@ -44,8 +44,9 @@ koebi_design::tokens! {
     VIEWPORT_GRID_SPACING = "viewport.grid.spacing": Dimension = px(24.0), range(4.0, 200.0);
     /// Viewport: diameter of the grid's dots.
     VIEWPORT_GRID_DOT_SIZE = "viewport.grid.dot-size": Dimension = px(2.0), range(1.0, 8.0);
-    /// Viewport: how many steps of the grid's finer level one step of its coarse level holds.
-    VIEWPORT_GRID_SUBDIVISIONS = "viewport.grid.subdivisions": Number = 5.0, range(2.0, 10.0);
+    /// Viewport: how many steps of the grid's finer level one step of its coarse level holds:
+    /// 10 keeps the dots on powers of ten, among the rulers' ticks.
+    VIEWPORT_GRID_SUBDIVISIONS = "viewport.grid.subdivisions": Number = 10.0, range(2.0, 10.0);
     /// Viewport: background of the page.
     VIEWPORT_PAGE_BACKGROUND = "viewport.page.background": Color ->
         semantic::STATIC_TEXT_COLOR_WHITE;

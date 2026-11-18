@@ -149,8 +149,9 @@ pub enum Fill {
     },
     /// Round dots on a square lattice through `origin`, `spacing` apart, and a finer level of
     /// `subdivisions` dots per step faded to `fine`: the grid under a canvas, two levels from
-    /// one quad. Each dot's center goes to the pixel center or corner where a dot of its size
-    /// lies whole, so that dots stay crisp. Build it with [`crate::DotGrid::fill`].
+    /// one quad. Each dot's center goes to a pixel center (an odd number of pixels wide) or a
+    /// pixel corner (an even one), so that every dot covers the same pixels alike wherever it
+    /// lies. Build it with [`crate::DotGrid::fill`].
     Dots {
         /// A point where a dot lies.
         origin: Vec2,
@@ -315,7 +316,12 @@ impl FillInstance {
                     size.max(0.0),
                     subdivisions.max(2) as f32,
                 ],
-                fine.clamp(0.0, 1.0),
+                // NaN shows nothing of the finer level, rather than blanking the fill.
+                if fine.is_nan() {
+                    0.0
+                } else {
+                    fine.clamp(0.0, 1.0)
+                },
             ),
         };
         Self {

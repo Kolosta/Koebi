@@ -16,14 +16,15 @@ use koebi_core::{Rect, Vec2};
 use koebi_gpu::{
     AddressMode, BindGroup, BindGroupDesc, BindGroupLayout, BindGroupLayoutDesc, BindingResource,
     BindingType, Device, Error, FilterMode, Pod, Result, Sampler, SamplerDesc, Texture,
-    TextureUsage,
+    TextureFormat, TextureUsage,
 };
 
 use crate::scene::{Corners, Edges};
 
 /// An image the renderer keeps ([`crate::Renderer2D::add_image`]), named by the scenes that
 /// draw it. Numbers are never reused: an image removed draws nothing, even if another one is
-/// added after it.
+/// added after it. They belong to the renderer that gave them: a scene drawn by another
+/// renderer (a headless export) names that renderer's images.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ImageId(u32);
 
@@ -34,15 +35,37 @@ impl ImageId {
     }
 }
 
-/// How the texels of an image encode their colors.
+/// How the texels of an image encode their colors, which its format must match
+/// ([`ImageContent::accepts`]).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum ImageContent {
     /// Linear light, premultiplied alpha: what the canvas renders into its `Rgba16Float`
-    /// targets. Encoded to the window's sRGB when drawn.
+    /// targets, or what an `*Srgb` texture gives back once the sampler decodes it. Encoded to
+    /// the window's sRGB when drawn.
     #[default]
     Linear,
-    /// Gamma-encoded sRGB, premultiplied alpha, as the window's own pixels: drawn as they are.
+    /// Gamma-encoded sRGB, premultiplied alpha, as the window's own pixels, in an 8-bit
+    /// `*Unorm` texture: drawn as they are.
     Encoded,
+}
+
+impl ImageContent {
+    /// `true` when a texture of `format` holds this content and can be read with bilinear
+    /// filtering on every device: four channels, a filterable format (never `Rgba32Float`),
+    /// and the sampler's decoding matching the content (an `*Srgb` format decodes to linear
+    /// light).
+    pub const fn accepts(self, format: TextureFormat) -> bool {
+        match self {
+            Self::Linear => matches!(
+                format,
+                TextureFormat::Rgba16Float | TextureFormat::Rgba8Srgb | TextureFormat::Bgra8Srgb
+            ),
+            Self::Encoded => matches!(
+                format,
+                TextureFormat::Rgba8Unorm | TextureFormat::Bgra8Unorm
+            ),
+        }
+    }
 }
 
 /// A rectangle showing an image, or a part of it, with a radius per corner.
@@ -196,11 +219,22 @@ impl ImageStore {
         &self.layout
     }
 
-    fn bind_group(&self, device: &Device, texture: &Texture) -> Result<BindGroup> {
+    fn bind_group(
+        &self,
+        device: &Device,
+        texture: &Texture,
+        content: ImageContent,
+    ) -> Result<BindGroup> {
         if !texture.usage().contains(TextureUsage::SAMPLED) {
             return Err(Error::InvalidArgument(
                 "an image's texture needs SAMPLED usage".into(),
             ));
+        }
+        if !content.accepts(texture.format()) {
+            return Err(Error::InvalidArgument(format!(
+                "an image of {content:?} content cannot be a {:?} texture",
+                texture.format()
+            )));
         }
         device.create_bind_group(&BindGroupDesc {
             label: "image",
@@ -219,7 +253,7 @@ impl ImageStore {
         texture: &Texture,
         content: ImageContent,
     ) -> Result<ImageId> {
-        let bind_group = self.bind_group(device, texture)?;
+        let bind_group = self.bind_group(device, texture, content)?;
         let id = ImageId(self.next);
         self.next = self
             .next
@@ -244,7 +278,7 @@ impl ImageStore {
         let index = self
             .index(id)
             .ok_or_else(|| Error::InvalidArgument(format!("no image {}", id.0)))?;
-        let bind_group = self.bind_group(device, texture)?;
+        let bind_group = self.bind_group(device, texture, content)?;
         self.images[index] = Kept {
             id,
             bind_group,
@@ -292,6 +326,26 @@ pub(crate) mod tests {
     /// The image numbered `number`, for tests of what keys batches.
     pub(crate) const fn id(number: u32) -> ImageId {
         ImageId(number)
+    }
+
+    #[test]
+    fn contents_accept_the_formats_that_hold_them_and_filter_everywhere() {
+        use ImageContent::{Encoded, Linear};
+        use TextureFormat as F;
+        for (content, format, accepted) in [
+            (Linear, F::Rgba16Float, true),
+            (Linear, F::Rgba8Srgb, true),
+            (Linear, F::Bgra8Srgb, true),
+            (Linear, F::Rgba8Unorm, false),
+            (Linear, F::Rgba32Float, false),
+            (Encoded, F::Rgba8Unorm, true),
+            (Encoded, F::Bgra8Unorm, true),
+            (Encoded, F::Rgba8Srgb, false),
+            (Encoded, F::Rgba16Float, false),
+            (Encoded, F::R8Unorm, false),
+        ] {
+            assert_eq!(content.accepts(format), accepted, "{content:?} {format:?}");
+        }
     }
 
     #[test]

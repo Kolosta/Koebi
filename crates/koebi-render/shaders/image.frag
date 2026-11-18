@@ -1,6 +1,7 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
-// An image: its texture read with bilinear filtering, clamped at its edges, anti-aliased at its
+// An image: its texture read with bilinear filtering, clamped to the part shown (half a texel
+// inside it, so that a part of an atlas never reads its neighbours), anti-aliased at its
 // rounded corners like rectangles, its alpha multiplied by its opacity. Texels in linear light
 // (premultiplied, the canvas's `Rgba16Float` targets) are encoded to sRGB, the window's
 // encoding; gamma-encoded texels are drawn as they are. Output is premultiplied for
@@ -21,6 +22,7 @@ layout(location = 1) in vec2 v_uv;
 layout(location = 2) flat in vec2 v_half_size;
 layout(location = 3) flat in vec4 v_radii;
 layout(location = 4) flat in float v_opacity;
+layout(location = 5) flat in vec4 v_part;
 
 layout(location = 0) out vec4 out_color;
 
@@ -32,7 +34,10 @@ float encode(float x) {
 
 void main() {
     float coverage = clamp(0.5 - sd_rounded_box(v_local, v_half_size, v_radii), 0.0, 1.0);
-    vec4 texel = texture(image, v_uv);
+    vec2 half_texel = 0.5 / vec2(textureSize(image, 0));
+    vec2 low = v_part.xy + half_texel;
+    vec2 high = max(v_part.zw - half_texel, low);
+    vec4 texel = texture(image, clamp(v_uv, low, high));
     float alpha = clamp(texel.a, 0.0, 1.0);
     vec3 rgb = texel.rgb;
     if (pc.linear > 0.5) {

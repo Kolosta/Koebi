@@ -108,7 +108,18 @@ fn render(
     gpu: &HeadlessGpu,
     extent: Extent,
     uploads: &[Upload],
-    scene: impl FnOnce(&mut Renderer2D, &[ImageId]) -> Scene,
+    scene: impl FnOnce(&mut Renderer2D, &[ImageId], &[&Texture]) -> Scene,
+) -> Image {
+    render_at(gpu, extent, 1.0, uploads, scene)
+}
+
+/// [`render`] at `scale` physical pixels per logical pixel.
+fn render_at(
+    gpu: &HeadlessGpu,
+    extent: Extent,
+    scale: f32,
+    uploads: &[Upload],
+    scene: impl FnOnce(&mut Renderer2D, &[ImageId], &[&Texture]) -> Scene,
 ) -> Image {
     let format = TextureFormat::Rgba8Unorm;
     let mut renderer = Renderer2D::new(&gpu.device, format).expect("renderer creation");
@@ -142,7 +153,8 @@ fn render(
         let row = upload.extent.width * upload.format.bytes_per_pixel();
         kept.push((texture, staging, row));
     }
-    let scene = scene(&mut renderer, &ids);
+    let textures: Vec<&Texture> = kept.iter().map(|(texture, ..)| texture).collect();
+    let scene = scene(&mut renderer, &ids, &textures);
     gpu.render_offscreen(extent, format, |encoder, target| {
         for (texture, staging, row) in &kept {
             encoder.texture_barrier(texture, TextureState::Undefined, TextureState::TransferDst);
@@ -160,7 +172,7 @@ fn render(
             encoder.texture_barrier(texture, TextureState::TransferDst, TextureState::ShaderRead);
         }
         renderer
-            .render(encoder, target, &scene, 0, 1.0)
+            .render(encoder, target, &scene, 0, scale)
             .expect("render");
     })
     .expect("offscreen rendering")
@@ -196,7 +208,7 @@ fn linear_images_show_their_texels_encoded_to_srgb_one_per_pixel() {
         &gpu,
         Extent::new(8, 6),
         &[Upload::linear(4, 2, &texels)],
-        |_, ids| scene_of(&[ImagePrimitive::new(ids[0], rect(2.0, 2.0, 4.0, 2.0))]),
+        |_, ids, _| scene_of(&[ImagePrimitive::new(ids[0], rect(2.0, 2.0, 4.0, 2.0))]),
     );
     let background = BACKGROUND.to_rgba8();
     for (index, texel) in texels.iter().enumerate() {
@@ -241,7 +253,7 @@ fn encoded_images_show_their_texels_as_they_are_with_their_opacity() {
         &gpu,
         Extent::new(8, 4),
         &[Upload::encoded(2, 2, &texels)],
-        |_, ids| {
+        |_, ids, _| {
             scene_of(&[
                 ImagePrimitive::new(ids[0], rect(0.0, 0.0, 2.0, 2.0)),
                 ImagePrimitive::new(ids[0], rect(4.0, 0.0, 2.0, 2.0)).with_opacity(0.5),
@@ -292,7 +304,7 @@ fn a_part_of_an_image_fills_its_rectangle_and_rounded_corners_cut_it() {
             Upload::encoded(4, 1, &halves),
             Upload::encoded(16, 16, &solid),
         ],
-        |_, ids| {
+        |_, ids, _| {
             scene_of(&[
                 // The right half, two texels in two pixels.
                 ImagePrimitive::new(ids[0], rect(0.0, 0.0, 2.0, 1.0))
@@ -326,11 +338,30 @@ fn removed_images_draw_nothing_and_replaced_ones_show_their_new_texture() {
         &[
             Upload::encoded(1, 1, &[red]),
             Upload::encoded(1, 1, &[green]),
+            Upload::linear(1, 1, &[[0.0, 0.0, 1.0, 1.0]]),
         ],
-        |renderer, ids| {
+        |renderer, ids, textures| {
             assert!(renderer.remove_image(ids[0]));
             assert!(!renderer.remove_image(ids[0]));
-            assert_eq!(renderer.image_count(), 1);
+            assert_eq!(renderer.image_count(), 2);
+            // A removed image, or a texture of another content, cannot be replaced: nothing
+            // changes.
+            assert!(
+                renderer
+                    .replace_image(ids[0], textures[1], ImageContent::Encoded)
+                    .is_err()
+            );
+            assert!(
+                renderer
+                    .replace_image(ids[1], textures[2], ImageContent::Encoded)
+                    .is_err()
+            );
+            assert_eq!(renderer.image_count(), 2);
+            // The linear blue for the green, under the same number.
+            renderer
+                .replace_image(ids[1], textures[2], ImageContent::Linear)
+                .expect("replaced");
+            assert_eq!(renderer.image_count(), 2);
             scene_of(&[
                 ImagePrimitive::new(ids[0], rect(0.0, 0.0, 2.0, 2.0)),
                 ImagePrimitive::new(ids[1], rect(4.0, 0.0, 2.0, 2.0)),
@@ -338,7 +369,100 @@ fn removed_images_draw_nothing_and_replaced_ones_show_their_new_texture() {
         },
     );
     assert_pixel(&image, 0, 0, BACKGROUND.to_rgba8(), 0);
-    assert_pixel(&image, 4, 0, green, 1);
+    assert_pixel(&image, 4, 0, [0, 0, 255, 255], 1);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn images_take_textures_only_of_the_formats_their_content_holds() {
+    let Some(gpu) = gpu_or_skip("images_take_textures_only_of_the_formats_their_content_holds")
+    else {
+        return;
+    };
+    let mut renderer =
+        Renderer2D::new(&gpu.device, TextureFormat::Rgba8Unorm).expect("renderer creation");
+    let texture = |format, usage| {
+        gpu.device
+            .create_texture(&TextureDesc {
+                label: "test image",
+                extent: Extent::new(2, 2),
+                format,
+                usage,
+            })
+            .expect("a texture")
+    };
+    let sampled = TextureUsage::SAMPLED;
+    // Never filtered on every device; gamma-encoded texels in a float texture; not sampled.
+    let unfiltered = texture(TextureFormat::Rgba32Float, sampled);
+    let float = texture(TextureFormat::Rgba16Float, sampled);
+    let unsampled = texture(TextureFormat::Rgba8Unorm, TextureUsage::TRANSFER_DST);
+    assert!(
+        renderer
+            .add_image(&unfiltered, ImageContent::Linear)
+            .is_err()
+    );
+    assert!(renderer.add_image(&float, ImageContent::Encoded).is_err());
+    assert!(
+        renderer
+            .add_image(&unsampled, ImageContent::Encoded)
+            .is_err()
+    );
+    assert_eq!(renderer.image_count(), 0);
+    assert!(renderer.add_image(&float, ImageContent::Linear).is_ok());
+    assert_eq!(renderer.image_count(), 1);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn images_and_dots_keep_their_pixels_at_twice_the_scale() {
+    let Some(gpu) = gpu_or_skip("images_and_dots_keep_their_pixels_at_twice_the_scale") else {
+        return;
+    };
+    let texels = [
+        [200, 100, 50, 255],
+        [10, 220, 140, 255],
+        [255, 255, 255, 255],
+        [60, 30, 0, 255],
+    ];
+    // An image of 2×2 texels in one logical pixel, and one-unit dots 8 units apart: at twice
+    // the scale, one texel per physical pixel and dots two pixels wide.
+    let image = render_at(
+        &gpu,
+        Extent::new(48, 32),
+        2.0,
+        &[Upload::encoded(2, 2, &texels)],
+        |_, ids, _| {
+            let mut scene = scene_of(&[ImagePrimitive::new(ids[0], rect(1.0, 1.0, 1.0, 1.0))]);
+            scene.push_fill(&FillPrimitive::new(
+                rect(0.0, 6.0, 24.0, 10.0),
+                Fill::Dots {
+                    origin: Vec2::new(4.25, 8.25),
+                    spacing: 8.0,
+                    subdivisions: 2,
+                    size: 1.0,
+                    color: Color::WHITE,
+                    fine: 0.0,
+                },
+            ));
+            scene
+        },
+    );
+    for (index, texel) in texels.iter().enumerate() {
+        let index = u32::try_from(index).expect("a few texels");
+        assert_pixel(&image, 2 + index % 2, 2 + index / 2, *texel, 1);
+    }
+    // At (8.5, 16.5) physical pixels, on the corner (9, 17): pixels 8 and 9, 16 and 17; the
+    // next dot 16 pixels further, on (25, 17).
+    for corner in [9, 25] {
+        let pixel = image.pixel(corner - 1, 16);
+        assert!(pixel[0] > BACKGROUND.to_rgba8()[0] + 100, "{pixel:?}");
+        for (x, y) in [(corner, 16), (corner - 1, 17), (corner, 17)] {
+            assert_eq!(image.pixel(x, y), pixel, "({x}, {y})");
+        }
+        for (x, y) in [(corner + 1, 16), (corner - 2, 17), (corner, 18)] {
+            assert_pixel(&image, x, y, BACKGROUND.to_rgba8(), 0);
+        }
+    }
     gpu.assert_no_validation_errors();
 }
 
@@ -427,9 +551,10 @@ fn dot_grids_of_a_view_keep_their_dots_on_the_canvas_lattice_at_every_zoom() {
         scene.set_clear_color(BACKGROUND);
         scene.push_fill(&fill);
         let image = common::render(&gpu, Extent::new(64, 64), 1.0, &scene);
-        // The first coarse dot inside the area, on the canvas's lattice.
+        // The first coarse dot inside the area, on the canvas's lattice; one lying on a pixel
+        // edge goes to the pixel after it, as the shader rounds ties.
         let first = |origin: f64| {
-            let near = origin.rem_euclid(levels.on_screen);
+            let near = origin.rem_euclid(levels.on_screen) + 1.0 / 256.0;
             #[allow(
                 clippy::cast_possible_truncation,
                 clippy::cast_sign_loss,
@@ -478,7 +603,7 @@ fn images_and_dots_match_golden() {
         &gpu,
         Extent::new(160, 96),
         &[Upload::linear(width, height, &ramp)],
-        |_, ids| {
+        |_, ids, _| {
             let mut scene = Scene::new();
             scene.set_clear_color(BACKGROUND);
             let area = rect(0.0, 0.0, 160.0, 96.0);

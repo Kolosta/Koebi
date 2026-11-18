@@ -356,7 +356,8 @@ size on screen at which text is still read; components drawn smaller in a zoomed
 their labels (`Ui::readable`).
 
 The Viewport's dot grid (#263, ADR 0029): `component.viewport.grid.dot-size` = 2 px and
-`component.viewport.grid.subdivisions` = 5, the finer steps in a coarse one;
+`component.viewport.grid.subdivisions` = 10, the finer steps in a coarse one (the dots lie on
+powers of ten, among the rulers' ticks);
 `component.viewport.grid.spacing` is now the smallest space between dots on screen.
 
 Input settings, as semantic tokens aliasing durations and spacings (8): `semantic.input.drag-threshold`,
