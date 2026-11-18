@@ -36,6 +36,13 @@ impl Octave {
     pub fn cell_size(self) -> f64 {
         (10.0 - f64::from(self.0)).exp2()
     }
+
+    /// How far a cell's curves reach past its sides: one pixel at the octave's smallest zoom,
+    /// more than a pixel's footprint reaches past the cell at any zoom of the octave. A power
+    /// of two, like the cell size.
+    pub fn margin(self) -> f64 {
+        (-f64::from(self.0)).exp2()
+    }
 }
 
 /// A quadratic Bézier curve, monotone in x and in y.
@@ -145,7 +152,7 @@ pub fn cells(curves: &[Quadratic], size: f64) -> Vec<Cell> {
 }
 
 /// The segments of `contour`, with the closing line of an open one.
-fn closed(contour: &Contour) -> impl Iterator<Item = Segment> + '_ {
+pub(crate) fn closed(contour: &Contour) -> impl Iterator<Item = Segment> + '_ {
     let segments = contour.segments();
     let closing = match (segments.first(), segments.last()) {
         (Some(first), Some(last)) if last.end() != first.start() => {
@@ -157,7 +164,7 @@ fn closed(contour: &Contour) -> impl Iterator<Item = Segment> + '_ {
 }
 
 /// The pieces of `segment` between its turning points in x and in y.
-fn monotone(segment: &Segment, out: &mut Vec<Segment>) {
+pub(crate) fn monotone(segment: &Segment, out: &mut Vec<Segment>) {
     let (cuts, count) = crate::boolean::turning_points(segment);
     let mut t0 = 0.0;
     for &t1 in cuts[..count].iter().chain(core::iter::once(&1.0)) {
@@ -170,7 +177,7 @@ fn monotone(segment: &Segment, out: &mut Vec<Segment>) {
 
 /// The part of a monotone `segment` inside `area`: one stretch, a monotone curve meeting a
 /// box's sides once each at most. `None` when it misses the area.
-fn clip(segment: &Segment, area: Rect) -> Option<Segment> {
+pub(crate) fn clip(segment: &Segment, area: Rect) -> Option<Segment> {
     let (start, end) = (segment.start(), segment.end());
     let mut range = (0.0_f64, 1.0_f64);
     for (axis, low, high) in [(0, area.min.x, area.max.x), (1, area.min.y, area.max.y)] {
@@ -198,7 +205,7 @@ fn clip(segment: &Segment, area: Rect) -> Option<Segment> {
 }
 
 /// Where a segment monotone in `coordinate` reaches `value`.
-fn crossing(segment: &Segment, value: f64, coordinate: impl Fn(Point) -> f64) -> f64 {
+pub(crate) fn crossing(segment: &Segment, value: f64, coordinate: impl Fn(Point) -> f64) -> f64 {
     let rising = coordinate(segment.end()) >= coordinate(segment.start());
     let (mut lo, mut hi) = (0.0_f64, 1.0_f64);
     for _ in 0..64 {
@@ -213,7 +220,7 @@ fn crossing(segment: &Segment, value: f64, coordinate: impl Fn(Point) -> f64) ->
 }
 
 /// Appends quadratics within `tolerance` of a monotone `segment`, themselves monotone.
-fn to_quadratics(segment: &Segment, tolerance: f64, out: &mut Vec<Quadratic>) {
+pub(crate) fn to_quadratics(segment: &Segment, tolerance: f64, out: &mut Vec<Quadratic>) {
     let mut quads = Vec::new();
     match *segment {
         Segment::Line([a, b]) => quads.push([a, a.midpoint(b), b]),

@@ -21,6 +21,7 @@ flowchart TD
     i18n["koebi-i18n<br/>translations compiled from catalogs"]
     geom["koebi-geom<br/>document geometry in f64: paths, contours, strokes, booleans"]
     doc["koebi-doc<br/>the document as a typed node graph"]
+    canvas["koebi-canvas<br/>programs drawn from their curves into views"]
     core["koebi-core<br/>geometry, color science, logging"]
     app --> ui --> render --> gpu --> core
     render --> text
@@ -35,6 +36,9 @@ flowchart TD
     geom --> core
     doc --> geom
     doc --> core
+    canvas --> gpu
+    canvas --> geom
+    canvas --> doc
     app --> i18n
     ui --> i18n
     tokens --> i18n
@@ -45,6 +49,7 @@ flowchart TD
 | `koebi-core` | `Vec2`/`Rect`/`Extent`, `Color` (sRGB, linear, OKLab, OKLCH, WCAG contrast), color vision matrices, input vocabulary (`Key`, `Modifiers` with sides, `MouseButton`), logging facade, arithmetic expressions with units | nothing |
 | `koebi-gpu` | Vulkan loading, instance, adapter selection, device, memory, buffers, textures, samplers, bind groups, pipelines, command recording, swapchain and frame pacing | `ash`, core |
 | `koebi-render` | Retained `Scene` of 2D primitives (rectangles, segments, fills, glyphs, vector icons), glyphs and icons drawn from their curves, GPU instance layouts, shaders, batching across clips ([pixel grid](pixel-grid.md), [ADR 0025](../adr/0025-batching-across-clips.md)) | gpu, text, svg, core |
+| `koebi-canvas` | Evaluated programs drawn into each view's `Rgba16Float` target: outlines covered from their quadratic curves in grid cells with f64 origins, what lies beyond a cell folded onto its sides, two rays per pixel as for glyphs, solid paints in linear light; a CPU reference of the same coverage for the tests ([ADR 0029](../adr/0029-canvas-rendering-from-curves.md)) | `koebi-gpu`, `koebi-geom`, `koebi-doc`, `koebi-core` |
 | `koebi-platform` | SDL3 main callbacks (`App` trait), windows and custom chrome ([ADR 0019](../adr/0019-window-chrome.md)), event translation (keys, pointer and relative motion, wheel, pinch, text, focus), cursors, pointer lock, text input, clipboard, Vulkan library and surface | `sdl3-sys`, `ash` (types), core |
 | `koebi-design` | Design token engine: typed tokens in three tiers, compiled token tables, themes, overrides, views, color vision ([ADR 0008](../adr/0008-design-token-system.md)) | core |
 | `koebi-tokens` | Koebi's token set and built-in themes ([design system](../design-system/README.md)) | design |
