@@ -47,6 +47,7 @@ allow = [
     "rpkg-config",
     # Workspace members.
     "koebi",
+    "koebi-canvas",
     "koebi-core",
     "koebi-design",
     "koebi-doc",

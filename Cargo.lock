@@ -54,6 +54,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "koebi-canvas"
+version = "0.1.0"
+dependencies = [
+ "koebi-core",
+ "koebi-doc",
+ "koebi-geom",
+ "koebi-gpu",
+ "koebi-testkit",
+]
+
+[[package]]
 name = "koebi-core"
 version = "0.1.0"
 

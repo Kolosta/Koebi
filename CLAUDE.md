@@ -54,6 +54,8 @@ crates/koebi-icons/    the SVG icons (icons/<category>/), compiled and checked b
 crates/koebi-workspace/ workspace model: tiled areas, linked lines, joins, editor stacks
 crates/koebi-gpu/      Vulkan RHI: loader, instance, device, memory, resources, pipelines, presenter
 crates/koebi-render/   2D renderer: Scene -> instanced draws; GLSL in shaders/, SPIR-V committed
+crates/koebi-canvas/   canvas renderer: evaluated programs drawn from their curves into views'
+                       Rgba16Float targets, exact at any zoom (ADR 0029); gpu, geom and doc
 crates/koebi-platform/ SDL3 layer: App trait (main callbacks), windows, events, Vulkan surface
 crates/koebi-testkit/  dev-only: headless GPU, offscreen readback, golden PNG images
 xtask/                 automation, std-only (`cargo xtask help`)
@@ -63,7 +65,8 @@ docs/                  architecture, ADRs, development guides, AI workflow
 
 Layering (enforced by Cargo): `app -> ui -> render -> gpu -> core`, `render -> text -> core`,
 `app -> platform -> core`, `ui -> tokens -> design -> core` and `ui -> icons -> svg`,
-`render -> svg` (`svg` depends on nothing), `geom -> core`, `doc -> geom`, `app, ui, tokens -> i18n` (`i18n` depends on nothing).
+`render -> svg` (`svg` depends on nothing), `geom -> core`, `doc -> geom`,
+`canvas -> gpu, geom, doc`, `app, ui, tokens -> i18n` (`i18n` depends on nothing).
 `render`, `gpu` and `ui` never see SDL; `platform` never sees the renderer; `core` depends on
 nothing.
 

@@ -46,6 +46,7 @@
 
 mod affine;
 mod boolean;
+mod cells;
 mod contour;
 mod nurbs;
 mod path;
@@ -58,6 +59,7 @@ mod stroke;
 
 pub use affine::{Affine, Decomposed, Transform};
 pub use boolean::{BooleanOp, boolean, offset_region, simplify};
+pub use cells::{Edge, FillCell, fill_cells};
 pub use contour::{Contour, Contours, FillRule, Nearest};
 pub use nurbs::NurbsKnots;
 pub use path::{Anchor, HandleKind, Path, Spline, Subpath};
