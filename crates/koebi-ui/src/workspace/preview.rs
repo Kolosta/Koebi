@@ -342,7 +342,7 @@ impl Ui<'_> {
         window: Rect,
     ) {
         let layout = workspace.layout();
-        let pointer = self.input().pointer();
+        let pointer = self.pointer();
         let pointed = pointer
             .and_then(|point| frame.grid_point(point))
             .and_then(|(x, y)| layout.area_at(x, y).zip(Some((x, y))));

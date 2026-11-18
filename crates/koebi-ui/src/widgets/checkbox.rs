@@ -9,6 +9,7 @@ use koebi_tokens::component;
 
 use crate::icon::{Mark, draw_mark};
 use crate::id::WidgetId;
+use crate::pixel::PixelGrid;
 use crate::style::Prop;
 use crate::text::Align;
 use crate::ui::{Response, Ui};
@@ -116,16 +117,16 @@ impl CheckboxStyle {
     /// The box of a checkbox whose first line is `line`: at its left edge, centered
     /// vertically, on whole physical pixels at `scale`.
     pub fn box_rect(&self, line: Rect, scale: f32) -> Rect {
-        box_rect(self.box_size, line, scale)
+        box_rect(self.box_size, line, PixelGrid::uniform(scale))
     }
 }
 
 /// A box of side `side` (at most the line's height and width) at the left edge of `line`,
-/// centered vertically, on whole physical pixels at `scale`.
-fn box_rect(side: f32, line: Rect, scale: f32) -> Rect {
+/// centered vertically, on whole physical pixels of `grid`.
+fn box_rect(side: f32, line: Rect, grid: PixelGrid) -> Rect {
     let side = side.min(line.width()).min(line.height()).max(0.0);
     let min = Vec2::new(line.min.x, line.center().y - side * 0.5);
-    snap(Rect::from_origin_size(min, Vec2::splat(side)), scale)
+    snap(Rect::from_origin_size(min, Vec2::splat(side)), grid)
 }
 
 /// Color overrides of a call: per part (background, border), unchecked or checked, per state.
@@ -390,7 +391,7 @@ impl<'a> Checkbox<'a> {
             rect.min,
             Vec2::new(rect.max.x, rect.min.y + first.min(rect.height())),
         );
-        let bounds = box_rect(self.side(ui), line, ui.scale_factor());
+        let bounds = box_rect(self.side(ui), line, ui.pixel_grid());
         let radius = Self::prop(ui, self.corner_radius.as_ref(), style.corner_radius);
         let border = Self::prop(ui, self.border_width.as_ref(), style.border_width);
         let background = self.box_color(ui, BACKGROUND, marked, state);

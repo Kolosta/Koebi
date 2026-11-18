@@ -50,7 +50,7 @@ impl<N: Numeric> NumberField<'_, N> {
             self.color(ui, BACKGROUND, state),
             self.color(ui, BORDER, state),
         );
-        let rect = snap(rect, ui.scale_factor());
+        let rect = snap(rect, ui.pixel_grid());
         ui.scene().push_rect(
             &RectPrimitive::new(rect, background)
                 .with_corner_radii(radii)

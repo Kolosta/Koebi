@@ -9,6 +9,9 @@
 //!
 //! Conversion is always `physical = logical * scale_factor`, where the scale factor comes
 //! from the platform layer (display density times user content scale).
+//!
+//! A [`Space`] maps the local units of a zoomable part of the interface (a node graph, a
+//! preview) to the units around it: a uniform scale, then a translation.
 
 use core::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 
@@ -239,6 +242,112 @@ impl Rect {
     }
 }
 
+/// A uniform scale then a translation: how the local units of a zoomable space map to the
+/// units around it (ADR 0030). The point `p` of the space lies at `p * scale + offset` around
+/// it.
+///
+/// A space that cannot be drawn, its scale not positive and finite or its offset not finite,
+/// composes into [`Space::COLLAPSED`]: everything in it lies at one point, without size.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Space {
+    /// How many units around the space one of its units spans: 2 zooms in, 0.5 out.
+    pub scale: f32,
+    /// Where the space's origin lies, in the units around it.
+    pub offset: Vec2,
+}
+
+impl Default for Space {
+    fn default() -> Self {
+        Self::IDENTITY
+    }
+}
+
+impl Space {
+    /// The space whose units are those around it.
+    pub const IDENTITY: Self = Self::new(1.0, Vec2::ZERO);
+
+    /// The space where everything lies at the origin, without size: what a space that cannot
+    /// be drawn becomes.
+    pub const COLLAPSED: Self = Self::new(0.0, Vec2::ZERO);
+
+    /// Units of `scale`, the origin at `offset`.
+    pub const fn new(scale: f32, offset: Vec2) -> Self {
+        Self { scale, offset }
+    }
+
+    /// `true` when the space can be drawn: its scale positive and finite, its offset finite.
+    pub fn is_valid(self) -> bool {
+        self.scale > 0.0
+            && self.scale.is_finite()
+            && self.offset.x.is_finite()
+            && self.offset.y.is_finite()
+    }
+
+    /// `inner`, opened inside this space, as a space of the units around this one: its points
+    /// map through `inner`, then through `self`. [`Space::COLLAPSED`] when either cannot be
+    /// drawn, or their composition cannot (a scale that overflows).
+    #[must_use]
+    pub fn then(self, inner: Self) -> Self {
+        let composed = Self::new(self.scale * inner.scale, self.map_point(inner.offset));
+        if self.is_valid() && inner.is_valid() && composed.is_valid() {
+            composed
+        } else {
+            Self::COLLAPSED
+        }
+    }
+
+    /// Where the point `point` of the space lies around it.
+    #[must_use]
+    pub fn map_point(self, point: Vec2) -> Vec2 {
+        point * self.scale + self.offset
+    }
+
+    /// The vector `vector` of the space, around it.
+    #[must_use]
+    pub fn map_vector(self, vector: Vec2) -> Vec2 {
+        vector * self.scale
+    }
+
+    /// The length `length` of the space, around it.
+    #[must_use]
+    pub fn map_length(self, length: f32) -> f32 {
+        length * self.scale
+    }
+
+    /// Where the rectangle `rect` of the space lies around it.
+    #[must_use]
+    pub fn map_rect(self, rect: Rect) -> Rect {
+        Rect::from_min_max(self.map_point(rect.min), self.map_point(rect.max))
+    }
+
+    /// The point of the space at `point` around it; the origin in a collapsed space, where
+    /// every point lies at once.
+    #[must_use]
+    pub fn unmap_point(self, point: Vec2) -> Vec2 {
+        if self.is_valid() {
+            (point - self.offset) / self.scale
+        } else {
+            Vec2::ZERO
+        }
+    }
+
+    /// The vector of the space spanning `vector` around it; zero in a collapsed space.
+    #[must_use]
+    pub fn unmap_vector(self, vector: Vec2) -> Vec2 {
+        if self.is_valid() {
+            vector / self.scale
+        } else {
+            Vec2::ZERO
+        }
+    }
+
+    /// The rectangle of the space covering `rect` around it; empty in a collapsed space.
+    #[must_use]
+    pub fn unmap_rect(self, rect: Rect) -> Rect {
+        Rect::from_min_max(self.unmap_point(rect.min), self.unmap_point(rect.max))
+    }
+}
+
 /// A size in physical pixels: framebuffers, swapchain images, textures.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(C)]
@@ -338,6 +447,71 @@ mod tests {
         );
         assert!(r.inset(5.0).is_empty());
         assert_eq!(r.scale(2.0).size(), Vec2::splat(20.0));
+    }
+
+    #[test]
+    fn spaces_map_and_unmap_points_rects_and_lengths() {
+        let space = Space::new(2.0, Vec2::new(10.0, -4.0));
+        assert_eq!(space.map_point(Vec2::new(3.0, 5.0)), Vec2::new(16.0, 6.0));
+        assert_eq!(space.unmap_point(Vec2::new(16.0, 6.0)), Vec2::new(3.0, 5.0));
+        assert_eq!(space.map_vector(Vec2::new(3.0, 5.0)), Vec2::new(6.0, 10.0));
+        assert_eq!(
+            space.unmap_vector(Vec2::new(6.0, 10.0)),
+            Vec2::new(3.0, 5.0)
+        );
+        assert!((space.map_length(1.5) - 3.0).abs() < f32::EPSILON);
+        let rect = Rect::from_origin_size(Vec2::new(1.0, 2.0), Vec2::new(4.0, 3.0));
+        let mapped = space.map_rect(rect);
+        assert_eq!(
+            mapped,
+            Rect::from_origin_size(Vec2::new(12.0, 0.0), Vec2::new(8.0, 6.0))
+        );
+        assert_eq!(space.unmap_rect(mapped), rect);
+        assert_eq!(Space::default(), Space::IDENTITY);
+        assert_eq!(Space::IDENTITY.map_rect(rect), rect);
+    }
+
+    #[test]
+    fn nested_spaces_compose_inner_first() {
+        let outer = Space::new(2.0, Vec2::new(100.0, 50.0));
+        let inner = Space::new(0.25, Vec2::new(8.0, 4.0));
+        let both = outer.then(inner);
+        let point = Vec2::new(12.0, -20.0);
+        assert_eq!(
+            both.map_point(point),
+            outer.map_point(inner.map_point(point))
+        );
+        assert!((both.scale - 0.5).abs() < f32::EPSILON);
+        assert_eq!(Space::IDENTITY.then(inner), inner);
+        assert_eq!(inner.then(Space::IDENTITY), inner);
+    }
+
+    #[test]
+    fn spaces_that_cannot_be_drawn_collapse() {
+        let good = Space::new(2.0, Vec2::ZERO);
+        for bad in [
+            Space::new(0.0, Vec2::ZERO),
+            Space::new(-1.0, Vec2::ZERO),
+            Space::new(f32::NAN, Vec2::ZERO),
+            Space::new(f32::INFINITY, Vec2::ZERO),
+            Space::new(1.0, Vec2::new(f32::NAN, 0.0)),
+        ] {
+            assert!(!bad.is_valid());
+            assert_eq!(good.then(bad), Space::COLLAPSED);
+            assert_eq!(bad.then(good), Space::COLLAPSED);
+        }
+        // A scale that overflows collapses too.
+        let huge = Space::new(1.0e30, Vec2::ZERO);
+        assert_eq!(huge.then(huge), Space::COLLAPSED);
+        // Nothing comes back from a collapsed space but its origin.
+        let collapsed = Space::COLLAPSED;
+        assert_eq!(collapsed.unmap_point(Vec2::new(3.0, 4.0)), Vec2::ZERO);
+        assert_eq!(collapsed.unmap_vector(Vec2::new(3.0, 4.0)), Vec2::ZERO);
+        assert!(
+            collapsed
+                .map_rect(Rect::from_origin_size(Vec2::ZERO, Vec2::splat(9.0)))
+                .is_empty()
+        );
     }
 
     #[test]

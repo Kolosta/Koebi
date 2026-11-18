@@ -106,9 +106,10 @@ pub(crate) const fn repeating(key: Key) -> Shortcut {
     })
 }
 
-/// `rect` with its origin on physical pixel edges and its size whole physical pixels at
-/// `scale`, so that its edges lie where they are drawn and its size does not depend on where it
-/// lands.
-pub(crate) fn snap(rect: Rect, scale: f32) -> Rect {
-    crate::pixel::snap_rect(rect, scale)
+/// `rect` with each edge on the physical pixel edge of `grid` where it is drawn: what a
+/// component lays out inside lines up with what shows ([`PixelGrid::snap_rect`]).
+///
+/// [`PixelGrid::snap_rect`]: crate::pixel::PixelGrid::snap_rect
+pub(crate) fn snap(rect: Rect, grid: crate::pixel::PixelGrid) -> Rect {
+    grid.snap_rect(rect)
 }

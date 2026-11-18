@@ -2212,7 +2212,9 @@ msgid "Surfaces"
 msgstr ""
 
 #: crates/koebi-tokens/src/lib.rs
-msgid "Windows, panels, menus, tooltips, the status bar and what they hold."
+msgid ""
+"Windows, panels, menus, tooltips, the status bar, what they "
+"hold and zoomed content."
 msgstr ""
 
 #: crates/koebi-tokens/src/lib.rs

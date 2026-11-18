@@ -490,6 +490,50 @@ mod tests {
 
     const ID: WidgetId = WidgetId::new("transform");
 
+    #[test]
+    fn panels_in_a_space_or_on_a_floating_layer_are_not_nested_in_the_panel_around() {
+        // Regression test: a panel in a space inside a panel took the outer panel's level and
+        // the span of its backgrounds, in other units.
+        let mut harness = Harness::new();
+        let mut states = [CollapsiblePanelState::new(true); 3];
+        let [outer, zoomed, alone] = &mut states;
+        let space = koebi_core::Space::new(0.5, Vec2::new(20.0, 0.0));
+        let node = Rect::from_origin_size(Vec2::ZERO, Vec2::new(120.0, 200.0));
+        let zoomed_id = WidgetId::new("node");
+        let (mut nested, mut floating) = ((Rect::ZERO, 0_u8), u8::MAX);
+        for _ in 0..3 {
+            harness.frame(|ui| {
+                CollapsiblePanel::new(ID, outer, "Transform").show(ui, area(), |ui, _| {
+                    ui.space(space, |ui| {
+                        let response = CollapsiblePanel::new(zoomed_id, zoomed, "Node").show(
+                            ui,
+                            node,
+                            |ui, _| {
+                                nested.1 = ui.panel_depth;
+                                20.0
+                            },
+                        );
+                        nested.0 = response.header_rect;
+                    });
+                    ui.on_layer(crate::Layer::FLOATING, |ui| floating = ui.panel_depth);
+                    100.0
+                });
+            });
+        }
+        // The same panel at the top level.
+        let ((header, depth), _) = harness.frame(|ui| {
+            let mut depth = 0;
+            let response =
+                CollapsiblePanel::new(zoomed_id, alone, "Node").show(ui, node, |ui, _| {
+                    depth = ui.panel_depth;
+                    20.0
+                });
+            (response.header_rect, depth)
+        });
+        assert_eq!(nested, (header, depth));
+        assert_eq!(floating, 0);
+    }
+
     fn area() -> Rect {
         Rect::from_origin_size(Vec2::new(10.0, 10.0), Vec2::new(200.0, 400.0))
     }

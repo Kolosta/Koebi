@@ -1,4 +1,13 @@
 //! [`Ui`]: one frame of immediate-mode interface, and the interaction state between frames.
+//!
+//! The interface keeps what it routes (regions, clips, the press, what it asks of the platform)
+//! in the window's logical pixels, and maps what components give in the local units of a
+//! zoomable space ([`Ui::space`]) as they give it.
+
+#![expect(
+    clippy::disallowed_methods,
+    reason = "the interface's core reads the input in window units, which components may not"
+)]
 
 use core::time::Duration;
 
@@ -350,7 +359,8 @@ pub struct Response {
     pub released: bool,
     /// The component changed its value this frame.
     pub changed: bool,
-    /// How far the pointer moved since the press, while the component holds it.
+    /// How far the pointer moved since the press, while the component holds it, in local
+    /// units: divided by the scale of the space it lies in.
     pub drag_delta: Vec2,
 }
 
@@ -456,6 +466,12 @@ impl Truncated {
 /// Create one per frame, call components on it, then drop it: dropping ends the frame for
 /// the [`UiState`]. What is on top under the pointer receives it: the highest [`Layer`], then
 /// the component drawn last (see [`crate::Layer`]); nothing under it is hovered or clicked.
+///
+/// Components work in the local units of the space they are drawn in ([`Ui::space`]): every
+/// rectangle given to `Ui`, and every position it gives back (the pointer, drags, the clip),
+/// is in those units. The exceptions say so: the `bounds` that keep menus, popups and pickers
+/// inside the window, and the areas of the workspace and of a screen pick, which fill it, are
+/// in the window's logical pixels.
 #[derive(Debug)]
 pub struct Ui<'a> {
     pub(crate) scene: &'a mut Scene,
@@ -465,7 +481,7 @@ pub struct Ui<'a> {
     layer: Layer,
     /// The innermost zone being drawn, by region index.
     zone: Option<u32>,
-    /// Regions are clipped to this rectangle.
+    /// Regions are clipped to this rectangle, in the window's logical pixels.
     clip: Option<Rect>,
     /// How many collapsible panels hold what is being drawn: the level a panel shown now takes.
     pub(crate) panel_depth: u8,
@@ -629,9 +645,10 @@ impl<'a> Ui<'a> {
         self.scene
     }
 
-    /// The clip in force: what components drawn now may show, `None` without one.
+    /// The clip in force: what components drawn now may show, in local units, `None` without
+    /// one.
     pub fn clip_rect(&self) -> Option<Rect> {
-        self.clip
+        self.clip.map(|clip| self.window_space().unmap_rect(clip))
     }
 
     /// The layer components are drawn on.
@@ -641,16 +658,36 @@ impl<'a> Ui<'a> {
 
     /// Draws with `add` on `layer`, above or below what the current layer holds, whatever the
     /// drawing order: the scene draws its layers in order. A layer starts outside the clips in
-    /// force: a menu opened from an area is not limited to it.
+    /// force: a menu opened from an area is not limited to it. [`Layer::FLOATING`] and above
+    /// also start outside the spaces in force, at the window's scale and in its logical
+    /// pixels: a menu opened from a zoomed node stays readable.
     pub fn on_layer<R>(&mut self, layer: Layer, add: impl FnOnce(&mut Self) -> R) -> R {
         let previous = core::mem::replace(&mut self.layer, layer);
         // Floating content starts outside the clips and the zones of what opened it: the
         // area's shortcuts, wheel and cursor stay with the area.
         let clip = self.clip.take();
         let zone = self.zone.take();
+        let lifted = layer >= Layer::FLOATING;
+        // Nor is it nested in the panel that opened it.
+        let panels = lifted.then(|| {
+            (
+                core::mem::take(&mut self.panel_depth),
+                self.panel_span.take(),
+            )
+        });
         self.scene.push_layer(layer.0);
+        if lifted {
+            self.scene.push_root_space();
+        }
         let result = add(self);
+        if lifted {
+            self.scene.pop_space();
+        }
         self.scene.pop_layer();
+        if let Some((depth, span)) = panels {
+            self.panel_depth = depth;
+            self.panel_span = span;
+        }
         self.zone = zone;
         self.clip = clip;
         self.layer = previous;
@@ -662,6 +699,7 @@ impl<'a> Ui<'a> {
     /// operation under way, text being edited), which a component there could own. What a
     /// caller would build there may then be skipped: a long page builds only what shows.
     pub fn is_hidden(&self, rect: Rect) -> bool {
+        let rect = self.window_rect(rect);
         self.clip
             .is_some_and(|clip| clip.intersection(&rect).is_none())
             && self.state.grabs.is_empty()
@@ -670,11 +708,12 @@ impl<'a> Ui<'a> {
     /// Draws with `add` clipped to `clip`, and hit tests its components only inside it (a
     /// scrolling list: rows scrolled out of view are neither drawn nor clicked).
     pub fn clipped<R>(&mut self, clip: Rect, add: impl FnOnce(&mut Self) -> R) -> R {
-        let clip = match self.clip {
-            Some(outer) => outer.intersection(&clip).unwrap_or(Rect::ZERO),
-            None => clip,
+        let window = self.window_rect(clip);
+        let window = match self.clip {
+            Some(outer) => outer.intersection(&window).unwrap_or(Rect::ZERO),
+            None => window,
         };
-        let previous = self.clip.replace(clip);
+        let previous = self.clip.replace(window);
         self.scene.push_clip(clip);
         let result = add(self);
         self.scene.pop_clip();
@@ -711,9 +750,10 @@ impl<'a> Ui<'a> {
         radii: Corners,
         add: impl FnOnce(&mut Self) -> R,
     ) -> R {
+        let window = self.window_rect(clip);
         let inner = match self.clip {
-            Some(outer) => outer.intersection(&clip).unwrap_or(Rect::ZERO),
-            None => clip,
+            Some(outer) => outer.intersection(&window).unwrap_or(Rect::ZERO),
+            None => window,
         };
         let previous = self.clip.replace(inner);
         self.scene.push_rounded_clip(clip, radii);
@@ -730,6 +770,7 @@ impl<'a> Ui<'a> {
         context: Option<Context>,
         cursor: Option<CursorShape>,
     ) -> u32 {
+        let rect = self.window_rect(rect);
         let rect = match self.clip {
             Some(clip) => rect.intersection(&clip).unwrap_or(Rect::ZERO),
             None => rect,
@@ -797,9 +838,14 @@ impl<'a> Ui<'a> {
                 .is_some_and(|point| self.state.previous.is_within(point, id))
     }
 
-    /// Asks the application to read back the screen around `center` (logical pixels) from
-    /// the frame it presents: an eyedropper. Ask every frame while it picks.
+    /// Asks the application to read back the screen around `center` (local units) from the
+    /// frame it presents: an eyedropper. Ask every frame while it picks.
     pub fn want_screen_pixels(&mut self, center: Vec2) {
+        self.want_window_pixels(self.window_point(center));
+    }
+
+    /// Like [`Ui::want_screen_pixels`], `center` in the window's logical pixels.
+    pub(crate) fn want_window_pixels(&mut self, center: Vec2) {
         self.state.pixels_wanted = Some(center);
     }
 
@@ -820,17 +866,18 @@ impl<'a> Ui<'a> {
     }
 
     /// Asks for a locked pointer during this frame: the cursor disappears and stays put, and the
-    /// input reports relative motion ([`Input::motion`]). Ask every frame while the lock is
+    /// input reports relative motion ([`Ui::pointer_delta`]). Ask every frame while the lock is
     /// needed (a drag); when frames stop asking, the pointer comes back at the last
-    /// `release_at` (logical pixels).
+    /// `release_at` (local units).
     pub fn lock_pointer(&mut self, release_at: Vec2) {
-        self.state.pointer_lock = Some(release_at);
+        self.state.pointer_lock = Some(self.window_point(release_at));
     }
 
-    /// Asks for text input during this frame, the text edited in `area`: typed text arrives in
-    /// [`Input::text`]. Ask every frame while a field edits text.
+    /// Asks for text input during this frame, the text edited in `area` (local units): typed
+    /// text arrives in [`Input::text`], and the input method shows beside `area` mapped to the
+    /// window. Ask every frame while a field edits text.
     pub fn text_input(&mut self, area: Rect) {
-        self.state.text_area = Some(area);
+        self.state.text_area = Some(self.window_rect(area));
     }
 
     /// Takes the pointer over `rect` without reacting to it: the background of a floating
@@ -894,10 +941,11 @@ impl<'a> Ui<'a> {
         if active {
             self.state.active_seen = true;
             response.held = self.input.is_down();
-            response.drag_delta = self
-                .input
-                .pointer()
-                .map_or(Vec2::ZERO, |pointer| pointer - self.state.press_origin);
+            // In local units: what is dragged in a zoomed space follows the hand.
+            let space = self.window_space();
+            response.drag_delta = self.input.pointer().map_or(Vec2::ZERO, |pointer| {
+                space.unmap_vector(pointer - self.state.press_origin)
+            });
             if self.input.released() {
                 response.released = true;
                 response.clicked = on_top;

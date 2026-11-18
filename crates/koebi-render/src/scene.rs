@@ -1,11 +1,11 @@
 //! Scene description: what to draw this frame, layer by layer, each layer in painter's order.
 
-use koebi_core::{Color, Rect, Vec2};
+use koebi_core::{Color, Rect, Space, Vec2};
 use koebi_gpu::Pod;
 use koebi_text::{FontId, GlyphId, TextBlock, TextLine};
 
 use crate::batch::{Batch, Batches};
-use crate::fill::{FillInstance, FillPrimitive};
+use crate::fill::{Fill, FillInstance, FillPrimitive};
 use crate::icon::{IconInstance, IconPrimitive};
 
 /// Per-corner values of a rectangle: top-left, top-right, bottom-right, bottom-left.
@@ -122,13 +122,14 @@ pub enum Edges {
 /// A rectangle with a fill, a radius per corner and an inner border with a width per side.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RectPrimitive {
-    /// Bounds in logical pixels.
+    /// Bounds, in logical pixels or in the space in force ([`Scene::push_space`]), like every
+    /// length of a primitive.
     pub rect: Rect,
     /// Fill color.
     pub fill: Color,
-    /// Corner radii in logical pixels, each clamped to half the smallest side.
+    /// Corner radii, each clamped to half the smallest side.
     pub corner_radii: Corners,
-    /// Border widths in logical pixels, drawn inside the bounds; zero on every side disables
+    /// Border widths, drawn inside the bounds; zero on every side disables
     /// the border.
     pub border_widths: Sides,
     /// Border color.
@@ -210,13 +211,13 @@ impl RectPrimitive {
 /// weight of the rest of the stroke.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LinePrimitive {
-    /// Start point in logical pixels.
+    /// Start point, in logical pixels or in the space in force ([`Scene::push_space`]).
     pub from: Vec2,
-    /// End point in logical pixels.
+    /// End point.
     pub to: Vec2,
-    /// The end of a second segment, from `to`, in logical pixels.
+    /// The end of a second segment, from `to`.
     pub next: Option<Vec2>,
-    /// Stroke width in logical pixels.
+    /// Stroke width.
     pub width: f32,
     /// Color.
     pub color: Color,
@@ -264,9 +265,9 @@ pub struct GlyphPrimitive {
     pub font: FontId,
     /// The glyph.
     pub glyph: GlyphId,
-    /// Size in logical pixels per em.
+    /// Size per em, in logical pixels or in the space in force ([`Scene::push_space`]).
     pub size: f32,
-    /// Pen position on the baseline, in logical pixels.
+    /// Pen position on the baseline.
     pub origin: Vec2,
     /// Turn about the pen position, clockwise, in radians.
     pub rotation: f32,
@@ -396,6 +397,10 @@ pub(crate) struct Clip {
 ///   in its area, a scrolled list in its viewport. A layer pushed inside clips starts unclipped:
 ///   a menu is not limited to the area that opened it. [`Scene::push_rounded_clip`] also cuts
 ///   them at rounded corners, whatever they are: an area cuts all it holds.
+/// - **Spaces**: primitives pushed between [`Scene::push_space`] and [`Scene::pop_space`] are
+///   given in the local units of a zoomable space, which the scene maps to logical pixels as
+///   they are pushed (ADR 0030): positions, sizes, radii, borders, widths and clips alike. Edges
+///   then snap to physical pixels as anywhere else, after the space.
 /// - **Batches**: primitives of a type draw together in one instanced draw unless something
 ///   drawn between them overlaps them (ADR 0025): pushing in painter's order is all a
 ///   caller does.
@@ -427,6 +432,10 @@ pub struct Scene {
     clip_base: usize,
     /// The layer and clip base of each enclosing layer context.
     layer_stack: Vec<(u8, usize)>,
+    /// The space primitives are given in, mapping them to logical pixels, and those it was
+    /// pushed in.
+    space: Space,
+    spaces: Vec<Space>,
 }
 
 impl Scene {
@@ -454,6 +463,39 @@ impl Scene {
         self.clips.clear();
         self.clip_base = 0;
         self.layer_stack.clear();
+        self.space = Space::IDENTITY;
+        self.spaces.clear();
+    }
+
+    /// Takes the primitives pushed from now on in the local units of `space`, opened in the
+    /// space in force, until the matching [`Scene::pop_space`]: what they give in its units
+    /// lands at `point * scale + offset` in the units around it. A space that cannot be drawn
+    /// draws nothing ([`Space::COLLAPSED`]).
+    pub fn push_space(&mut self, space: Space) {
+        self.spaces.push(self.space);
+        self.space = self.space.then(space);
+    }
+
+    /// Takes the primitives pushed from now on in logical pixels again, outside every space in
+    /// force, until the matching [`Scene::pop_space`]: a menu opened from a zoomed node draws
+    /// at the window's scale.
+    pub fn push_root_space(&mut self) {
+        self.spaces.push(self.space);
+        self.space = Space::IDENTITY;
+    }
+
+    /// Returns to the space of before the matching [`Scene::push_space`] or
+    /// [`Scene::push_root_space`].
+    pub fn pop_space(&mut self) {
+        if let Some(space) = self.spaces.pop() {
+            self.space = space;
+        }
+    }
+
+    /// The space primitives are given in: [`Space::IDENTITY`] outside every space, where they
+    /// are in logical pixels.
+    pub fn space(&self) -> Space {
+        self.space
     }
 
     /// Pushes the primitives that follow to `layer`, without the clips in force, until the
@@ -478,11 +520,11 @@ impl Scene {
         self.layer
     }
 
-    /// Clips the primitives pushed from now on to `rect` (logical pixels), within the current
-    /// clip, until the matching [`Scene::pop_clip`].
+    /// Clips the primitives pushed from now on to `rect` (in the space in force), within the
+    /// current clip, until the matching [`Scene::pop_clip`].
     pub fn push_clip(&mut self, rect: Rect) {
         let rounded = self.current_clip().and_then(|clip| clip.rounded);
-        let rect = self.clipped_rect(rect);
+        let rect = self.clipped_rect(self.space.map_rect(rect));
         self.enter_clip(Clip { rect, rounded });
     }
 
@@ -491,6 +533,8 @@ impl Scene {
     /// would. Only the innermost rounded clip cuts: nest them only inside each other's straight
     /// edges.
     pub fn push_rounded_clip(&mut self, rect: Rect, radii: Corners) {
+        let rect = self.space.map_rect(rect);
+        let radii = scaled_corners(radii, self.space.scale);
         let clipped = self.clipped_rect(rect);
         self.enter_clip(Clip {
             rect: clipped,
@@ -530,12 +574,13 @@ impl Scene {
         }
     }
 
-    /// The clip primitives are pushed with, if any.
+    /// The clip primitives are pushed with, if any, in logical pixels whatever the space.
     pub fn clip(&self) -> Option<Rect> {
         self.current_clip().map(|clip| clip.rect)
     }
 
-    /// The rounded shape cutting the primitives pushed now, if any: its rectangle and radii.
+    /// The rounded shape cutting the primitives pushed now, if any: its rectangle and radii, in
+    /// logical pixels whatever the space.
     pub fn rounded_clip(&self) -> Option<(Rect, Corners)> {
         self.current_clip().and_then(|clip| clip.rounded)
     }
@@ -558,6 +603,18 @@ impl Scene {
 
     /// Appends a rectangle. Empty or fully transparent rectangles are culled.
     pub fn push_rect(&mut self, primitive: &RectPrimitive) {
+        let scale = self.space.scale;
+        let primitive = &RectPrimitive {
+            rect: self.space.map_rect(primitive.rect),
+            corner_radii: scaled_corners(primitive.corner_radii, scale),
+            border_widths: Sides {
+                top: primitive.border_widths.top * scale,
+                right: primitive.border_widths.right * scale,
+                bottom: primitive.border_widths.bottom * scale,
+                left: primitive.border_widths.left * scale,
+            },
+            ..*primitive
+        };
         let invisible = primitive.fill.a <= 0.0
             && (primitive.border_widths.max() <= 0.0 || primitive.border_color.a <= 0.0);
         if primitive.rect.is_empty() || invisible || !self.visible(primitive.rect) {
@@ -570,6 +627,32 @@ impl Scene {
 
     /// Appends a fill ([`FillPrimitive`]). Empty fills are culled.
     pub fn push_fill(&mut self, primitive: &FillPrimitive) {
+        let scale = self.space.scale;
+        let fill = match primitive.fill {
+            Fill::Checker { size, light, dark } => Fill::Checker {
+                size: size * scale,
+                light,
+                dark,
+            },
+            Fill::Arrow {
+                pointing,
+                color,
+                outline,
+                outline_width,
+            } => Fill::Arrow {
+                pointing,
+                color,
+                outline,
+                outline_width: outline_width * scale,
+            },
+            fill => fill,
+        };
+        let primitive = &FillPrimitive {
+            rect: self.space.map_rect(primitive.rect),
+            fill,
+            corner_radii: scaled_corners(primitive.corner_radii, scale),
+            ..*primitive
+        };
         if primitive.rect.is_empty() || !self.visible(primitive.rect) {
             return;
         }
@@ -580,6 +663,10 @@ impl Scene {
     /// Appends an icon ([`IconPrimitive`]). Icons without size or opacity, or with a
     /// non-finite rectangle, are culled.
     pub fn push_icon(&mut self, primitive: &IconPrimitive) {
+        let primitive = &IconPrimitive {
+            rect: self.space.map_rect(primitive.rect),
+            ..*primitive
+        };
         let rect = primitive.rect;
         let finite = [rect.min.x, rect.min.y, rect.max.x, rect.max.y]
             .iter()
@@ -601,6 +688,14 @@ impl Scene {
     /// Appends a segment, or two joined. Strokes without width or color are culled, and so are
     /// strokes with a non-finite coordinate or width, which cannot be drawn.
     pub fn push_line(&mut self, primitive: &LinePrimitive) {
+        let space = self.space;
+        let primitive = &LinePrimitive {
+            from: space.map_point(primitive.from),
+            to: space.map_point(primitive.to),
+            next: primitive.next.map(|next| space.map_point(next)),
+            width: space.map_length(primitive.width),
+            color: primitive.color,
+        };
         let width = primitive.width;
         let finite = width.is_finite()
             && primitive
@@ -631,8 +726,14 @@ impl Scene {
         self.push_glyph_covering(glyph, bounds);
     }
 
-    /// Appends `glyph`, whose outline lies inside `bounds` (logical pixels).
+    /// Appends `glyph`, whose outline lies inside `bounds`, both in the space in force.
     fn push_glyph_covering(&mut self, glyph: &GlyphPrimitive, bounds: Rect) {
+        let glyph = &GlyphPrimitive {
+            origin: self.space.map_point(glyph.origin),
+            size: self.space.map_length(glyph.size),
+            ..*glyph
+        };
+        let bounds = self.space.map_rect(bounds);
         let finite = [glyph.origin.x, glyph.origin.y, glyph.size, glyph.rotation]
             .iter()
             .all(|v| v.is_finite());
@@ -648,7 +749,7 @@ impl Scene {
         self.join_batch(PrimitiveKind::Glyph, bounds);
     }
 
-    /// Appends the glyphs of `line`, its baseline starting at `origin` (logical pixels), at
+    /// Appends the glyphs of `line`, its baseline starting at `origin` (in the space in force), at
     /// the size it was laid out at.
     pub fn push_text(&mut self, line: &TextLine, origin: Vec2, color: Color) {
         for placed in line.glyphs() {
@@ -668,7 +769,7 @@ impl Scene {
     }
 
     /// Appends the glyphs of `line` turned clockwise by `rotation` radians about `origin`, the
-    /// start of its baseline (logical pixels).
+    /// start of its baseline (in the space in force).
     pub fn push_text_rotated(
         &mut self,
         line: &TextLine,
@@ -692,8 +793,8 @@ impl Scene {
         }
     }
 
-    /// Appends the glyphs of a laid-out block whose top-left corner is `origin` (logical
-    /// pixels), turned clockwise by `rotation` radians about it.
+    /// Appends the glyphs of a laid-out block whose top-left corner is `origin` (in the space
+    /// in force), turned clockwise by `rotation` radians about it.
     pub fn push_block(&mut self, block: &TextBlock, origin: Vec2, color: Color, rotation: f32) {
         let (sin, cos) = rotation.sin_cos();
         for line in block.lines() {
@@ -808,6 +909,16 @@ impl Scene {
     /// order.
     pub(crate) fn batches(&self) -> impl Iterator<Item = (u32, &Batch)> + '_ {
         self.batches.in_order()
+    }
+}
+
+/// `radii` scaled by `scale`.
+fn scaled_corners(radii: Corners, scale: f32) -> Corners {
+    Corners {
+        top_left: radii.top_left * scale,
+        top_right: radii.top_right * scale,
+        bottom_right: radii.bottom_right * scale,
+        bottom_left: radii.bottom_left * scale,
     }
 }
 
@@ -1275,6 +1386,171 @@ mod tests {
             [(PrimitiveKind::Rect, (0, 2)), (PrimitiveKind::Line, (0, 1)),]
         );
         assert_eq!(scene.layer(), 0);
+    }
+
+    fn corners(top_left: f32, top_right: f32, bottom_right: f32, bottom_left: f32) -> Corners {
+        Corners {
+            top_left,
+            top_right,
+            bottom_right,
+            bottom_left,
+        }
+    }
+
+    fn sides(top: f32, right: f32, bottom: f32, left: f32) -> Sides {
+        Sides {
+            top,
+            right,
+            bottom,
+            left,
+        }
+    }
+
+    /// A space twice as large as logical pixels, its origin at (100, 50).
+    fn zoomed() -> Space {
+        Space::new(2.0, Vec2::new(100.0, 50.0))
+    }
+
+    #[test]
+    fn spaces_map_rects_with_their_radii_and_borders() {
+        let mut scene = Scene::new();
+        scene.push_space(zoomed());
+        scene.push_rect(
+            &RectPrimitive::new(rect(), Color::WHITE)
+                .with_corner_radii(corners(1.0, 2.0, 3.0, 4.0))
+                .with_border_widths(sides(0.5, 1.0, 1.5, 2.0), Color::BLACK),
+        );
+        let expected = RectInstance::from_primitive(
+            &RectPrimitive::new(
+                Rect::from_origin_size(Vec2::new(120.0, 90.0), Vec2::new(60.0, 80.0)),
+                Color::WHITE,
+            )
+            .with_corner_radii(corners(2.0, 4.0, 6.0, 8.0))
+            .with_border_widths(sides(1.0, 2.0, 3.0, 4.0), Color::BLACK),
+        );
+        assert_eq!(scene.rect_instances(), [expected]);
+    }
+
+    #[test]
+    fn spaces_map_lines_fills_icons_and_glyphs() {
+        let mut scene = Scene::new();
+        scene.push_space(zoomed());
+        scene.push_line(&line().then(Vec2::new(5.0, 2.0)));
+        let checker = Fill::Checker {
+            size: 4.0,
+            light: Color::WHITE,
+            dark: Color::BLACK,
+        };
+        scene.push_fill(&FillPrimitive::new(rect(), checker).with_corner_radius(3.0));
+        scene.push_icon(&IconPrimitive::tinted(rect(), 7, Color::WHITE));
+        scene.push_glyph(&glyph());
+
+        let line = LinePrimitive::new(
+            Vec2::new(102.0, 54.0),
+            Vec2::new(106.0, 58.0),
+            4.0,
+            Color::WHITE,
+        )
+        .then(Vec2::new(110.0, 54.0));
+        assert_eq!(
+            scene.line_instances(),
+            [LineInstance::from_primitive(&line)]
+        );
+        let mapped = Rect::from_origin_size(Vec2::new(120.0, 90.0), Vec2::new(60.0, 80.0));
+        let checker = Fill::Checker {
+            size: 8.0,
+            light: Color::WHITE,
+            dark: Color::BLACK,
+        };
+        assert_eq!(
+            scene.fill_instances(),
+            [FillInstance::from_primitive(
+                &FillPrimitive::new(mapped, checker).with_corner_radius(6.0)
+            )]
+        );
+        assert_eq!(
+            scene.icon_instances(),
+            [IconInstance::from_primitive(&IconPrimitive::tinted(
+                mapped,
+                7,
+                Color::WHITE
+            ))]
+        );
+        let glyph = glyph();
+        assert_eq!(
+            scene.glyphs(),
+            [GlyphPrimitive {
+                origin: zoomed().map_point(glyph.origin),
+                size: glyph.size * 2.0,
+                ..glyph
+            }]
+        );
+    }
+
+    #[test]
+    fn spaces_map_clips_and_nest() {
+        let mut scene = Scene::new();
+        scene.push_space(zoomed());
+        scene.push_rounded_clip(rect(), Corners::all(5.0));
+        let mapped = Rect::from_origin_size(Vec2::new(120.0, 90.0), Vec2::new(60.0, 80.0));
+        assert_eq!(scene.clip(), Some(mapped));
+        assert_eq!(scene.rounded_clip(), Some((mapped, Corners::all(10.0))));
+        // A space inside: a quarter of the outer one, its origin at (10, 20) of it.
+        scene.push_space(Space::new(0.25, Vec2::new(10.0, 20.0)));
+        assert_eq!(scene.space(), Space::new(0.5, Vec2::new(120.0, 90.0)));
+        scene.push_clip(Rect::from_origin_size(Vec2::ZERO, Vec2::new(40.0, 40.0)));
+        assert_eq!(
+            scene.clip(),
+            Some(Rect::from_origin_size(
+                Vec2::new(120.0, 90.0),
+                Vec2::new(20.0, 20.0)
+            ))
+        );
+        scene.pop_clip();
+        scene.pop_space();
+        assert_eq!(scene.space(), zoomed());
+        scene.pop_clip();
+        scene.pop_space();
+        assert_eq!(scene.space(), Space::IDENTITY);
+        // More pops than pushes leave the identity.
+        scene.pop_space();
+        assert_eq!(scene.space(), Space::IDENTITY);
+    }
+
+    #[test]
+    fn the_root_space_draws_in_logical_pixels_until_popped() {
+        let mut scene = Scene::new();
+        scene.push_space(zoomed());
+        scene.push_root_space();
+        scene.push_rect(&RectPrimitive::new(rect(), Color::WHITE));
+        scene.pop_space();
+        assert_eq!(scene.space(), zoomed());
+        assert_eq!(
+            scene.rect_instances(),
+            [RectInstance::from_primitive(&RectPrimitive::new(
+                rect(),
+                Color::WHITE
+            ))]
+        );
+        // A frame starts outside every space.
+        scene.clear();
+        assert_eq!(scene.space(), Space::IDENTITY);
+    }
+
+    #[test]
+    fn a_space_that_cannot_be_drawn_draws_nothing() {
+        for scale in [0.0, -2.0, f32::NAN, f32::INFINITY] {
+            let mut scene = Scene::new();
+            scene.push_space(Space::new(scale, Vec2::new(4.0, 4.0)));
+            scene.push_rect(
+                &RectPrimitive::new(rect(), Color::WHITE).with_border(1.0, Color::BLACK),
+            );
+            scene.push_line(&line());
+            scene.push_fill(&FillPrimitive::new(rect(), Fill::Triangle { hue: 0.5 }));
+            scene.push_icon(&IconPrimitive::tinted(rect(), 1, Color::WHITE));
+            scene.push_glyph(&glyph());
+            assert!(scene.is_empty(), "scale {scale}");
+        }
     }
 
     #[test]

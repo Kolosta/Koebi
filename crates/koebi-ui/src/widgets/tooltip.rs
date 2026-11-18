@@ -146,6 +146,8 @@ impl Ui<'_> {
     /// Shows `text` below the control `anchor` (its rectangle) once the pointer rests on the
     /// widget `id`, kept inside the window. Call it after the widget, every frame.
     pub fn tooltip(&mut self, id: WidgetId, text: &str, anchor: Rect) {
+        // The tooltip floats at the window's scale, below its control mapped to the window.
+        let anchor = self.window_rect(anchor);
         let now = self.input().time();
         let tips = self.state.tooltip;
         if tips.target != Some(id) || tips.dismissed || self.state.active().is_some() {
@@ -169,7 +171,7 @@ impl Ui<'_> {
                 self.request_redraw_at(due);
                 return;
             }
-            let Some(pointer) = self.input().pointer() else {
+            let Some(pointer) = self.window_pointer() else {
                 return;
             };
             let shown = self.place_tooltip(id, text, anchor, pointer);

@@ -311,10 +311,7 @@ pub(crate) fn show(
     state: &mut ListState,
     items: &mut Vec<ListItem<'static>>,
 ) {
-    let pointer_over = ui
-        .input()
-        .pointer()
-        .is_some_and(|point| rect.contains(point));
+    let pointer_over = ui.pointer().is_some_and(|point| rect.contains(point));
     let mut rows = super::recycle(core::mem::take(items));
     tree.items(&mut rows);
     let response = ui.zone(rect, OUTLINER, |ui| {

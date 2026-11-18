@@ -27,6 +27,10 @@
 //!   [`Ui::grab`].
 //! - **Layout**: callers give every component its rectangle, in logical pixels. A layout
 //!   engine comes with the widget tree.
+//! - **Zoomable spaces**: [`Ui::space`] scales and moves everything drawn inside it, nested or
+//!   not, with no code in the components: they keep their logical pixels as local units, read
+//!   the pointer through [`Ui::pointer`] and its siblings, and open their menus and tooltips
+//!   at the window's scale (ADR 0030).
 //! - **Text**: labels come with the components that need them (menus, tabs, lists).
 //! - **Icons**: the vector icons of `koebi_icons`, by their [`IconId`], painted by [`Ui::icon`]
 //!   with their zones in the colors of their component's state ([`IconStyle::ink`]).
@@ -87,6 +91,7 @@ mod operation;
 mod pixel;
 mod routing;
 mod screen_pick;
+mod space;
 mod style;
 mod text;
 mod ui;
@@ -104,6 +109,7 @@ pub use operation::{
 pub use pixel::whole_pixels;
 pub use routing::Layer;
 pub use screen_pick::PickOutcome;
+pub use space::ZoomStyle;
 pub use style::{CornerRadii, IconStyle, InputStyle, Prop, StateColors, StyleCache, Styles};
 pub use text::{Align, FontStyle, Overflow, TextStyles};
 pub use ui::{EYEDROPPER_PIXELS, Response, ScreenPixels, Ui, UiState, WidgetState};

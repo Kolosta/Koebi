@@ -3,7 +3,7 @@
 
 use core::time::Duration;
 
-use koebi_core::{Rect, Vec2};
+use koebi_core::{Rect, Space, Vec2};
 
 use super::MenuItem;
 use crate::widgets::parts::{Placed, Placement};
@@ -23,6 +23,18 @@ pub(super) enum Anchor {
     Origin(Vec2),
     /// A control, beside which it opens as the placement says.
     Control(Rect, Placement),
+}
+
+impl Anchor {
+    /// The anchor, given in the local units of `space`, in the window's logical pixels.
+    pub(super) fn in_window(self, space: Space) -> Self {
+        match self {
+            Self::Point(point) => Self::Point(space.map_point(point)),
+            Self::Pointer(point) => Self::Pointer(space.map_point(point)),
+            Self::Origin(point) => Self::Origin(space.map_point(point)),
+            Self::Control(rect, placement) => Self::Control(space.map_rect(rect), placement),
+        }
+    }
 }
 
 /// One open level: the root menu or a submenu.
@@ -56,9 +68,16 @@ pub(super) struct Aim {
 
 /// Whether a menu is open, where, its open submenus and their highlighted items. Keep one per
 /// menu, between frames.
+///
+/// What it is opened at, and what it tells of where it lies, is in the local units of the space
+/// the menu is shown from ([`Ui::space`](crate::Ui::space)): the menu itself draws at the
+/// window's scale, beside them.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MenuState {
+    /// What it opens from, in the local units of `space`.
     pub(super) anchor: Option<Anchor>,
+    /// The space the menu was last shown from: its anchor's, mapping it to the window.
+    pub(super) space: Space,
     /// Open levels: the root, then its open submenus.
     pub(super) depth: usize,
     pub(super) levels: [Level; MAX_DEPTH],
@@ -71,7 +90,8 @@ pub struct MenuState {
     pub(super) pointer: Option<Vec2>,
     /// The aim held an item back: it takes over once the grace ends, moved or not.
     pub(super) waiting: bool,
-    /// Where the root opened on the last frame.
+    /// Where the root opened on the last frame, in the window's logical pixels, like the
+    /// levels' rectangles.
     pub(super) placed: Option<Placed>,
     /// Whether the pointer came near the menus since they opened: only then does moving away
     /// close them (a menu opened far from the pointer waits for it).
@@ -85,6 +105,7 @@ impl MenuState {
     pub const fn new() -> Self {
         Self {
             anchor: None,
+            space: Space::IDENTITY,
             depth: 0,
             levels: [Level {
                 parent: 0,
@@ -181,14 +202,17 @@ impl MenuState {
     /// Where the root menu opened on the last frame, beside its control: what the control
     /// reads to square the corners where the menu meets it.
     pub fn placed(&self) -> Option<Placed> {
-        self.placed.filter(|_| self.is_open())
+        self.placed.filter(|_| self.is_open()).map(|placed| Placed {
+            rect: self.space.unmap_rect(placed.rect),
+            ..placed
+        })
     }
 
     /// Where the root menu lay on the last frame, while open: what lies under the pointer
     /// there belongs to the menu.
     pub fn rect(&self) -> Option<Rect> {
         let rect = self.levels[0].rect;
-        (self.is_open() && !rect.is_empty()).then_some(rect)
+        (self.is_open() && !rect.is_empty()).then(|| self.space.unmap_rect(rect))
     }
 
     /// The control the menu opens beside and its placement, while open.
@@ -199,9 +223,10 @@ impl MenuState {
         }
     }
 
-    /// The control the menu belongs to, if it opened beside one.
+    /// The control the menu belongs to, if it opened beside one, in the window's logical
+    /// pixels.
     pub(super) fn control(&self) -> Option<Rect> {
-        self.opened_for().map(|(rect, _)| rect)
+        self.opened_for().map(|(rect, _)| self.space.map_rect(rect))
     }
 
     /// Keeps the open levels `0..=level` and closes the deeper ones.

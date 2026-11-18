@@ -51,7 +51,8 @@ const MENU_KEY: u64 = u64::MAX;
 
 impl Ui<'_> {
     /// Shows the titles of `entries` from the start of `layout`, and the menu open, kept inside
-    /// `bounds` (the window). Returns the menu and the item chosen this frame.
+    /// `bounds` (the window, in its logical pixels). Returns the menu and the item chosen this
+    /// frame.
     pub fn menu_bar(
         &mut self,
         id: WidgetId,
@@ -62,7 +63,7 @@ impl Ui<'_> {
     ) -> Option<(usize, MenuChoice)> {
         let style = self.styles().app_bar;
         let font = self.styles().text.label.clone();
-        let pointer = self.input().pointer();
+        let pointer = self.pointer();
         let moved = pointer != state.pointer;
         state.pointer = pointer;
         let mut rects = [Rect::ZERO; 16];

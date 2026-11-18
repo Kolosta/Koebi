@@ -384,6 +384,10 @@ impl Ui<'_> {
     /// areas: resizing lines by their gutters, splitting and joining by the areas' corners,
     /// swapping, joining and splitting from the area menu (a right click on a gutter), with
     /// previews. `host` draws the editors.
+    ///
+    /// The workspace fills the window: draw it outside every space ([`Ui::space`]), in the
+    /// window's logical pixels, where its previews and its menu float. The editors it holds
+    /// may open spaces of their own.
     pub fn workspace(
         &mut self,
         view: &mut WorkspaceView,

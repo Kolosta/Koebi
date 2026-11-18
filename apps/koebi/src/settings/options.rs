@@ -281,7 +281,7 @@ pub(super) fn header_dot(
             chosen = Some(Reset::Both);
         }
         if response.secondary_pressed
-            && let Some(point) = ui.input().button_pressed_at(PointerButton::Secondary)
+            && let Some(point) = ui.button_press_position(PointerButton::Secondary)
         {
             menu.open_at_pointer(point);
         }

@@ -271,8 +271,7 @@ impl<'t> ButtonGroup<'t> {
             });
         let width = self.border(ui);
         // Cells meet on physical pixel edges, where they are drawn.
-        let scale = ui.scale_factor();
-        let snap = |value: f32| crate::pixel::pixel_edge(value, scale);
+        let pixels = ui.pixel_grid();
         let (count_x, count_y) = grid.size;
         let mut response = GroupResponse::default();
         let mut frames = [(
@@ -288,12 +287,16 @@ impl<'t> ButtonGroup<'t> {
             };
             let bounds = Rect::from_min_max(
                 Vec2::new(
-                    snap(rect.min.x + grid.columns[place.column]),
-                    snap(rect.min.y + grid.rows[place.row]),
+                    pixels.x.edge(rect.min.x + grid.columns[place.column]),
+                    pixels.y.edge(rect.min.y + grid.rows[place.row]),
                 ),
                 Vec2::new(
-                    snap(rect.min.x + grid.columns[place.column + place.columns]),
-                    snap(rect.min.y + grid.rows[place.row + place.rows]),
+                    pixels
+                        .x
+                        .edge(rect.min.x + grid.columns[place.column + place.columns]),
+                    pixels
+                        .y
+                        .edge(rect.min.y + grid.rows[place.row + place.rows]),
                 ),
             );
             let button = &mut cell.button;

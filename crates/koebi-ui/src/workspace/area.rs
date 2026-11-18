@@ -166,7 +166,7 @@ impl Ui<'_> {
                         });
                         if response.pressed
                             && view.operation.is_none()
-                            && let Some(point) = ui.input().pointer()
+                            && let Some(point) = ui.pointer()
                         {
                             view.operation = Some(Operation::Dock {
                                 editor: tab,
@@ -201,7 +201,7 @@ impl Ui<'_> {
                 };
                 if background.pressed
                     && view.operation.is_none()
-                    && let Some(point) = ui.input().pointer()
+                    && let Some(point) = ui.pointer()
                 {
                     view.operation = Some(Operation::Dock {
                         editor,

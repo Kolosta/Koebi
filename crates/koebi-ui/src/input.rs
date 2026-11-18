@@ -1,5 +1,16 @@
 //! [`Input`]: the pointer, the modifiers, the keys, typed text and the triggered actions as
 //! components see them during one frame.
+//!
+//! Positions are in the window's logical pixels: components read them through [`Ui`], in the
+//! units of the space they lie in ([`Ui::pointer`]).
+//!
+//! [`Ui`]: crate::Ui
+//! [`Ui::pointer`]: crate::Ui::pointer
+
+#![expect(
+    clippy::disallowed_methods,
+    reason = "the input defines the readings components make through `Ui`"
+)]
 
 use core::fmt;
 use core::time::Duration;

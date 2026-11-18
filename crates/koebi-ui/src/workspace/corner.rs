@@ -108,7 +108,8 @@ impl Ui<'_> {
         style: &WorkspaceStyle,
         host: &mut dyn EditorHost,
     ) {
-        let pointer = self.input().pointer();
+        let pointer = self.pointer();
+        let scale = self.scale();
         for index in 0..view.areas.len() {
             let (area, rect) = view.areas[index];
             let panel = frame.panel(rect);
@@ -129,7 +130,8 @@ impl Ui<'_> {
                         (&mut view.operation, pointer)
                     && axis.is_none()
                 {
-                    *axis = drag_axis(point - *origin, style.drag_threshold);
+                    // The threshold is the hand's: on screen, whatever the space.
+                    *axis = drag_axis((point - *origin) * scale, style.drag_threshold);
                 }
                 let started = matches!(
                     view.operation,

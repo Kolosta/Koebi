@@ -120,7 +120,7 @@ impl<'a> ColorStrip<'a> {
             }
         };
         if response.pressed
-            && let Some(point) = ui.input().pointer()
+            && let Some(point) = ui.pointer()
         {
             let at = along(point).clamp(0.0, 1.0);
             self.state.drag = Some((at, *self.value));
@@ -134,7 +134,7 @@ impl<'a> ColorStrip<'a> {
             } else if end == Some(OperationEnd::Confirmed) {
                 self.state.drag = None;
             } else if response.held {
-                let motion = ui.input().motion();
+                let motion = ui.pointer_delta();
                 let fine = ui.input().modifiers().sides(ModifierKey::Shift).any();
                 let factor = if fine { style.fine_factor } else { 1.0 };
                 let moved = if self.vertical { motion.y } else { motion.x } / length * factor;

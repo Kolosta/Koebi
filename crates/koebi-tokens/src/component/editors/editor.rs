@@ -3,7 +3,7 @@
 use crate::semantic;
 
 koebi_design::tokens! {
-    group EDITOR: Component, start = crate::component::CURSOR::END;
+    group EDITOR: Component, start = crate::component::ZOOM::END;
 
     /// Editor: background color.
     EDITOR_BACKGROUND_COLOR_DEFAULT = "editor.background.color.default": Color ->

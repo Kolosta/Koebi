@@ -18,6 +18,7 @@ use koebi_tokens::{component, semantic};
 
 use crate::icon::IconInk;
 use crate::pixel::whole_pixels;
+use crate::space::ZoomStyle;
 use crate::text::TextStyles;
 use crate::ui::WidgetState;
 use crate::widgets::{
@@ -370,6 +371,8 @@ pub struct Styles {
     pub color_picker: ColorPickerStyle,
     /// [`CurveEditor`](crate::CurveEditor).
     pub curve_editor: CurveEditorStyle,
+    /// [`Ui::space`](crate::Ui::space): how zoomed content drops detail.
+    pub zoom: ZoomStyle,
 }
 
 impl Styles {
@@ -562,6 +565,7 @@ impl Styles {
             color_field: ColorFieldStyle::resolve(tokens),
             color_picker: ColorPickerStyle::resolve(tokens),
             curve_editor: CurveEditorStyle::resolve(tokens),
+            zoom: ZoomStyle::resolve(tokens),
         }
     }
 }

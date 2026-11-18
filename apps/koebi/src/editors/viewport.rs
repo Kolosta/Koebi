@@ -286,14 +286,14 @@ pub(crate) fn show(ui: &mut Ui<'_>, rect: Rect, design: &DesignSystem, view: &mu
 
 fn handle_input(ui: &mut Ui<'_>, rect: Rect, area: Rect, view: &mut View, style: &Style) {
     let input = ui.input();
-    let pointer = input.pointer();
+    let pointer = ui.pointer();
     // During another action, this press and this wheel are not the canvas's.
     let free = ui.pointer_is_free();
     let over = free && pointer.is_some_and(|point| area.contains(point));
     // The middle button holds the canvas from a press on it until its release.
     if free
-        && input
-            .button_pressed_at(PointerButton::Middle)
+        && ui
+            .button_press_position(PointerButton::Middle)
             .is_some_and(|point| area.contains(point))
     {
         view.held = pointer;

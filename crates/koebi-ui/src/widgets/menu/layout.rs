@@ -67,7 +67,8 @@ impl Ui<'_> {
                 columns.size.x,
                 content.min(style.max_height).min(bounds.height()).max(0.0),
             );
-            let placed = match (level, state.anchor, parent) {
+            let anchor = state.anchor.map(|anchor| anchor.in_window(state.space));
+            let placed = match (level, anchor, parent) {
                 (0, Some(Anchor::Point(point)), _) => Placed {
                     rect: at_point(point, size, bounds),
                     side: Side::Right,
@@ -86,7 +87,7 @@ impl Ui<'_> {
                     // From now on it stays there, and its items scroll under the pointer.
                     let origin =
                         pointer - Vec2::new(size.x * style.open_pointer_share, middle - scroll);
-                    state.anchor = Some(Anchor::Origin(origin));
+                    state.anchor = Some(Anchor::Origin(state.space.unmap_point(origin)));
                     Placed {
                         rect: around_pointer(origin, size, bounds),
                         side: Side::Right,

@@ -215,9 +215,9 @@ impl<'a> AppBar<'a> {
             .push_rect(&RectPrimitive::new(rect, style.background));
         let drag = self.id;
         let background = ui.interact(drag, rect);
+        // The platform shows the window's menu there, in the window's pixels.
         let system_menu = background.secondary_pressed.then(|| {
-            ui.input()
-                .button_pressed_at(crate::PointerButton::Secondary)
+            ui.window_press_position(crate::PointerButton::Secondary)
                 .unwrap_or_default()
         });
         let mut end = rect.max.x;
@@ -327,24 +327,30 @@ impl Ui<'_> {
     /// Draws the window button glyph `glyph` around `center`, on whole physical pixels.
     pub fn window_glyph(&mut self, glyph: WindowGlyph, center: Vec2, color: Color) {
         let style = self.styles().app_bar;
-        let scale = self.state.scale_factor();
-        // Whole pixels: what the logical values below round back to in the shader.
+        // In physical pixels, through the space in force: `physical = local * scale + origin`.
+        let grid = self.pixel_grid();
+        let scale = grid.x.scale;
+        if !(scale > 0.0 && scale.is_finite()) {
+            return;
+        }
+        let origin = Vec2::new(grid.x.offset, grid.y.offset);
+        let local = |x: f32, y: f32| (Vec2::new(x, y) - origin) / scale;
+        let center = center * scale + origin;
+        // Whole pixels: what the local values below round back to in the shader.
         let side = (style.glyph_size * scale).round().max(1.0);
         let stroke = (style.glyph_stroke * scale).floor().max(1.0);
         let offset = (style.restore_offset * scale).floor();
-        let left = (center.x * scale - side * 0.5).round();
-        let top = (center.y * scale - side * 0.5).round();
+        let left = (center.x - side * 0.5).round();
+        let top = (center.y - side * 0.5).round();
         let (right, bottom) = (left + side, top + side);
         let mut rect = |x0: f32, y0: f32, x1: f32, y1: f32| {
-            let primitive = RectPrimitive::new(
-                Rect::from_min_max(Vec2::new(x0, y0) / scale, Vec2::new(x1, y1) / scale),
-                color,
-            );
+            let primitive =
+                RectPrimitive::new(Rect::from_min_max(local(x0, y0), local(x1, y1)), color);
             self.scene.push_rect(&primitive);
         };
         match glyph {
             WindowGlyph::Minimize => {
-                let middle = (center.y * scale).floor();
+                let middle = center.y.floor();
                 rect(left, middle, right, middle + stroke);
             }
             WindowGlyph::Maximize => {
@@ -371,8 +377,8 @@ impl Ui<'_> {
                     (Vec2::new(x0, y1), Vec2::new(x1, y0)),
                 ] {
                     self.scene.push_line(&LinePrimitive::new(
-                        from / scale,
-                        to / scale,
+                        local(from.x, from.y),
+                        local(to.x, to.y),
                         stroke / scale,
                         color,
                     ));

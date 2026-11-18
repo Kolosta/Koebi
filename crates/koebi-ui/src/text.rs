@@ -236,12 +236,16 @@ impl Ui<'_> {
             None => Some(rect),
         };
         let Some(visible) = visible else { return };
-        // Its text and its place, to the pixel: the same label from frame to frame.
+        // Its text and where it shows, to the pixel: the same label from frame to frame, and
+        // two labels apart when they lie in different spaces at the same local place.
+        let shown = self.window_rect(rect);
         let id = CUT
             .with_text(text)
-            .with(u64::from(rect.min.x.round().to_bits()))
-            .with(u64::from(rect.min.y.round().to_bits()));
+            .with(u64::from(shown.min.x.round().to_bits()))
+            .with(u64::from(shown.min.y.round().to_bits()));
         let layer = self.layer();
+        // Found under the pointer in the window's pixels, like regions.
+        let visible = self.window_rect(visible);
         self.state.truncated.push(id, visible, layer, text);
         self.tooltip(id, text, rect);
     }

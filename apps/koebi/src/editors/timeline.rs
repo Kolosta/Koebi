@@ -330,11 +330,7 @@ fn keys(
     view: &mut View,
     style: &Style,
 ) {
-    if !ui
-        .input()
-        .pointer()
-        .is_some_and(|point| rect.contains(point))
-    {
+    if !ui.pointer().is_some_and(|point| rect.contains(point)) {
         return;
     }
     let before = playhead.current;
@@ -450,7 +446,7 @@ fn draw_ruler(
     // A press or a drag on the ruler sets the current frame.
     let response = ui.interact(id.with(10), ruler);
     if (response.pressed || response.held)
-        && let Some(point) = ui.input().pointer()
+        && let Some(point) = ui.pointer()
     {
         let frame = whole(((point.x - origin) / width).floor()) + playhead.first();
         playhead.go(frame);

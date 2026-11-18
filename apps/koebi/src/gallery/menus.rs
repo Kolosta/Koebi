@@ -124,7 +124,7 @@ impl Menus {
             Align::Center,
         );
         if response.secondary_pressed
-            && let Some(point) = ui.input().button_pressed_at(PointerButton::Secondary)
+            && let Some(point) = ui.button_press_position(PointerButton::Secondary)
         {
             self.context.open_at_pointer(point);
         }

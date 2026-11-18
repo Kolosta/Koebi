@@ -77,7 +77,7 @@ pub enum Fill {
         /// The bottom left corner's.
         bottom_left: Color,
     },
-    /// A checkerboard of squares `size` logical pixels wide, `light` at the top left: what
+    /// A checkerboard of squares `size` wide, `light` at the top left: what
     /// shows through a color's transparency.
     Checker {
         /// The side of a square.
@@ -143,7 +143,7 @@ pub enum Fill {
         color: Color,
         /// Along its edges, inside them.
         outline: Color,
-        /// The outline's width, in logical pixels.
+        /// The outline's width.
         outline_width: f32,
     },
 }
@@ -152,11 +152,12 @@ pub enum Fill {
 /// fills that cover their rectangle (corners, checkerboards, hues, planes).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FillPrimitive {
-    /// Bounds in logical pixels.
+    /// Bounds, in logical pixels or in the space in force
+    /// ([`Scene::push_space`](crate::Scene::push_space)), like every length of the fill.
     pub rect: Rect,
     /// How it is colored.
     pub fill: Fill,
-    /// Corner radii in logical pixels of rectangular fills.
+    /// Corner radii of rectangular fills.
     pub corner_radii: Corners,
     /// How its straight edges meet the pixel grid.
     pub edges: Edges,

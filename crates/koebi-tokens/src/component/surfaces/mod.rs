@@ -1,4 +1,5 @@
-//! Surfaces: windows, title bars, popups, panels, menus, tooltips, bars, tables and images.
+//! Surfaces: windows, title bars, popups, panels, menus, tooltips, bars, tables, images and
+//! zoomable spaces.
 //!
 //! One module per component, each holding the component's token group. Each group starts
 //! where the previous one ends; `lib.rs` lists the groups in schema order.
@@ -22,6 +23,7 @@ mod table;
 mod title_bar;
 mod tooltip;
 mod window;
+mod zoom;
 
 pub use child::*;
 pub use cursor::*;
@@ -42,3 +44,4 @@ pub use table::*;
 pub use title_bar::*;
 pub use tooltip::*;
 pub use window::*;
+pub use zoom::*;

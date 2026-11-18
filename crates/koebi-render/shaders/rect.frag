@@ -17,6 +17,7 @@ layout(location = 3) flat in vec4 v_border_color;
 layout(location = 4) flat in vec4 v_radii;    // top-left, top-right, bottom-right, bottom-left
 layout(location = 5) flat in vec4 v_borders;  // top, right, bottom, left
 layout(location = 6) flat in float v_inverted;
+layout(location = 7) flat in vec4 v_border_fades; // top, right, bottom, left
 
 layout(location = 0) out vec4 out_color;
 
@@ -43,7 +44,22 @@ void main() {
             v_radii - vec4(max(top, left), max(top, right), max(bottom, right), max(bottom, left)),
             vec4(0.0));
         float inner = sd_rounded_box(v_local - inner_center, inner_half, inner_radii);
-        color = mix(v_fill, v_border_color, clamp(0.5 + inner, 0.0, 1.0));
+        // A border thinner than a pixel keeps one pixel, covered by it as much as it would be:
+        // the fade of the bordered side whose band holds the pixel deepest. Sides without a
+        // border hold no band (a border along one side curves around the corners beside it).
+        vec4 depth = vec4(
+            v_half_size.y + v_local.y,
+            v_half_size.x - v_local.x,
+            v_half_size.y - v_local.y,
+            v_half_size.x + v_local.x) - v_borders;
+        depth = mix(depth, vec4(1.0e9), vec4(equal(v_borders, vec4(0.0))));
+        float fade = v_border_fades.x;
+        float deepest = depth.x;
+        if (depth.y < deepest) { deepest = depth.y; fade = v_border_fades.y; }
+        if (depth.z < deepest) { deepest = depth.z; fade = v_border_fades.z; }
+        if (depth.w < deepest) { fade = v_border_fades.w; }
+        vec4 border = mix(v_fill, v_border_color, fade);
+        color = mix(v_fill, border, clamp(0.5 + inner, 0.0, 1.0));
     }
     out_color = color * coverage * clip_coverage();
 }

@@ -696,6 +696,10 @@ impl App for KoebiApp {
         Ok(app)
     }
 
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the cursor follows the window under the pointer, read in window units"
+    )]
     fn iterate(&mut self, context: &mut AppContext) -> AppControl {
         let now = self.interface.now();
         let revision = self.interface.revision();

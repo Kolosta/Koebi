@@ -21,3 +21,11 @@ doc-valid-idents = [
     "WCAG",
     "..",
 ]
+# Components read the pointer through `Ui`, in the units of the space they lie in (ADR 0030):
+# `Input` keeps window units, for the interface's core and the application's event glue.
+disallowed-methods = [
+    { path = "koebi_ui::Input::pointer", reason = "read the pointer through `Ui::pointer`, in local units (ADR 0030)" },
+    { path = "koebi_ui::Input::pressed_at", reason = "read presses through `Ui::press_position`, in local units (ADR 0030)" },
+    { path = "koebi_ui::Input::button_pressed_at", reason = "read presses through `Ui::button_press_position`, in local units (ADR 0030)" },
+    { path = "koebi_ui::Input::motion", reason = "read motion through `Ui::pointer_delta`, in local units (ADR 0030)" },
+]

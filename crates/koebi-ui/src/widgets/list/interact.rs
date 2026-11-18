@@ -70,9 +70,12 @@ impl Ui<'_> {
         };
         let style = self.styles().list;
         let now = self.input().time();
-        let pointer = self.input().pointer();
+        let pointer = self.pointer();
+        // The threshold is the hand's: on screen, whatever the space.
+        let scale = self.scale();
         if !drag.started
-            && pointer.is_some_and(|point| (point - drag.origin).length() >= style.drag_threshold)
+            && pointer
+                .is_some_and(|point| (point - drag.origin).length() * scale >= style.drag_threshold)
         {
             drag.started = true;
             drag.scrolled_at = now;
@@ -138,7 +141,7 @@ impl Ui<'_> {
         // drag leaves the selection alone).
         if row.pressed
             && options.drag
-            && let Some(origin) = self.input().pressed_at()
+            && let Some(origin) = self.press_position()
         {
             state.drag = Some(Drag::new(
                 item.id,
@@ -174,8 +177,7 @@ impl Ui<'_> {
             }
             response.context_menu = Some(ListContextMenu {
                 at: self
-                    .input()
-                    .button_pressed_at(PointerButton::Secondary)
+                    .button_press_position(PointerButton::Secondary)
                     .unwrap_or_default(),
                 row: Some(item.id),
             });

@@ -29,6 +29,7 @@ layout(location = 3) flat out vec4 v_border_color;
 layout(location = 4) flat out vec4 v_radii;           // px, each at most half the smallest side
 layout(location = 5) flat out vec4 v_borders;         // px
 layout(location = 6) flat out float v_inverted;
+layout(location = 7) flat out vec4 v_border_fades;    // top, right, bottom, left
 
 const float AA_MARGIN = 1.0;
 // Below this size (physical pixels), a rectangle is a line: it keeps its thickness.
@@ -45,6 +46,9 @@ void main() {
     vec2 low = in_rect.xy * pc.scale_factor;
     vec2 high = (in_rect.xy + in_rect.zw) * pc.scale_factor;
     vec4 borders = in_borders * pc.scale_factor;
+    vec4 fill = in_fill;
+    vec4 border_color = in_border_color;
+    vec4 border_fades = vec4(1.0);
     if (in_options.x < 0.5) {
         // Each edge goes to the nearest pixel edge, the way scissors round: rectangles sharing
         // an edge stay joined at every scale, and straight edges cover whole pixels.
@@ -54,6 +58,15 @@ void main() {
             floor(high + 0.5 + TIE),
             low + max(floor(size + 0.5 + TIE), vec2(1.0)),
             lessThan(size, vec2(THIN)));
+        // Thinner than a pixel (a separator in a zoomed-out space), a rectangle keeps one pixel
+        // and fades to the share of it it covers: it never vanishes nor aliases. So does a
+        // border, side by side.
+        vec2 share = clamp(size, vec2(0.0), vec2(1.0));
+        float fade = share.x * share.y;
+        fill *= fade;
+        border_color *= fade;
+        vec4 thin_border = vec4(lessThan(borders, vec4(1.0))) * vec4(greaterThan(borders, vec4(0.0)));
+        border_fades = mix(vec4(1.0), borders, thin_border);
         borders = mix(vec4(0.0), max(floor(borders + 0.5 + TIE), vec4(1.0)), greaterThan(borders, vec4(0.0)));
     }
     vec2 half_size = 0.5 * (high - low);
@@ -68,11 +81,12 @@ void main() {
 
     v_local = local;
     v_half_size = half_size;
-    v_fill = in_fill;
-    v_border_color = in_border_color;
+    v_fill = fill;
+    v_border_color = border_color;
     // Radii stay fractional: curves are smooth, only straight edges snap.
     v_radii = min(in_radii * pc.scale_factor, vec4(min(half_size.x, half_size.y)));
     v_borders = borders;
     v_inverted = inverted ? 1.0 : 0.0;
+    v_border_fades = border_fades;
     pass_clip();
 }

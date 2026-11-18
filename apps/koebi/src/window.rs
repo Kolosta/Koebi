@@ -4,6 +4,11 @@
 //! Each window has its own frames: its input, its scene and its [`UiState`]. What they show comes
 //! from the [`Interface`] all windows share.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a window's event glue reads its input in window units, outside every component"
+)]
+
 use koebi_i18n::tr;
 use std::time::{Duration, Instant};
 

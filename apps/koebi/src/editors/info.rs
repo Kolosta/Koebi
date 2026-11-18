@@ -85,10 +85,7 @@ pub(crate) fn show(
     state: &mut ListState,
     items: &mut Vec<ListItem<'static>>,
 ) {
-    let pointer_over = ui
-        .input()
-        .pointer()
-        .is_some_and(|point| rect.contains(point));
+    let pointer_over = ui.pointer().is_some_and(|point| rect.contains(point));
     let marks = Marks::resolve(design);
     let mut rows = super::recycle(core::mem::take(items));
     rows.extend(messages.list().iter().map(|message| {

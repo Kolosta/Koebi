@@ -505,7 +505,7 @@ impl ColorPicker<'_> {
         let state = &mut *self.state;
         let mut changed = None;
         if response.pressed
-            && let Some(point) = ui.input().pointer()
+            && let Some(point) = ui.pointer()
         {
             let at = unit(point);
             let ring = self.shape.has_ring() && on_ring(at);
@@ -534,7 +534,7 @@ impl ColorPicker<'_> {
                 } else {
                     1.0
                 };
-                let at = drag.at + ui.input().motion() / size * factor;
+                let at = drag.at + ui.pointer_delta() / size * factor;
                 state.drag = Some(AreaDrag { at, ..drag });
             } else {
                 state.drag = None;

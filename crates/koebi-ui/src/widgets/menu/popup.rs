@@ -20,6 +20,10 @@ impl Ui<'_> {
     /// A press outside closes it, and so does [`MENU_CLOSE`] when nothing inside used it (a
     /// menu open in the popup closes first); moving away never does, so that its content can
     /// be dragged.
+    ///
+    /// Like a menu, it is kept inside `bounds` (the window, in its logical pixels) and opens at
+    /// the window's scale beside its anchor mapped to the window: `size` and the content's
+    /// rectangle are unscaled, whatever the space it is shown from.
     pub fn popup<R>(
         &mut self,
         id: WidgetId,
@@ -28,7 +32,17 @@ impl Ui<'_> {
         bounds: Rect,
         add: impl FnOnce(&mut Self, Rect) -> R,
     ) -> Option<R> {
-        let anchor = state.anchor.filter(|_| state.is_open())?;
+        // Placed at the window's scale, beside its anchor mapped to the window; a space that
+        // cannot be drawn shows nothing, its popups neither.
+        state.space = self.window_space();
+        if !state.space.is_valid() {
+            state.close();
+            return None;
+        }
+        let anchor = state
+            .anchor
+            .filter(|_| state.is_open())?
+            .in_window(state.space);
         self.grab(MENU);
         let style = &self.styles().menu;
         let inset = Vec2::new(

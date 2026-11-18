@@ -300,7 +300,7 @@ impl<'a> Dropdown<'a> {
     }
 
     /// Shows the dropdown in `rect` and its menu when open, kept inside `bounds` (the
-    /// window); returns the item chosen this frame.
+    /// window, in its logical pixels); returns the item chosen this frame.
     pub fn show(self, ui: &mut Ui<'_>, rect: Rect, bounds: Rect) -> Option<MenuChoice> {
         let (_, state) = self.button.show_with_menu(ui, rect);
         ui.menu(self.id.with(MENU_KEY), state?, self.items, bounds)

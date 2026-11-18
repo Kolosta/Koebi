@@ -579,3 +579,126 @@ fn joined_segments_cover_their_corner_once() {
     );
     gpu.assert_no_validation_errors();
 }
+
+/// `color` covering `share` of a pixel of the background, per channel.
+fn faded(color: Color, share: f32) -> [u8; 4] {
+    let (over, under) = (color.to_rgba8(), BACKGROUND.to_rgba8());
+    core::array::from_fn(|channel| {
+        let mixed = f32::from(under[channel])
+            + (f32::from(over[channel]) - f32::from(under[channel])) * share;
+        // Within 0 and 255 by construction.
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "a mix of two bytes"
+        )]
+        let byte = mixed.round() as u8;
+        byte
+    })
+}
+
+#[test]
+fn hairlines_thinner_than_a_pixel_keep_one_pixel_and_fade() {
+    let Some(gpu) = gpu_or_skip("hairlines_thinner_than_a_pixel_keep_one_pixel_and_fade") else {
+        return;
+    };
+    let border = Color::rgb(0.0, 1.0, 0.0);
+    let mut scene = scene_with(&[
+        // A quarter of a pixel high, on row 2.
+        RectPrimitive::new(rect(4.0, 2.25, 20.0, 0.25), FILL),
+        // A border of half a pixel around rows 6 to 13.
+        RectPrimitive::new(rect(4.0, 6.0, 20.0, 8.0), FILL).with_border(0.5, border),
+    ]);
+    // A line a quarter of a pixel wide along the middle of row 17.
+    scene.push_line(&line((4.0, 17.5), (24.0, 17.5), 0.25));
+    let image = render(&gpu, Extent::new(32, 20), 1.0, &scene);
+    // One pixel each, covered as much as they would cover it.
+    assert_pixel(&image, 12, 1, BACKGROUND.to_rgba8(), 0);
+    assert_pixel(&image, 12, 2, faded(FILL, 0.25), 1);
+    assert_pixel(&image, 12, 3, BACKGROUND.to_rgba8(), 0);
+    // The border's band: half border, half fill, on every side.
+    let band = Color::rgb(
+        f32::midpoint(FILL.r, border.r),
+        f32::midpoint(FILL.g, border.g),
+        f32::midpoint(FILL.b, border.b),
+    );
+    for (x, y) in [(12, 6), (12, 13), (4, 9), (23, 9)] {
+        assert_pixel(&image, x, y, band.to_rgba8(), 1);
+    }
+    assert_pixel(&image, 12, 9, FILL.to_rgba8(), 0);
+    assert_pixel(&image, 12, 16, BACKGROUND.to_rgba8(), 1);
+    assert_pixel(&image, 12, 17, faded(STROKE, 0.25), 1);
+    assert_pixel(&image, 12, 18, BACKGROUND.to_rgba8(), 1);
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn a_space_draws_what_the_same_scale_factor_would() {
+    let Some(gpu) = gpu_or_skip("a_space_draws_what_the_same_scale_factor_would") else {
+        return;
+    };
+    let border = Color::rgb(0.0, 1.0, 0.0);
+    // Shapes in logical pixels, some edges between pixels, a hairline and a rounded clip.
+    let shapes = |scene: &mut Scene| {
+        scene.push_rounded_clip(rect(1.0, 1.0, 30.0, 14.0), Corners::all(3.0));
+        scene.push_rect(
+            &RectPrimitive::new(rect(2.3, 2.1, 12.4, 7.7), FILL)
+                .with_corner_radius(2.5)
+                .with_border(1.0, border),
+        );
+        scene.push_rect(&RectPrimitive::new(rect(16.0, 3.0, 0.5, 9.0), STROKE));
+        scene.push_line(&line((18.0, 4.0), (29.0, 12.5), 1.5));
+        scene.pop_clip();
+    };
+    // In a space four times larger, at one physical pixel per logical pixel...
+    let mut zoomed = scene_with(&[]);
+    zoomed.push_space(koebi_core::Space::new(4.0, Vec2::ZERO));
+    shapes(&mut zoomed);
+    zoomed.pop_space();
+    // ...and unscaled at four physical pixels per logical pixel: the same pixels.
+    let mut reference = scene_with(&[]);
+    shapes(&mut reference);
+    let extent = Extent::new(128, 64);
+    let diff = render(&gpu, extent, 1.0, &zoomed).diff(&render(&gpu, extent, 4.0, &reference), 1);
+    assert_eq!(
+        diff.differing_pixels, 0,
+        "max delta {}",
+        diff.max_channel_delta
+    );
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn a_border_along_one_side_curves_around_the_corners_beside_it() {
+    // Regression test: the fade of the hairlines took the side without a border for the
+    // pixels of the corner, where the border along the bottom curves up: they lost its color.
+    let Some(gpu) = gpu_or_skip("a_border_along_one_side_curves_around_the_corners_beside_it")
+    else {
+        return;
+    };
+    let border = Color::rgb(0.0, 1.0, 0.0);
+    let shape = RectPrimitive::new(rect(4.0, 4.0, 24.0, 16.0), FILL).with_corner_radius(6.0);
+    let bottom = Sides {
+        bottom: 1.0,
+        ..Sides::ZERO
+    };
+    let bordered = render(
+        &gpu,
+        Extent::new(32, 24),
+        1.0,
+        &scene_with(&[shape.with_border_widths(bottom, border)]),
+    );
+    let plain = render(&gpu, Extent::new(32, 24), 1.0, &scene_with(&[shape]));
+    // On the curve of the bottom left corner, 3.5 pixels above the bottom: partly border.
+    let green = |image: &koebi_testkit::Image| i32::from(image.pixel(4, 16)[1]);
+    assert!(
+        green(&bordered) > green(&plain) + 25,
+        "{} against {}",
+        green(&bordered),
+        green(&plain)
+    );
+    // Along the bottom, the border; above it, the fill.
+    assert_pixel(&bordered, 16, 19, border.to_rgba8(), 0);
+    assert_pixel(&bordered, 16, 18, FILL.to_rgba8(), 0);
+    gpu.assert_no_validation_errors();
+}
