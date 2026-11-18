@@ -93,21 +93,23 @@ float sd_triangle(vec2 p, vec2 a, vec2 b, vec2 c) {
     return -sqrt(d.x) * sign(d.y);
 }
 
-// How much of this pixel the dots of a lattice `spacing` apart through the origin cover, `q`
-// the pixel's center from the origin. Each dot's center goes to the nearest pixel center (an
-// odd number of pixels wide) or corner (an even one), so that it covers whole pixels alike.
-float dots(vec2 q, float spacing, float size) {
+// How far below a half pixel a position still rounds up (TIE_TOLERANCE in scene.rs): dots
+// meant to lie exactly between two pixels go to the same one on every driver.
+const float TIE = 1.0 / 256.0;
+
+// How much of this pixel the dots of a lattice `spacing` apart through `origin` cover, both in
+// the target's pixels. Each dot's center goes to the nearest pixel center (an odd number of
+// pixels wide) or corner (an even one), so that it covers whole pixels alike. The pixel's own
+// position is exact (`gl_FragCoord`), never interpolated.
+float dots(vec2 origin, float spacing, float size) {
     if (spacing <= 0.0 || size <= 0.0) {
         return 0.0;
     }
-    vec2 nearest = spacing * floor(q / spacing + 0.5);
+    vec2 pixel = gl_FragCoord.xy;
+    vec2 at = origin + spacing * floor((pixel - origin) / spacing + 0.5);
     float pixels = max(floor(size + 0.5), 1.0);
-    // The origin in the target's pixels, where whole positions are pixel edges.
-    vec2 shift = gl_FragCoord.xy - q;
-    vec2 at = nearest + shift;
-    vec2 snapped = mod(pixels, 2.0) > 0.5 ? floor(at) + 0.5 : floor(at + 0.5);
-    float d = length(q - (snapped - shift));
-    return clamp(0.5 * size - d + 0.5, 0.0, 1.0);
+    vec2 snapped = mod(pixels, 2.0) > 0.5 ? floor(at + TIE) + 0.5 : floor(at + 0.5 + TIE);
+    return clamp(0.5 * size - length(pixel - snapped) + 0.5, 0.0, 1.0);
 }
 
 void main() {
@@ -155,9 +157,8 @@ void main() {
         color = vec4(hue_color(v_params.y, angle_hue(p), v_params.w, v_extra), 1.0);
     } else if (kind > 7.5) {
         // Dots: the coarse level, and the finer one faded in.
-        vec2 q = p - v_color2.xy;
-        float coarse = dots(q, v_params.y, v_params.z);
-        float fine = dots(q, v_params.y / max(v_params.w, 2.0), v_params.z) * v_extra;
+        float coarse = dots(v_color2.xy, v_params.y, v_params.z);
+        float fine = dots(v_color2.xy, v_params.y / max(v_params.w, 2.0), v_params.z) * v_extra;
         color = vec4(v_color0.rgb, v_color0.a * max(coarse, fine));
     } else if (kind > 6.5) {
         // An arrow: its tip in the middle of the side it points toward (left, right, up,
