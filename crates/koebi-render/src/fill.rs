@@ -1,6 +1,7 @@
 //! [`FillPrimitive`]: a shape whose color the fragment shader computes for each pixel, for what
 //! a single color cannot show: the gradients of color pickers (a saturation and value square,
-//! strips of hues, a hue wheel, a ring, a triangle) and the checkerboard behind transparency.
+//! strips of hues, a hue wheel, a ring, a triangle), the checkerboard behind transparency and
+//! the dots under a canvas ([`crate::DotGrid`]).
 //!
 //! Every fill but [`Fill::Corners`] computes its colors from a color model in the shader
 //! (`shaders/fill.frag`); what a picker reads back from a position is computed the same way on
@@ -8,7 +9,7 @@
 //! [`koebi_core::Oklch`]). Angles follow one convention: hue 0 (red) at the top, growing
 //! clockwise.
 
-use koebi_core::{Color, Rect};
+use koebi_core::{Color, Rect, Vec2};
 use koebi_gpu::Pod;
 
 use crate::scene::{Corners, Edges};
@@ -146,6 +147,24 @@ pub enum Fill {
         /// The outline's width.
         outline_width: f32,
     },
+    /// Round dots on a square lattice through `origin`, `spacing` apart, and a finer level of
+    /// `subdivisions` dots per step faded to `fine`: the grid under a canvas, two levels from
+    /// one quad. Each dot's center goes to the pixel center or corner where a dot of its size
+    /// lies whole, so that dots stay crisp. Build it with [`crate::DotGrid::fill`].
+    Dots {
+        /// A point where a dot lies.
+        origin: Vec2,
+        /// The distance between coarse dots.
+        spacing: f32,
+        /// How many finer steps one coarse step holds, 2 at least.
+        subdivisions: u32,
+        /// The diameter of a dot.
+        size: f32,
+        /// Their color.
+        color: Color,
+        /// How much the finer level shows, 0 to 1.
+        fine: f32,
+    },
 }
 
 /// A shape whose color is computed for each pixel ([`Fill`]), with a radius per corner for the
@@ -207,7 +226,8 @@ pub(crate) struct FillInstance {
     pub(crate) rect: [f32; 4],
     /// Corner radii in logical pixels: top-left, top-right, bottom-right, bottom-left.
     pub(crate) radii: [f32; 4],
-    /// Four colors, gamma-encoded with straight alpha: corners, or the checkerboard's two.
+    /// Four colors, gamma-encoded with straight alpha: corners, or the checkerboard's two; for
+    /// dots, their color, then their origin in the third.
     pub(crate) colors: [[f32; 4]; 4],
     /// The kind of fill, then three of its parameters.
     pub(crate) params: [f32; 4],
@@ -279,6 +299,23 @@ impl FillInstance {
                 [straight(color), straight(outline), none, none],
                 [7.0, pointing.code(), outline_width.max(0.0), 0.0],
                 0.0,
+            ),
+            Fill::Dots {
+                origin,
+                spacing,
+                subdivisions,
+                size,
+                color,
+                fine,
+            } => (
+                [straight(color), none, [origin.x, origin.y, 0.0, 0.0], none],
+                [
+                    8.0,
+                    spacing.max(0.0),
+                    size.max(0.0),
+                    subdivisions.max(2) as f32,
+                ],
+                fine.clamp(0.0, 1.0),
             ),
         };
         Self {

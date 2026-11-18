@@ -36,11 +36,16 @@ koebi_design::tokens! {
     VIEWPORT_THUMBNAIL_BORDER = "viewport.thumbnail.border": Color = hex("#00000070");
     /// Viewport: crosshair color.
     VIEWPORT_CROSSHAIR = "viewport.crosshair": Color -> semantic::STATIC_TEXT_COLOR_WHITE;
-    /// Viewport: color of the canvas grid.
+    /// Viewport: color of the canvas grid's dots.
     VIEWPORT_GRID_COLOR = "viewport.grid.color": Color ->
         semantic::BORDER_COLOR_TREE_LINE_DEFAULT;
-    /// Viewport: smallest space between grid lines on screen.
+    /// Viewport: smallest space between the dots of the grid on screen; the finer level fades
+    /// in below it.
     VIEWPORT_GRID_SPACING = "viewport.grid.spacing": Dimension = px(24.0), range(4.0, 200.0);
+    /// Viewport: diameter of the grid's dots.
+    VIEWPORT_GRID_DOT_SIZE = "viewport.grid.dot-size": Dimension = px(2.0), range(1.0, 8.0);
+    /// Viewport: how many steps of the grid's finer level one step of its coarse level holds.
+    VIEWPORT_GRID_SUBDIVISIONS = "viewport.grid.subdivisions": Number = 5.0, range(2.0, 10.0);
     /// Viewport: background of the page.
     VIEWPORT_PAGE_BACKGROUND = "viewport.page.background": Color ->
         semantic::STATIC_TEXT_COLOR_WHITE;

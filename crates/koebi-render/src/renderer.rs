@@ -4,7 +4,7 @@ use koebi_core::Extent;
 use koebi_gpu::{
     BindGroupLayout, BlendMode, Buffer, BufferDesc, BufferUsage, ColorTargetDesc, CommandEncoder,
     Device, Error, FRAMES_IN_FLIGHT, LoadOp, MemoryLocation, Pod, PrimitiveTopology, RenderPass,
-    RenderPipeline, RenderPipelineDesc, RenderTarget, Result, ShaderStage, TextureFormat,
+    RenderPipeline, RenderPipelineDesc, RenderTarget, Result, ShaderStage, Texture, TextureFormat,
     VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode,
 };
 use koebi_svg::pack::Packed;
@@ -14,6 +14,7 @@ use crate::batch::DrawOrder;
 use crate::fill::FillInstance;
 use crate::glyphs::{GlyphInstance, GlyphStore, Lookup};
 use crate::icon::{IconInstance, IconStore};
+use crate::image::{ImageContent, ImageId, ImageInstance, ImageStore};
 use crate::scene::{Clip, GlyphPrimitive, LineInstance, PrimitiveKind, RectInstance, Scene};
 use crate::shaders;
 
@@ -38,7 +39,8 @@ pub struct Viewport {
 struct ViewportConstants {
     viewport_px: [f32; 2],
     scale_factor: f32,
-    padding: f32,
+    /// 1 when the image drawn has texels in linear light (read by the image pipeline only).
+    linear: f32,
 }
 
 // SAFETY: `repr(C)` with four `f32`: 16 bytes, no padding, any bit pattern is valid.
@@ -53,7 +55,7 @@ impl ViewportConstants {
         Self {
             viewport_px: [viewport.extent.width as f32, viewport.extent.height as f32],
             scale_factor: viewport.scale_factor,
-            padding: 0.0,
+            linear: 0.0,
         }
     }
 }
@@ -288,6 +290,8 @@ pub struct Renderer2D {
     icon_store: IconStore,
     glyphs: PrimitivePipeline,
     glyph_store: GlyphStore,
+    images: PrimitivePipeline,
+    image_store: ImageStore,
     /// This frame's glyph quads, rebuilt by every `prepare`.
     glyph_instances: Vec<GlyphInstance>,
     /// Where each batch's instances lie, and the instances gathered batch after batch for the
@@ -306,6 +310,7 @@ struct Gathered {
     lines: Vec<LineInstance>,
     fills: Vec<FillInstance>,
     icons: Vec<IconInstance>,
+    images: Vec<ImageInstance>,
     glyphs: Vec<GlyphPrimitive>,
     /// The clip numbers of one type's instances, gathered: reused for each type.
     clip_ids: Vec<u32>,
@@ -357,6 +362,14 @@ impl Renderer2D {
             stride: GlyphInstance::STRIDE,
             bind_group_layouts: &[glyph_store.layout()],
         };
+        let image_store = ImageStore::new(device)?;
+        let images = PipelineDesc {
+            label: "image",
+            vertex: ("image.vert", shaders::IMAGE_VERT),
+            fragment: ("image.frag", shaders::IMAGE_FRAG),
+            stride: ImageInstance::STRIDE,
+            bind_group_layouts: &[image_store.layout()],
+        };
         Ok(Self {
             device: device.clone(),
             rects: PrimitivePipeline::new(device, &rects, target_format)?,
@@ -366,6 +379,8 @@ impl Renderer2D {
             icon_store,
             glyphs: PrimitivePipeline::new(device, &glyphs, target_format)?,
             glyph_store,
+            images: PrimitivePipeline::new(device, &images, target_format)?,
+            image_store,
             glyph_instances: Vec::new(),
             order: DrawOrder::default(),
             gathered: Gathered::default(),
@@ -395,6 +410,47 @@ impl Renderer2D {
     /// How many icons the set given to [`Renderer2D::set_icons`] holds.
     pub fn icon_count(&self) -> usize {
         self.icon_store.len()
+    }
+
+    /// Keeps `texture` as an image scenes may draw ([`crate::ImagePrimitive`]), its texels
+    /// encoded as `content` says, and returns its number. The image keeps the texture alive
+    /// until it is removed or replaced and the frames drawing it complete.
+    ///
+    /// The texture must be in [`koebi_gpu::TextureState::ShaderRead`] whenever a frame draws
+    /// it: whoever renders into it transitions it before the frame's render pass.
+    ///
+    /// # Errors
+    ///
+    /// Fails for a texture without [`koebi_gpu::TextureUsage::SAMPLED`] usage, or of another
+    /// device, or when the device cannot bind it.
+    pub fn add_image(&mut self, texture: &Texture, content: ImageContent) -> Result<ImageId> {
+        self.image_store.add(&self.device, texture, content)
+    }
+
+    /// Shows `texture` for the image `id` from now on: a view's target recreated at a new
+    /// size keeps its number.
+    ///
+    /// # Errors
+    ///
+    /// As [`Renderer2D::add_image`], and for an image that is not kept; nothing changes then.
+    pub fn replace_image(
+        &mut self,
+        id: ImageId,
+        texture: &Texture,
+        content: ImageContent,
+    ) -> Result<()> {
+        self.image_store.replace(&self.device, id, texture, content)
+    }
+
+    /// Forgets the image `id`: scenes naming it draw nothing there. `false` when it was not
+    /// kept.
+    pub fn remove_image(&mut self, id: ImageId) -> bool {
+        self.image_store.remove(id)
+    }
+
+    /// How many images are kept.
+    pub fn image_count(&self) -> usize {
+        self.image_store.len()
     }
 
     /// The target format the pipelines were built for.
@@ -471,6 +527,11 @@ impl Renderer2D {
             &mut gathered.icons,
         );
         order.gather(
+            scene.image_instances(),
+            scene.owners(PrimitiveKind::Image),
+            &mut gathered.images,
+        );
+        order.gather(
             scene.glyphs(),
             scene.owners(PrimitiveKind::Glyph),
             &mut gathered.glyphs,
@@ -489,12 +550,16 @@ impl Renderer2D {
         self.icons
             .instances
             .upload(device, &gathered.icons, frame_index)?;
+        self.images
+            .instances
+            .upload(device, &gathered.images, frame_index)?;
         for (pipeline, kind) in [
             (&mut self.rects, PrimitiveKind::Rect),
             (&mut self.lines, PrimitiveKind::Line),
             (&mut self.fills, PrimitiveKind::Fill),
             (&mut self.icons, PrimitiveKind::Icon),
             (&mut self.glyphs, PrimitiveKind::Glyph),
+            (&mut self.images, PrimitiveKind::Image),
         ] {
             pipeline
                 .clips
@@ -591,10 +656,13 @@ impl Renderer2D {
         let icons = (scene.icon_count() > 0)
             .then(|| self.icons.prepared(frame_index, scene.icon_count()))
             .transpose()?;
+        let images = (scene.image_count() > 0)
+            .then(|| self.images.prepared(frame_index, scene.image_count()))
+            .transpose()?;
         let constants = ViewportConstants::new(viewport);
         // Every instance carries its clip: the whole target stays open.
         pass.set_scissor(0, 0, viewport.extent.width, viewport.extent.height);
-        // The pipeline bound last: a draw binds only what differs.
+        // The pipeline and the image bound last: a draw binds only what differs.
         let mut bound = None;
         for (id, batch) in scene.batches() {
             let (primitives, buffers) = match batch.kind {
@@ -603,31 +671,45 @@ impl Renderer2D {
                 PrimitiveKind::Glyph => (&self.glyphs, glyphs),
                 PrimitiveKind::Fill => (&self.fills, fills),
                 PrimitiveKind::Icon => (&self.icons, icons),
+                PrimitiveKind::Image => (&self.images, images),
             };
             // A batch exists only for a type with instances, whose buffers were checked above.
             let Some((instances, clips)) = buffers else {
                 continue;
             };
-            if bound != Some(batch.kind) {
-                pass.set_pipeline(&primitives.pipeline);
-                let store = match batch.kind {
+            if bound != Some((batch.kind, batch.key)) {
+                let (store, linear) = match batch.kind {
                     // Prepared glyphs always have a store.
-                    PrimitiveKind::Glyph => self.glyph_store.bind_group(),
+                    PrimitiveKind::Glyph => (self.glyph_store.bind_group(), false),
                     // Without a set, icons draw nothing.
-                    PrimitiveKind::Icon => self.icon_store.bind_group(),
-                    _ => None,
+                    PrimitiveKind::Icon => (self.icon_store.bind_group(), false),
+                    // An image removed draws nothing.
+                    PrimitiveKind::Image => self
+                        .image_store
+                        .get(batch.key)
+                        .map_or((None, false), |(group, content)| {
+                            (Some(group), content == ImageContent::Linear)
+                        }),
+                    _ => (None, false),
                 };
-                let needs_store = matches!(batch.kind, PrimitiveKind::Glyph | PrimitiveKind::Icon);
-                match store {
-                    Some(store) => pass.set_bind_group(&primitives.pipeline, 0, store)?,
-                    None if needs_store => {
-                        bound = None;
-                        continue;
-                    }
-                    None => {}
+                let needs_store = matches!(
+                    batch.kind,
+                    PrimitiveKind::Glyph | PrimitiveKind::Icon | PrimitiveKind::Image
+                );
+                if store.is_none() && needs_store {
+                    bound = None;
+                    continue;
                 }
+                pass.set_pipeline(&primitives.pipeline);
+                if let Some(store) = store {
+                    pass.set_bind_group(&primitives.pipeline, 0, store)?;
+                }
+                let constants = ViewportConstants {
+                    linear: f32::from(u8::from(linear)),
+                    ..constants
+                };
                 pass.set_push_constants(&primitives.pipeline, &constants)?;
-                bound = Some(batch.kind);
+                bound = Some((batch.kind, batch.key));
             }
             // From instance zero, at the run's offset: some drivers have no base instance.
             let (offset, count) = self.order.window(id, *batch, primitives.instances.stride);

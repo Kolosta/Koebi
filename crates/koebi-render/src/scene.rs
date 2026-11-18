@@ -7,6 +7,7 @@ use koebi_text::{FontId, GlyphId, TextBlock, TextLine};
 use crate::batch::{Batch, Batches};
 use crate::fill::{Fill, FillInstance, FillPrimitive};
 use crate::icon::{IconInstance, IconPrimitive};
+use crate::image::{ImageInstance, ImagePrimitive};
 
 /// Per-corner values of a rectangle: top-left, top-right, bottom-right, bottom-left.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -366,15 +367,22 @@ pub(crate) enum PrimitiveKind {
     Glyph,
     Fill,
     Icon,
+    Image,
 }
 
 impl PrimitiveKind {
     /// How many types there are.
-    pub(crate) const COUNT: usize = 5;
+    pub(crate) const COUNT: usize = 6;
 
     /// Every type.
-    pub(crate) const ALL: [Self; Self::COUNT] =
-        [Self::Rect, Self::Line, Self::Glyph, Self::Fill, Self::Icon];
+    pub(crate) const ALL: [Self; Self::COUNT] = [
+        Self::Rect,
+        Self::Line,
+        Self::Glyph,
+        Self::Fill,
+        Self::Icon,
+        Self::Image,
+    ];
 }
 
 /// What primitives are clipped to. Each instance carries its own ([`Scene::clip_ids`]): clips
@@ -414,6 +422,7 @@ pub struct Scene {
     lines: Vec<LineInstance>,
     fills: Vec<FillInstance>,
     icons: Vec<IconInstance>,
+    images: Vec<ImageInstance>,
     /// Glyphs stay descriptions: their instances depend on the glyph store and the scale factor.
     glyphs: Vec<GlyphPrimitive>,
     /// The batch of each instance of each type, by type: the instances in push order.
@@ -450,6 +459,7 @@ impl Scene {
         self.lines.clear();
         self.fills.clear();
         self.icons.clear();
+        self.images.clear();
         self.glyphs.clear();
         for owners in &mut self.owners {
             owners.clear();
@@ -645,6 +655,21 @@ impl Scene {
                 outline,
                 outline_width: outline_width * scale,
             },
+            Fill::Dots {
+                origin,
+                spacing,
+                subdivisions,
+                size,
+                color,
+                fine,
+            } => Fill::Dots {
+                origin: self.space.map_point(origin),
+                spacing: spacing * scale,
+                subdivisions,
+                size: size * scale,
+                color,
+                fine,
+            },
             fill => fill,
         };
         let primitive = &FillPrimitive {
@@ -682,6 +707,33 @@ impl Scene {
         self.join_batch(
             PrimitiveKind::Icon,
             Rect::from_center_size(rect.center(), Vec2::splat(2.0 * reach)),
+        );
+    }
+
+    /// Appends an image ([`ImagePrimitive`]). Images without size or opacity, or with a
+    /// non-finite rectangle, are culled. Images of one texture draw together; each texture
+    /// takes a draw of its own.
+    pub fn push_image(&mut self, primitive: &ImagePrimitive) {
+        let primitive = &ImagePrimitive {
+            rect: self.space.map_rect(primitive.rect),
+            corner_radii: scaled_corners(primitive.corner_radii, self.space.scale),
+            ..*primitive
+        };
+        let rect = primitive.rect;
+        let finite = [rect.min.x, rect.min.y, rect.max.x, rect.max.y]
+            .iter()
+            .all(|v| v.is_finite());
+        // A NaN opacity is culled too.
+        let visible = primitive.opacity.partial_cmp(&0.0) == Some(core::cmp::Ordering::Greater);
+        if !finite || rect.is_empty() || !visible || !self.visible(rect) {
+            return;
+        }
+        self.images.push(ImageInstance::from_primitive(primitive));
+        // A pixel around for the coverage of the edges.
+        self.join_keyed_batch(
+            PrimitiveKind::Image,
+            primitive.image.key(),
+            rect.inset(-1.0),
         );
     }
 
@@ -818,12 +870,17 @@ impl Scene {
     /// Files the primitive just pushed, of `kind`, painting inside `bounds`, in a batch
     /// ([`Batches::join`]), with the clip in force.
     fn join_batch(&mut self, kind: PrimitiveKind, bounds: Rect) {
+        self.join_keyed_batch(kind, 0, bounds);
+    }
+
+    /// Like [`Scene::join_batch`], in a batch of primitives sharing `key` (an image's).
+    fn join_keyed_batch(&mut self, kind: PrimitiveKind, key: u32, bounds: Rect) {
         // Nothing is drawn outside the clip: what lies there overlaps nothing.
         let bounds = self
             .current_clip()
             .and_then(|clip| clip.rect.intersection(&bounds))
             .unwrap_or(bounds);
-        let batch = self.batches.join(kind, self.layer, bounds);
+        let batch = self.batches.join(kind, key, self.layer, bounds);
         self.owners[kind as usize].push(batch);
         self.clip_ids[kind as usize].push(self.current_clip_id());
     }
@@ -846,6 +903,11 @@ impl Scene {
     /// Number of icons.
     pub fn icon_count(&self) -> usize {
         self.icons.len()
+    }
+
+    /// Number of images.
+    pub fn image_count(&self) -> usize {
+        self.images.len()
     }
 
     /// Number of glyphs.
@@ -878,6 +940,10 @@ impl Scene {
 
     pub(crate) fn icon_instances(&self) -> &[IconInstance] {
         &self.icons
+    }
+
+    pub(crate) fn image_instances(&self) -> &[ImageInstance] {
+        &self.images
     }
 
     pub(crate) fn glyphs(&self) -> &[GlyphPrimitive] {
@@ -1348,19 +1414,22 @@ mod tests {
         for _ in 0..100 {
             scene.push_rect(&RectPrimitive::new(rect(), Color::WHITE));
             scene.push_line(&line());
+            scene.push_image(&ImagePrimitive::new(image(0), rect()));
         }
         let capacities = (
             scene.rects.capacity(),
             scene.lines.capacity(),
+            scene.images.capacity(),
             scene.batches.base_capacity(),
         );
         scene.clear();
         assert!(scene.is_empty());
-        assert_eq!(scene.line_count(), 0);
+        assert_eq!((scene.line_count(), scene.image_count()), (0, 0));
         assert_eq!(
             (
                 scene.rects.capacity(),
                 scene.lines.capacity(),
+                scene.images.capacity(),
                 scene.batches.base_capacity()
             ),
             capacities
@@ -1551,6 +1620,63 @@ mod tests {
             scene.push_glyph(&glyph());
             assert!(scene.is_empty(), "scale {scale}");
         }
+    }
+
+    /// The image numbered `number`: scenes never look images up, they key batches by them.
+    fn image(number: u32) -> crate::ImageId {
+        crate::image::tests::id(number)
+    }
+
+    #[test]
+    fn images_of_one_texture_draw_together_and_others_apart() {
+        let mut scene = Scene::new();
+        let at = |x: f32| Rect::from_origin_size(Vec2::new(x, 0.0), Vec2::splat(10.0));
+        scene.push_image(&ImagePrimitive::new(image(1), at(0.0)));
+        scene.push_image(&ImagePrimitive::new(image(1), at(20.0)));
+        scene.push_image(&ImagePrimitive::new(image(2), at(40.0)));
+        scene.push_image(&ImagePrimitive::new(image(1), at(60.0)));
+        assert_eq!(scene.image_count(), 4);
+        let batches: Vec<_> = scene
+            .batches()
+            .map(|(_, batch)| (batch.kind, batch.key))
+            .collect();
+        // The fourth one cannot join the first batch: the second texture's batch came between.
+        assert_eq!(
+            batches,
+            [
+                (PrimitiveKind::Image, 1),
+                (PrimitiveKind::Image, 2),
+                (PrimitiveKind::Image, 1),
+            ]
+        );
+    }
+
+    #[test]
+    fn images_map_through_spaces_and_cull_what_cannot_show() {
+        let mut scene = Scene::new();
+        scene.push_space(zoomed());
+        scene.push_image(&ImagePrimitive::new(image(0), rect()).with_corner_radius(2.0));
+        scene.pop_space();
+        let expected = ImageInstance::from_primitive(
+            &ImagePrimitive::new(
+                image(0),
+                Rect::from_origin_size(Vec2::new(120.0, 90.0), Vec2::new(60.0, 80.0)),
+            )
+            .with_corner_radius(4.0),
+        );
+        assert_eq!(scene.image_instances(), [expected]);
+        for culled in [
+            ImagePrimitive::new(image(0), Rect::ZERO),
+            ImagePrimitive::new(image(0), rect()).with_opacity(0.0),
+            ImagePrimitive::new(image(0), rect()).with_opacity(f32::NAN),
+            ImagePrimitive::new(
+                image(0),
+                Rect::from_min_max(Vec2::ZERO, Vec2::new(f32::INFINITY, 4.0)),
+            ),
+        ] {
+            scene.push_image(&culled);
+        }
+        assert_eq!(scene.image_count(), 1);
     }
 
     #[test]
