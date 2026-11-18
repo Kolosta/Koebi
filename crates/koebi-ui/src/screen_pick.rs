@@ -125,8 +125,9 @@ impl Ui<'_> {
         Some(outcome)
     }
 
-    /// The layer of a session over the whole of `area` (the window), drawn last in the frame:
-    /// it catches the pointer, shows the magnifier and picks. Does nothing without a session.
+    /// The layer of a session over the whole of `area` (the window, in its logical pixels),
+    /// drawn last in the frame: it catches the pointer, shows the magnifier and picks. Does
+    /// nothing without a session.
     pub fn screen_pick_layer(&mut self, area: Rect) {
         if self.state.pick.releasing {
             // Nothing reacts to the release of the press that ended picking.
@@ -178,10 +179,12 @@ impl Ui<'_> {
             None => {}
         }
         self.request_redraw_after(Duration::from_millis(16));
-        let Some(pointer) = self.input().pointer() else {
+        // The pick covers the window, and its magnifier floats at the window's scale: both
+        // follow the pointer in the window's pixels.
+        let Some(pointer) = self.window_pointer() else {
             return;
         };
-        self.want_screen_pixels(pointer);
+        self.want_window_pixels(pointer);
         // Copied out of the interface's state, which the scene's borrow would hold otherwise.
         let magnified = self.screen_pixels().map(Magnified::of);
         if let Some(magnified) = &magnified {
@@ -206,14 +209,15 @@ impl Ui<'_> {
     /// Ends this window's picking with `outcome`: for the owner here, or for the application to
     /// route to the window that started the session.
     fn end_pick(&mut self, outcome: PickOutcome) {
-        let input = self.input();
         let down = [
             PointerButton::Primary,
             PointerButton::Secondary,
             PointerButton::Middle,
         ]
         .into_iter()
-        .any(|button| input.is_button_down(button) || input.button_pressed_at(button).is_some());
+        .any(|button| {
+            self.input().is_button_down(button) || self.window_press_position(button).is_some()
+        });
         let pick = &mut self.state.pick;
         pick.releasing = down;
         if pick.owner.is_some() {

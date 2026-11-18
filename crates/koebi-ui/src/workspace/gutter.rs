@@ -63,14 +63,14 @@ impl Ui<'_> {
             }
             if response.secondary_pressed
                 && view.operation.is_none()
-                && let Some(point) = self.input().pointer()
+                && let Some(point) = self.pointer()
             {
                 view.menu.open_at_pointer(point);
                 view.menu_gutter = Some(segment);
             }
             if response.pressed
                 && view.operation.is_none()
-                && let Some(point) = self.input().pointer()
+                && let Some(point) = self.pointer()
             {
                 view.operation = Some(Operation::Resize {
                     segment,
@@ -145,7 +145,7 @@ impl Ui<'_> {
         else {
             return;
         };
-        let Some(pointer) = self.input().pointer() else {
+        let Some(pointer) = self.pointer() else {
             return;
         };
         let modifiers = self.input().modifiers();

@@ -52,10 +52,11 @@ impl IconColors {
 /// An icon of the renderer's set drawn in a square.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct IconPrimitive {
-    /// Where to draw it, in logical pixels: the icon's square is the largest centered in it,
-    /// on whole physical pixels, its center at the nearest half pixel and its side the nearest
-    /// number of pixels that keeps its edges on pixel edges: centered on a pixel's center or on
-    /// a pixel edge, it keeps its axis there.
+    /// Where to draw it, in logical pixels or in the space in force
+    /// ([`Scene::push_space`](crate::Scene::push_space)): the icon's square is the largest
+    /// centered in it, on whole physical pixels, its center at the nearest half pixel and its
+    /// side the nearest number of pixels that keeps its edges on pixel edges: centered on a
+    /// pixel's center or on a pixel edge, it keeps its axis there.
     pub rect: Rect,
     /// Its number in the set given to [`Renderer2D::set_icons`](crate::Renderer2D::set_icons);
     /// a number past the set draws nothing.

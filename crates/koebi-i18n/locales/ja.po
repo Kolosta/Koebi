@@ -2223,8 +2223,10 @@ msgid "Surfaces"
 msgstr "サーフェス"
 
 #: crates/koebi-tokens/src/lib.rs
-msgid "Windows, panels, menus, tooltips, the status bar and what they hold."
-msgstr "ウィンドウ、パネル、メニュー、ツールチップ、ステータスバーとその中身。"
+msgid ""
+"Windows, panels, menus, tooltips, the status bar, what they "
+"hold and zoomed content."
+msgstr "ウィンドウ、パネル、メニュー、ツールチップ、ステータスバー、その中身とズームした内容。"
 
 #: crates/koebi-tokens/src/lib.rs
 msgid "The workspace's areas and tabs, and the editors inside them."
@@ -3086,6 +3088,9 @@ msgstr "垂直に分割"
 #: crates/koebi-ui/src/workspace/mod.rs
 msgid "Horizontal split"
 msgstr "水平に分割"
+
+#~ msgid "Windows, panels, menus, tooltips, the status bar and what they hold."
+#~ msgstr "ウィンドウ、パネル、メニュー、ツールチップ、ステータスバーとその中身。"
 
 #~ msgid "The window's background: every surface, text and border follows it."
 #~ msgstr "ウィンドウの背景です。すべての面、文字、枠線がこれに従います。"

@@ -203,7 +203,6 @@ impl Ui<'_> {
             !style.tab_show_solo && workspace.stack(area).is_some_and(|stack| stack.len() == 1)
         };
         let over = self
-            .input()
             .pointer()
             .filter(|_| dragging)
             .and_then(|pointer| {
@@ -311,10 +310,12 @@ impl Ui<'_> {
             return;
         };
         let (editor, from) = (*editor, *from);
-        let Some(pointer) = self.input().pointer() else {
+        let Some(pointer) = self.pointer() else {
             return;
         };
-        if !*started && (pointer - *origin).length() >= style.tab_drag_threshold {
+        // The threshold is the hand's: on screen, whatever the space.
+        let scale = self.scale();
+        if !*started && (pointer - *origin).length() * scale >= style.tab_drag_threshold {
             *started = true;
         }
         if !*started {
@@ -388,7 +389,7 @@ impl Ui<'_> {
             view.glide = None;
             return;
         };
-        let Some(pointer) = self.input().pointer() else {
+        let Some(pointer) = self.pointer() else {
             return;
         };
         let part_of = |view: &WorkspaceView, area: AreaId| {

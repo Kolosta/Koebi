@@ -17,6 +17,10 @@
 //! - **Clipping**: [`Scene::push_clip`] clips what follows to a rectangle, applied as a
 //!   scissor per draw; clips nest, and primitives entirely outside are dropped.
 //!   [`Scene::push_rounded_clip`] also cuts them at rounded corners, in every fragment shader.
+//! - **Spaces**: [`Scene::push_space`] takes what follows in the local units of a zoomable
+//!   space (a uniform scale and a translation, nested ones composed) and maps it to logical
+//!   pixels as it is pushed; edges then snap after the space, and hairlines thinner than a
+//!   pixel keep one and fade (ADR 0030).
 //! - **Icons**: vector icons compiled by `koebi-svg` are drawn from their curves in the fragment
 //!   shader, sharp at every size and recolored zone by zone per instance; the set lives in a
 //!   data texture uploaded once (`docs/adr/0020-vector-icons.md`).

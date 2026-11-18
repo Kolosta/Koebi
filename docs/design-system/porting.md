@@ -351,6 +351,10 @@ instead of holding 2 px: the bar is one interface unit and its inset above and b
 Docking: `component.zone-tab.reveal.delay` (350 ms) and `component.zone-tab.reveal.grace`
 (250 ms), which were constants in the source.
 
+Zoomable spaces (#262, ADR 0030): `component.zoom.readable-size.default` = 7 px, the smallest
+size on screen at which text is still read; components drawn smaller in a zoomed-out space drop
+their labels (`Ui::readable`).
+
 Input settings, as semantic tokens aliasing durations and spacings (8): `semantic.input.drag-threshold`,
 `semantic.input.double-click.time`, `semantic.input.tooltip.delay`,
 `semantic.input.tooltip.delay-short`, `semantic.input.tooltip.delay-stationary`,

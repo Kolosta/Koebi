@@ -377,7 +377,7 @@ fn show_graph(
     }
 
     // Presses: the key under the pointer, if any.
-    let pointer = ui.input().pointer();
+    let pointer = ui.pointer();
     let near = pointer.and_then(|pointer| {
         keys.as_slice()
             .iter()

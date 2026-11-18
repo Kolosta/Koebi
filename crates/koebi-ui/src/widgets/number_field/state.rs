@@ -17,7 +17,7 @@ pub(crate) struct NumberDrag {
     pub(crate) id: WidgetId,
     /// The values the travel gives.
     pub(crate) state: DragState,
-    /// Pointer travel along the field since the press, in logical pixels.
+    /// Pointer travel along the field since the press, in the units of the space it lies in.
     pub(crate) travel: f32,
     /// Pointer travel in both directions, for the drag threshold.
     pub(crate) moved: Vec2,

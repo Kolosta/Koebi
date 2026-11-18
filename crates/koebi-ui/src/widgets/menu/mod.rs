@@ -192,7 +192,11 @@ fn at_point(point: Vec2, size: Vec2, bounds: Rect) -> Rect {
 
 impl Ui<'_> {
     /// Shows the menu of `state` and its open submenus when it is open, above everything,
-    /// kept inside `bounds` (the window), and returns the item chosen this frame.
+    /// kept inside `bounds` (the window, in its logical pixels), and returns the item chosen
+    /// this frame.
+    ///
+    /// Shown from a zoomable space ([`Ui::space`]), the menu opens at the window's scale
+    /// beside its anchor mapped to the window: it stays readable at any zoom.
     ///
     /// Submenus open beside their item when the pointer rests on it
     /// (`semantic.input.submenu.delay`) or at a click; while the pointer heads towards an open
@@ -211,6 +215,13 @@ impl Ui<'_> {
         bounds: Rect,
     ) -> Option<MenuChoice> {
         if !state.is_open() {
+            return None;
+        }
+        // Placed at the window's scale, beside its anchor mapped to the window; a space that
+        // cannot be drawn shows nothing, its menus neither.
+        state.space = self.window_space();
+        if !state.space.is_valid() {
+            state.close();
             return None;
         }
         state.prune(items);

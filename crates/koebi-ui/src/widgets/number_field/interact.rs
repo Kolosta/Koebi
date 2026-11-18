@@ -153,7 +153,7 @@ impl<N: Numeric> NumberField<'_, N> {
     ) {
         let id = self.id;
         if out.response.pressed {
-            let press = ui.input().pressed_at().unwrap_or_else(|| body.center());
+            let press = ui.press_position().unwrap_or_else(|| body.center());
             ui.state.number.drag = Some(NumberDrag {
                 id,
                 state: DragState::new(self.value.to_f64(), scale),
@@ -169,12 +169,13 @@ impl<N: Numeric> NumberField<'_, N> {
         };
         drag.seen = true;
         if !out.response.pressed {
-            let motion = ui.input().motion();
+            let motion = ui.pointer_delta();
             drag.moved += motion;
             drag.travel += if self.vertical { -motion.y } else { motion.x };
         }
+        // The threshold is the hand's: on screen, whatever the space.
         let threshold = ui.styles().input.drag_threshold;
-        if !drag.dragging && drag.moved.length() >= threshold {
+        if !drag.dragging && drag.moved.length() * ui.scale() >= threshold {
             drag.dragging = true;
         }
         // The operation's keys: its cancel (the secondary button among them) and its confirm.
@@ -216,7 +217,8 @@ impl<N: Numeric> NumberField<'_, N> {
     fn release(ui: &mut Ui<'_>, at: Vec2) {
         ui.lock_pointer(at);
         let time = ui.input().time();
-        ui.state.number.release = Some((at, time));
+        // Where the pointer comes back, in the window's pixels.
+        ui.state.number.release = Some((ui.window_point(at), time));
     }
 
     /// Starts typing the value, after the edit of another field if one is still open.

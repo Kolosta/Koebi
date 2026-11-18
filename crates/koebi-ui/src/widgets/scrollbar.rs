@@ -198,7 +198,7 @@ impl<'a> Scrollbar<'a> {
         };
         let along = |point: Vec2| if vertical { point.y } else { point.x };
         let across = |point: Vec2| if vertical { point.x } else { point.y };
-        let pointer = ui.input().pointer();
+        let pointer = ui.pointer();
         let target = if self.state.hold.is_some() {
             1.0
         } else {
@@ -240,7 +240,7 @@ impl<'a> Scrollbar<'a> {
         };
         let response = ui.interact(self.id, lay(track.start, track.length, half));
         if response.pressed
-            && let Some(press) = ui.input().pressed_at()
+            && let Some(press) = ui.press_position()
         {
             let at = along(press);
             let on_grab = at >= track.grab_start && at <= track.grab_start + track.grab_length;

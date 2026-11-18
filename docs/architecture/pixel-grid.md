@@ -32,12 +32,22 @@ with [`Edges::Snapped`](../../crates/koebi-render/src/scene.rs). The vertex shad
 - **Thin things keep their thickness.** A rectangle thinner than two pixels is a line: its
   thickness is rounded (at least one pixel) and its start snapped, so that it looks the same
   wherever it lies. Border widths are rounded the same way.
+- **Hairlines fade below a pixel.** A rectangle, a border or a line thinner than one physical
+  pixel (a separator in a zoomed-out space, a 0.75-pixel outline at scale 1) keeps one pixel and
+  covers it as much as it would: its color fades to that share instead of vanishing or
+  aliasing. A border fades side by side, mixed with the fill it lies on.
 - **Radii stay fractional.** At a pixel center on a snapped straight edge, the distance is
   exactly ±0.5, so coverage is exactly 0 or 1. Only the curve goes through partly covered
   pixels. Nothing else changes in the fragment shader.
 
 This is what interfaces with sharp lines and smooth corners do: straight geometry on integer
 pixels, anti-aliasing kept for curves.
+
+Zoomable spaces (`Scene::push_space`, `Ui::space`,
+[ADR 0030](../adr/0030-interface-in-zoomable-spaces.md)) change nothing to the rule: the scene
+maps what they hold to logical pixels as it is pushed, and edges snap after the space, in
+physical pixels. A one-pixel border in a node zoomed in four times is four crisp pixels, the
+same as at a scale factor of 4.
 
 A box may still be one pixel wider or narrower depending on where it lies, since both its edges
 round separately: that is the price of staying joined to its neighbours, and it cannot be seen

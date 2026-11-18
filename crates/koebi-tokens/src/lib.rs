@@ -108,6 +108,7 @@ const SCHEMA: Schema = Schema::new(
         component::IMAGE::GROUP,
         component::DATA_VIZ::GROUP,
         component::CURSOR::GROUP,
+        component::ZOOM::GROUP,
         // component::editors
         component::EDITOR::GROUP,
         component::EDITOR_TOP_BAR::GROUP,
@@ -176,7 +177,9 @@ pub static FEATURES: [Feature; 5] = [
     },
     Feature {
         title: n_!("Surfaces"),
-        description: n_!("Windows, panels, menus, tooltips, the status bar and what they hold."),
+        description: n_!(
+            "Windows, panels, menus, tooltips, the status bar, what they hold and zoomed content."
+        ),
         groups: &[
             component::WINDOW::GROUP,
             component::TITLE_BAR::GROUP,
@@ -197,6 +200,7 @@ pub static FEATURES: [Feature; 5] = [
             component::IMAGE::GROUP,
             component::DATA_VIZ::GROUP,
             component::CURSOR::GROUP,
+            component::ZOOM::GROUP,
         ],
     },
     Feature {

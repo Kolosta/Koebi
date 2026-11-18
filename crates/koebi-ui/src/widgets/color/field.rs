@@ -265,7 +265,8 @@ impl<'a> ColorField<'a> {
         self
     }
 
-    /// Shows the field in `rect` and its picker while open, kept inside `bounds`.
+    /// Shows the field in `rect` and its picker while open, kept inside `bounds` (the window, in
+    /// its logical pixels).
     pub fn show(self, ui: &mut Ui<'_>, rect: Rect, bounds: Rect) -> ColorFieldResponse {
         let response = ui.interact(self.id, rect);
         let style = ui.styles().color_field;

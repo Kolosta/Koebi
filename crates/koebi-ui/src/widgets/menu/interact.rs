@@ -157,7 +157,7 @@ impl Ui<'_> {
     ) {
         let input = self.styles().input;
         let now = self.input().time();
-        let pointer = self.input().pointer();
+        let pointer = self.window_pointer();
         let moved = pointer != state.pointer || self.input().wheel() != Vec2::ZERO;
         state.pointer = pointer;
         if moved || state.waiting {
@@ -199,7 +199,7 @@ impl Ui<'_> {
     ) {
         let input = self.styles().input;
         let now = self.input().time();
-        let pointer = self.input().pointer();
+        let pointer = self.window_pointer();
         let hovered = Some((level, item));
         let child = (level + 1 < state.depth).then(|| state.levels[level + 1].parent);
         let target = state.levels.get(level + 1).map(|next| next.rect);
@@ -245,7 +245,7 @@ impl Ui<'_> {
     /// and from the menus' control, after it came near them once.
     pub(super) fn menu_too_far(&self, state: &mut MenuState, panels: &[Rect]) -> bool {
         let limit = self.styles().input.menu_close_distance;
-        let Some(pointer) = self.input().pointer() else {
+        let Some(pointer) = self.window_pointer() else {
             return false;
         };
         if limit <= 0.0 {

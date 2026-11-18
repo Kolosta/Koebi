@@ -27,4 +27,4 @@ pub mod profile;
 pub use color::{Color, LinearRgba, Oklab, Oklch, ParseColorError};
 pub use color_model::{Cmyk, Hsl, Hsv};
 pub use color_vision::{ColorMatrix, Deficiency};
-pub use math::{Extent, Rect, Vec2};
+pub use math::{Extent, Rect, Space, Vec2};

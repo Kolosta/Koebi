@@ -91,7 +91,7 @@ impl TextField<'_> {
             PointerButton::Middle,
         ]
         .into_iter()
-        .filter_map(|button| ui.input().button_pressed_at(button))
+        .filter_map(|button| ui.button_press_position(button))
         .any(|at| !rect.contains(at));
         if outside {
             match self.outside_press {
@@ -140,7 +140,7 @@ impl TextField<'_> {
         // Where the press happened, not where the pointer went since.
         if response.pressed
             && !out.started
-            && let Some(press) = ui.input().pressed_at()
+            && let Some(press) = ui.press_position()
         {
             let at = self.offset_at(ui, rect, session, press.x);
             if response.double_clicked {
@@ -161,11 +161,12 @@ impl TextField<'_> {
             session.dragging = false;
             return;
         }
-        let (true, Some(pointer)) = (session.dragging, ui.input().pointer()) else {
+        let (true, Some(pointer)) = (session.dragging, ui.pointer()) else {
             return;
         };
         if session.select_after_threshold {
-            if response.drag_delta.length() < ui.styles().input.drag_threshold {
+            // The threshold is the hand's: on screen, whatever the space.
+            if response.drag_delta.length() * ui.scale() < ui.styles().input.drag_threshold {
                 return;
             }
             // A drag from the press that selected everything selects from the press.

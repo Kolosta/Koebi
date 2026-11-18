@@ -88,8 +88,7 @@ impl Ui<'_> {
         if background.secondary_pressed && state.drag.is_none() {
             response.context_menu = Some(ListContextMenu {
                 at: self
-                    .input()
-                    .button_pressed_at(PointerButton::Secondary)
+                    .button_press_position(PointerButton::Secondary)
                     .unwrap_or_default(),
                 row: None,
             });
@@ -273,7 +272,7 @@ impl Ui<'_> {
             let next = depth_at(position + 1).unwrap_or(0);
             for level in 0..depth {
                 let axis = metrics.start + f32::from(level) * indent + indent * 0.5;
-                let span = self.pixel_span(axis, style.line_width);
+                let span = self.pixel_columns(axis, style.line_width);
                 let top = if previous == Some(level) {
                     rect.min.y + style.line_inset
                 } else {
@@ -410,7 +409,7 @@ impl Ui<'_> {
         if !state.is_dragging() {
             return;
         }
-        let (Some(point), Some(first)) = (self.input().pointer(), state.dragged.first()) else {
+        let (Some(point), Some(first)) = (self.pointer(), state.dragged.first()) else {
             return;
         };
         let Some(label) = items

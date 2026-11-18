@@ -35,6 +35,13 @@ void main() {
     vec2 from = in_points.xy * pc.scale_factor;
     vec2 segment = (in_points.zw - in_points.xy) * pc.scale_factor;
     float half_width = in_params.x * pc.scale_factor;
+    vec4 color = in_color;
+    if (half_width < 0.5) {
+        // Thinner than a pixel (a hairline in a zoomed-out space), a line keeps one pixel and
+        // fades to the share of it it covers: it never vanishes nor aliases.
+        color *= 2.0 * half_width;
+        half_width = 0.5;
+    }
 
     // A zero-length segment is a dot: any direction works.
     float len = length(segment);
@@ -59,7 +66,7 @@ void main() {
     v_local = local;
     v_segment = segment;
     v_half_width = half_width;
-    v_color = in_color;
+    v_color = color;
     v_next = vec3(next, joined ? 1.0 : 0.0);
     pass_clip();
 }

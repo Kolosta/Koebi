@@ -438,7 +438,7 @@ impl<'a> TextField<'a> {
         texts.clear_focus(self.id);
         let mut session = Session::new(self.id, self.text, ui.input().time(), self.outside_press);
         // Where the press happened, not where the pointer went since.
-        let press = ui.input().pressed_at().filter(|_| by_press);
+        let press = ui.press_position().filter(|_| by_press);
         match (self.select_on_focus, press) {
             (SelectOnFocus::Pointer, Some(press)) => {
                 let at = self.offset_at(ui, rect, &session, press.x);

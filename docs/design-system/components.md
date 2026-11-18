@@ -75,7 +75,7 @@ paints one in its component's icon color for its state, its zones by role
 `Ui::icon_rotated` turns it (fold arrows). They take `component.icon.size.margin` less than the
 interface unit on each side. A checkbox's check mark and dash stay line marks (`draw_mark`),
 their weight `component.checkbox.mark.width`.
-`Ui::pixel_span` and `Ui::centered_on_line` place what must line up on the physical pixel grid:
+`Ui::pixel_columns` and `Ui::centered_on_line` place what must line up on the physical pixel grid:
 a line covering whole pixels, and a shape centered on the middle of that line. Labels use the
 fonts given to `UiState::set_fonts`, in the roles of `Styles::text` (label, body, detail): one
 line, cut with an ellipsis when too long ([ADR 0014](../adr/0014-text-basics.md)). Theme cards
@@ -202,7 +202,7 @@ expressions), `.label(text)`, `.bar(mapping)`, `.vertical()`, `.step_buttons(sho
   show. It lasts as long as Ctrl stays held over the field.
 - **Dragging**: a press locks the pointer at once (`Ui::lock_pointer`), and the field takes
   the keyboard (`NUMBER` context). Past the drag threshold, the travel the locked pointer
-  reports (`Input::motion`) changes the value: a step per `number-field.drag.step-distance`
+  reports (`Ui::pointer_delta`, in the units of the space the field lies in) changes the value: a step per `number-field.drag.step-distance`
   for an unbounded field, the whole range along the bar for a bounded one. The left Shift does the field's
   `FineMode`, the right Shift the other one: `FromStart`, the default with a bar, makes the value
   follow the share of the drag done, as if the whole drag had been finer, and returns when Shift
@@ -368,7 +368,7 @@ A row's hover, selected and active states show in a highlight inside it, with ro
 (`list-row.highlight.*`), while the zebra keeps the whole row and the pointer reaches all of it.
 In a tree, the line along the children of a row (`outliner.tree-line.*`) starts just below the
 top of its first child and ends just above the bottom of its last one, below the tip of the
-row's chevron: both are placed on the same physical pixels (`Ui::pixel_span`,
+row's chevron: both are placed on the same physical pixels (`Ui::pixel_columns`,
 `Ui::centered_on_line`) at every scale factor. Each row chooses its look
 (`ListItem::with_guide`): `TreeGuide::Line`,
 `TreeGuide::Color(color)` or `TreeGuide::Dotted`.

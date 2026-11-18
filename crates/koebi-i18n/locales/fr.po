@@ -2323,10 +2323,12 @@ msgid "Surfaces"
 msgstr "Surfaces"
 
 #: crates/koebi-tokens/src/lib.rs
-msgid "Windows, panels, menus, tooltips, the status bar and what they hold."
+msgid ""
+"Windows, panels, menus, tooltips, the status bar, what they "
+"hold and zoomed content."
 msgstr ""
-"Fenêtres, panneaux, menus, info-bulles, la barre d'état et ce "
-"qu'ils contiennent."
+"Fenêtres, panneaux, menus, info-bulles, la barre d'état, ce "
+"qu'ils contiennent et le contenu zoomé."
 
 #: crates/koebi-tokens/src/lib.rs
 msgid "The workspace's areas and tabs, and the editors inside them."
@@ -3201,6 +3203,11 @@ msgstr "Division verticale"
 #: crates/koebi-ui/src/workspace/mod.rs
 msgid "Horizontal split"
 msgstr "Division horizontale"
+
+#~ msgid "Windows, panels, menus, tooltips, the status bar and what they hold."
+#~ msgstr ""
+#~ "Fenêtres, panneaux, menus, info-bulles, la barre d'état et ce "
+#~ "qu'ils contiennent."
 
 #~ msgid "The window's background: every surface, text and border follows it."
 #~ msgstr ""
