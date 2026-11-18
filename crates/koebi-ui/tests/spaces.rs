@@ -417,14 +417,16 @@ fn components_in_a_space_draw_as_they_would_at_its_scale() {
     };
     let unscaled = sheet(Space::IDENTITY);
 
-    // At 1, moved by whole pixels: the very same pixels, moved.
+    // At 1, moved by whole pixels: the same pixels, moved. Glyphs evaluated at other positions
+    // may round a channel differently (lavapipe does), within the tolerance of the zoomed case.
     let moved = Space::new(1.0, Vec2::new(16.0, 8.0));
     let reference = render_scaled(&gpu, extent(1.0), &unscaled, 1.0);
     let drawn = render_scaled(&gpu, Extent::new(176, 104), &sheet(moved), 1.0);
     let mut differing = 0;
     for y in 0..reference.height() {
         for x in 0..reference.width() {
-            differing += usize::from(drawn.pixel(x + 16, y + 8) != reference.pixel(x, y));
+            let (a, b) = (drawn.pixel(x + 16, y + 8), reference.pixel(x, y));
+            differing += usize::from(a.iter().zip(b).any(|(a, b)| a.abs_diff(b) > 2));
         }
     }
     assert_eq!(differing, 0);
