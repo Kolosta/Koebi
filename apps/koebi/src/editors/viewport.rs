@@ -1,5 +1,6 @@
-//! The Viewport template: a canvas that pans and zooms freely, a page on it, a grid that
-//! keeps its spacing on screen, and optional rulers on each side.
+//! The Viewport template: a canvas that pans and zooms freely, a page on it, a grid of dots
+//! that keeps its spacing on screen (a finer level fading in as it zooms), and optional rulers
+//! on each side.
 //!
 //! The middle button drags the canvas, the wheel zooms around the pointer; the top bar's
 //! toggles show or hide each ruler.
@@ -9,7 +10,7 @@ use koebi_core::{Color, Rect, Vec2};
 use koebi_design::DesignSystem;
 use koebi_i18n::n_;
 use koebi_input::{ActionDef, ActionGroup, ActionKind, Context, Hint, Shortcut};
-use koebi_render::RectPrimitive;
+use koebi_render::{DotGrid, RectPrimitive};
 use koebi_tokens::component;
 use koebi_ui::{Align, BarLayout, Button, PointerButton, Ui, WidgetId};
 
@@ -103,7 +104,9 @@ const SIDES: [Side; 4] = [Side::Top, Side::Left, Side::Bottom, Side::Right];
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Style {
     canvas: Color,
-    grid: Color,
+    /// The dots of the canvas grid.
+    dots: DotGrid,
+    /// The smallest space between grid steps on screen, which the rulers' ticks keep too.
     grid_spacing: f32,
     page: Color,
     page_border: Color,
@@ -119,7 +122,22 @@ impl Style {
     fn resolve(design: &DesignSystem) -> Self {
         Self {
             canvas: design.get(component::VIEWPORT_CANVAS_BACKGROUND),
-            grid: design.get(component::VIEWPORT_GRID_COLOR),
+            dots: DotGrid {
+                step: 1.0,
+                // A whole number from 2 to 10, as the token's range says.
+                #[allow(
+                    clippy::cast_possible_truncation,
+                    clippy::cast_sign_loss,
+                    reason = "a small whole number"
+                )]
+                subdivisions: design
+                    .get(component::VIEWPORT_GRID_SUBDIVISIONS)
+                    .round()
+                    .clamp(2.0, 10.0) as u32,
+                min_distance: design.get(component::VIEWPORT_GRID_SPACING).max(1.0),
+                size: design.get(component::VIEWPORT_GRID_DOT_SIZE).max(1.0),
+                color: design.get(component::VIEWPORT_GRID_COLOR),
+            },
             grid_spacing: design.get(component::VIEWPORT_GRID_SPACING).max(1.0),
             page: design.get(component::VIEWPORT_PAGE_BACKGROUND),
             page_border: design.get(component::VIEWPORT_PAGE_BORDER),
@@ -203,7 +221,7 @@ impl View {
     }
 }
 
-/// The step between grid lines or ruler ticks, in canvas units: 1, 2 or 5 times a power of
+/// The step between ruler ticks, in canvas units: 1, 2 or 5 times a power of
 /// ten, the smallest at least `spacing` logical pixels apart at `zoom`.
 fn step(zoom: f32, spacing: f32) -> f32 {
     let wanted = spacing / zoom;
@@ -338,31 +356,12 @@ fn handle_input(ui: &mut Ui<'_>, rect: Rect, area: Rect, view: &mut View, style:
 fn draw_canvas(ui: &mut Ui<'_>, area: Rect, view: &View, style: &Style) {
     let scene = ui.scene();
     scene.push_rect(&RectPrimitive::new(area, style.canvas));
-    // The grid, a line every step that keeps its lines apart on screen.
-    let step = step(view.zoom, style.grid_spacing);
-    let (from, to) = (
-        view.to_canvas(area, area.min),
-        view.to_canvas(area, area.max),
-    );
-    for x in multiples(from.x, to.x, step) {
-        let screen = view.to_screen(area, Vec2::new(x, 0.0)).x.round();
-        scene.push_rect(&RectPrimitive::new(
-            Rect::from_min_max(
-                Vec2::new(screen, area.min.y),
-                Vec2::new(screen + 1.0, area.max.y),
-            ),
-            style.grid,
-        ));
-    }
-    for y in multiples(from.y, to.y, step) {
-        let screen = view.to_screen(area, Vec2::new(0.0, y)).y.round();
-        scene.push_rect(&RectPrimitive::new(
-            Rect::from_min_max(
-                Vec2::new(area.min.x, screen),
-                Vec2::new(area.max.x, screen + 1.0),
-            ),
-            style.grid,
-        ));
+    // The grid: dots every power of its subdivisions, the finer level fading in as it nears
+    // the smallest space (ADR 0029).
+    let origin = view.to_screen(area, Vec2::ZERO);
+    let origin = [f64::from(origin.x), f64::from(origin.y)];
+    if let Some(dots) = style.dots.fill(area, origin, f64::from(view.zoom)) {
+        scene.push_fill(&dots);
     }
     // The page, and a mark at the origin.
     let page = Rect::from_min_max(
@@ -508,7 +507,7 @@ mod tests {
     }
 
     #[test]
-    fn grid_steps_are_round_and_far_enough_apart() {
+    fn ruler_steps_are_round_and_far_enough_apart() {
         assert_eq!(step(1.0, 24.0), 50.0);
         assert_eq!(step(2.0, 24.0), 20.0);
         assert_eq!(step(0.1, 24.0), 500.0);

@@ -57,7 +57,10 @@ impl Garbage {
                     view,
                     memory,
                 } => {
-                    device.destroy_image_view(view, None);
+                    // A texture only copied to and from has no view.
+                    if view != vk::ImageView::null() {
+                        device.destroy_image_view(view, None);
+                    }
                     device.destroy_image(image, None);
                     device.free_memory(memory, None);
                 }

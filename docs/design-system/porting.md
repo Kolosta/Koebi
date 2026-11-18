@@ -355,6 +355,11 @@ Zoomable spaces (#262, ADR 0030): `component.zoom.readable-size.default` = 7 px,
 size on screen at which text is still read; components drawn smaller in a zoomed-out space drop
 their labels (`Ui::readable`).
 
+The Viewport's dot grid (#263, ADR 0029): `component.viewport.grid.dot-size` = 2 px and
+`component.viewport.grid.subdivisions` = 10, the finer steps in a coarse one (the dots lie on
+powers of ten, among the rulers' ticks);
+`component.viewport.grid.spacing` is now the smallest space between dots on screen.
+
 Input settings, as semantic tokens aliasing durations and spacings (8): `semantic.input.drag-threshold`,
 `semantic.input.double-click.time`, `semantic.input.tooltip.delay`,
 `semantic.input.tooltip.delay-short`, `semantic.input.tooltip.delay-stationary`,
