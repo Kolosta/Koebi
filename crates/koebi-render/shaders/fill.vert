@@ -71,8 +71,14 @@ void main() {
     if (in_params.x > 0.5 && in_params.x < 1.5) {
         v_params.y = in_params.y * pc.scale_factor;
     }
-    if (in_params.x > 6.5) {
+    if (in_params.x > 6.5 && in_params.x < 7.5) {
         v_params.z = in_params.z * pc.scale_factor;
+    }
+    // Dots: their spacing, size and origin in physical pixels of the target.
+    if (in_params.x > 7.5) {
+        v_params.y = in_params.y * pc.scale_factor;
+        v_params.z = in_params.z * pc.scale_factor;
+        v_color2 = vec4(in_color2.xy * pc.scale_factor, 0.0, 0.0);
     }
     v_extra = in_options.y;
     pass_clip();

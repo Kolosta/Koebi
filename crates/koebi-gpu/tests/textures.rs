@@ -185,6 +185,65 @@ fn uploads_round_trip_from_padded_rows_at_an_offset() {
 }
 
 #[test]
+fn textures_only_copied_to_and_from_take_no_view() {
+    // Regression test: every texture got a view, which Vulkan refuses for an image whose only
+    // usages are copies (VUID-VkImageViewCreateInfo-image-04441).
+    let Some(gpu) = gpu_or_skip("textures_only_copied_to_and_from_take_no_view") else {
+        return;
+    };
+    let copied = gpu
+        .device
+        .create_texture(&TextureDesc {
+            label: "copied only",
+            extent: Extent::new(2, 2),
+            format: TextureFormat::Rgba8Unorm,
+            usage: TextureUsage::TRANSFER_DST | TextureUsage::TRANSFER_SRC,
+        })
+        .expect("a texture only copied to and from");
+    assert_eq!(copied.view_handle(), koebi_gpu::vk::ImageView::null());
+    assert!(copied.render_target().is_err());
+    // Copied to and read back, then dropped: nothing for the layers to report.
+    let bytes = [7_u8; 16];
+    let upload = staging(&gpu.device, &bytes);
+    let readback = gpu
+        .device
+        .create_buffer(&BufferDesc {
+            label: "copied readback",
+            size: 16,
+            usage: BufferUsage::TRANSFER_DST,
+            location: MemoryLocation::GpuToCpu,
+        })
+        .expect("a readback buffer");
+    gpu.device
+        .submit_and_wait(|encoder| {
+            encoder.texture_barrier(&copied, TextureState::Undefined, TextureState::TransferDst);
+            encoder.copy_buffer_to_texture(
+                &upload,
+                BufferTexels {
+                    offset: 0,
+                    bytes_per_row: 8,
+                },
+                &copied,
+                TextureRegion::whole(copied.extent()),
+            )?;
+            encoder.texture_barrier(
+                &copied,
+                TextureState::TransferDst,
+                TextureState::TransferSrc,
+            );
+            encoder.copy_texture_to_buffer(&copied, &readback)
+        })
+        .unwrap()
+        .unwrap();
+    let mut back = [0_u8; 16];
+    readback.read(0, &mut back).unwrap();
+    assert_eq!(back, bytes);
+    drop(copied);
+    gpu.device.wait_idle().unwrap();
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
 fn partial_updates_keep_the_rest_of_the_texture() {
     let Some(gpu) = gpu_or_skip("partial_updates_keep_the_rest_of_the_texture") else {
         return;

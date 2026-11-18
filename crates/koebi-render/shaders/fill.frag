@@ -1,7 +1,8 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
 // A shape whose color is computed for each pixel: corner colors blended, a checkerboard, strips
-// and planes of hues, a hue wheel, a ring and a triangle (`Fill`, crates/koebi-render/src/fill.rs).
+// and planes of hues, a hue wheel, a ring, a triangle and a grid of dots (`Fill`,
+// crates/koebi-render/src/fill.rs).
 //
 // Colors are gamma-encoded sRGB, as everywhere in the renderer: HSV and HSL are defined on those
 // components, OKLCH converts through linear sRGB with the coefficients of koebi-core, its
@@ -92,6 +93,25 @@ float sd_triangle(vec2 p, vec2 a, vec2 b, vec2 c) {
     return -sqrt(d.x) * sign(d.y);
 }
 
+// How far below a half pixel a position still rounds up (TIE_TOLERANCE in scene.rs): dots
+// meant to lie exactly between two pixels go to the same one on every driver.
+const float TIE = 1.0 / 256.0;
+
+// How much of this pixel the dots of a lattice `spacing` apart through `origin` cover, both in
+// the target's pixels. Each dot's center goes to the nearest pixel center (an odd number of
+// pixels wide) or corner (an even one), so that it covers whole pixels alike. The pixel's own
+// position is exact (`gl_FragCoord`), never interpolated.
+float dots(vec2 origin, float spacing, float size) {
+    if (spacing <= 0.0 || size <= 0.0) {
+        return 0.0;
+    }
+    vec2 pixel = gl_FragCoord.xy;
+    vec2 at = origin + spacing * floor((pixel - origin) / spacing + 0.5);
+    float pixels = max(floor(size + 0.5), 1.0);
+    vec2 snapped = mod(pixels, 2.0) > 0.5 ? floor(at + TIE) + 0.5 : floor(at + 0.5 + TIE);
+    return clamp(0.5 * size - length(pixel - snapped) + 0.5, 0.0, 1.0);
+}
+
 void main() {
     float kind = v_params.x;
     vec2 uv = clamp(v_local / (2.0 * max(v_half_size, vec2(1e-3))) + 0.5, 0.0, 1.0);
@@ -135,6 +155,11 @@ void main() {
         float inner = radius * v_params.z;
         dist = max(r - radius, inner - r);
         color = vec4(hue_color(v_params.y, angle_hue(p), v_params.w, v_extra), 1.0);
+    } else if (kind > 7.5) {
+        // Dots: the coarse level, and the finer one faded in.
+        float coarse = dots(v_color2.xy, v_params.y, v_params.z);
+        float fine = dots(v_color2.xy, v_params.y / max(v_params.w, 2.0), v_params.z) * v_extra;
+        color = vec4(v_color0.rgb, v_color0.a * max(coarse, fine));
     } else if (kind > 6.5) {
         // An arrow: its tip in the middle of the side it points toward (left, right, up,
         // down), outlined inside its edges.

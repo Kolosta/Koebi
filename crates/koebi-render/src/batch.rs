@@ -21,6 +21,9 @@ use crate::scene::PrimitiveKind;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Batch {
     pub(crate) kind: PrimitiveKind,
+    /// What its primitives share besides their type, which a draw binds: the image of images,
+    /// 0 for the others.
+    pub(crate) key: u32,
     /// The layer it draws on.
     layer: u8,
     /// How many primitives it holds.
@@ -163,7 +166,11 @@ impl Batches {
     /// Files a primitive of `kind` on `layer`, painting inside `bounds` (logical pixels, its
     /// clip applied): in the latest batch of its type on the layer when no batch drawn after
     /// that one painted where it paints, else in a new batch. Returns its batch.
-    pub(crate) fn join(&mut self, kind: PrimitiveKind, layer: u8, bounds: Rect) -> u32 {
+    ///
+    /// Primitives join only a batch of their `key`: what they share besides their type, which
+    /// a draw binds (an image's texture, 0 for the types without one). A primitive of another
+    /// key starts a batch.
+    pub(crate) fn join(&mut self, kind: PrimitiveKind, key: u32, layer: u8, bounds: Rect) -> u32 {
         let index = usize::from(layer);
         if self.layers.len() <= index {
             // A new layer number: grows once, then reused frame after frame.
@@ -172,8 +179,9 @@ impl Batches {
         }
         let under = self.grid.latest_under(bounds, layer);
         // In a layer, batches are numbered in the order they draw.
-        let joined = self.latest[index][kind as usize]
-            .filter(|&latest| under.is_none_or(|under| latest >= under));
+        let joined = self.latest[index][kind as usize].filter(|&latest| {
+            under.is_none_or(|under| latest >= under) && self.all[latest as usize].key == key
+        });
         let id = if let Some(id) = joined {
             self.all[id as usize].count += 1;
             id
@@ -182,6 +190,7 @@ impl Batches {
             let id = u32::try_from(self.all.len()).unwrap_or(u32::MAX);
             self.all.push(Batch {
                 kind,
+                key,
                 layer,
                 count: 1,
             });
@@ -287,9 +296,19 @@ mod tests {
         for column in 0..2_u8 {
             for row in 0..10_u8 {
                 let (x, y) = (f32::from(column) * 300.0, f32::from(row) * 30.0);
-                batches.join(PrimitiveKind::Rect, 0, rect(x, y, 200.0, 24.0));
-                batches.join(PrimitiveKind::Glyph, 0, rect(x + 8.0, y + 6.0, 60.0, 12.0));
-                batches.join(PrimitiveKind::Icon, 0, rect(x + 180.0, y + 4.0, 16.0, 16.0));
+                batches.join(PrimitiveKind::Rect, 0, 0, rect(x, y, 200.0, 24.0));
+                batches.join(
+                    PrimitiveKind::Glyph,
+                    0,
+                    0,
+                    rect(x + 8.0, y + 6.0, 60.0, 12.0),
+                );
+                batches.join(
+                    PrimitiveKind::Icon,
+                    0,
+                    0,
+                    rect(x + 180.0, y + 4.0, 16.0, 16.0),
+                );
             }
         }
         assert_eq!(
@@ -306,13 +325,13 @@ mod tests {
     fn what_overlaps_keeps_its_order() {
         let mut batches = Batches::default();
         let label = rect(10.0, 10.0, 50.0, 12.0);
-        batches.join(PrimitiveKind::Rect, 0, rect(0.0, 0.0, 100.0, 30.0));
-        batches.join(PrimitiveKind::Glyph, 0, label);
+        batches.join(PrimitiveKind::Rect, 0, 0, rect(0.0, 0.0, 100.0, 30.0));
+        batches.join(PrimitiveKind::Glyph, 0, 0, label);
         // A highlight over the label: after it.
-        batches.join(PrimitiveKind::Rect, 0, rect(20.0, 8.0, 10.0, 16.0));
+        batches.join(PrimitiveKind::Rect, 0, 0, rect(20.0, 8.0, 10.0, 16.0));
         // Text over the highlight, then text beside everything: the latest glyphs take both.
-        batches.join(PrimitiveKind::Glyph, 0, rect(20.0, 10.0, 8.0, 12.0));
-        batches.join(PrimitiveKind::Glyph, 0, rect(500.0, 10.0, 8.0, 12.0));
+        batches.join(PrimitiveKind::Glyph, 0, 0, rect(20.0, 10.0, 8.0, 12.0));
+        batches.join(PrimitiveKind::Glyph, 0, 0, rect(500.0, 10.0, 8.0, 12.0));
         assert_eq!(
             kinds(&batches),
             [
@@ -327,15 +346,15 @@ mod tests {
     #[test]
     fn a_primitive_joins_its_type_past_batches_it_does_not_overlap() {
         let mut batches = Batches::default();
-        batches.join(PrimitiveKind::Rect, 0, rect(0.0, 0.0, 10.0, 10.0));
-        batches.join(PrimitiveKind::Line, 0, rect(100.0, 0.0, 10.0, 10.0));
-        batches.join(PrimitiveKind::Glyph, 0, rect(200.0, 0.0, 10.0, 10.0));
-        batches.join(PrimitiveKind::Icon, 0, rect(300.0, 0.0, 10.0, 10.0));
+        batches.join(PrimitiveKind::Rect, 0, 0, rect(0.0, 0.0, 10.0, 10.0));
+        batches.join(PrimitiveKind::Line, 0, 0, rect(100.0, 0.0, 10.0, 10.0));
+        batches.join(PrimitiveKind::Glyph, 0, 0, rect(200.0, 0.0, 10.0, 10.0));
+        batches.join(PrimitiveKind::Icon, 0, 0, rect(300.0, 0.0, 10.0, 10.0));
         // Under none of the three batches after the first.
-        batches.join(PrimitiveKind::Rect, 0, rect(0.0, 100.0, 10.0, 10.0));
+        batches.join(PrimitiveKind::Rect, 0, 0, rect(0.0, 100.0, 10.0, 10.0));
         assert_eq!(batches.len(), 4);
         // Under the segment: a batch of its own, after it.
-        batches.join(PrimitiveKind::Rect, 0, rect(105.0, 5.0, 10.0, 10.0));
+        batches.join(PrimitiveKind::Rect, 0, 0, rect(105.0, 5.0, 10.0, 10.0));
         assert_eq!(batches.len(), 5);
     }
 
@@ -343,11 +362,11 @@ mod tests {
     fn layers_batch_apart() {
         let mut batches = Batches::default();
         let area = rect(0.0, 0.0, 50.0, 50.0);
-        batches.join(PrimitiveKind::Rect, 0, area);
-        batches.join(PrimitiveKind::Rect, 1, area);
+        batches.join(PrimitiveKind::Rect, 0, 0, area);
+        batches.join(PrimitiveKind::Rect, 0, 1, area);
         // Over the menu of layer 1, but on the base layer: with the base's rectangles.
-        batches.join(PrimitiveKind::Glyph, 1, area);
-        batches.join(PrimitiveKind::Rect, 0, area);
+        batches.join(PrimitiveKind::Glyph, 0, 1, area);
+        batches.join(PrimitiveKind::Rect, 0, 0, area);
         let layers: Vec<_> = batches
             .in_order()
             .map(|(_, batch)| (batch.layer, batch.kind, batch.count))
@@ -365,9 +384,9 @@ mod tests {
     #[test]
     fn far_and_negative_coordinates_stay_in_the_grid() {
         let mut batches = Batches::default();
-        batches.join(PrimitiveKind::Rect, 0, rect(-500.0, -500.0, 10.0, 10.0));
-        batches.join(PrimitiveKind::Glyph, 0, rect(1.0e7, 1.0e7, 10.0, 10.0));
-        batches.join(PrimitiveKind::Rect, 0, rect(1.0e7, 1.0e7, 10.0, 10.0));
+        batches.join(PrimitiveKind::Rect, 0, 0, rect(-500.0, -500.0, 10.0, 10.0));
+        batches.join(PrimitiveKind::Glyph, 0, 0, rect(1.0e7, 1.0e7, 10.0, 10.0));
+        batches.join(PrimitiveKind::Rect, 0, 0, rect(1.0e7, 1.0e7, 10.0, 10.0));
         // The last one lies over the glyph, far as it is.
         assert_eq!(batches.len(), 3);
         batches.clear();
@@ -379,10 +398,10 @@ mod tests {
     fn instances_are_gathered_batch_after_batch() {
         let mut batches = Batches::default();
         let owners = [
-            batches.join(PrimitiveKind::Rect, 0, rect(0.0, 0.0, 10.0, 10.0)),
-            batches.join(PrimitiveKind::Glyph, 0, rect(0.0, 0.0, 10.0, 10.0)),
-            batches.join(PrimitiveKind::Rect, 0, rect(5.0, 5.0, 10.0, 10.0)),
-            batches.join(PrimitiveKind::Rect, 0, rect(100.0, 0.0, 10.0, 10.0)),
+            batches.join(PrimitiveKind::Rect, 0, 0, rect(0.0, 0.0, 10.0, 10.0)),
+            batches.join(PrimitiveKind::Glyph, 0, 0, rect(0.0, 0.0, 10.0, 10.0)),
+            batches.join(PrimitiveKind::Rect, 0, 0, rect(5.0, 5.0, 10.0, 10.0)),
+            batches.join(PrimitiveKind::Rect, 0, 0, rect(100.0, 0.0, 10.0, 10.0)),
         ];
         let mut order = DrawOrder::default();
         order.compute(&batches);

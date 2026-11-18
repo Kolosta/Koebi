@@ -96,6 +96,8 @@ pub struct Texture {
 pub(crate) struct TextureShared {
     pub(crate) device: Arc<DeviceShared>,
     pub(crate) raw: vk::Image,
+    /// The default view, null for a texture only copied to and from, which Vulkan gives no
+    /// view.
     pub(crate) view: vk::ImageView,
     memory: vk::DeviceMemory,
     pub(crate) extent: Extent,
@@ -160,21 +162,36 @@ impl Texture {
             destroy_both();
             return Err(Error::from_vk("vkBindImageMemory", result));
         }
-        let view_info = vk::ImageViewCreateInfo::default()
-            .image(raw)
-            .view_type(vk::ImageViewType::TYPE_2D)
-            .format(desc.format.to_vk())
-            .subresource_range(COLOR_RANGE);
-        // SAFETY: `raw` is a live, bound image of this device.
-        let view = match unsafe { device.raw.create_image_view(&view_info, None) } {
-            Ok(view) => view,
-            Err(result) => {
-                destroy_both();
-                return Err(Error::from_vk("vkCreateImageView", result));
+        // A view only for a texture that shaders or passes read or write: Vulkan gives none to
+        // an image only copied to and from (VUID-VkImageViewCreateInfo-image-04441).
+        let viewed = [
+            TextureUsage::SAMPLED,
+            TextureUsage::STORAGE,
+            TextureUsage::COLOR_ATTACHMENT,
+        ]
+        .into_iter()
+        .any(|usage| desc.usage.contains(usage));
+        let view = if viewed {
+            let view_info = vk::ImageViewCreateInfo::default()
+                .image(raw)
+                .view_type(vk::ImageViewType::TYPE_2D)
+                .format(desc.format.to_vk())
+                .subresource_range(COLOR_RANGE);
+            // SAFETY: `raw` is a live, bound image of this device, with a usage views allow.
+            match unsafe { device.raw.create_image_view(&view_info, None) } {
+                Ok(view) => {
+                    set_object_name(device, view, desc.label);
+                    view
+                }
+                Err(result) => {
+                    destroy_both();
+                    return Err(Error::from_vk("vkCreateImageView", result));
+                }
             }
+        } else {
+            vk::ImageView::null()
         };
         set_object_name(device, raw, desc.label);
-        set_object_name(device, view, desc.label);
 
         Ok(Self {
             shared: Arc::new(TextureShared {
@@ -209,7 +226,9 @@ impl Texture {
         self.shared.raw
     }
 
-    /// The default view's raw handle.
+    /// The default view's raw handle: null for a texture with neither
+    /// [`TextureUsage::SAMPLED`], [`TextureUsage::STORAGE`] nor
+    /// [`TextureUsage::COLOR_ATTACHMENT`] usage, only copied to and from.
     pub fn view_handle(&self) -> vk::ImageView {
         self.shared.view
     }
