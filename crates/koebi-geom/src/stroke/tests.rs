@@ -875,3 +875,119 @@ fn degenerate_inputs_give_nothing_or_a_dot() {
         2.0,
     );
 }
+
+#[test]
+fn outlines_lie_within_their_reach_of_the_path() {
+    // Sharp corners, open ends and a closed star, under every cap, join and alignment.
+    let zigzag = polyline(&[(0.0, 0.0), (10.0, 1.0), (0.0, 2.0), (10.0, 6.0)], false);
+    let star = polyline(
+        &[
+            (0.0, -10.0),
+            (2.0, -2.0),
+            (10.0, 0.0),
+            (2.0, 2.0),
+            (0.0, 10.0),
+            (-2.0, 2.0),
+            (-10.0, 0.0),
+            (-2.0, -2.0),
+        ],
+        true,
+    );
+    let caps = [
+        Cap::Butt { tilt: 0.0 },
+        Cap::Butt { tilt: 0.6 },
+        Cap::Round,
+        Cap::Square,
+        Cap::Taper { length: 0.0 },
+        Cap::Taper { length: 5.0 },
+    ];
+    let joins = [
+        Join::Miter { limit: 4.0 },
+        Join::Miter { limit: 20.0 },
+        Join::Round,
+        Join::Bevel,
+    ];
+    let aligns = [
+        Align::Center,
+        Align::Inside,
+        Align::Outside,
+        Align::Left,
+        Align::Right,
+    ];
+    let offsets = [
+        StrokeOffset::Percent(50.0),
+        StrokeOffset::Percent(-120.0),
+        StrokeOffset::Units(1.5),
+    ];
+    for contours in [&zigzag, &star] {
+        let bounds = contours.bounds();
+        for cap in caps {
+            for join in joins {
+                for align in aligns {
+                    for offset in offsets {
+                        let style = StrokeStyle {
+                            width: 1.2,
+                            align,
+                            offset,
+                            cap,
+                            join,
+                            dashes: Dashes::default(),
+                        };
+                        let outline = stroke(contours, &style);
+                        let reach = bounds.inflated(style.reach() + 1e-6);
+                        assert!(
+                            reach.contains_rect(outline.bounds()),
+                            "{style:?}: {:?} beyond {reach:?}",
+                            outline.bounds()
+                        );
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(
+        StrokeStyle {
+            width: f64::NAN,
+            ..style(1.0)
+        }
+        .reach(),
+        f64::INFINITY
+    );
+}
+
+#[test]
+fn a_style_scaled_outlines_the_scaled_path() {
+    let path = polyline(&[(0.0, 0.0), (10.0, 1.0), (4.0, 6.0)], false);
+    let style = StrokeStyle {
+        width: 1.0,
+        align: Align::Left,
+        offset: StrokeOffset::Units(0.8),
+        cap: Cap::Taper { length: 3.0 },
+        join: Join::Round,
+        dashes: Dashes {
+            pattern: vec![2.0, 1.0],
+            offset: 0.5,
+            ..Dashes::default()
+        },
+    };
+    let scaled = style.scaled(4.0);
+    assert!((scaled.width - 4.0).abs() < 1e-12);
+    assert_eq!(scaled.offset, StrokeOffset::Units(3.2));
+    assert_eq!(scaled.cap, Cap::Taper { length: 12.0 });
+    assert_eq!(scaled.dashes.pattern, [8.0, 4.0]);
+    assert!((scaled.reach() - 4.0 * style.reach()).abs() < 1e-9);
+    // The outline of the scaled path in the scaled style is the outline scaled.
+    let big = path.transformed(crate::Affine::scale(4.0, 4.0));
+    let (a, b) = (
+        stroke(&big, &scaled).bounds(),
+        stroke(&path, &style).bounds(),
+    );
+    for (x, y) in [
+        (a.min.x, b.min.x),
+        (a.min.y, b.min.y),
+        (a.max.x, b.max.x),
+        (a.max.y, b.max.y),
+    ] {
+        assert!((x - 4.0 * y).abs() < 1e-3, "{x} against {}", 4.0 * y);
+    }
+}

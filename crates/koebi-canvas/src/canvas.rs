@@ -25,6 +25,7 @@ use koebi_gpu::{
 use crate::cells::DATA_WIDTH;
 use crate::frame::{CellInstance, Frame};
 use crate::store::{CanvasStats, CellStore};
+use crate::strokes::ViewStrokes;
 use crate::view::View;
 
 static CANVAS_VERT: &[u32] =
@@ -204,6 +205,8 @@ pub struct Canvas {
     sampler: Sampler,
     /// The cells of the outlines views showed, and their records.
     store: CellStore,
+    /// The outlines of the strokes views showed in pixels.
+    strokes: ViewStrokes,
     /// The texture of records, and its bind group.
     data: Option<(Texture, BindGroup)>,
     /// Whether the texture was ever written: its first copy comes from `Undefined`.
@@ -278,6 +281,7 @@ impl Canvas {
             layout,
             sampler,
             store: CellStore::default(),
+            strokes: ViewStrokes::default(),
             data: None,
             written: false,
             staging: Stream::new("canvas staging", BufferUsage::TRANSFER_SRC),
@@ -287,12 +291,16 @@ impl Canvas {
 
     /// What the canvas did since [`Self::reset_stats`].
     pub fn stats(&self) -> CanvasStats {
-        self.store.stats
+        CanvasStats {
+            outlined: self.strokes.outlined,
+            ..self.store.stats
+        }
     }
 
     /// Forgets the counts of [`Self::stats`].
     pub fn reset_stats(&mut self) {
         self.store.stats = CanvasStats::default();
+        self.strokes.outlined = 0;
     }
 
     /// Records into `encoder` the drawing of `program` as `view` shows it into `target`, and
@@ -334,10 +342,19 @@ impl Canvas {
             return Ok(false);
         }
         self.store.begin();
-        if target.frame.build(program, view, &mut self.store).is_err() {
+        self.strokes.begin();
+        if target
+            .frame
+            .build(program, view, &mut self.store, &mut self.strokes)
+            .is_err()
+        {
             // Room for this view alone: what others kept is prepared again when they change.
             self.store.clear();
-            if target.frame.build(program, view, &mut self.store).is_err() {
+            if target
+                .frame
+                .build(program, view, &mut self.store, &mut self.strokes)
+                .is_err()
+            {
                 return Err(Error::InvalidArgument(
                     "the view shows more outlines than the canvas holds".into(),
                 ));

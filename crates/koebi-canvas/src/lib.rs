@@ -18,6 +18,9 @@
 //!   zoom), the target's size in physical pixels. Each view renders into its own `Rgba16Float`
 //!   target ([`ViewTarget`]) in linear light, premultiplied, which the interface shows as an
 //!   image (`koebi_render::ImagePrimitive`).
+//! - **Strokes in pixels** (hairlines, `koebi_doc::StrokeUnits::Viewport`) are outlined by the
+//!   canvas at each view's zoom, per quarter octave with hysteresis, and kept: their width on
+//!   screen stays within 14% of the one asked for at any zoom.
 //! - **Paints:** solid colors, in linear light.
 //! - **The CPU reference** ([`reference`](mod@reference)) computes the shader's coverage in the
 //!   same arithmetic, for the tests.
@@ -30,6 +33,7 @@ mod cells;
 mod frame;
 pub mod reference;
 mod store;
+mod strokes;
 mod view;
 
 pub use canvas::{Canvas, TARGET_FORMAT, ViewTarget};

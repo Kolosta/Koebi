@@ -12,7 +12,7 @@
 use crate::kind::{Family, In, Initial, Kind, NodeKind, Out};
 use crate::value::{
     Anything, BlendMode, Coverage, EnumKind, Geometry, Layer, Paint, Quantity, StrokeAlign,
-    StrokeCap, StrokeJoin,
+    StrokeCap, StrokeJoin, StrokeUnits,
 };
 use koebi_core::LinearRgba;
 use koebi_geom::{Affine, FillRule, Vector};
@@ -444,6 +444,8 @@ pub mod stroke {
     pub const MITER_LIMIT: In<Stroke, f64> = In::new(9);
     /// How it blends onto the paints below it.
     pub const BLEND: In<Stroke, BlendMode> = In::new(10);
+    /// What its lengths count: document units, or the pixels of the view showing it.
+    pub const UNITS: In<Stroke, StrokeUnits> = In::new(11);
     /// The paint.
     pub const PAINT: Out<Stroke, Paint> = Out::new(0);
     /// Its definition.
@@ -486,6 +488,9 @@ pub mod stroke {
             BLEND
                 .decl("Blend mode")
                 .initial(Initial::Enum(EnumKind::BlendMode, 0)),
+            UNITS
+                .decl("Units")
+                .initial(Initial::Enum(EnumKind::StrokeUnits, 0)),
         ],
         outputs: &[PAINT.decl("Paint")],
     };

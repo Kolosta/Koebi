@@ -1,14 +1,16 @@
 //! [`Frame`]: what one view of a program draws, built on the CPU for the GPU and for the
 //! reference alike: the layers of the program, kept while its revision is the same, and one
-//! instance per cell the view shows, its records in the [`CellStore`].
+//! instance per cell the view shows, its records in the [`CellStore`]. Strokes in pixels are
+//! outlined at the view's zoom level by [`ViewStrokes`].
 
 use std::sync::Arc;
 
-use koebi_doc::eval::{Draw, Program, Step, StepId};
-use koebi_geom::{Contours, FillRule, Path, Point, Rect, Vector};
+use koebi_doc::eval::{Draw, Program, Step, StepId, ViewStroke};
+use koebi_geom::{Contours, FillRule, Path, Point, Rect, StrokeStyle, Vector};
 use koebi_gpu::Pod;
 
 use crate::store::{CellStore, Full};
+use crate::strokes::{Level, ViewStrokes};
 use crate::view::View;
 
 /// GPU layout of one cell's instance. Must match the inputs of `shaders/canvas.vert`.
@@ -38,8 +40,10 @@ const _: () = assert!(size_of::<CellInstance>() == 64);
 pub(crate) struct Frame {
     /// The revision of the program the layers come from.
     revision: Option<u64>,
-    /// The layers, bottom first: outline, rule, premultiplied linear color.
+    /// The layers, bottom first.
     layers: Vec<Layer>,
+    /// The zoom level its strokes in pixels were last outlined at.
+    level: Option<Level>,
     /// The outline of the page's background, and the size it was made for.
     page: Option<(Vector, Arc<Contours>)>,
     /// One instance per cell shown, in drawing order.
@@ -48,8 +52,9 @@ pub(crate) struct Frame {
 
 impl Frame {
     /// The instances of `program` seen by `view`, their cells taken from `store` or prepared
-    /// into it. Each instance covers the part of its cell's square that lies within the view
-    /// and within a pixel of its outline's bounds: past those, the outline covers nothing.
+    /// into it, the outlines of strokes in pixels from `strokes`. Each instance covers the part
+    /// of its cell's square that lies within the view and within a pixel of its outline's
+    /// bounds: past those, the outline covers nothing.
     ///
     /// Fails when the store has no room for the cells; the instances are then incomplete.
     pub(crate) fn build(
@@ -57,6 +62,7 @@ impl Frame {
         program: &Program,
         view: &View,
         store: &mut CellStore,
+        strokes: &mut ViewStrokes,
     ) -> Result<(), Full> {
         if self.revision != Some(program.revision()) {
             self.gather(program);
@@ -70,7 +76,28 @@ impl Frame {
         let size = octave.cell_size();
         let area = view.area();
         let pixel = 1.0 / view.zoom;
-        for (outline, rule, color) in &self.layers {
+        let level = Level::follow(self.level, view.zoom);
+        self.level = Some(level);
+        for layer in &self.layers {
+            let stroked;
+            let (outline, rule, color) = match layer {
+                Layer::Fill {
+                    outline,
+                    rule,
+                    color,
+                } => (outline, *rule, color),
+                Layer::Stroke {
+                    geometry,
+                    style,
+                    color,
+                } => {
+                    let Some(outline) = strokes.outline(geometry, style, level, area) else {
+                        continue;
+                    };
+                    stroked = outline;
+                    (&stroked, FillRule::NonZero, color)
+                }
+            };
             let (bounds, cells) = store.cells(outline, octave, area)?;
             let reach = bounds.inflated(pixel).intersection(area);
             for cell in cells {
@@ -96,7 +123,7 @@ impl Frame {
                     ],
                     color: *color,
                     params: [
-                        f32::from(u8::from(*rule == FillRule::EvenOdd)),
+                        f32::from(u8::from(rule == FillRule::EvenOdd)),
                         crate::cells::MARGIN,
                         (1.0 / (view.zoom * size)) as f32,
                         0.0,
@@ -127,8 +154,11 @@ impl Frame {
                     page
                 }
             };
-            self.layers
-                .push((page, FillRule::NonZero, premultiplied(background, 1.0)));
+            self.layers.push(Layer::Fill {
+                outline: page,
+                rule: FillRule::NonZero,
+                color: premultiplied(background, 1.0),
+            });
         }
         if let Some(root) = program.root() {
             gather(program, root, 1.0, &mut self.layers, 0);
@@ -146,8 +176,32 @@ fn premultiplied(color: koebi_core::LinearRgba, opacity: f64) -> [f32; 4] {
     [color.r * alpha, color.g * alpha, color.b * alpha, alpha]
 }
 
-/// One layer of a frame: an outline, its rule and its paint, linear and premultiplied.
-type Layer = (Arc<Contours>, FillRule, [f32; 4]);
+/// One layer of a frame, its paint linear and premultiplied.
+#[derive(Clone, Debug)]
+enum Layer {
+    /// An outline filled under a rule.
+    Fill {
+        outline: Arc<Contours>,
+        rule: FillRule,
+        color: [f32; 4],
+    },
+    /// A geometry stroked in a style whose lengths count the view's pixels.
+    Stroke {
+        geometry: Arc<Contours>,
+        style: Arc<StrokeStyle>,
+        color: [f32; 4],
+    },
+}
+
+impl Layer {
+    /// Its paint.
+    #[cfg(test)]
+    fn color(&self) -> [f32; 4] {
+        match self {
+            Self::Fill { color, .. } | Self::Stroke { color, .. } => *color,
+        }
+    }
+}
 
 /// The most nested steps the program's walk follows, against cycles in a corrupt program.
 const MAX_DEPTH: usize = 256;
@@ -167,11 +221,23 @@ fn gather(program: &Program, id: StepId, opacity: f64, layers: &mut Vec<Layer>, 
             color,
             opacity: own,
         }) => {
-            layers.push((
-                Arc::clone(outline),
-                *rule,
-                premultiplied(*color, opacity * own),
-            ));
+            layers.push(Layer::Fill {
+                outline: Arc::clone(outline),
+                rule: *rule,
+                color: premultiplied(*color, opacity * own),
+            });
+        }
+        Step::ViewStroke(ViewStroke {
+            geometry,
+            style,
+            color,
+            opacity: own,
+        }) => {
+            layers.push(Layer::Stroke {
+                geometry: Arc::clone(geometry),
+                style: Arc::clone(style),
+                color: premultiplied(*color, opacity * own),
+            });
         }
         Step::Merge(inputs) => {
             for input in inputs {
@@ -247,10 +313,10 @@ mod tests {
         );
         let mut layers = Vec::new();
         gather(&program, StepId(2), 1.0, &mut layers, 0);
-        let alphas: Vec<f32> = layers.iter().map(|layer| layer.2[3]).collect();
+        let alphas: Vec<f32> = layers.iter().map(|layer| layer.color()[3]).collect();
         assert_eq!(alphas, [0.5, 0.2]);
         // Premultiplied.
-        assert!((layers[1].2[1] - 0.1).abs() < 1e-6);
+        assert!((layers[1].color()[1] - 0.1).abs() < 1e-6);
         layers.clear();
         gather(&program, StepId(3), 1.0, &mut layers, 0);
         assert_eq!(layers.len(), 0);

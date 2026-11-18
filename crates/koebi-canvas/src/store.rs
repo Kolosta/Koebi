@@ -112,6 +112,8 @@ pub struct CanvasStats {
     pub prepared: u64,
     /// Cells prepared.
     pub cells: u64,
+    /// Strokes in pixels outlined at a zoom level.
+    pub outlined: u64,
     /// Texels sent to the GPU, the store's header included.
     pub uploaded: u64,
     /// Times the live records were moved together.
