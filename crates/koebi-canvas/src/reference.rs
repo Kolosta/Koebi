@@ -156,9 +156,11 @@ pub fn coverage(data: &[[f32; 4]], cell: CellView, pixel: [f32; 2], rule: FillRu
 pub fn render(program: &koebi_doc::eval::Program, view: &crate::View) -> Vec<[f32; 4]> {
     let mut store = crate::store::CellStore::default();
     store.begin();
+    let mut strokes = crate::strokes::ViewStrokes::default();
+    strokes.begin();
     let mut frame = crate::frame::Frame::default();
     // What fits is drawn: the canvas fails instead, which tests see.
-    let _ = frame.build(program, view, &mut store);
+    let _ = frame.build(program, view, &mut store, &mut strokes);
     let data = store.data();
     let (width, height) = (view.extent.width, view.extent.height);
     let mut pixels = vec![[0.0_f32; 4]; (width as usize) * (height as usize)];

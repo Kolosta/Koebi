@@ -5,13 +5,13 @@
 use std::sync::Arc;
 
 use koebi_core::LinearRgba;
-use koebi_doc::eval::{Draw, Evaluator, Program, Step, StepCoverage};
+use koebi_doc::eval::{Draw, Evaluator, Program, Step, StepCoverage, ViewStroke};
 use koebi_doc::kinds::{
     blend, coverage, fill, float, group_object, mask, merge, path_object, stroke,
     transform_geometry,
 };
 use koebi_doc::ops::{self, Shape};
-use koebi_doc::{BlendMode, Document, Edit, NodeId, SocketRef, Value};
+use koebi_doc::{BlendMode, Document, Edit, NodeId, SocketRef, SocketValue, StrokeUnits, Value};
 use koebi_geom::{Affine, Vector};
 
 fn set(doc: &mut Document, node: NodeId, index: usize, value: Value) {
@@ -472,4 +472,83 @@ fn a_stack_reads_again_only_the_layers_that_changed() {
     let changed = Arc::clone(&evaluator.programs(&doc)[0]);
     assert_eq!(draws(&changed).len(), 50);
     assert_eq!(*changed, *first_program(&doc));
+}
+
+#[test]
+fn a_stroke_in_pixels_is_left_to_the_canvas_with_its_world_geometry() {
+    let mut doc = Document::new();
+    let (_, objects) = page_with(&mut doc, &[Shape::Rectangle(Vector::new(10.0, 4.0))]);
+    let object = objects[0];
+    set(
+        &mut doc,
+        object,
+        path_object::LOCATION.index(),
+        Value::Vector(Vector::new(50.0, 20.0)),
+    );
+    set(
+        &mut doc,
+        object,
+        path_object::SCALE.index(),
+        Value::Vector(Vector::new(3.0, 3.0)),
+    );
+    let stroked = ops::add_stroke(&mut doc, object).unwrap();
+    set(&mut doc, stroked, stroke::WIDTH.index(), Value::Float(1.5));
+    set(
+        &mut doc,
+        stroked,
+        stroke::UNITS.index(),
+        StrokeUnits::Viewport.into_value(),
+    );
+    let mut evaluator = Evaluator::new();
+    evaluator.reset_stats();
+    let program = Arc::clone(&evaluator.programs(&doc)[0]);
+    let strokes: Vec<&ViewStroke> = program
+        .steps()
+        .iter()
+        .filter_map(|step| match step {
+            Step::ViewStroke(stroke) => Some(stroke),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(strokes.len(), 1);
+    // Nothing outlined here; the geometry placed in the world, the pixels left as they are.
+    assert_eq!(evaluator.stats.outlines, 0);
+    let bounds = strokes[0].geometry.bounds();
+    assert!((bounds.width() - 30.0).abs() < 1e-9 && (bounds.center().x - 50.0).abs() < 1e-9);
+    assert!((strokes[0].style.width - 1.5).abs() < 1e-12);
+    // The fill still draws its outline.
+    assert_eq!(draws(&program).len(), 1);
+    // Recolored: the same placed geometry.
+    set(
+        &mut doc,
+        stroked,
+        stroke::COLOR.index(),
+        Value::Color(LinearRgba::new(0.0, 0.0, 1.0, 1.0)),
+    );
+    let recolored = Arc::clone(&evaluator.programs(&doc)[0]);
+    let again = recolored
+        .steps()
+        .iter()
+        .find_map(|step| match step {
+            Step::ViewStroke(stroke) => Some(stroke),
+            _ => None,
+        })
+        .unwrap();
+    assert!(Arc::ptr_eq(&again.geometry, &strokes[0].geometry));
+    assert_eq!(again.color, LinearRgba::new(0.0, 0.0, 1.0, 1.0));
+    // Back in document units: outlined here again.
+    set(
+        &mut doc,
+        stroked,
+        stroke::UNITS.index(),
+        StrokeUnits::Document.into_value(),
+    );
+    let document = Arc::clone(&evaluator.programs(&doc)[0]);
+    assert_eq!(draws(&document).len(), 2);
+    assert!(
+        !document
+            .steps()
+            .iter()
+            .any(|step| matches!(step, Step::ViewStroke(_)))
+    );
 }

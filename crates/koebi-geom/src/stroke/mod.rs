@@ -88,6 +88,72 @@ impl Default for StrokeStyle {
     }
 }
 
+impl StrokeStyle {
+    /// This style with every length multiplied by `factor`: the width, an offset in units, a
+    /// taper's length, the dashes' lengths, offset and anchored sizes. Shares, ratios and
+    /// angles stay. A stroke whose lengths count a view's pixels is outlined in document units
+    /// by the view's units per pixel.
+    #[must_use]
+    pub fn scaled(&self, factor: f64) -> Self {
+        let mut scaled = self.clone();
+        scaled.width *= factor;
+        if let StrokeOffset::Units(units) = &mut scaled.offset {
+            *units *= factor;
+        }
+        if let Cap::Taper { length } = &mut scaled.cap {
+            *length *= factor;
+        }
+        for length in &mut scaled.dashes.pattern {
+            *length *= factor;
+        }
+        scaled.dashes.offset *= factor;
+        for anchor in &mut scaled.dashes.anchors {
+            if let Some(size) = &mut anchor.size {
+                *size *= factor;
+            }
+        }
+        scaled
+    }
+
+    /// How far from its path the stroke's outline may lie, at most: what culling counts on, the
+    /// outline lying within the path's bounds grown by this. The band's far edge, pushed
+    /// further by miters, tilted or square caps and tapers; inside and outside, by the steps
+    /// where an open subpath's band changes sides (its spine crosses the bisector up to four
+    /// times its distance from the path, see [`outline`]). Infinite for lengths that are not
+    /// finite.
+    pub fn reach(&self) -> f64 {
+        let width = self.width.abs();
+        let half = width * 0.5;
+        let middle = self.offset.resolve(width).abs();
+        let spine = match self.align {
+            Align::Center => 0.0,
+            Align::Left | Align::Right => middle,
+            Align::Inside | Align::Outside => 4.0 * middle,
+        };
+        let edge = spine + half;
+        let corner = match self.join {
+            // A miter's tip lies its limit times as far as the edge it extends.
+            Join::Miter { limit } => edge * limit.abs().max(1.0),
+            Join::Round | Join::Bevel => edge,
+        };
+        let end = match self.cap {
+            Cap::Butt { tilt } => edge * (1.0 + tilt.abs().min(core::f64::consts::FRAC_PI_4).tan()),
+            Cap::Round => edge,
+            Cap::Square => edge * core::f64::consts::SQRT_2,
+            Cap::Taper { length } => {
+                let length = if length > 0.0 { length } else { 2.0 * width };
+                edge.max(length.hypot(edge))
+            }
+        };
+        let reach = corner.max(end);
+        if reach.is_finite() {
+            reach
+        } else {
+            f64::INFINITY
+        }
+    }
+}
+
 /// The side of the path a stroke lies on.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Align {

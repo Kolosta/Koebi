@@ -59,5 +59,5 @@ pub use graph::{
 pub use kind::{Family, In, Initial, InputDecl, Kind, NodeKind, Out, OutputDecl, Registry};
 pub use value::{
     BlendMode, Conversion, EnumKind, Geometry, Quantity, Socket, SocketEnum, SocketType,
-    SocketValue, Stored, StrokeAlign, StrokeCap, StrokeJoin, Text, Value,
+    SocketValue, Stored, StrokeAlign, StrokeCap, StrokeJoin, StrokeUnits, Text, Value,
 };

@@ -20,6 +20,9 @@
 //!   background did not change keeps its program, revision included, without flattening it
 //!   again, so the canvas sees at once that it has nothing to draw again.
 //! - **Visibility:** an object hidden by itself or by a collection draws nothing.
+//! - **Strokes in pixels** ([`StrokeUnits::Viewport`]) are not outlined here: their step,
+//!   [`ViewStroke`], carries the geometry placed in the world and the style in pixels, and the
+//!   canvas outlines it for each view's zoom.
 
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -41,7 +44,9 @@ use crate::kinds::{
     merge, page, path_data, path_object, polygon, rectangle, stroke, transform, transform_geometry,
 };
 use crate::transforms;
-use crate::value::{BlendMode, SocketValue, StrokeAlign, StrokeCap, StrokeJoin, Value};
+use crate::value::{
+    BlendMode, SocketValue, StrokeAlign, StrokeCap, StrokeJoin, StrokeUnits, Value,
+};
 
 /// A filled outline in world coordinates, with its solid paint.
 #[derive(Clone, Debug, PartialEq)]
@@ -56,6 +61,21 @@ pub struct Draw {
     pub opacity: f64,
 }
 
+/// A stroke whose lengths count the pixels of the view showing it: the canvas outlines its
+/// geometry for each view, the style scaled by the view's document units per pixel, and fills
+/// the outline with the non-zero rule.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ViewStroke {
+    /// The stroked geometry, in world coordinates.
+    pub geometry: Arc<Contours>,
+    /// The style, its lengths in pixels.
+    pub style: Arc<StrokeStyle>,
+    /// Its color, linear with straight alpha.
+    pub color: LinearRgba,
+    /// Its opacity.
+    pub opacity: f64,
+}
+
 /// Evaluated renderable content.
 #[derive(Clone, Debug, PartialEq)]
 pub enum LayerValue {
@@ -63,6 +83,8 @@ pub enum LayerValue {
     Empty,
     /// A filled outline.
     Draw(Draw),
+    /// A stroke outlined for each view.
+    ViewStroke(ViewStroke),
     /// Layers composited in order, bottom first.
     Merge(Vec<(Arc<LayerValue>, MergeEntry)>),
     /// A source blended onto a backdrop.
@@ -125,6 +147,8 @@ pub enum PaintValue {
         opacity: f64,
         /// Its outline's style.
         style: StrokeStyle,
+        /// What the style's lengths count.
+        units: StrokeUnits,
         /// How it blends onto the paints below.
         blend: BlendMode,
     },
@@ -164,6 +188,8 @@ pub enum StepCoverage {
 pub enum Step {
     /// A filled outline.
     Draw(Draw),
+    /// A stroke outlined for each view.
+    ViewStroke(ViewStroke),
     /// Steps composited in order, bottom first.
     Merge(Vec<MergeInput>),
     /// A source blended onto a backdrop.
@@ -924,6 +950,9 @@ impl Evaluator {
                 join,
                 dashes,
             },
+            units: self
+                .value(context, node, stroke::UNITS.index())
+                .unwrap_or_default(),
             blend: self
                 .value(context, node, stroke::BLEND.index())
                 .unwrap_or_default(),
@@ -1008,33 +1037,50 @@ impl Evaluator {
             let Out::Paint(paint) = paint else {
                 continue;
             };
-            let (draw, blend) = match paint.as_ref() {
+            let (layer, blend) = match paint.as_ref() {
                 PaintValue::Fill {
                     color,
                     opacity,
                     rule,
                     blend,
                 } => (
-                    Draw {
+                    LayerValue::Draw(Draw {
                         outline: geometry.clone(),
                         rule: *rule,
                         color: *color,
                         opacity: *opacity,
-                    },
+                    }),
                     *blend,
                 ),
                 PaintValue::Stroke {
                     color,
                     opacity,
                     style,
+                    units: StrokeUnits::Document,
                     blend,
                 } => (
-                    Draw {
+                    LayerValue::Draw(Draw {
                         outline: self.outline(&geometry, style),
                         rule: FillRule::NonZero,
                         color: *color,
                         opacity: *opacity,
-                    },
+                    }),
+                    *blend,
+                ),
+                // Outlined by the canvas, at each view's zoom.
+                PaintValue::Stroke {
+                    color,
+                    opacity,
+                    style,
+                    units: StrokeUnits::Viewport,
+                    blend,
+                } => (
+                    LayerValue::ViewStroke(ViewStroke {
+                        geometry: geometry.clone(),
+                        style: Arc::new(style.clone()),
+                        color: *color,
+                        opacity: *opacity,
+                    }),
                     *blend,
                 ),
             };
@@ -1042,7 +1088,7 @@ impl Evaluator {
                 blend,
                 ..MergeEntry::default()
             };
-            layers.push((Arc::new(LayerValue::Draw(draw)), entry));
+            layers.push((Arc::new(layer), entry));
         }
         Arc::new(LayerValue::Merge(layers))
     }
@@ -1249,6 +1295,11 @@ fn transformed(layer: &LayerValue, transform: Affine, placed: &mut PlacedOutline
             outline: placed.get(&draw.outline, transform),
             ..draw.clone()
         }),
+        // The geometry moves; the style's pixels stay pixels.
+        LayerValue::ViewStroke(stroke) => LayerValue::ViewStroke(ViewStroke {
+            geometry: placed.get(&stroke.geometry, transform),
+            ..stroke.clone()
+        }),
         LayerValue::Merge(layers) => LayerValue::Merge(
             layers
                 .iter()
@@ -1302,6 +1353,7 @@ fn flatten(
     let step = match layer.as_ref() {
         LayerValue::Empty => None,
         LayerValue::Draw(draw) => Some(Step::Draw(draw.clone())),
+        LayerValue::ViewStroke(stroke) => Some(Step::ViewStroke(stroke.clone())),
         // One layer at full opacity, blended normally, is that layer: no step, nothing gathered.
         LayerValue::Merge(layers)
             if matches!(layers.as_slice(), [(_, entry)] if entry.visible

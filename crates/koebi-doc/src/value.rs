@@ -153,6 +153,8 @@ pub enum EnumKind {
     StrokeCap,
     /// [`StrokeJoin`].
     StrokeJoin,
+    /// [`StrokeUnits`].
+    StrokeUnits,
 }
 
 /// What a socket's number means, for its units in the interface. It never changes the type.
@@ -312,6 +314,7 @@ impl Stored for FillRule {}
 impl Stored for StrokeAlign {}
 impl Stored for StrokeCap {}
 impl Stored for StrokeJoin {}
+impl Stored for StrokeUnits {}
 
 /// An enumeration a socket can hold.
 pub trait SocketEnum: Copy + Sized + 'static {
@@ -501,11 +504,31 @@ impl SocketEnum for StrokeJoin {
 }
 enum_socket!(StrokeJoin, StrokeJoin);
 
+/// What a stroke's lengths count (its width, its offset in units, its taper, its dashes).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum StrokeUnits {
+    /// Document units: the stroke scales with the zoom, as the shape does.
+    #[default]
+    Document,
+    /// The pixels of the view showing it: the stroke keeps its width on screen at any zoom, as
+    /// a hairline does. The canvas outlines it for each view.
+    Viewport,
+}
+
+impl SocketEnum for StrokeUnits {
+    const KIND: EnumKind = EnumKind::StrokeUnits;
+    const ALL: &'static [Self] = &[Self::Document, Self::Viewport];
+    fn index(self) -> u32 {
+        self as u32
+    }
+}
+enum_socket!(StrokeUnits, StrokeUnits);
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const TYPES: [SocketType; 13] = [
+    const TYPES: [SocketType; 14] = [
         SocketType::Bool,
         SocketType::Int,
         SocketType::Float,
@@ -519,6 +542,7 @@ mod tests {
         SocketType::Text,
         SocketType::Enum(EnumKind::BlendMode),
         SocketType::Enum(EnumKind::StrokeCap),
+        SocketType::Enum(EnumKind::StrokeUnits),
     ];
 
     #[test]

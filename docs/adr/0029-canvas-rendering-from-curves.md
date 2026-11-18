@@ -71,6 +71,10 @@ glyphs, with the non-zero or even-odd rule.
     (constant-pixel hairlines).
   - Both are prepared in the background and kept by octave, with no upper or lower bound on
     octaves.
+  - *Refined in #16:* viewport-space strokes follow quarter octaves, with a sixteenth of an
+    octave of hysteresis: a whole octave would let a hairline's width on screen vary by 41%, a
+    quarter keeps it within 14%. They are outlined on the render thread for now, and only those
+    in sight.
 - **Precision without limits:**
   - Positions and transforms stay f64 on the CPU.
   - Curves are stored relative to the origin of their *cell*: the band cells of a large
