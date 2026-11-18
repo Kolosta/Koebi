@@ -5,7 +5,9 @@
 //!   records it added and the header, and everything only once records moved or the texture
 //!   grew. Copies wait for earlier frames' draws, which are ordered before them on the queue.
 //! - **Instances** are per view: each [`ViewTarget`] keeps its own, rebuilt when its program or
-//!   view changes, and written into its buffer for the frame in flight.
+//!   view changes.
+//! - **Buffers the CPU writes** (staging, instances) are written again only once the GPU is
+//!   done with them: each is tagged with the submission that reads it.
 //! - **Steady state:** a target that shows the same program revision through the same view
 //!   is not drawn again, and nothing is recorded: the interface shows the last image.
 
@@ -14,10 +16,10 @@ use koebi_doc::eval::Program;
 use koebi_gpu::{
     AddressMode, BindGroup, BindGroupDesc, BindGroupLayout, BindGroupLayoutDesc, BindingResource,
     BindingType, BlendMode, Buffer, BufferDesc, BufferTexels, BufferUsage, ColorTargetDesc,
-    CommandEncoder, Device, Error, FRAMES_IN_FLIGHT, FilterMode, LoadOp, MemoryLocation, Pod,
-    PrimitiveTopology, RenderPipeline, RenderPipelineDesc, Result, Sampler, SamplerDesc,
-    ShaderStage, Texture, TextureDesc, TextureFormat, TextureRegion, TextureState, TextureUsage,
-    VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode,
+    CommandEncoder, Device, Error, FilterMode, LoadOp, MemoryLocation, Pod, PrimitiveTopology,
+    RenderPipeline, RenderPipelineDesc, Result, Sampler, SamplerDesc, ShaderStage, Texture,
+    TextureDesc, TextureFormat, TextureRegion, TextureState, TextureUsage, VertexAttribute,
+    VertexBufferLayout, VertexFormat, VertexStepMode,
 };
 
 use crate::cells::DATA_WIDTH;
@@ -42,23 +44,24 @@ const TEXEL: u64 = 16;
 /// The smallest buffer a stream makes.
 const MIN_STREAM: u64 = 64 * 1024;
 
-/// A host-visible buffer per frame in flight, written at a cursor. A frame slot is free again
-/// once a later submission records into it (the presenter waits for its last one), so the
-/// first write of a submission starts at the beginning; the writes of one submission follow
-/// one another.
+/// Host-visible buffers written at a cursor, each tagged with the submission whose commands
+/// read it. A buffer is written again only once the device knows that submission completed:
+/// no write lands on bytes the GPU may still read, whatever the windows, presenters and
+/// blocking submissions sharing the canvas. The writes of one submission follow one another
+/// in its buffer.
 #[derive(Debug)]
 struct Stream {
     label: &'static str,
     usage: BufferUsage,
-    slots: Vec<StreamSlot>,
+    buffers: Vec<Streamed>,
 }
 
-#[derive(Debug, Default)]
-struct StreamSlot {
-    buffer: Option<Buffer>,
-    /// Where the next write starts.
+#[derive(Debug)]
+struct Streamed {
+    buffer: Buffer,
+    /// Where the next write of its submission starts.
     cursor: u64,
-    /// The submission whose writes the slot holds.
+    /// The submission whose commands read it.
     submission: u64,
 }
 
@@ -67,61 +70,67 @@ impl Stream {
         Self {
             label,
             usage,
-            slots: (0..FRAMES_IN_FLIGHT)
-                .map(|_| StreamSlot::default())
-                .collect(),
+            buffers: Vec::new(),
         }
     }
 
-    /// Writes `parts` one after another into the buffer of `frame_index` for `submission`,
-    /// made anew when too small (or far too large), and returns it with where they start.
+    /// Writes `parts` one after another for the commands of `submission`, and returns the
+    /// buffer with where they start: after what the submission wrote before when there is
+    /// room, else in a buffer the GPU is done with, else in a new one.
     fn write<T: Pod>(
         &mut self,
         device: &Device,
         submission: u64,
-        frame_index: usize,
         parts: &[&[T]],
     ) -> Result<(&Buffer, u64)> {
-        let slot = self
-            .slots
-            .get_mut(frame_index)
-            .ok_or_else(|| Error::InvalidArgument(format!("frame index {frame_index}")))?;
         let bytes: u64 = parts.iter().map(|part| size_of_val(*part) as u64).sum();
-        if slot.submission != submission {
-            slot.submission = submission;
-            slot.cursor = 0;
-        }
-        let size = slot.buffer.as_ref().map_or(0, Buffer::size);
-        let wanted = (slot.cursor + bytes).next_power_of_two().max(MIN_STREAM);
-        // Too small, or a large upload's buffer kept for small ones.
-        if slot.cursor + bytes > size || (slot.cursor == 0 && size > 4 * wanted) {
-            // What this submission wrote before stays in the old buffer, alive until done.
-            slot.buffer = Some(
-                device.create_buffer(&BufferDesc {
+        let completed = device.completed_submission();
+        let wanted = bytes.next_power_of_two().max(MIN_STREAM);
+        let free = |streamed: &Streamed| streamed.submission <= completed;
+        // Free buffers too small for this, or far too large (kept from a large upload), go.
+        self.buffers.retain(|streamed| {
+            !free(streamed)
+                || (streamed.buffer.size() >= bytes && streamed.buffer.size() <= 16 * wanted)
+        });
+        let at = self
+            .buffers
+            .iter()
+            .position(|streamed| {
+                streamed.submission == submission
+                    && streamed.cursor + bytes <= streamed.buffer.size()
+            })
+            .or_else(|| {
+                let at = self.buffers.iter().position(free)?;
+                let streamed = &mut self.buffers[at];
+                streamed.submission = submission;
+                streamed.cursor = 0;
+                Some(at)
+            });
+        let at = if let Some(at) = at {
+            at
+        } else {
+            self.buffers.push(Streamed {
+                buffer: device.create_buffer(&BufferDesc {
                     label: self.label,
-                    size: bytes
-                        .next_power_of_two()
-                        .max(MIN_STREAM)
-                        .max(size.min(2 * wanted)),
+                    size: wanted,
                     usage: self.usage,
                     location: MemoryLocation::CpuToGpu,
                 })?,
-            );
-            slot.cursor = 0;
-        }
-        let start = slot.cursor;
-        let buffer = slot
-            .buffer
-            .as_mut()
-            .ok_or_else(|| Error::InvalidArgument(format!("{} missing", self.label)))?;
-        let mut at = start;
+                cursor: 0,
+                submission,
+            });
+            self.buffers.len() - 1
+        };
+        let streamed = &mut self.buffers[at];
+        let start = streamed.cursor;
+        let mut end = start;
         for part in parts {
-            buffer.write(at, part)?;
-            at += size_of_val(*part) as u64;
+            streamed.buffer.write(end, part)?;
+            end += size_of_val(*part) as u64;
         }
         // Texels and instances are 16-byte aligned: so are the writes that follow.
-        slot.cursor = at.next_multiple_of(TEXEL);
-        Ok((buffer, start))
+        streamed.cursor = end.next_multiple_of(TEXEL);
+        Ok((&streamed.buffer, start))
     }
 }
 
@@ -135,8 +144,6 @@ pub struct ViewTarget {
     instances: Stream,
     /// The program revision and the view it shows.
     shown: Option<(u64, View)>,
-    /// Whether it was ever drawn: interface frames in flight may still sample it.
-    drawn: bool,
 }
 
 impl ViewTarget {
@@ -158,7 +165,6 @@ impl ViewTarget {
             frame: Frame::default(),
             instances: Stream::new("canvas instances", BufferUsage::VERTEX),
             shown: None,
-            drawn: false,
         })
     }
 
@@ -297,24 +303,25 @@ impl Canvas {
     ///   target to transparent and drawing every layer over the ones below, and the target's
     ///   transition to [`TextureState::ShaderRead`], ready to show as an image.
     ///
-    /// `frame_index` must not be in use by the GPU, as the presenter guarantees. Several views
-    /// may render in one frame.
+    /// Several views may render in one encoder, and one canvas may serve every window: what it
+    /// writes for the GPU goes into buffers the GPU is done with ([`Device::completed_submission`]).
+    /// The encoder must be submitted: the canvas counts what it recorded as done, and one whose
+    /// commands were dropped (a failed submission) must be made anew with its targets, as after
+    /// a device loss.
     ///
     /// Until compositing comes, layers blended in another mode, masked or isolated draw as
     /// layers over the ones below, at their opacity.
     ///
     /// # Errors
     ///
-    /// Fails if the target's size is not the view's, if `frame_index` is not below
-    /// [`FRAMES_IN_FLIGHT`], if the view shows more outlines than the canvas holds, or if the
-    /// device cannot make its buffers.
+    /// Fails if the target's size is not the view's, if the view shows more outlines than the
+    /// canvas holds, or if the device cannot make its buffers.
     pub fn render(
         &mut self,
         encoder: &mut CommandEncoder<'_>,
         target: &mut ViewTarget,
         program: &Program,
         view: &View,
-        frame_index: usize,
     ) -> Result<bool> {
         if target.extent() != view.extent {
             return Err(Error::InvalidArgument(format!(
@@ -322,9 +329,6 @@ impl Canvas {
                 view.extent,
                 target.extent()
             )));
-        }
-        if frame_index >= FRAMES_IN_FLIGHT {
-            return Err(Error::InvalidArgument(format!("frame index {frame_index}")));
         }
         if target.shown == Some((program.revision(), *view)) {
             return Ok(false);
@@ -339,7 +343,7 @@ impl Canvas {
                 ));
             }
         }
-        self.upload(encoder, frame_index)?;
+        self.upload(encoder)?;
         let submission = encoder.submission();
         let instances = if target.frame.instances.is_empty() {
             None
@@ -347,17 +351,16 @@ impl Canvas {
             Some(target.instances.write(
                 &self.device,
                 submission,
-                frame_index,
                 &[target.frame.instances.as_slice()],
             )?)
         };
-        // Interface frames in flight may still sample what it showed: the pass waits for them.
-        let from = if target.drawn {
-            TextureState::ShaderRead
-        } else {
-            TextureState::Undefined
-        };
-        encoder.texture_barrier(&target.texture, from, TextureState::ColorAttachment);
+        // What it showed is cleared: discarded. The barrier waits for color output, so for the
+        // stages before it too: interface frames still sampling the target finish first.
+        encoder.texture_barrier(
+            &target.texture,
+            TextureState::Undefined,
+            TextureState::ColorAttachment,
+        );
         {
             let mut pass =
                 encoder.begin_render_pass(target.texture.render_target()?, LoadOp::Clear([0.0; 4]));
@@ -386,13 +389,12 @@ impl Canvas {
             TextureState::ShaderRead,
         );
         target.shown = Some((program.revision(), *view));
-        target.drawn = true;
         self.store.stats.rendered += 1;
         Ok(true)
     }
 
     /// Uploads the header and the records the GPU lacks, growing the texture first if needed.
-    fn upload(&mut self, encoder: &mut CommandEncoder<'_>, frame_index: usize) -> Result<()> {
+    fn upload(&mut self, encoder: &mut CommandEncoder<'_>) -> Result<()> {
         let length = self.store.data().len();
         let rows_needed = u32::try_from(length.div_ceil(DATA_WIDTH as usize).max(1))
             .map_err(|_| Error::InvalidArgument("too many records".into()))?;
@@ -437,7 +439,6 @@ impl Canvas {
         let (buffer, offset) = self.staging.write(
             &self.device,
             encoder.submission(),
-            frame_index,
             &[&data[..1], &data[pending.clone()]],
         )?;
         self.regions.clear();
@@ -479,5 +480,60 @@ impl Canvas {
         copied?;
         self.store.uploaded(all);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_stream_writes_again_only_what_the_gpu_is_done_with() {
+        let Some(gpu) =
+            koebi_testkit::gpu_or_skip("a_stream_writes_again_only_what_the_gpu_is_done_with")
+        else {
+            return;
+        };
+        let device = &gpu.device;
+        let mut stream = Stream::new("test stream", BufferUsage::VERTEX);
+        let texels = [[1.0_f32; 4]; 8];
+        let done = device.completed_submission();
+        let (first, second) = (done + 1, done + 2);
+        // Two writes of one submission follow one another in one buffer.
+        assert_eq!(stream.write(device, first, &[&texels[..]]).unwrap().1, 0);
+        assert_eq!(
+            stream
+                .write(device, first, &[&texels[..3], &texels[..2]])
+                .unwrap()
+                .1,
+            128
+        );
+        assert_eq!(stream.buffers[0].cursor, 208);
+        // Another submission while the first may still run: a buffer of its own.
+        assert_eq!(stream.write(device, second, &[&texels[..]]).unwrap().1, 0);
+        assert_eq!(stream.buffers.len(), 2);
+        // Once both completed, their buffers are written again from their start.
+        for _ in 0..2 {
+            device.submit_and_wait(|_| ()).unwrap();
+        }
+        assert!(device.completed_submission() >= second);
+        let third = device.completed_submission() + 1;
+        assert_eq!(stream.write(device, third, &[&texels[..]]).unwrap().1, 0);
+        assert_eq!(
+            stream.write(device, third + 1, &[&texels[..]]).unwrap().1,
+            0
+        );
+        assert_eq!(stream.buffers.len(), 2);
+        // Too large for any free buffer: a new one, the too small ones let go.
+        let large = vec![[0.5_f32; 4]; 8192];
+        device.submit_and_wait(|_| ()).unwrap();
+        device.submit_and_wait(|_| ()).unwrap();
+        let later = device.completed_submission() + 1;
+        assert_eq!(
+            stream.write(device, later, &[large.as_slice()]).unwrap().1,
+            0
+        );
+        assert_eq!(stream.buffers.len(), 1);
+        gpu.assert_no_validation_errors();
     }
 }

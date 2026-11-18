@@ -104,7 +104,7 @@ impl<'a> Session<'a> {
             .gpu
             .device
             .submit_and_wait(|encoder| {
-                let drawn = canvas.render(encoder, target, program, view, 0)?;
+                let drawn = canvas.render(encoder, target, program, view)?;
                 if drawn {
                     read_back(encoder, target, readback)?;
                 }

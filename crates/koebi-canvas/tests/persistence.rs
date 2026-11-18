@@ -82,7 +82,7 @@ fn a_steady_view_records_nothing_and_allocates_nothing() {
                 (0..100)
                     .filter(|_| {
                         canvas
-                            .render(encoder, target, &program, &still, 0)
+                            .render(encoder, target, &program, &still)
                             .expect("rendered")
                     })
                     .count()
@@ -107,7 +107,7 @@ fn a_steady_view_records_nothing_and_allocates_nothing() {
             let (count, drawn) = gpu
                 .device
                 .submit_and_wait(|encoder| {
-                    koebi_testkit::allocations(|| canvas.render(encoder, target, &program, pan, 0))
+                    koebi_testkit::allocations(|| canvas.render(encoder, target, &program, pan))
                 })
                 .expect("submitted");
             assert!(drawn.expect("rendered"));
@@ -301,7 +301,7 @@ fn two_views_drawn_in_one_frame_each_show_their_own() {
                 .zip(&readbacks)
                 .zip(programs.iter().zip(&views))
             {
-                assert!(canvas.render(encoder, target, program, view, 0)?);
+                assert!(canvas.render(encoder, target, program, view)?);
                 read_back(encoder, target, readback)?;
             }
             Ok::<_, koebi_gpu::Error>(())

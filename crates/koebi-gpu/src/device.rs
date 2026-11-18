@@ -178,6 +178,14 @@ impl Device {
         self.shared.raw.handle()
     }
 
+    /// The last submission known to have completed, with every earlier one: a buffer that
+    /// commands of submission `n` read ([`crate::CommandEncoder::submission`]) may be written
+    /// again once this reaches `n`. It advances when a presenter waits for a frame slot and
+    /// when a blocking submission returns.
+    pub fn completed_submission(&self) -> u64 {
+        self.shared.last_completed.load(Ordering::Acquire)
+    }
+
     /// Creates a buffer. See [`BufferDesc`].
     ///
     /// # Errors

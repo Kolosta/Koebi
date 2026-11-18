@@ -201,11 +201,17 @@ impl TextureState {
 pub struct CommandEncoder<'a> {
     device: &'a DeviceShared,
     raw: vk::CommandBuffer,
+    /// The submission its commands will belong to, fixed when recording starts.
+    submission: u64,
 }
 
 impl<'a> CommandEncoder<'a> {
     pub(crate) fn new(device: &'a DeviceShared, raw: vk::CommandBuffer) -> Self {
-        Self { device, raw }
+        Self {
+            device,
+            raw,
+            submission: device.pending_submission(),
+        }
     }
 
     /// The raw command buffer (escape hatch).
@@ -213,13 +219,12 @@ impl<'a> CommandEncoder<'a> {
         self.raw
     }
 
-    /// The index of the submission the recorded commands will belong to: the device's next.
-    /// It stays the same while one frame is recorded and changes with the next frame, which
-    /// tells a second use of a frame slot's buffers in the same frame (append after what the
-    /// first wrote) from a use in a later frame (the slot is free again). Deferred destruction
-    /// counts submissions the same way.
+    /// The index of the submission the recorded commands will belong to: the device's next
+    /// when recording started. Nothing else is submitted while an encoder records, as deferred
+    /// destruction assumes too. Once [`crate::Device::completed_submission`] reaches it, the
+    /// GPU is done with what these commands read: a buffer they read may be written again.
     pub fn submission(&self) -> u64 {
-        self.device.pending_submission()
+        self.submission
     }
 
     /// Transitions `texture` between usage states.
