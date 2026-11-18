@@ -21,6 +21,8 @@
 //! - **Strokes in pixels** (hairlines, `koebi_doc::StrokeUnits::Viewport`) are outlined by the
 //!   canvas at each view's zoom, per quarter octave with hysteresis, and kept: their width on
 //!   screen stays within 14% of the one asked for at any zoom.
+//! - **Picking** ([`ViewTarget::pick`]) is exact, on the CPU: the topmost object a view drew
+//!   under a point, found through an index of the bounds of what it drew.
 //! - **Paints:** solid colors, in linear light.
 //! - **The CPU reference** ([`reference`](mod@reference)) computes the shader's coverage in the
 //!   same arithmetic, for the tests.
@@ -31,6 +33,7 @@
 mod canvas;
 mod cells;
 mod frame;
+mod pick;
 pub mod reference;
 mod store;
 mod strokes;

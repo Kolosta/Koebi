@@ -51,6 +51,8 @@ use crate::value::{
 /// A filled outline in world coordinates, with its solid paint.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Draw {
+    /// The object it paints, which picking finds: an instance for what it shows of its source.
+    pub object: Option<NodeId>,
     /// The outline.
     pub outline: Arc<Contours>,
     /// Its fill rule.
@@ -66,6 +68,8 @@ pub struct Draw {
 /// the outline with the non-zero rule.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ViewStroke {
+    /// The object it paints, which picking finds: an instance for what it shows of its source.
+    pub object: Option<NodeId>,
     /// The stroked geometry, in world coordinates.
     pub geometry: Arc<Contours>,
     /// The style, its lengths in pixels.
@@ -1004,15 +1008,16 @@ impl Evaluator {
             }
         } else {
             let world = self.world(context, node);
-            let local = if is_path {
-                self.local_layer(context, node)
+            // An instance's draws are its own: picking what it shows finds it.
+            let (local, object) = if is_path {
+                (self.local_layer(context, node), None)
             } else {
                 match self.input(context, node, instance_object::SOURCE.index()) {
-                    Out::Layer(layer) => layer,
-                    _ => Arc::new(LayerValue::Empty),
+                    Out::Layer(layer) => (layer, Some(node)),
+                    _ => (Arc::new(LayerValue::Empty), None),
                 }
             };
-            Arc::new(transformed(&local, world, &mut self.placed))
+            Arc::new(transformed(&local, world, object, &mut self.placed))
         };
         if (opacity - 1.0).abs() < f64::EPSILON {
             Out::Layer(placed)
@@ -1045,6 +1050,7 @@ impl Evaluator {
                     blend,
                 } => (
                     LayerValue::Draw(Draw {
+                        object: Some(node),
                         outline: geometry.clone(),
                         rule: *rule,
                         color: *color,
@@ -1060,6 +1066,7 @@ impl Evaluator {
                     blend,
                 } => (
                     LayerValue::Draw(Draw {
+                        object: Some(node),
                         outline: self.outline(&geometry, style),
                         rule: FillRule::NonZero,
                         color: *color,
@@ -1076,6 +1083,7 @@ impl Evaluator {
                     blend,
                 } => (
                     LayerValue::ViewStroke(ViewStroke {
+                        object: Some(node),
                         geometry: geometry.clone(),
                         style: Arc::new(style.clone()),
                         color: *color,
@@ -1257,8 +1265,11 @@ struct PlacedOutlines {
 }
 
 impl PlacedOutlines {
-    /// `outline` moved by `transform`.
+    /// `outline` moved by `transform`: the very outline when the transform moves nothing.
     fn get(&mut self, outline: &Arc<Contours>, transform: Affine) -> Arc<Contours> {
+        if transform == Affine::IDENTITY {
+            return Arc::clone(outline);
+        }
         let key = Arc::as_ptr(outline) as usize;
         if let Some((kept, kept_transform, placed)) = self.outlines.entries.get(&key)
             && Arc::ptr_eq(kept, outline)
@@ -1284,26 +1295,36 @@ struct PageProgram {
     program: Arc<Program>,
 }
 
-/// `layer` with every outline moved by `transform`, through `placed`.
-fn transformed(layer: &LayerValue, transform: Affine, placed: &mut PlacedOutlines) -> LayerValue {
-    if transform == Affine::IDENTITY {
+/// `layer` with every outline moved by `transform`, through `placed`, its draws given to
+/// `object` when there is one.
+fn transformed(
+    layer: &LayerValue,
+    transform: Affine,
+    object: Option<NodeId>,
+    placed: &mut PlacedOutlines,
+) -> LayerValue {
+    if transform == Affine::IDENTITY && object.is_none() {
         return layer.clone();
     }
+    let mut again =
+        |layer: &Arc<LayerValue>| Arc::new(transformed(layer, transform, object, placed));
     match layer {
         LayerValue::Empty => LayerValue::Empty,
         LayerValue::Draw(draw) => LayerValue::Draw(Draw {
+            object: object.or(draw.object),
             outline: placed.get(&draw.outline, transform),
             ..draw.clone()
         }),
         // The geometry moves; the style's pixels stay pixels.
         LayerValue::ViewStroke(stroke) => LayerValue::ViewStroke(ViewStroke {
+            object: object.or(stroke.object),
             geometry: placed.get(&stroke.geometry, transform),
             ..stroke.clone()
         }),
         LayerValue::Merge(layers) => LayerValue::Merge(
             layers
                 .iter()
-                .map(|(layer, entry)| (Arc::new(transformed(layer, transform, placed)), *entry))
+                .map(|(layer, entry)| (again(layer), *entry))
                 .collect(),
         ),
         LayerValue::Blend {
@@ -1313,8 +1334,8 @@ fn transformed(layer: &LayerValue, transform: Affine, placed: &mut PlacedOutline
             opacity,
             isolate,
         } => LayerValue::Blend {
-            backdrop: Arc::new(transformed(backdrop, transform, placed)),
-            source: Arc::new(transformed(source, transform, placed)),
+            backdrop: again(backdrop),
+            source: again(source),
             mode: *mode,
             opacity: *opacity,
             isolate: *isolate,
@@ -1323,19 +1344,23 @@ fn transformed(layer: &LayerValue, transform: Affine, placed: &mut PlacedOutline
             content,
             coverage,
             invert,
-        } => LayerValue::Mask {
-            content: Arc::new(transformed(content, transform, placed)),
-            coverage: Arc::new(match coverage.as_ref() {
+        } => {
+            let content = again(content);
+            let coverage = Arc::new(match coverage.as_ref() {
                 CoverageValue::Outline { outline, rule } => CoverageValue::Outline {
                     outline: placed.get(outline, transform),
                     rule: *rule,
                 },
                 CoverageValue::Layer(layer) => {
-                    CoverageValue::Layer(Arc::new(transformed(layer, transform, placed)))
+                    CoverageValue::Layer(Arc::new(transformed(layer, transform, object, placed)))
                 }
-            }),
-            invert: *invert,
-        },
+            });
+            LayerValue::Mask {
+                content,
+                coverage,
+                invert: *invert,
+            }
+        }
     }
 }
 

@@ -5,8 +5,9 @@
 //! start-up of the release binary to its first frame. The report goes to
 //! `target/bench/latest.md`, and with `--save` to `docs/performance/baseline.md`, the baseline
 //! later changes are compared with on the same machine. The geometry benchmark
-//! (`crates/koebi-geom/tests/bench.rs`) adds the time stroke outlines take, and the document's
-//! (`crates/koebi-doc/tests/bench.rs`) the time evaluation takes.
+//! (`crates/koebi-geom/tests/bench.rs`) adds the time stroke outlines take, the document's
+//! (`crates/koebi-doc/tests/bench.rs`) the time evaluation takes, and the canvas's
+//! (`crates/koebi-canvas/tests/bench.rs`) the time views of a document take to draw.
 
 use std::fmt::Write as _;
 use std::fs;
@@ -52,6 +53,8 @@ pub(crate) fn run(save: bool) -> Result<()> {
     let geometry = crate_bench("koebi-geom")?;
     util::step("bench: document evaluation (release)");
     let document = crate_bench("koebi-doc")?;
+    util::step("bench: canvas views (release)");
+    let canvas = crate_bench("koebi-canvas")?;
 
     util::step("bench: start-up to the first frame (release)");
     util::run(util::cargo().args(["build", "--release", "-p", "koebi"]))?;
@@ -98,6 +101,18 @@ pub(crate) fn run(save: bool) -> Result<()> {
          that keeps its caches. See issue #261.\n"
     );
     for line in &document {
+        let _ = writeln!(report, "{line}");
+    }
+    let _ = writeln!(report, "\n## Canvas\n");
+    let _ = writeln!(
+        report,
+        "Views of `koebi-canvas` (11 runs after a warm-up), full HD, on the document above, all \
+         10 000 objects in sight; then 10 000 strokes one pixel wide. Times are the render and \
+         the GPU's work, waited for, unless a row says the CPU alone. Preparing outlines (an \
+         octave of zoom crossed, strokes in pixels at a new level) runs on the render thread \
+         for now. See issue #16.\n"
+    );
+    for line in &canvas {
         let _ = writeln!(report, "{line}");
     }
     let _ = writeln!(report, "\n## Start-up\n");

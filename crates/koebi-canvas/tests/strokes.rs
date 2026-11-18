@@ -38,6 +38,7 @@ fn program(mut steps: Vec<Step>) -> Program {
 /// `geometry` stroked `width` pixels wide in `paint`.
 fn stroke(geometry: &Arc<Contours>, width: f64, paint: LinearRgba) -> Step {
     Step::ViewStroke(ViewStroke {
+        object: None,
         geometry: Arc::clone(geometry),
         style: Arc::new(StrokeStyle {
             width,
@@ -105,6 +106,7 @@ fn a_zoom_hovering_at_a_level_edge_outlines_nothing_again() {
     let mut session = Session::new(&gpu, Extent::new(64, 48));
     let ring = Arc::new(circle(Point::new(0.3, 0.2), 10.0));
     let fill = Step::Draw(Draw {
+        object: None,
         outline: Arc::clone(&ring),
         rule: FillRule::NonZero,
         color: color(0.2, 0.4, 0.9, 0.5),
