@@ -77,8 +77,8 @@ fn baseline() {
     println!("| --- | --- | ---: | ---: | ---: | --- |");
     let mut steps = 0;
     let cold = measure(|| {
-        let programs = Evaluator::new().programs(&doc);
-        steps = programs[0].steps.len();
+        let mut evaluator = Evaluator::new();
+        steps = evaluator.programs(&doc)[0].steps().len();
     });
     row(
         "10 000 objects",

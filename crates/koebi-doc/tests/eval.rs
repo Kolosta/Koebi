@@ -2,6 +2,8 @@
 //! customized one (a shape masking an unrelated object through a transform), invalid links,
 //! visibility, and what an edit re-evaluates.
 
+use std::sync::Arc;
+
 use koebi_core::LinearRgba;
 use koebi_doc::eval::{Draw, Evaluator, Program, Step, StepCoverage};
 use koebi_doc::kinds::{
@@ -23,7 +25,7 @@ fn at(node: NodeId, index: usize) -> SocketRef {
 
 fn draws(program: &Program) -> Vec<&Draw> {
     program
-        .steps
+        .steps()
         .iter()
         .filter_map(|step| match step {
             Step::Draw(draw) => Some(draw),
@@ -32,8 +34,13 @@ fn draws(program: &Program) -> Vec<&Draw> {
         .collect()
 }
 
+/// The program of the first page of `doc`, from a new evaluator.
+fn first_program(doc: &Document) -> Arc<Program> {
+    Arc::clone(&Evaluator::new().programs(doc)[0])
+}
+
 fn root(program: &Program) -> &Step {
-    &program.steps[program.root.expect("the page draws something").0]
+    &program.steps()[program.root().expect("the page draws something").0]
 }
 
 fn page_with(doc: &mut Document, shapes: &[Shape]) -> (NodeId, Vec<NodeId>) {
@@ -63,10 +70,10 @@ fn a_stack_of_objects_becomes_a_merge_of_their_draws() {
         path_object::LOCATION.index(),
         location,
     );
-    let programs = Evaluator::new().programs(&doc);
+    let programs = Evaluator::new().programs(&doc).to_vec();
     assert_eq!(programs.len(), 1);
     let program = &programs[0];
-    assert_eq!(program.size, Vector::new(297.0, 210.0));
+    assert_eq!(program.size(), Vector::new(297.0, 210.0));
     // The square below, the disc (a fill and a stroke) above.
     let Step::Merge(layers) = root(program) else {
         panic!("a merge at the root: {program:?}");
@@ -74,7 +81,7 @@ fn a_stack_of_objects_becomes_a_merge_of_their_draws() {
     assert_eq!(layers.len(), 2);
     assert_eq!(draws(program).len(), 3);
     // The square is placed in the world, centered on its location.
-    let Step::Draw(square) = &program.steps[layers[0].step.0] else {
+    let Step::Draw(square) = &program.steps()[layers[0].step.0] else {
         panic!("the square draws its one fill");
     };
     let bounds = square.outline.bounds();
@@ -113,7 +120,7 @@ fn groups_place_their_members_and_composite_them_together() {
         group_object::ROTATION.index(),
         Value::Float(core::f64::consts::PI),
     );
-    let program = &Evaluator::new().programs(&doc)[0];
+    let program = &first_program(&doc);
     let centers: Vec<f64> = draws(program)
         .iter()
         .map(|d| d.outline.bounds().center().x)
@@ -194,8 +201,8 @@ fn a_blend_and_a_mask_through_a_transform_on_an_unrelated_object() {
         at(stack, merge::LAYERS.index()),
     )
     .unwrap();
-    let program = &Evaluator::new().programs(&doc)[0];
-    let blend_step = program.steps.iter().find_map(|step| match step {
+    let program = &first_program(&doc);
+    let blend_step = program.steps().iter().find_map(|step| match step {
         Step::Blend { mode, source, .. } => Some((*mode, *source)),
         _ => None,
     });
@@ -204,7 +211,7 @@ fn a_blend_and_a_mask_through_a_transform_on_an_unrelated_object() {
     let Step::Mask {
         coverage: StepCoverage::Outline { outline, .. },
         ..
-    } = &program.steps[source.0]
+    } = &program.steps()[source.0]
     else {
         panic!("the blend's source is the mask: {program:?}");
     };
@@ -239,7 +246,7 @@ fn invalid_links_are_ignored_and_hidden_objects_draw_nothing() {
         at(paint, fill::COLOR.index()),
     )
     .unwrap();
-    let program = &Evaluator::new().programs(&doc)[0];
+    let program = &first_program(&doc);
     assert_eq!(draws(program)[0].color, LinearRgba::new(0.0, 0.0, 0.0, 1.0));
     // Hidden by itself, then by a collection above its own.
     set(
@@ -248,7 +255,7 @@ fn invalid_links_are_ignored_and_hidden_objects_draw_nothing() {
         path_object::VISIBLE.index(),
         Value::Bool(false),
     );
-    assert_eq!(Evaluator::new().programs(&doc)[0].root, None);
+    assert_eq!(first_program(&doc).root(), None);
     set(
         &mut doc,
         objects[0],
@@ -259,9 +266,9 @@ fn invalid_links_are_ignored_and_hidden_objects_draw_nothing() {
     let inner = ops::add_collection(&mut doc, "Inner", Some(outer)).unwrap();
     ops::link_to_collection(&mut doc, inner, objects[0]).unwrap();
     let mut evaluator = Evaluator::new();
-    assert!(evaluator.programs(&doc)[0].root.is_some());
+    assert!(evaluator.programs(&doc)[0].root().is_some());
     ops::set_collection_visible(&mut doc, outer, false).unwrap();
-    assert_eq!(evaluator.programs(&doc)[0].root, None);
+    assert_eq!(evaluator.programs(&doc)[0].root(), None);
 }
 
 #[test]
@@ -292,7 +299,7 @@ fn an_edit_re_evaluates_only_what_depends_on_it() {
     evaluator.reset_stats();
     let red = Value::Color(LinearRgba::new(1.0, 0.0, 0.0, 1.0));
     set(&mut doc, first_fill, fill::COLOR.index(), red);
-    let program = evaluator.programs(&doc);
+    let program = evaluator.programs(&doc).to_vec();
     assert_eq!(evaluator.stats.of(fill::KIND.id), 1);
     assert_eq!(evaluator.stats.of(koebi_doc::kinds::rectangle::KIND.id), 0);
     assert_eq!(evaluator.stats.of(koebi_doc::kinds::ellipse::KIND.id), 0);
@@ -346,7 +353,7 @@ fn driven_values_and_parents_evaluate_through_links() {
     );
     doc.link(at(angle, 0), at(parent, path_object::ROTATION.index()))
         .unwrap();
-    let program = &Evaluator::new().programs(&doc)[0];
+    let program = &first_program(&doc);
     let centers: Vec<_> = draws(program)
         .iter()
         .map(|d| d.outline.bounds().center())
@@ -357,4 +364,112 @@ fn driven_values_and_parents_evaluate_through_links() {
             .any(|c| c.x.abs() < 1e-9 && (c.y - 10.0).abs() < 1e-9),
         "{centers:?}"
     );
+}
+
+#[test]
+fn a_page_whose_content_did_not_change_keeps_its_program() {
+    let mut doc = Document::new();
+    let (_, first) = page_with(&mut doc, &[Shape::Rectangle(Vector::new(4.0, 4.0))]);
+    let (_, second) = page_with(&mut doc, &[Shape::Ellipse(Vector::new(2.0, 2.0))]);
+    let mut evaluator = Evaluator::new();
+    let before = evaluator.programs(&doc).to_vec();
+    assert_eq!(before.len(), 2);
+    assert_ne!(before[0].revision(), before[1].revision());
+    // Nothing changed: the very same programs.
+    let again = evaluator.programs(&doc).to_vec();
+    assert!(Arc::ptr_eq(&before[0], &again[0]) && Arc::ptr_eq(&before[1], &again[1]));
+    // An edit on the second page: the first keeps its program, the second gets a new revision.
+    let moved = Value::Vector(Vector::new(30.0, 0.0));
+    set(&mut doc, second[0], path_object::LOCATION.index(), moved);
+    let after = evaluator.programs(&doc).to_vec();
+    assert!(Arc::ptr_eq(&before[0], &after[0]));
+    assert_ne!(after[1].revision(), before[1].revision());
+    assert_ne!(*after[1], *before[1]);
+    // Equality compares the content: the same page evaluated anew equals it, revision aside.
+    let fresh = Evaluator::new().programs(&doc).to_vec();
+    assert_eq!(*fresh[0], *after[0]);
+    assert_ne!(fresh[0].revision(), after[0].revision());
+    // Moving the first page's object back where it was gives a new program all the same.
+    set(
+        &mut doc,
+        first[0],
+        path_object::LOCATION.index(),
+        Value::Vector(Vector::ZERO),
+    );
+    let last = evaluator.programs(&doc).to_vec();
+    assert!(Arc::ptr_eq(&after[1], &last[1]));
+}
+
+#[test]
+fn a_recolored_object_keeps_the_outline_it_was_placed_with() {
+    let mut doc = Document::new();
+    let (_, objects) = page_with(
+        &mut doc,
+        &[
+            Shape::Rectangle(Vector::new(4.0, 4.0)),
+            Shape::Ellipse(Vector::new(2.0, 2.0)),
+        ],
+    );
+    for (object, x) in objects.iter().zip([10.0, -20.0]) {
+        let location = Value::Vector(Vector::new(x, 5.0));
+        set(&mut doc, *object, path_object::LOCATION.index(), location);
+    }
+    let fill_of = |doc: &Document, object: NodeId| {
+        let id = doc
+            .graph()
+            .links_into(at(object, path_object::PAINTS.index()))[0];
+        doc.graph().link_of(id).unwrap().from.node
+    };
+    let mut evaluator = Evaluator::new();
+    let before = Arc::clone(&evaluator.programs(&doc)[0]);
+    let red = Value::Color(LinearRgba::new(1.0, 0.0, 0.0, 1.0));
+    let paint = fill_of(&doc, objects[0]);
+    set(&mut doc, paint, fill::COLOR.index(), red);
+    let after = Arc::clone(&evaluator.programs(&doc)[0]);
+    let (old, new) = (draws(&before), draws(&after));
+    assert_eq!(new[0].color, LinearRgba::new(1.0, 0.0, 0.0, 1.0));
+    // Placed in the world by the same transform: the very same outlines, the other object's
+    // too.
+    for (old, new) in old.iter().zip(&new) {
+        assert!(Arc::ptr_eq(&old.outline, &new.outline));
+    }
+    // Moved: a new outline, in its new place.
+    let moved = Value::Vector(Vector::new(11.0, 5.0));
+    set(&mut doc, objects[0], path_object::LOCATION.index(), moved);
+    let moved = Arc::clone(&evaluator.programs(&doc)[0]);
+    let placed = &draws(&moved)[0].outline;
+    assert!(!Arc::ptr_eq(&new[0].outline, placed));
+    assert!((placed.bounds().min.x - new[0].outline.bounds().min.x - 1.0).abs() < 1e-12);
+    assert!(Arc::ptr_eq(&new[1].outline, &draws(&moved)[1].outline));
+}
+
+#[test]
+fn a_stack_reads_again_only_the_layers_that_changed() {
+    let mut doc = Document::new();
+    let shapes: Vec<Shape> = (0..50)
+        .map(|i| Shape::Rectangle(Vector::new(1.0 + f64::from(i), 2.0)))
+        .collect();
+    let (stack, objects) = page_with(&mut doc, &shapes);
+    let mut evaluator = Evaluator::new();
+    let before = Arc::clone(&evaluator.programs(&doc)[0]);
+    evaluator.reset_stats();
+    let moved = Value::Vector(Vector::new(7.0, 0.0));
+    set(&mut doc, objects[20], path_object::LOCATION.index(), moved);
+    let after = Arc::clone(&evaluator.programs(&doc)[0]);
+    // The object's layer, and the stack and page that hold it: nothing of the others.
+    assert_eq!(evaluator.stats.of(path_object::KIND.id), 1);
+    assert_eq!(evaluator.stats.of(merge::KIND.id), 1);
+    let (old, new) = (draws(&before), draws(&after));
+    assert_eq!(old.len(), 50);
+    for (at, (old, new)) in old.iter().zip(&new).enumerate() {
+        assert_eq!(Arc::ptr_eq(&old.outline, &new.outline), at != 20, "{at}");
+    }
+    // The program is the one a new evaluator makes.
+    assert_eq!(*after, *first_program(&doc));
+    // An object removed and one added: the stack's links change, all are found again.
+    doc.apply(Edit::RemoveNode(objects[3])).unwrap();
+    ops::add_shape(&mut doc, stack, Shape::Ellipse(Vector::new(3.0, 3.0))).unwrap();
+    let changed = Arc::clone(&evaluator.programs(&doc)[0]);
+    assert_eq!(draws(&changed).len(), 50);
+    assert_eq!(*changed, *first_program(&doc));
 }

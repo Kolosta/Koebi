@@ -1,8 +1,8 @@
 #version 450
-// One cell of a filled outline: a quad over the cell's own square on the target, whose pixels
-// it alone draws (the squares of a grid share their sides exactly: their corners come from the
-// CPU in f64). Keep the instance layout in sync with `CellInstance`
-// (crates/koebi-canvas/src/canvas.rs).
+// One cell of a filled outline: a quad over the part of the cell's own square on the target
+// that its outline may cover, whose pixels it alone draws (the squares of a grid share their
+// sides exactly: their corners come from the CPU in f64). Keep the instance layout in sync with
+// `CellInstance` (crates/koebi-canvas/src/frame.rs).
 
 layout(push_constant) uniform Constants {
     vec2 target_px; // target size, physical pixels
@@ -12,7 +12,8 @@ layout(push_constant) uniform Constants {
 layout(location = 0) in vec4 in_rect;   // x0, y0, x1, y1: the cell's square (px)
 layout(location = 1) in vec4 in_map;    // origin.xy (px), pixels per cell side, record
 layout(location = 2) in vec4 in_color;  // linear light, premultiplied
-layout(location = 3) in vec4 in_params; // x: even-odd, y: margin over the cell's size
+layout(location = 3) in vec4 in_params; // x: even-odd, y: margin over the cell's size,
+                                        // z: cell sides per pixel
 
 layout(location = 0) flat out vec4 v_map;
 layout(location = 1) flat out vec4 v_color;

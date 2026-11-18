@@ -7,17 +7,26 @@
 //! - **Cached by revision:** each output is kept with its node's revision and the versions of
 //!   what it read, so an edit re-evaluates only what depends on it. Stroke outlines are kept by
 //!   content (the geometry and the style, not the color), so recoloring a stroke outlines
-//!   nothing.
+//!   nothing; outlines placed in the world are kept by their outline and transform, so a
+//!   recolored object keeps the very outline it had (the canvas keeps what it prepared from it).
+//!   What reads an output is recorded once per structure of the graph, and a multi-input (a
+//!   stack of thousands of layers) reads again only the sources that changed since.
 //! - **World transforms** come from the chain each time: an object's space is its Parent input
 //!   (its parent's world, by link), else its group's world, else the identity.
 //! - **Layers** are a tree of draws, merges, blends and masks in world coordinates; a page's
 //!   program flattens it into a DAG of steps, a layer shared by two consumers (an object used as
 //!   a mask elsewhere) becoming one step.
+//! - **Programs** are shared ([`Arc`]) and named by a revision: a page whose layers, size and
+//!   background did not change keeps its program, revision included, without flattening it
+//!   again, so the canvas sees at once that it has nothing to draw again.
 //! - **Visibility:** an object hidden by itself or by a collection draws nothing.
 
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+
+use koebi_core::hash::{IdMap, IdSet};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use koebi_core::LinearRgba;
 use koebi_geom::{
@@ -182,18 +191,83 @@ pub enum Step {
 }
 
 /// What the canvas draws for one page: a DAG of steps, each after the steps it reads.
-#[derive(Clone, Debug, PartialEq)]
+///
+/// A program never changes once made. Its [revision](Program::revision) names it: no two
+/// programs made in the process share one, and an evaluator gives a page whose content did not
+/// change the same program again. Equality compares the content, not the revision.
+#[derive(Clone, Debug)]
 pub struct Program {
+    revision: u64,
+    page: NodeId,
+    size: Vector,
+    background: LinearRgba,
+    steps: Vec<Step>,
+    root: Option<StepId>,
+}
+
+/// The next program's revision: revisions are unique in the process.
+static REVISIONS: AtomicU64 = AtomicU64::new(1);
+
+impl Program {
+    /// The program of page `page` of `size` over `background`: `steps`, each after those it
+    /// reads, and the step of the whole page (`None` when it draws nothing). It takes a new
+    /// revision.
+    pub fn new(
+        page: NodeId,
+        size: Vector,
+        background: LinearRgba,
+        steps: Vec<Step>,
+        root: Option<StepId>,
+    ) -> Self {
+        Self {
+            revision: REVISIONS.fetch_add(1, Ordering::Relaxed),
+            page,
+            size,
+            background,
+            steps,
+            root,
+        }
+    }
+
+    /// What names this program: no other program made in the process shares it.
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
     /// The page node.
-    pub page: NodeId,
-    /// Its size.
-    pub size: Vector,
-    /// Its background color.
-    pub background: LinearRgba,
+    pub fn page(&self) -> NodeId {
+        self.page
+    }
+
+    /// The page's size, in document units.
+    pub fn size(&self) -> Vector {
+        self.size
+    }
+
+    /// The page's background color, linear with straight alpha.
+    pub fn background(&self) -> LinearRgba {
+        self.background
+    }
+
     /// The steps, each after those it reads.
-    pub steps: Vec<Step>,
+    pub fn steps(&self) -> &[Step] {
+        &self.steps
+    }
+
     /// The step of the whole page; `None` when it draws nothing.
-    pub root: Option<StepId>,
+    pub fn root(&self) -> Option<StepId> {
+        self.root
+    }
+}
+
+impl PartialEq for Program {
+    fn eq(&self, other: &Self) -> bool {
+        self.page == other.page
+            && self.size == other.size
+            && self.background == other.background
+            && self.steps == other.steps
+            && self.root == other.root
+    }
 }
 
 /// An evaluated output.
@@ -211,7 +285,19 @@ enum Out {
 #[derive(Clone, Debug)]
 struct Entry {
     revision: u64,
+    /// Which computation gave it: one evaluator never gives two the same.
+    version: u64,
     out: Out,
+}
+
+/// A multi-input's valid links, in order, and what each source gave when last read, with the
+/// version of its output then: a source whose output kept its version is not read again.
+#[derive(Clone, Debug, Default)]
+struct Gathered {
+    /// The graph structure the links were found in.
+    structure: u64,
+    links: Vec<(LinkId, SocketRef)>,
+    outs: Vec<(u64, Out)>,
 }
 
 /// An output: a node and the output's index.
@@ -236,21 +322,36 @@ impl Stats {
 /// Evaluates documents, keeping its caches from one evaluation to the next.
 #[derive(Clone, Debug)]
 pub struct Evaluator {
-    cache: HashMap<Key, Entry>,
+    cache: IdMap<Key, Entry>,
+    /// The version of the next output computed.
+    versions: u64,
     /// What reads each output, recorded as they are pulled: what to mark again when it changes.
-    consumers: HashMap<Key, std::collections::HashSet<Key>>,
+    consumers: IdMap<Key, IdSet<Key>>,
     /// Outputs to compute again.
-    dirty: std::collections::HashSet<Key>,
+    dirty: IdSet<Key>,
+    /// Each multi-input's sources as last read.
+    gathered: IdMap<Key, Gathered>,
     /// The graph's clock at the last evaluation: nodes of a later revision changed since.
     seen: u64,
     /// The outputs being pulled: one met again lies on a cycle, and gives nothing.
-    pulling: std::collections::HashSet<Key>,
-    outlines: HashMap<(usize, u64), (Arc<Contours>, Arc<Contours>)>,
+    pulling: IdSet<Key>,
+    /// The graph structure each output's readers were recorded for: links only change with it.
+    registered: IdMap<Key, u64>,
+    /// Stroke outlines, by geometry and style: the geometry kept, so its address names it.
+    outlines: Kept<(usize, u64), (Arc<Contours>, Arc<Contours>)>,
+    /// Outlines placed in the world, by the outline placed: it, the transform and the result.
+    placed: PlacedOutlines,
     /// The links' statuses, and the graph structure they were computed for.
     statuses: Option<(u64, std::collections::BTreeMap<LinkId, LinkStatus>)>,
-    /// The last programs, and what they were evaluated from: the graph's clock and structure,
-    /// and the collections.
-    last: Option<((u64, u64), crate::collection::Collections, Vec<Program>)>,
+    /// What the last programs were evaluated from: the graph's clock and structure, and the
+    /// collections.
+    stamp: Option<((u64, u64), crate::collection::Collections)>,
+    /// The last programs, in the document's order.
+    programs: Vec<Arc<Program>>,
+    /// Each page's last program and the layer, size and background it was made from.
+    pages: IdMap<NodeId, PageProgram>,
+    /// The steps the last page flattened: what the next one reserves.
+    steps_hint: usize,
     /// The tolerance of stroke outlines, in document units.
     pub tolerance: f64,
     /// What was evaluated since the last [`Evaluator::reset_stats`].
@@ -260,14 +361,21 @@ pub struct Evaluator {
 impl Default for Evaluator {
     fn default() -> Self {
         Self {
-            cache: HashMap::new(),
-            consumers: HashMap::new(),
-            dirty: std::collections::HashSet::new(),
+            cache: IdMap::default(),
+            versions: 1,
+            consumers: IdMap::default(),
+            dirty: IdSet::default(),
+            gathered: IdMap::default(),
             seen: 0,
-            pulling: std::collections::HashSet::new(),
-            outlines: HashMap::new(),
+            pulling: IdSet::default(),
+            registered: IdMap::default(),
+            outlines: Kept::default(),
+            placed: PlacedOutlines::default(),
             statuses: None,
-            last: None,
+            stamp: None,
+            programs: Vec::new(),
+            pages: IdMap::default(),
+            steps_hint: 0,
             tolerance: 1e-3,
             stats: Stats::default(),
         }
@@ -291,16 +399,26 @@ impl Evaluator {
         self.stats = Stats::default();
     }
 
-    /// The program of every page of `doc`, in the document's order.
-    pub fn programs(&mut self, doc: &Document) -> Vec<Program> {
+    /// The program of every page of `doc`, in the document's order. Asking again when nothing
+    /// changed costs a comparison and allocates nothing; a page whose content did not change
+    /// keeps its program.
+    pub fn programs(&mut self, doc: &Document) -> &[Arc<Program>] {
         let graph = doc.graph();
         let stamp = (graph.clock(), graph.structure());
-        if let Some((last, collections, programs)) = &self.last
-            && *last == stamp
-            && collections == doc.collections()
-        {
-            return programs.clone();
+        let unchanged = self
+            .stamp
+            .as_ref()
+            .is_some_and(|(last, collections)| *last == stamp && collections == doc.collections());
+        if !unchanged {
+            self.update(doc);
         }
+        &self.programs
+    }
+
+    /// Evaluates `doc` again after a change.
+    fn update(&mut self, doc: &Document) {
+        let graph = doc.graph();
+        let stamp = (graph.clock(), graph.structure());
         // What changed since: nodes of a later revision; links whose status changed with the
         // structure; objects, when collections did.
         let changed: Vec<NodeId> = graph
@@ -328,9 +446,9 @@ impl Evaluator {
             None => graph.statuses(),
         };
         if self
-            .last
+            .stamp
             .as_ref()
-            .is_some_and(|(_, collections, _)| collections != doc.collections())
+            .is_some_and(|(_, collections)| collections != doc.collections())
         {
             let objects: Vec<NodeId> = graph
                 .nodes()
@@ -343,13 +461,22 @@ impl Evaluator {
         }
         self.seen = graph.clock();
         let context = Context { doc, statuses };
-        let programs = self.evaluate(&context);
+        self.evaluate(&context);
         self.statuses = Some((graph.structure(), context.statuses));
-        self.last = Some((stamp, doc.collections().clone(), programs.clone()));
-        programs
+        self.stamp = Some((stamp, doc.collections().clone()));
+        // What no output holds any more: outlines of geometry gone, pages removed.
+        self.outlines
+            .forget(|(geometry, _)| Arc::strong_count(geometry) == 1);
+        self.placed
+            .outlines
+            .forget(|(outline, _, _)| Arc::strong_count(outline) == 1);
+        let programs = &self.programs;
+        self.pages
+            .retain(|page, _| programs.iter().any(|program| program.page == *page));
     }
 
-    fn evaluate(&mut self, context: &Context<'_>) -> Vec<Program> {
+    fn evaluate(&mut self, context: &Context<'_>) {
+        self.programs.clear();
         let doc = context.doc;
         let Some(output) = doc
             .graph()
@@ -357,20 +484,22 @@ impl Evaluator {
             .find(|node| node.kind().id() == document::KIND.id)
             .map(crate::Node::id)
         else {
-            return Vec::new();
+            return;
         };
         let pages: Vec<NodeId> =
             valid_links(context, SocketRef::new(output, document::PAGES.index()))
                 .filter(|(_, from)| is(context, from.node, page::KIND.id))
                 .map(|(_, from)| from.node)
                 .collect();
-        pages
-            .into_iter()
-            .map(|page_node| self.program(context, page_node))
-            .collect()
+        for page_node in pages {
+            let program = self.program(context, page_node);
+            self.programs.push(program);
+        }
     }
 
-    fn program(&mut self, context: &Context<'_>, node: NodeId) -> Program {
+    /// The program of page `node`: its last one when its layer, size and background are the
+    /// same.
+    fn program(&mut self, context: &Context<'_>, node: NodeId) -> Arc<Program> {
         let size = match self.input(context, node, page::SIZE.index()) {
             Out::Value(Value::Vector(size)) => size,
             _ => Vector::new(297.0, 210.0),
@@ -379,19 +508,39 @@ impl Evaluator {
             Out::Value(Value::Color(color)) => color,
             _ => LinearRgba::new(1.0, 1.0, 1.0, 1.0),
         };
-        let mut steps = Vec::new();
-        let mut seen = HashMap::new();
-        let root = match self.pull(context, node, page::PAGE.index()).0 {
-            Out::Layer(layer) => flatten(&layer, &mut steps, &mut seen),
+        let layer = match self.pull(context, node, page::PAGE.index()).0 {
+            Out::Layer(layer) => Some(layer),
             _ => None,
         };
-        Program {
-            page: node,
-            size,
-            background,
-            steps,
-            root,
+        if let Some(last) = self.pages.get(&node)
+            && last.size == size
+            && last.background == background
+            && match (&last.layer, &layer) {
+                (Some(old), Some(new)) => Arc::ptr_eq(old, new),
+                (None, None) => true,
+                _ => false,
+            }
+        {
+            return Arc::clone(&last.program);
         }
+        let mut steps = Vec::with_capacity(self.steps_hint);
+        let mut seen = IdMap::default();
+        seen.reserve(self.steps_hint * 2);
+        let root = layer
+            .as_ref()
+            .and_then(|layer| flatten(layer, &mut steps, &mut seen));
+        self.steps_hint = steps.len();
+        let program = Arc::new(Program::new(node, size, background, steps, root));
+        self.pages.insert(
+            node,
+            PageProgram {
+                layer,
+                size,
+                background,
+                program: Arc::clone(&program),
+            },
+        );
+        program
     }
 
     /// Marks every output of `node`, and what reads them, to compute again.
@@ -427,20 +576,27 @@ impl Evaluator {
             return (Out::None, 0);
         }
         // Who reads what: its sources, and what reaches it outside links (a group's world).
-        let reads = dependencies(context, node, output);
-        for index in reads.inputs {
-            for (_, from) in valid_links(context, SocketRef::new(node, index)).collect::<Vec<_>>() {
-                self.consumers
-                    .entry((from.node, from.index))
-                    .or_default()
-                    .insert(key);
+        // Links change only with the graph's structure: recorded once for each.
+        let structure = context.doc.graph().structure();
+        if self.registered.get(&key) != Some(&structure) {
+            let reads = dependencies(context, node, output);
+            for index in reads.inputs {
+                for (_, from) in
+                    valid_links(context, SocketRef::new(node, index)).collect::<Vec<_>>()
+                {
+                    self.consumers
+                        .entry((from.node, from.index))
+                        .or_default()
+                        .insert(key);
+                }
             }
-        }
-        if reads.world
-            && let Some(group) = transforms::group_of(context.doc.graph(), node)
-        {
-            let world = (group, group_object::WORLD.index());
-            self.consumers.entry(world).or_default().insert(key);
+            if reads.world
+                && let Some(group) = transforms::group_of(context.doc.graph(), node)
+            {
+                let world = (group, group_object::WORLD.index());
+                self.consumers.entry(world).or_default().insert(key);
+            }
+            self.registered.insert(key, structure);
         }
         let out = self.compute(context, node, output);
         self.pulling.remove(&key);
@@ -450,10 +606,13 @@ impl Evaluator {
             .entry(current.kind().id().to_owned())
             .or_default() += 1;
         self.dirty.remove(&key);
+        let version = self.versions;
+        self.versions += 1;
         self.cache.insert(
             key,
             Entry {
                 revision,
+                version,
                 out: out.clone(),
             },
         );
@@ -480,13 +639,45 @@ impl Evaluator {
         }
     }
 
-    /// The values of multi-input `index` of `node`, from its valid links in order.
+    /// The values of multi-input `index` of `node`, from its valid links in order. Only the
+    /// sources that changed since the last read are read again: a stack of thousands of layers
+    /// where one changed reads one.
     fn inputs(&mut self, context: &Context<'_>, node: NodeId, index: usize) -> Vec<(LinkId, Out)> {
-        let links: Vec<_> = valid_links(context, SocketRef::new(node, index)).collect();
-        links
-            .into_iter()
-            .map(|(id, from)| (id, self.pull(context, from.node, from.index).0))
-            .collect()
+        let structure = context.doc.graph().structure();
+        let mut gathered = match self.gathered.remove(&(node, index)) {
+            Some(gathered) if gathered.structure == structure => gathered,
+            _ => Gathered {
+                structure,
+                links: valid_links(context, SocketRef::new(node, index)).collect(),
+                outs: Vec::new(),
+            },
+        };
+        let known = gathered.outs.len() == gathered.links.len();
+        if !known {
+            gathered.outs.clear();
+        }
+        for (at, &(_, from)) in gathered.links.iter().enumerate() {
+            let key = (from.node, from.index);
+            let version = |this: &Self| this.cache.get(&key).map(|entry| entry.version);
+            if known && !self.dirty.contains(&key) && version(self) == Some(gathered.outs[at].0) {
+                continue;
+            }
+            let out = self.pull(context, from.node, from.index).0;
+            let read = (version(self).unwrap_or(0), out);
+            if known {
+                gathered.outs[at] = read;
+            } else {
+                gathered.outs.push(read);
+            }
+        }
+        let values = gathered
+            .links
+            .iter()
+            .zip(&gathered.outs)
+            .map(|(&(id, _), (_, out))| (id, out.clone()))
+            .collect();
+        self.gathered.insert((node, index), gathered);
+        values
     }
 
     fn value<T: SocketValue>(
@@ -792,7 +983,7 @@ impl Evaluator {
                     _ => Arc::new(LayerValue::Empty),
                 }
             };
-            Arc::new(transformed(&local, world))
+            Arc::new(transformed(&local, world, &mut self.placed))
         };
         if (opacity - 1.0).abs() < f64::EPSILON {
             Out::Layer(placed)
@@ -863,7 +1054,7 @@ impl Evaluator {
             Arc::as_ptr(geometry) as usize,
             style_key(style, self.tolerance),
         );
-        if let Some((kept, outline)) = self.outlines.get(&key)
+        if let Some((kept, outline)) = self.outlines.entries.get(&key)
             && Arc::ptr_eq(kept, geometry)
         {
             return outline.clone();
@@ -871,6 +1062,7 @@ impl Evaluator {
         self.stats.outlines += 1;
         let outline = Arc::new(koebi_geom::outline(geometry, style, self.tolerance));
         self.outlines
+            .entries
             .insert(key, (geometry.clone(), outline.clone()));
         outline
     }
@@ -982,22 +1174,85 @@ fn is(context: &Context<'_>, node: NodeId, id: &str) -> bool {
     transforms::is_kind(context.doc.graph(), node, id)
 }
 
-/// `layer` with every outline moved by `transform`.
-fn transformed(layer: &LayerValue, transform: Affine) -> LayerValue {
+/// A cache whose dead entries are forgotten in amortized constant time: a sweep runs once the
+/// cache has doubled since the last one left it.
+#[derive(Clone, Debug)]
+struct Kept<K, V> {
+    entries: IdMap<K, V>,
+    /// The entries the last sweep kept.
+    kept: usize,
+}
+
+impl<K, V> Default for Kept<K, V> {
+    fn default() -> Self {
+        Self {
+            entries: IdMap::default(),
+            kept: 0,
+        }
+    }
+}
+
+impl<K: Eq + Hash, V> Kept<K, V> {
+    /// Forgets the entries `dead` names, when the cache has doubled since the last sweep.
+    fn forget(&mut self, dead: impl Fn(&V) -> bool) {
+        if self.entries.len() > 2 * self.kept + 64 {
+            self.entries.retain(|_, value| !dead(value));
+            self.kept = self.entries.len();
+        }
+    }
+}
+
+/// Outlines placed in the world, by the outline placed (its address, the outline kept so that
+/// the address names it): the transform and the placed outline. An outline placed again by the
+/// same transform gives the very outline it gave.
+#[derive(Clone, Debug, Default)]
+struct PlacedOutlines {
+    outlines: Kept<usize, (Arc<Contours>, Affine, Arc<Contours>)>,
+}
+
+impl PlacedOutlines {
+    /// `outline` moved by `transform`.
+    fn get(&mut self, outline: &Arc<Contours>, transform: Affine) -> Arc<Contours> {
+        let key = Arc::as_ptr(outline) as usize;
+        if let Some((kept, kept_transform, placed)) = self.outlines.entries.get(&key)
+            && Arc::ptr_eq(kept, outline)
+            && *kept_transform == transform
+        {
+            return Arc::clone(placed);
+        }
+        let placed = Arc::new(outline.transformed(transform));
+        self.outlines
+            .entries
+            .insert(key, (Arc::clone(outline), transform, Arc::clone(&placed)));
+        placed
+    }
+}
+
+/// A page's last program and what it was made from.
+#[derive(Clone, Debug)]
+struct PageProgram {
+    /// The page's layer: the program flattens it.
+    layer: Option<Arc<LayerValue>>,
+    size: Vector,
+    background: LinearRgba,
+    program: Arc<Program>,
+}
+
+/// `layer` with every outline moved by `transform`, through `placed`.
+fn transformed(layer: &LayerValue, transform: Affine, placed: &mut PlacedOutlines) -> LayerValue {
     if transform == Affine::IDENTITY {
         return layer.clone();
     }
-    let map = |layer: &Arc<LayerValue>| Arc::new(transformed(layer, transform));
     match layer {
         LayerValue::Empty => LayerValue::Empty,
         LayerValue::Draw(draw) => LayerValue::Draw(Draw {
-            outline: Arc::new(draw.outline.transformed(transform)),
+            outline: placed.get(&draw.outline, transform),
             ..draw.clone()
         }),
         LayerValue::Merge(layers) => LayerValue::Merge(
             layers
                 .iter()
-                .map(|(layer, entry)| (map(layer), *entry))
+                .map(|(layer, entry)| (Arc::new(transformed(layer, transform, placed)), *entry))
                 .collect(),
         ),
         LayerValue::Blend {
@@ -1007,8 +1262,8 @@ fn transformed(layer: &LayerValue, transform: Affine) -> LayerValue {
             opacity,
             isolate,
         } => LayerValue::Blend {
-            backdrop: map(backdrop),
-            source: map(source),
+            backdrop: Arc::new(transformed(backdrop, transform, placed)),
+            source: Arc::new(transformed(source, transform, placed)),
             mode: *mode,
             opacity: *opacity,
             isolate: *isolate,
@@ -1018,13 +1273,15 @@ fn transformed(layer: &LayerValue, transform: Affine) -> LayerValue {
             coverage,
             invert,
         } => LayerValue::Mask {
-            content: map(content),
+            content: Arc::new(transformed(content, transform, placed)),
             coverage: Arc::new(match coverage.as_ref() {
                 CoverageValue::Outline { outline, rule } => CoverageValue::Outline {
-                    outline: Arc::new(outline.transformed(transform)),
+                    outline: placed.get(outline, transform),
                     rule: *rule,
                 },
-                CoverageValue::Layer(layer) => CoverageValue::Layer(map(layer)),
+                CoverageValue::Layer(layer) => {
+                    CoverageValue::Layer(Arc::new(transformed(layer, transform, placed)))
+                }
             }),
             invert: *invert,
         },
@@ -1036,7 +1293,7 @@ fn transformed(layer: &LayerValue, transform: Affine) -> LayerValue {
 fn flatten(
     layer: &Arc<LayerValue>,
     steps: &mut Vec<Step>,
-    seen: &mut HashMap<*const LayerValue, Option<StepId>>,
+    seen: &mut IdMap<*const LayerValue, Option<StepId>>,
 ) -> Option<StepId> {
     let key = Arc::as_ptr(layer);
     if let Some(step) = seen.get(&key) {
@@ -1045,6 +1302,16 @@ fn flatten(
     let step = match layer.as_ref() {
         LayerValue::Empty => None,
         LayerValue::Draw(draw) => Some(Step::Draw(draw.clone())),
+        // One layer at full opacity, blended normally, is that layer: no step, nothing gathered.
+        LayerValue::Merge(layers)
+            if matches!(layers.as_slice(), [(_, entry)] if entry.visible
+                && entry.blend == BlendMode::Normal
+                && (entry.opacity - 1.0).abs() < f64::EPSILON) =>
+        {
+            let single = flatten(&layers[0].0, steps, seen);
+            seen.insert(key, single);
+            return single;
+        }
         LayerValue::Merge(layers) => {
             let inputs: Vec<MergeInput> = layers
                 .iter()

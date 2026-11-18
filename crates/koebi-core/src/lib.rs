@@ -8,6 +8,7 @@
 //!   pick), linear light, perceptual OKLab/OKLCH, gamut mapping and WCAG contrast.
 //! - [`color_vision`]: simulation and correction matrices for color vision deficiencies.
 //! - [`expr`]: arithmetic expressions with units, for number fields.
+//! - [`hash`]: a fast hasher for the ids, indices and addresses the program makes itself.
 //! - [`log`]: a minimal logging facade with a pluggable sink (stderr by default, logcat on
 //!   Android).
 //!
@@ -18,6 +19,7 @@ pub mod color;
 pub mod color_model;
 pub mod color_vision;
 pub mod expr;
+pub mod hash;
 pub mod input;
 pub mod log;
 pub mod math;

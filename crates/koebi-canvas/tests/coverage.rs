@@ -2,154 +2,15 @@
 //! fill rules, thin shapes, outlines cut by the view and by cells, translucent layers over each
 //! other, within 1/255; the same edge at zooms of 10⁻⁶ and 10⁹; a golden image.
 
+mod common;
+
 use std::sync::Arc;
 
-use koebi_canvas::{Canvas, View, ViewTarget, reference};
-use koebi_core::{Extent, LinearRgba};
-use koebi_doc::eval::{Draw, MergeInput, Program, Step, StepId};
-use koebi_doc::{BlendMode, NodeId};
-use koebi_geom::{Affine, Contour, Contours, FillRule, Path, Point, Rect, Segment, Vector};
-use koebi_gpu::{BufferDesc, BufferUsage, MemoryLocation, TextureState};
-use koebi_testkit::{HeadlessGpu, Image, Tolerance, assert_golden, gpu_or_skip};
-
-/// A program drawing `layers`, bottom first, on a transparent page of `size`.
-fn program(size: Vector, layers: &[(Contours, FillRule, LinearRgba)]) -> Program {
-    let mut steps: Vec<Step> = layers
-        .iter()
-        .map(|(outline, rule, color)| {
-            Step::Draw(Draw {
-                outline: Arc::new(outline.clone()),
-                rule: *rule,
-                color: *color,
-                opacity: 1.0,
-            })
-        })
-        .collect();
-    let inputs = (0..steps.len())
-        .map(|index| MergeInput {
-            step: StepId(index),
-            blend: BlendMode::Normal,
-            opacity: 1.0,
-        })
-        .collect();
-    steps.push(Step::Merge(inputs));
-    Program {
-        page: NodeId(0),
-        size,
-        background: LinearRgba::new(0.0, 0.0, 0.0, 0.0),
-        root: Some(StepId(steps.len() - 1)),
-        steps,
-    }
-}
-
-/// The 32-bit float of the half `bits`.
-fn from_half(bits: u16) -> f32 {
-    let sign = if bits & 0x8000 == 0 { 1.0 } else { -1.0 };
-    let exponent = i32::from((bits >> 10) & 0x1f);
-    let mantissa = f32::from(bits & 0x3ff);
-    sign * match exponent {
-        0 => mantissa * (-24.0_f32).exp2(),
-        31 => f32::INFINITY,
-        _ => {
-            (1.0 + mantissa / 1024.0) * f32::from(i16::try_from(exponent).unwrap_or(0) - 15).exp2()
-        }
-    }
-}
-
-/// `program` seen by `view`, drawn on the GPU and read back: linear light, premultiplied.
-fn render(gpu: &HeadlessGpu, program: &Program, view: &View) -> Vec<[f32; 4]> {
-    let mut canvas = Canvas::new(&gpu.device).expect("a canvas");
-    let target = ViewTarget::new(&gpu.device, view.extent).expect("a target");
-    let pixels = view.extent.area();
-    let readback = gpu
-        .device
-        .create_buffer(&BufferDesc {
-            label: "canvas readback",
-            size: pixels * 8,
-            usage: BufferUsage::TRANSFER_DST,
-            location: MemoryLocation::GpuToCpu,
-        })
-        .expect("a readback buffer");
-    gpu.device
-        .submit_and_wait(|encoder| {
-            canvas.render(encoder, &target, program, view, 0)?;
-            encoder.texture_barrier(
-                target.texture(),
-                TextureState::ShaderRead,
-                TextureState::TransferSrc,
-            );
-            encoder.copy_texture_to_buffer(target.texture(), &readback)
-        })
-        .expect("submitted")
-        .expect("recorded");
-    let mut halves = vec![0_u16; usize::try_from(pixels * 4).expect("a small view")];
-    readback.read(0, &mut halves).expect("read back");
-    halves
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|texel| texel.map(from_half))
-        .collect()
-}
-
-/// Asserts that the GPU's pixels are the reference's within 1/255, half precision aside.
-#[track_caller]
-fn assert_matches(gpu: &[[f32; 4]], cpu: &[[f32; 4]], view: &View) {
-    let width = view.extent.width as usize;
-    let mut worst = (0.0_f32, 0, 0);
-    for (index, (a, b)) in gpu.iter().zip(cpu).enumerate() {
-        for channel in 0..4 {
-            let delta = (a[channel] - b[channel]).abs();
-            if delta > worst.0 {
-                worst = (delta, index % width, index / width);
-            }
-        }
-    }
-    // A half holds 11 bits: 1/2048 of 1 at most beside the reference's 1/255.
-    assert!(
-        worst.0 <= 1.0 / 255.0 + 1.0 / 2048.0,
-        "pixel ({}, {}) off by {} (×255: {:.2})",
-        worst.1,
-        worst.2,
-        worst.0,
-        worst.0 * 255.0
-    );
-}
-
-fn circle(center: Point, radius: f64) -> Contours {
-    Path::ellipse(center, Vector::new(radius, radius)).contours()
-}
-
-/// A closed polyline through `points`.
-fn polyline(points: &[Point]) -> Contours {
-    let segments = points
-        .iter()
-        .zip(points.iter().cycle().skip(1))
-        .map(|(&a, &b)| Segment::line(a, b))
-        .collect();
-    let mut contours = Contours::default();
-    contours.push(Contour::new(segments, true));
-    contours
-}
-
-/// A five-pointed star drawn in one stroke: its middle winds twice.
-fn star(center: Point, radius: f64) -> Contours {
-    let points: Vec<Point> = (0..5)
-        .map(|k| {
-            let angle =
-                f64::from(k) * 4.0 * core::f64::consts::PI / 5.0 - core::f64::consts::FRAC_PI_2;
-            Point::new(
-                center.x + radius * angle.cos(),
-                center.y + radius * angle.sin(),
-            )
-        })
-        .collect();
-    polyline(&points)
-}
-
-fn color(r: f32, g: f32, b: f32, a: f32) -> LinearRgba {
-    LinearRgba::new(r, g, b, a)
-}
+use common::{assert_matches, circle, color, polyline, program, program_of, render, star};
+use koebi_canvas::{View, reference};
+use koebi_core::Extent;
+use koebi_geom::{Affine, Contours, FillRule, Path, Point, Rect, Vector};
+use koebi_testkit::{Image, Tolerance, assert_golden, gpu_or_skip};
 
 #[test]
 fn curves_both_fill_rules_and_thin_shapes_match_the_reference() {
@@ -297,29 +158,31 @@ fn a_page_with_overlapping_shapes_matches_golden() {
     let Some(gpu) = gpu_or_skip("a_page_with_overlapping_shapes_matches_golden") else {
         return;
     };
-    let mut page = program(
+    let page = program_of(
         Vector::new(200.0, 140.0),
+        color(1.0, 1.0, 1.0, 1.0),
         &[
             (
-                circle(Point::new(70.0, 70.0), 50.0),
+                Arc::new(circle(Point::new(70.0, 70.0), 50.0)),
                 FillRule::NonZero,
                 color(0.9, 0.3, 0.1, 1.0),
             ),
             (
-                star(Point::new(125.0, 70.0), 60.0),
+                Arc::new(star(Point::new(125.0, 70.0), 60.0)),
                 FillRule::EvenOdd,
                 color(0.1, 0.4, 0.9, 0.6),
             ),
             (
-                Path::rectangle(Rect::new(Point::new(20.0, 100.0), Point::new(180.0, 112.0)))
-                    .contours()
-                    .transformed(Affine::rotate(-0.12)),
+                Arc::new(
+                    Path::rectangle(Rect::new(Point::new(20.0, 100.0), Point::new(180.0, 112.0)))
+                        .contours()
+                        .transformed(Affine::rotate(-0.12)),
+                ),
                 FillRule::NonZero,
                 color(0.2, 0.8, 0.3, 0.8),
             ),
         ],
     );
-    page.background = color(1.0, 1.0, 1.0, 1.0);
     let view = View {
         center: Point::new(100.0, 70.0),
         zoom: 1.0,

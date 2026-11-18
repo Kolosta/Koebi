@@ -5,8 +5,11 @@
 //! - `r`: `rows, columns, curves, 0`: its bands across and down, and the most curves a band
 //!   holds;
 //! - `r + 1 ..`: its horizontal bands, then its vertical bands, each `first, count, 0, 0`: where
-//!   the band's curves start in the texture and how many there are;
+//!   the band's curves start, counted from `r`, and how many there are;
 //! - the bands' curves, two texels each: `a.x, a.y, b.x, b.y` then `c.x, c.y, weight, 0`.
+//!
+//! A record names no texel outside itself: it reads the same wherever it lies, so the store
+//! moves records without rewriting them ([`crate::store`]).
 //!
 //! Coordinates are the cell's own: relative to its origin, over its size, so that the cell
 //! spans 0 to 1 whatever the zoom and every number the shader handles stays near 1. Sizes are
@@ -37,8 +40,7 @@ struct Stored {
     weight: f32,
 }
 
-/// Appends the record of `cell` to `data`, whose texel 0 is the header, and returns where it
-/// starts. `size` and `margin` are the cell's, in document units: its coordinates are divided by
+/// Appends the record of `cell` to `data`, and returns where it starts. `size` and `margin` are the cell's, in document units: its coordinates are divided by
 /// `size` ([`MARGIN`] is then the margin).
 pub(crate) fn encode(cell: &FillCell, size: f64, margin: f64, data: &mut Vec<[f32; 4]>) -> usize {
     debug_assert!((margin / size - f64::from(MARGIN)).abs() < 1e-12);
@@ -120,9 +122,9 @@ pub(crate) fn encode(cell: &FillCell, size: f64, margin: f64, data: &mut Vec<[f3
                 }
             }
             most = most.max(held);
-            #[allow(clippy::cast_precision_loss, reason = "texel indices below 2^24")]
+            #[allow(clippy::cast_precision_loss, reason = "texel counts below 2^24")]
             {
-                data[slot] = [first as f32, held as f32, 0.0, 0.0];
+                data[slot] = [(first - record) as f32, held as f32, 0.0, 0.0];
             }
             slot += 1;
         }
@@ -160,7 +162,8 @@ mod tests {
                 winding: -1,
             }],
         };
-        let mut data = vec![[0.0; 4]];
+        // After another record's texels: the record names its curves from its own start.
+        let mut data = vec![[9.0; 4]];
         let record = encode(&cell, 4.0, 4.0 / 1024.0, &mut data);
         assert_eq!(record, 1);
         // Two curves each way: one band each.
@@ -175,7 +178,7 @@ mod tests {
             reason = "an index"
         )]
         let curve = |band: [f32; 4], k: usize| {
-            let first = band[0] as usize + 2 * k;
+            let first = record + band[0] as usize + 2 * k;
             (data[first], data[first + 1])
         };
         // The curve, over the cell's size.

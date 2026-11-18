@@ -39,12 +39,13 @@ vec4 fetch(int index) {
     return texelFetch(cells, ivec2(index & ((1 << WIDTH_SHIFT) - 1), index >> WIDTH_SHIFT), 0);
 }
 
-// The winding of the ray going right (`along` 0) or down (1) through the band at `table`,
-// with how near it passes to a curve.
-vec2 ray(int table, int along, vec2 p, int most, float scale, bool even_odd) {
+// The winding of the ray going right (`along` 0) or down (1) through the band at `table` of
+// the record at `record`, with how near it passes to a curve.
+vec2 ray(int record, int table, int along, vec2 p, int most, float scale, bool even_odd) {
     int other = 1 - along;
     vec4 entry = fetch(table);
-    int first = int(entry.x);
+    // Counted from the record's start: records move without being rewritten.
+    int first = record + int(entry.x);
     int count = min(int(entry.y), most);
     float winding = 0.0;
     float weight = 0.0;
@@ -81,13 +82,16 @@ void main() {
     float scale = v_map.z;
     float margin = v_params.y;
     bool even_odd = v_params.x > 0.5;
-    // The pixel's center in the cell's coordinates, from its exact position.
-    precise vec2 p = (gl_FragCoord.xy - v_map.xy) / scale;
+    // The pixel's center in the cell's coordinates, from its exact position. A product by the
+    // inverse the CPU computed, not a quotient: GPUs round products exactly, as the reference
+    // does, but may round a quotient 2.5 units off, which moves a point on a curve's extreme
+    // off it.
+    precise vec2 p = (gl_FragCoord.xy - v_map.xy) * v_params.z;
     float extent = 1.0 + 2.0 * margin;
     int row = clamp(int(floor((p.y + margin) / extent * float(rows))), 0, rows - 1);
     int column = clamp(int(floor((p.x + margin) / extent * float(columns))), 0, columns - 1);
-    vec2 across = ray(record + 1 + row, 0, p, most, scale, even_odd);
-    vec2 down = ray(record + 1 + rows + column, 1, p, most, scale, even_odd);
+    vec2 across = ray(record, record + 1 + row, 0, p, most, scale, even_odd);
+    vec2 down = ray(record, record + 1 + rows + column, 1, p, most, scale, even_odd);
     float weights = across.y + down.y;
     float mixed = weights > 1e-5 ? (across.x * across.y + down.x * down.y) / weights : 0.0;
     float cover = clamp(max(mixed, min(across.x, down.x)), 0.0, 1.0);

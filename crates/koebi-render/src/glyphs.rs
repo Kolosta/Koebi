@@ -339,10 +339,12 @@ impl GlyphStore {
         buffer.write(TEXEL * HEADER as u64, &self.pending)?;
         self.regions.clear();
         self.regions.push((TextureRegion::new(0, 0, 1, 1), 0));
-        regions_of(
+        TextureRegion::spans(
             self.uploaded,
             self.length,
+            DATA_WIDTH,
             TEXEL * HEADER as u64,
+            TEXEL,
             &mut self.regions,
         );
 
@@ -444,38 +446,6 @@ fn staging_buffer<'a>(
         .ok_or_else(|| Error::InvalidArgument("glyph staging buffer missing".into()))
 }
 
-/// The copies of texels `start..end` of the store, which lie one after the other in the staging
-/// buffer from `offset`: the end of a first row, whole rows, the start of a last row.
-fn regions_of(start: usize, end: usize, mut offset: u64, out: &mut Vec<(TextureRegion, u64)>) {
-    let width = DATA_WIDTH as usize;
-    let mut push = |at: usize, len: usize, rows: usize| {
-        #[allow(clippy::cast_possible_truncation, reason = "texels below 2^22")]
-        let (x, y, len32) = ((at % width) as u32, (at / width) as u32, len as u32);
-        let region = if rows == 0 {
-            TextureRegion::new(x, y, len32, 1)
-        } else {
-            #[allow(clippy::cast_possible_truncation, reason = "rows below 2^10")]
-            TextureRegion::new(0, y, DATA_WIDTH, rows as u32)
-        };
-        out.push((region, offset));
-        offset += TEXEL * len as u64;
-    };
-    let mut at = start;
-    if !at.is_multiple_of(width) && at < end {
-        let stop = end.min(at.next_multiple_of(width));
-        push(at, stop - at, 0);
-        at = stop;
-    }
-    let whole = end.saturating_sub(at) / width;
-    if whole > 0 {
-        push(at, whole * width, whole);
-        at += whole * width;
-    }
-    if at < end {
-        push(at, end - at, 0);
-    }
-}
-
 impl std::fmt::Debug for GlyphStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GlyphStore")
@@ -489,35 +459,6 @@ impl std::fmt::Debug for GlyphStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn regions(start: usize, end: usize) -> Vec<(u32, u32, u32, u32, u64)> {
-        let mut out = Vec::new();
-        regions_of(start, end, 16, &mut out);
-        out.into_iter()
-            .map(|(r, offset)| (r.x, r.y, r.width, r.height, offset))
-            .collect()
-    }
-
-    #[test]
-    fn uploads_copy_the_new_texels_only_in_three_rectangles_at_most() {
-        let w = DATA_WIDTH;
-        let width = DATA_WIDTH as usize;
-        // Inside one row.
-        assert_eq!(regions(10, 30), [(10, 0, 20, 1, 16)]);
-        // The end of a row, whole rows, the start of another; offsets follow one another.
-        let texels = |n: u32| 16 + 16 * u64::from(n);
-        assert_eq!(
-            regions(width - 6, 3 * width + 5),
-            [
-                (w - 6, 0, 6, 1, 16),
-                (0, 1, w, 2, texels(6)),
-                (0, 3, 5, 1, texels(6 + 2 * w)),
-            ]
-        );
-        // Whole rows only, and nothing at all.
-        assert_eq!(regions(width, 3 * width), [(0, 1, w, 2, 16)]);
-        assert_eq!(regions(40, 40), []);
-    }
 
     fn line(a: Vec2, c: Vec2) -> Curve {
         [a, (a + c) * 0.5, c]

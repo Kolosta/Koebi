@@ -17,6 +17,8 @@ pub struct CellView {
     pub origin: [f32; 2],
     /// Physical pixels per side of the cell: the zoom times the cell's size.
     pub scale: f32,
+    /// Its inverse, computed in f64: sides of the cell per pixel.
+    pub inverse: f32,
     /// Its margin, over its size.
     pub margin: f32,
     /// Where its record starts in the data.
@@ -97,10 +99,10 @@ pub fn coverage(data: &[[f32; 4]], cell: CellView, pixel: [f32; 2], rule: FillRu
     let rows = (head[0] as i64).clamp(1, MAX_BANDS);
     let columns = (head[1] as i64).clamp(1, MAX_BANDS);
     let most = (head[2] as i64).clamp(0, MAX_BAND_CURVES);
-    // The pixel's center in the cell's own coordinates.
+    // The pixel's center in the cell's own coordinates, by a product as the shader's.
     let p = [
-        (pixel[0] - cell.origin[0]) / cell.scale,
-        (pixel[1] - cell.origin[1]) / cell.scale,
+        (pixel[0] - cell.origin[0]) * cell.inverse,
+        (pixel[1] - cell.origin[1]) * cell.inverse,
     ];
     let extent = 1.0 + 2.0 * cell.margin;
     let band = |coordinate: f32, count: i64| {
@@ -110,7 +112,8 @@ pub fn coverage(data: &[[f32; 4]], cell: CellView, pixel: [f32; 2], rule: FillRu
     let ray = |table: i64, along: usize| {
         let other = 1 - along;
         let entry = fetch(data, table);
-        let first = entry[0] as i64;
+        // Counted from the record's start.
+        let first = record + entry[0] as i64;
         let count = (entry[1] as i64).min(most);
         let (mut winding, mut weight) = (0.0_f32, 0.0_f32);
         for k in 0..count {
@@ -145,13 +148,18 @@ pub fn coverage(data: &[[f32; 4]], cell: CellView, pixel: [f32; 2], rule: FillRu
     mixed.max(across.min(down)).clamp(0.0, 1.0)
 }
 
-/// What [`crate::Canvas::render`] draws for `program` seen by `view`, computed on the CPU: the
-/// view's pixels, row by row from the top left, in linear light, premultiplied. Every pixel
-/// takes, layer after layer, the cells whose square holds its center (as the GPU rasterizes
-/// them), each covering it by [`coverage`] and drawn over what lies below.
+/// What [`crate::Canvas::render`] draws for `program` seen by `view`, computed on the CPU from
+/// cells prepared anew: the view's pixels, row by row from the top left, in linear light,
+/// premultiplied. Every pixel takes, layer after layer, the instances whose rectangle holds its
+/// center (as the GPU rasterizes them), each covering it by [`coverage`] and drawn over what
+/// lies below. A view showing more than a canvas holds draws what fits.
 pub fn render(program: &koebi_doc::eval::Program, view: &crate::View) -> Vec<[f32; 4]> {
+    let mut store = crate::store::CellStore::default();
+    store.begin();
     let mut frame = crate::frame::Frame::default();
-    frame.build(program, view);
+    // What fits is drawn: the canvas fails instead, which tests see.
+    let _ = frame.build(program, view, &mut store);
+    let data = store.data();
     let (width, height) = (view.extent.width, view.extent.height);
     let mut pixels = vec![[0.0_f32; 4]; (width as usize) * (height as usize)];
     for (index, pixel) in pixels.iter_mut().enumerate() {
@@ -177,10 +185,11 @@ pub fn render(program: &koebi_doc::eval::Program, view: &crate::View) -> Vec<[f3
             let cell = CellView {
                 origin: [ox, oy],
                 scale,
+                inverse: instance.params[2],
                 margin: instance.params[1],
                 record: (record + 0.5) as usize,
             };
-            let cover = coverage(&frame.data, cell, center, rule);
+            let cover = coverage(data, cell, center, rule);
             let source = instance.color.map(|channel| channel * cover);
             let keep = 1.0 - source[3];
             for (destination, value) in pixel.iter_mut().zip(source) {
