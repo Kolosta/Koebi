@@ -85,6 +85,33 @@ impl Rect {
             && other.min.y <= self.max.y
     }
 
+    /// Whether `other` lies inside these bounds, its edges on theirs included. Empty bounds
+    /// lie inside any; none lies inside empty bounds but empty ones.
+    pub fn contains_rect(self, other: Self) -> bool {
+        other.is_empty()
+            || (self.min.x <= other.min.x
+                && self.min.y <= other.min.y
+                && other.max.x <= self.max.x
+                && other.max.y <= self.max.y)
+    }
+
+    /// What both bounds share: empty when they share nothing.
+    #[must_use]
+    pub fn intersection(self, other: Self) -> Self {
+        if self.is_empty() || other.is_empty() {
+            return Self::EMPTY;
+        }
+        let shared = Self::new(
+            Point::new(self.min.x.max(other.min.x), self.min.y.max(other.min.y)),
+            Point::new(self.max.x.min(other.max.x), self.max.y.min(other.max.y)),
+        );
+        if shared.is_empty() {
+            Self::EMPTY
+        } else {
+            shared
+        }
+    }
+
     /// These bounds grown by `margin` on every side.
     #[must_use]
     pub fn inflated(self, margin: f64) -> Self {
@@ -132,5 +159,26 @@ mod tests {
         assert!((r.width() - 3.0).abs() < 1e-15 && (r.height() - 2.0).abs() < 1e-15);
         let turned = r.transformed(Affine::rotate(core::f64::consts::FRAC_PI_2));
         assert!((turned.width() - 2.0).abs() < 1e-12 && (turned.height() - 3.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn bounds_hold_and_share_bounds() {
+        let rect = |x0, y0, x1, y1| Rect::new(Point::new(x0, y0), Point::new(x1, y1));
+        let outer = rect(0.0, 0.0, 10.0, 5.0);
+        assert!(outer.contains_rect(rect(1.0, 1.0, 10.0, 5.0)));
+        assert!(!outer.contains_rect(rect(1.0, 1.0, 10.5, 5.0)));
+        assert!(outer.contains_rect(Rect::EMPTY));
+        assert!(!Rect::EMPTY.contains_rect(outer));
+        assert_eq!(
+            outer.intersection(rect(8.0, -2.0, 12.0, 3.0)),
+            rect(8.0, 0.0, 10.0, 3.0)
+        );
+        // Touching edges share a line; apart, nothing.
+        assert_eq!(
+            outer.intersection(rect(10.0, 0.0, 12.0, 5.0)),
+            rect(10.0, 0.0, 10.0, 5.0)
+        );
+        assert!(outer.intersection(rect(11.0, 0.0, 12.0, 5.0)).is_empty());
+        assert!(outer.intersection(Rect::EMPTY).is_empty());
     }
 }

@@ -390,10 +390,15 @@ impl DeviceShared {
         self.last_completed.fetch_max(index, Ordering::AcqRel);
     }
 
+    /// The index work recorded now will be submitted with: the next submission's.
+    pub(crate) fn pending_submission(&self) -> u64 {
+        self.last_submitted.load(Ordering::Acquire) + 1
+    }
+
     /// Queues an object for destruction once the GPU can no longer use it.
     pub(crate) fn defer_destroy(&self, garbage: Garbage) {
         // Work recorded right now will be submitted with index `last_submitted + 1`.
-        let safe_after = self.last_submitted.load(Ordering::Acquire) + 1;
+        let safe_after = self.pending_submission();
         lock(&self.garbage).push(safe_after, garbage);
     }
 

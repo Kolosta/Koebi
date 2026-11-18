@@ -1,27 +1,29 @@
 //! [`Frame`]: what one view of a program draws, built on the CPU for the GPU and for the
-//! reference alike: the layers of the program, the records of their cells and an instance per
-//! cell.
+//! reference alike: the layers of the program, kept while its revision is the same, and one
+//! instance per cell the view shows, its records in the [`CellStore`].
 
 use std::sync::Arc;
 
 use koebi_doc::eval::{Draw, Program, Step, StepId};
-use koebi_geom::{Contours, FillRule, Path, Point, Rect, Vector, fill_cells};
+use koebi_geom::{Contours, FillRule, Path, Point, Rect, Vector};
 use koebi_gpu::Pod;
 
-use crate::cells::encode;
+use crate::store::{CellStore, Full};
 use crate::view::View;
 
 /// GPU layout of one cell's instance. Must match the inputs of `shaders/canvas.vert`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub(crate) struct CellInstance {
-    /// The cell's square on the target: `x0, y0, x1, y1`, physical pixels.
+    /// The part of the cell's square the outline may cover, on the target: `x0, y0, x1, y1`,
+    /// physical pixels.
     pub(crate) rect: [f32; 4],
-    /// Its origin on the target, the pixels per side of the cell, and its record.
+    /// The cell's origin on the target, the pixels per side of the cell, and its record.
     pub(crate) map: [f32; 4],
     /// Its paint, linear light, premultiplied.
     pub(crate) color: [f32; 4],
-    /// 1 for the even-odd rule, the margin over the cell's size, unused.
+    /// 1 for the even-odd rule, the margin over the cell's size, the cell's sides per pixel
+    /// (the inverse of `map[2]`, from f64), unused.
     pub(crate) params: [f32; 4],
 }
 
@@ -30,62 +32,55 @@ pub(crate) struct CellInstance {
 unsafe impl Pod for CellInstance {}
 const _: () = assert!(size_of::<CellInstance>() == 64);
 
-/// The layers, records and instances of one view of a program. Kept from frame to frame: its
-/// storage stays.
+/// The layers and instances of one view of a program. Kept from render to render: its storage
+/// stays, and its layers while the program's revision does.
 #[derive(Debug, Default)]
 pub(crate) struct Frame {
-    /// The records of the cells, texel 0 their header ([`crate::cells`]).
-    pub(crate) data: Vec<[f32; 4]>,
-    /// One instance per cell, in drawing order.
-    pub(crate) instances: Vec<CellInstance>,
+    /// The revision of the program the layers come from.
+    revision: Option<u64>,
     /// The layers, bottom first: outline, rule, premultiplied linear color.
     layers: Vec<Layer>,
     /// The outline of the page's background, and the size it was made for.
     page: Option<(Vector, Arc<Contours>)>,
+    /// One instance per cell shown, in drawing order.
+    pub(crate) instances: Vec<CellInstance>,
 }
 
 impl Frame {
-    /// Gathers the program's layers and builds the records and instances of their cells.
-    pub(crate) fn build(&mut self, program: &Program, view: &View) {
-        self.data.clear();
-        // The header, filled once the records are known.
-        self.data.push([0.0; 4]);
+    /// The instances of `program` seen by `view`, their cells taken from `store` or prepared
+    /// into it. Each instance covers the part of its cell's square that lies within the view
+    /// and within a pixel of its outline's bounds: past those, the outline covers nothing.
+    ///
+    /// Fails when the store has no room for the cells; the instances are then incomplete.
+    pub(crate) fn build(
+        &mut self,
+        program: &Program,
+        view: &View,
+        store: &mut CellStore,
+    ) -> Result<(), Full> {
+        if self.revision != Some(program.revision()) {
+            self.gather(program);
+            self.revision = Some(program.revision());
+        }
         self.instances.clear();
-        self.layers.clear();
         if !view.is_valid() {
-            return;
-        }
-        // The page's background, under everything.
-        let background = program.background;
-        if background.a > 0.0 {
-            let page = match &self.page {
-                Some((size, page)) if *size == program.size => Arc::clone(page),
-                _ => {
-                    let page = Arc::new(
-                        Path::rectangle(Rect::new(
-                            Point::new(0.0, 0.0),
-                            Point::new(program.size.x, program.size.y),
-                        ))
-                        .contours(),
-                    );
-                    self.page = Some((program.size, Arc::clone(&page)));
-                    page
-                }
-            };
-            self.layers
-                .push((page, FillRule::NonZero, premultiplied(background, 1.0)));
-        }
-        if let Some(root) = program.root {
-            gather(program, root, 1.0, &mut self.layers, 0);
+            return Ok(());
         }
         let octave = view.octave();
-        let (size, margin) = (octave.cell_size(), octave.margin());
+        let size = octave.cell_size();
         let area = view.area();
+        let pixel = 1.0 / view.zoom;
         for (outline, rule, color) in &self.layers {
-            for cell in fill_cells(outline, octave, area) {
-                let record = encode(&cell, size, margin, &mut self.data);
-                let low = view.to_target(cell.origin);
-                let high = view.to_target(cell.origin + Vector::new(size, size));
+            let (bounds, cells) = store.cells(outline, octave, area)?;
+            let reach = bounds.inflated(pixel).intersection(area);
+            for cell in cells {
+                let square = Rect::new(cell.origin, cell.origin + Vector::new(size, size));
+                let shown = square.intersection(reach);
+                if shown.width() <= 0.0 || shown.height() <= 0.0 {
+                    continue;
+                }
+                let (low, high) = (view.to_target(shown.min), view.to_target(shown.max));
+                let origin = view.to_target(cell.origin);
                 #[allow(
                     clippy::cast_possible_truncation,
                     clippy::cast_precision_loss,
@@ -94,29 +89,49 @@ impl Frame {
                 self.instances.push(CellInstance {
                     rect: [low[0] as f32, low[1] as f32, high[0] as f32, high[1] as f32],
                     map: [
-                        low[0] as f32,
-                        low[1] as f32,
+                        origin[0] as f32,
+                        origin[1] as f32,
                         (view.zoom * size) as f32,
-                        record as f32,
+                        cell.record as f32,
                     ],
                     color: *color,
                     params: [
                         f32::from(u8::from(*rule == FillRule::EvenOdd)),
                         crate::cells::MARGIN,
-                        0.0,
+                        (1.0 / (view.zoom * size)) as f32,
                         0.0,
                     ],
                 });
             }
         }
-        #[allow(clippy::cast_precision_loss, reason = "counts below 2^24")]
-        {
-            self.data[0] = [
-                self.instances.len() as f32,
-                self.data.len() as f32,
-                0.0,
-                0.0,
-            ];
+        Ok(())
+    }
+
+    /// Gathers the layers of `program`: its page's background, then its root's layers.
+    fn gather(&mut self, program: &Program) {
+        self.layers.clear();
+        let background = program.background();
+        if background.a > 0.0 {
+            let size = program.size();
+            let page = match &self.page {
+                Some((made_for, page)) if *made_for == size => Arc::clone(page),
+                _ => {
+                    let page = Arc::new(
+                        Path::rectangle(Rect::new(
+                            Point::new(0.0, 0.0),
+                            Point::new(size.x, size.y),
+                        ))
+                        .contours(),
+                    );
+                    self.page = Some((size, Arc::clone(&page)));
+                    page
+                }
+            };
+            self.layers
+                .push((page, FillRule::NonZero, premultiplied(background, 1.0)));
+        }
+        if let Some(root) = program.root() {
+            gather(program, root, 1.0, &mut self.layers, 0);
         }
     }
 }
@@ -139,7 +154,7 @@ const MAX_DEPTH: usize = 256;
 
 /// Appends the layers of the step `id` of `program`, bottom first, at `opacity`.
 fn gather(program: &Program, id: StepId, opacity: f64, layers: &mut Vec<Layer>, depth: usize) {
-    let Some(step) = program.steps.get(id.0) else {
+    let Some(step) = program.steps().get(id.0) else {
         return;
     };
     if depth > MAX_DEPTH || opacity <= 0.0 {
@@ -223,13 +238,13 @@ mod tests {
                 opacity: 1.0,
             }]),
         ];
-        let program = Program {
-            page: koebi_doc::NodeId(0),
-            size: Vector::new(10.0, 10.0),
-            background: LinearRgba::new(0.0, 0.0, 0.0, 0.0),
+        let program = Program::new(
+            koebi_doc::NodeId(0),
+            Vector::new(10.0, 10.0),
+            LinearRgba::new(0.0, 0.0, 0.0, 0.0),
             steps,
-            root: Some(StepId(2)),
-        };
+            Some(StepId(2)),
+        );
         let mut layers = Vec::new();
         gather(&program, StepId(2), 1.0, &mut layers, 0);
         let alphas: Vec<f32> = layers.iter().map(|layer| layer.2[3]).collect();

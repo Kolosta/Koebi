@@ -13,5 +13,8 @@ publish.workspace = true
 koebi-core.workspace = true
 koebi-geom.workspace = true
 
+[dev-dependencies]
+koebi-testkit.workspace = true
+
 [lints]
 workspace = true

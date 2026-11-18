@@ -89,6 +89,57 @@ impl TextureRegion {
         right.is_some_and(|right| right <= extent.width)
             && bottom.is_some_and(|bottom| bottom <= extent.height)
     }
+
+    /// The copies of texels `start..end` of a texture `width` texels wide whose texels follow
+    /// one another row by row, as a store of records does: the end of a first row, whole rows,
+    /// the start of a last row, three regions at most. Appended to `out`, each with where its
+    /// texels start in a buffer that holds them one after the other from `offset`, each
+    /// `texel_bytes` long.
+    pub fn spans(
+        start: usize,
+        end: usize,
+        width: u32,
+        mut offset: u64,
+        texel_bytes: u64,
+        out: &mut Vec<(Self, u64)>,
+    ) {
+        let row = width as usize;
+        let mut push = |at: usize, len: usize, rows: usize| {
+            #[allow(
+                clippy::cast_possible_truncation,
+                reason = "texel coordinates of a texture, below 2^32"
+            )]
+            let (x, y) = ((at % row) as u32, (at / row) as u32);
+            #[allow(
+                clippy::cast_possible_truncation,
+                reason = "a length within one row, or a count of rows, below 2^32"
+            )]
+            let region = if rows == 0 {
+                Self::new(x, y, len as u32, 1)
+            } else {
+                Self::new(0, y, width, rows as u32)
+            };
+            out.push((region, offset));
+            offset += texel_bytes * len as u64;
+        };
+        if row == 0 {
+            return;
+        }
+        let mut at = start;
+        if !at.is_multiple_of(row) && at < end {
+            let stop = end.min(at.next_multiple_of(row));
+            push(at, stop - at, 0);
+            at = stop;
+        }
+        let whole = end.saturating_sub(at) / row;
+        if whole > 0 {
+            push(at, whole * row, whole);
+            at += whole * row;
+        }
+        if at < end {
+            push(at, end - at, 0);
+        }
+    }
 }
 
 /// Where the texel rows of a copy lie in a buffer.
@@ -160,6 +211,15 @@ impl<'a> CommandEncoder<'a> {
     /// The raw command buffer (escape hatch).
     pub fn handle(&self) -> vk::CommandBuffer {
         self.raw
+    }
+
+    /// The index of the submission the recorded commands will belong to: the device's next.
+    /// It stays the same while one frame is recorded and changes with the next frame, which
+    /// tells a second use of a frame slot's buffers in the same frame (append after what the
+    /// first wrote) from a use in a later frame (the slot is free again). Deferred destruction
+    /// counts submissions the same way.
+    pub fn submission(&self) -> u64 {
+        self.device.pending_submission()
     }
 
     /// Transitions `texture` between usage states.
@@ -746,6 +806,36 @@ fn buffer_image_copy(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn spans(start: usize, end: usize, width: u32) -> Vec<(u32, u32, u32, u32, u64)> {
+        let mut out = Vec::new();
+        TextureRegion::spans(start, end, width, 16, 16, &mut out);
+        out.into_iter()
+            .map(|(r, offset)| (r.x, r.y, r.width, r.height, offset))
+            .collect()
+    }
+
+    #[test]
+    fn a_span_of_texels_copies_in_three_regions_at_most() {
+        let w = 4096;
+        let width = w as usize;
+        // Inside one row.
+        assert_eq!(spans(10, 30, w), [(10, 0, 20, 1, 16)]);
+        // The end of a row, whole rows, the start of another; offsets follow one another.
+        let texels = |n: u32| 16 + 16 * u64::from(n);
+        assert_eq!(
+            spans(width - 6, 3 * width + 5, w),
+            [
+                (w - 6, 0, 6, 1, 16),
+                (0, 1, w, 2, texels(6)),
+                (0, 3, 5, 1, texels(6 + 2 * w)),
+            ]
+        );
+        // Whole rows only, and nothing at all.
+        assert_eq!(spans(width, 3 * width, w), [(0, 1, w, 2, 16)]);
+        assert_eq!(spans(40, 40, w), []);
+        assert_eq!(spans(0, 10, 0), []);
+    }
 
     #[test]
     fn transfer_destinations_wait_for_clears_as_well_as_copies() {

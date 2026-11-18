@@ -1,4 +1,13 @@
-//! [`Canvas`]: draws a program into a view's target, one instance per cell of each outline.
+//! [`Canvas`]: draws programs into views' targets, one instance per cell of each outline, from
+//! cells kept from render to render ([`crate::store`]).
+//!
+//! - **Data:** one texture of records for every view, updated by range: a render sends the
+//!   records it added and the header, and everything only once records moved or the texture
+//!   grew. Copies wait for earlier frames' draws, which are ordered before them on the queue.
+//! - **Instances** are per view: each [`ViewTarget`] keeps its own, rebuilt when its program or
+//!   view changes, and written into its buffer for the frame in flight.
+//! - **Steady state:** a target that shows the same program revision through the same view
+//!   is not drawn again, and nothing is recorded: the interface shows the last image.
 
 use koebi_core::Extent;
 use koebi_doc::eval::Program;
@@ -13,6 +22,7 @@ use koebi_gpu::{
 
 use crate::cells::DATA_WIDTH;
 use crate::frame::{CellInstance, Frame};
+use crate::store::{CanvasStats, CellStore};
 use crate::view::View;
 
 static CANVAS_VERT: &[u32] =
@@ -24,15 +34,109 @@ static CANVAS_FRAG: &[u32] =
 pub const TARGET_FORMAT: TextureFormat = TextureFormat::Rgba16Float;
 
 /// Rows of the data texture at the least: grows by doubling.
-const MIN_ROWS: u32 = 4;
-/// Rows of the data texture at the most: 2^24 texels, far above a frame's cells.
-const MAX_ROWS: u32 = 4096;
+const MIN_ROWS: u32 = 16;
+/// Rows of the data texture at the most: the store's capacity.
+const MAX_ROWS: u32 = crate::store::ROWS;
+/// Bytes of a texel of the data texture.
+const TEXEL: u64 = 16;
+/// The smallest buffer a stream makes.
+const MIN_STREAM: u64 = 64 * 1024;
+
+/// A host-visible buffer per frame in flight, written at a cursor. A frame slot is free again
+/// once a later submission records into it (the presenter waits for its last one), so the
+/// first write of a submission starts at the beginning; the writes of one submission follow
+/// one another.
+#[derive(Debug)]
+struct Stream {
+    label: &'static str,
+    usage: BufferUsage,
+    slots: Vec<StreamSlot>,
+}
+
+#[derive(Debug, Default)]
+struct StreamSlot {
+    buffer: Option<Buffer>,
+    /// Where the next write starts.
+    cursor: u64,
+    /// The submission whose writes the slot holds.
+    submission: u64,
+}
+
+impl Stream {
+    fn new(label: &'static str, usage: BufferUsage) -> Self {
+        Self {
+            label,
+            usage,
+            slots: (0..FRAMES_IN_FLIGHT)
+                .map(|_| StreamSlot::default())
+                .collect(),
+        }
+    }
+
+    /// Writes `parts` one after another into the buffer of `frame_index` for `submission`,
+    /// made anew when too small (or far too large), and returns it with where they start.
+    fn write<T: Pod>(
+        &mut self,
+        device: &Device,
+        submission: u64,
+        frame_index: usize,
+        parts: &[&[T]],
+    ) -> Result<(&Buffer, u64)> {
+        let slot = self
+            .slots
+            .get_mut(frame_index)
+            .ok_or_else(|| Error::InvalidArgument(format!("frame index {frame_index}")))?;
+        let bytes: u64 = parts.iter().map(|part| size_of_val(*part) as u64).sum();
+        if slot.submission != submission {
+            slot.submission = submission;
+            slot.cursor = 0;
+        }
+        let size = slot.buffer.as_ref().map_or(0, Buffer::size);
+        let wanted = (slot.cursor + bytes).next_power_of_two().max(MIN_STREAM);
+        // Too small, or a large upload's buffer kept for small ones.
+        if slot.cursor + bytes > size || (slot.cursor == 0 && size > 4 * wanted) {
+            // What this submission wrote before stays in the old buffer, alive until done.
+            slot.buffer = Some(
+                device.create_buffer(&BufferDesc {
+                    label: self.label,
+                    size: bytes
+                        .next_power_of_two()
+                        .max(MIN_STREAM)
+                        .max(size.min(2 * wanted)),
+                    usage: self.usage,
+                    location: MemoryLocation::CpuToGpu,
+                })?,
+            );
+            slot.cursor = 0;
+        }
+        let start = slot.cursor;
+        let buffer = slot
+            .buffer
+            .as_mut()
+            .ok_or_else(|| Error::InvalidArgument(format!("{} missing", self.label)))?;
+        let mut at = start;
+        for part in parts {
+            buffer.write(at, part)?;
+            at += size_of_val(*part) as u64;
+        }
+        // Texels and instances are 16-byte aligned: so are the writes that follow.
+        slot.cursor = at.next_multiple_of(TEXEL);
+        Ok((buffer, start))
+    }
+}
 
 /// The target a view renders into: `Rgba16Float`, linear light and premultiplied, sampled by
-/// the interface as an image once drawn.
+/// the interface as an image once drawn. It keeps the view's instances and what it shows.
 #[derive(Debug)]
 pub struct ViewTarget {
     texture: Texture,
+    /// The layers and instances of the last render.
+    frame: Frame,
+    instances: Stream,
+    /// The program revision and the view it shows.
+    shown: Option<(u64, View)>,
+    /// Whether it was ever drawn: interface frames in flight may still sample it.
+    drawn: bool,
 }
 
 impl ViewTarget {
@@ -51,6 +155,10 @@ impl ViewTarget {
                     | TextureUsage::SAMPLED
                     | TextureUsage::TRANSFER_SRC,
             })?,
+            frame: Frame::default(),
+            instances: Stream::new("canvas instances", BufferUsage::VERTEX),
+            shown: None,
+            drawn: false,
         })
     }
 
@@ -62,6 +170,11 @@ impl ViewTarget {
     /// Its size, in physical pixels.
     pub fn extent(&self) -> Extent {
         self.texture.extent()
+    }
+
+    /// The revision of the program it shows and the view it shows it through, once drawn.
+    pub fn shown(&self) -> Option<(u64, View)> {
+        self.shown
     }
 }
 
@@ -76,33 +189,29 @@ struct Constants {
 // SAFETY: `repr(C)` with four `f32`: 16 bytes, no padding, any bit pattern is valid.
 unsafe impl Pod for Constants {}
 
-/// What one frame in flight owns: its data texture and the buffers filling it.
-#[derive(Default)]
-struct InFlight {
-    data: Option<(Texture, BindGroup)>,
-    /// Whether the data texture was ever written: its first copy comes from `Undefined`.
-    written: bool,
-    staging: Option<Buffer>,
-    instances: Option<Buffer>,
-}
-
-/// Draws programs into views' targets ([`Canvas::render`]). Keep one per device; reuse it every
-/// frame: its storage stays.
+/// Draws programs into views' targets ([`Canvas::render`]). Keep one per device for every view;
+/// reuse it every frame: its cells and storage stay.
 pub struct Canvas {
     device: Device,
     pipeline: RenderPipeline,
     layout: BindGroupLayout,
     sampler: Sampler,
-    frames: Vec<InFlight>,
-    /// The frame being drawn: its layers, records and instances.
-    frame: Frame,
+    /// The cells of the outlines views showed, and their records.
+    store: CellStore,
+    /// The texture of records, and its bind group.
+    data: Option<(Texture, BindGroup)>,
+    /// Whether the texture was ever written: its first copy comes from `Undefined`.
+    written: bool,
+    staging: Stream,
+    /// The copies of an upload, and where their texels lie in the staging buffer: reused.
+    regions: Vec<(TextureRegion, u64)>,
 }
 
 impl std::fmt::Debug for Canvas {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Canvas")
-            .field("instances", &self.frame.instances.len())
-            .field("texels", &self.frame.data.len())
+            .field("texels", &self.store.data().len())
+            .field("stats", &self.store.stats)
             .finish_non_exhaustive()
     }
 }
@@ -138,7 +247,8 @@ impl Canvas {
                 entry_point: c"main",
             },
             vertex_buffers: &[VertexBufferLayout {
-                stride: 64,
+                #[allow(clippy::cast_possible_truncation, reason = "64 bytes")]
+                stride: size_of::<CellInstance>() as u32,
                 step_mode: VertexStepMode::Instance,
                 attributes: &attributes,
             }],
@@ -161,16 +271,34 @@ impl Canvas {
             pipeline,
             layout,
             sampler,
-            frames: (0..FRAMES_IN_FLIGHT).map(|_| InFlight::default()).collect(),
-            frame: Frame::default(),
+            store: CellStore::default(),
+            data: None,
+            written: false,
+            staging: Stream::new("canvas staging", BufferUsage::TRANSFER_SRC),
+            regions: Vec::with_capacity(4),
         })
     }
 
-    /// Records into `encoder` the drawing of `program` as `view` shows it into `target`: the
-    /// upload of its cells, a pass clearing the target to transparent and drawing every layer
-    /// over the ones below, and the target's transition to
-    /// [`TextureState::ShaderRead`], ready to show as an image. `frame_index` must not be in
-    /// use by the GPU, as the presenter guarantees.
+    /// What the canvas did since [`Self::reset_stats`].
+    pub fn stats(&self) -> CanvasStats {
+        self.store.stats
+    }
+
+    /// Forgets the counts of [`Self::stats`].
+    pub fn reset_stats(&mut self) {
+        self.store.stats = CanvasStats::default();
+    }
+
+    /// Records into `encoder` the drawing of `program` as `view` shows it into `target`, and
+    /// returns whether it recorded anything:
+    /// - `false` when the target already shows this program revision through this view: the
+    ///   steady state, which records nothing and allocates nothing;
+    /// - else the upload of the records the view needs that the GPU lacks, a pass clearing the
+    ///   target to transparent and drawing every layer over the ones below, and the target's
+    ///   transition to [`TextureState::ShaderRead`], ready to show as an image.
+    ///
+    /// `frame_index` must not be in use by the GPU, as the presenter guarantees. Several views
+    /// may render in one frame.
     ///
     /// Until compositing comes, layers blended in another mode, masked or isolated draw as
     /// layers over the ones below, at their opacity.
@@ -178,15 +306,16 @@ impl Canvas {
     /// # Errors
     ///
     /// Fails if the target's size is not the view's, if `frame_index` is not below
-    /// [`FRAMES_IN_FLIGHT`], or if the device cannot hold the frame's cells.
+    /// [`FRAMES_IN_FLIGHT`], if the view shows more outlines than the canvas holds, or if the
+    /// device cannot make its buffers.
     pub fn render(
         &mut self,
         encoder: &mut CommandEncoder<'_>,
-        target: &ViewTarget,
+        target: &mut ViewTarget,
         program: &Program,
         view: &View,
         frame_index: usize,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         if target.extent() != view.extent {
             return Err(Error::InvalidArgument(format!(
                 "a view of {:?} cannot draw into a target of {:?}",
@@ -194,25 +323,45 @@ impl Canvas {
                 target.extent()
             )));
         }
-        if frame_index >= self.frames.len() {
+        if frame_index >= FRAMES_IN_FLIGHT {
             return Err(Error::InvalidArgument(format!("frame index {frame_index}")));
         }
-        self.frame.build(program, view);
+        if target.shown == Some((program.revision(), *view)) {
+            return Ok(false);
+        }
+        self.store.begin();
+        if target.frame.build(program, view, &mut self.store).is_err() {
+            // Room for this view alone: what others kept is prepared again when they change.
+            self.store.clear();
+            if target.frame.build(program, view, &mut self.store).is_err() {
+                return Err(Error::InvalidArgument(
+                    "the view shows more outlines than the canvas holds".into(),
+                ));
+            }
+        }
         self.upload(encoder, frame_index)?;
-        let frame = &self.frames[frame_index];
-        encoder.texture_barrier(
-            &target.texture,
-            TextureState::Undefined,
-            TextureState::ColorAttachment,
-        );
+        let submission = encoder.submission();
+        let instances = if target.frame.instances.is_empty() {
+            None
+        } else {
+            Some(target.instances.write(
+                &self.device,
+                submission,
+                frame_index,
+                &[target.frame.instances.as_slice()],
+            )?)
+        };
+        // Interface frames in flight may still sample what it showed: the pass waits for them.
+        let from = if target.drawn {
+            TextureState::ShaderRead
+        } else {
+            TextureState::Undefined
+        };
+        encoder.texture_barrier(&target.texture, from, TextureState::ColorAttachment);
         {
             let mut pass =
                 encoder.begin_render_pass(target.texture.render_target()?, LoadOp::Clear([0.0; 4]));
-            if let (Some((_, bind_group)), Some(instances), false) = (
-                &frame.data,
-                &frame.instances,
-                self.frame.instances.is_empty(),
-            ) {
+            if let (Some((_, bind_group)), Some((buffer, offset))) = (&self.data, instances) {
                 let extent = view.extent;
                 pass.set_scissor(0, 0, extent.width, extent.height);
                 pass.set_pipeline(&self.pipeline);
@@ -225,8 +374,8 @@ impl Canvas {
                         padding: [0.0; 2],
                     },
                 )?;
-                pass.set_vertex_buffer(0, instances, 0);
-                let count = u32::try_from(self.frame.instances.len())
+                pass.set_vertex_buffer(0, buffer, offset);
+                let count = u32::try_from(target.frame.instances.len())
                     .map_err(|_| Error::InvalidArgument("too many cells".into()))?;
                 pass.draw(0..4, 0..count);
             }
@@ -236,29 +385,30 @@ impl Canvas {
             TextureState::ColorAttachment,
             TextureState::ShaderRead,
         );
-        Ok(())
+        target.shown = Some((program.revision(), *view));
+        target.drawn = true;
+        self.store.stats.rendered += 1;
+        Ok(true)
     }
 
-    /// Uploads the records and instances for `frame_index`, growing what is too small.
+    /// Uploads the header and the records the GPU lacks, growing the texture first if needed.
     fn upload(&mut self, encoder: &mut CommandEncoder<'_>, frame_index: usize) -> Result<()> {
-        let width = DATA_WIDTH as usize;
-        let data = &mut self.frame.data;
-        let rows_needed = data.len().div_ceil(width).max(1);
-        // Whole rows: the copy fills them.
-        data.resize(rows_needed * width, [0.0; 4]);
-        let frame = &mut self.frames[frame_index];
-        let rows_held = frame
+        let length = self.store.data().len();
+        let rows_needed = u32::try_from(length.div_ceil(DATA_WIDTH as usize).max(1))
+            .map_err(|_| Error::InvalidArgument("too many records".into()))?;
+        let rows_held = self
             .data
             .as_ref()
             .map_or(0, |(texture, _)| texture.extent().height);
-        if (rows_held as usize) < rows_needed {
+        let all = rows_held < rows_needed;
+        if all {
             let mut rows = rows_held.max(MIN_ROWS);
-            while (rows as usize) < rows_needed && rows < MAX_ROWS {
+            while rows < rows_needed && rows < MAX_ROWS {
                 rows *= 2;
             }
-            if (rows as usize) < rows_needed {
+            if rows < rows_needed {
                 return Err(Error::InvalidArgument(
-                    "the view's cells exceed the data texture".into(),
+                    "the views' cells exceed the data texture".into(),
                 ));
             }
             let texture = self.device.create_texture(&TextureDesc {
@@ -275,75 +425,59 @@ impl Canvas {
                     sampler: &self.sampler,
                 }],
             })?;
-            // Frames in flight keep the old texture alive through their bind group.
-            frame.data = Some((texture, bind_group));
-            frame.written = false;
+            // Frames in flight keep the old texture alive: its destruction waits for them.
+            self.data = Some((texture, bind_group));
+            self.written = false;
         }
-        let bytes = size_of_val(self.frame.data.as_slice()) as u64;
-        grow(
+        let pending = if all { 1..length } else { self.store.pending() };
+        if pending.is_empty() && !all {
+            return Ok(());
+        }
+        let data = self.store.data();
+        let (buffer, offset) = self.staging.write(
             &self.device,
-            &mut frame.staging,
-            "canvas staging",
-            bytes,
-            BufferUsage::TRANSFER_SRC,
+            encoder.submission(),
+            frame_index,
+            &[&data[..1], &data[pending.clone()]],
         )?;
-        let instance_bytes = (size_of::<CellInstance>() * self.frame.instances.len().max(1)) as u64;
-        grow(
-            &self.device,
-            &mut frame.instances,
-            "canvas instances",
-            instance_bytes,
-            BufferUsage::VERTEX,
-        )?;
-        let (Some(staging), Some(instances), Some((texture, _))) = (
-            frame.staging.as_mut(),
-            frame.instances.as_mut(),
-            frame.data.as_ref(),
-        ) else {
+        self.regions.clear();
+        self.regions.push((TextureRegion::new(0, 0, 1, 1), offset));
+        TextureRegion::spans(
+            pending.start,
+            pending.end,
+            DATA_WIDTH,
+            offset + TEXEL,
+            TEXEL,
+            &mut self.regions,
+        );
+        let Some((texture, _)) = self.data.as_ref() else {
             return Ok(());
         };
-        staging.write(0, &self.frame.data)?;
-        if !self.frame.instances.is_empty() {
-            instances.write(0, &self.frame.instances)?;
-        }
-        let from = if frame.written {
+        let from = if self.written {
             TextureState::ShaderRead
         } else {
             TextureState::Undefined
         };
         encoder.texture_barrier(texture, from, TextureState::TransferDst);
-        let rows = u32::try_from(rows_needed).map_err(|_| Error::InvalidArgument("rows".into()))?;
-        encoder.copy_buffer_to_texture(
-            staging,
-            BufferTexels {
-                offset: 0,
-                bytes_per_row: DATA_WIDTH * 16,
-            },
-            texture,
-            TextureRegion::new(0, 0, DATA_WIDTH, rows),
-        )?;
+        let mut copied = Ok(());
+        for &(region, at) in &self.regions {
+            if copied.is_ok() {
+                copied = encoder.copy_buffer_to_texture(
+                    buffer,
+                    BufferTexels {
+                        offset: at,
+                        bytes_per_row: DATA_WIDTH * 16,
+                    },
+                    texture,
+                    region,
+                );
+            }
+        }
+        // The texture goes back to being sampled, whatever happened.
         encoder.texture_barrier(texture, TextureState::TransferDst, TextureState::ShaderRead);
-        frame.written = true;
+        self.written = true;
+        copied?;
+        self.store.uploaded(all);
         Ok(())
     }
-}
-
-/// `slot` grown to hold `bytes` at least: doubled, never shrunk.
-fn grow(
-    device: &Device,
-    slot: &mut Option<Buffer>,
-    label: &'static str,
-    bytes: u64,
-    usage: BufferUsage,
-) -> Result<()> {
-    if slot.as_ref().is_some_and(|buffer| buffer.size() >= bytes) {
-        return Ok(());
-    }
-    *slot = Some(device.create_buffer(&BufferDesc {
-        label,
-        size: bytes.next_power_of_two().max(4096),
-        usage,
-        location: MemoryLocation::CpuToGpu,
-    })?);
-    Ok(())
 }

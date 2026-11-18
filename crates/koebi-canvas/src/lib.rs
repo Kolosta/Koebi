@@ -5,10 +5,15 @@
 //! - **Coverage from curves:** an outline is cut into the grid cells of the zoom's octave
 //!   ([`koebi_geom::fill_cells`]), each cell holding its quadratic curves relative to its f64
 //!   origin and what lies beyond its right and bottom sides folded onto them. One instance per
-//!   cell covers the cell's own pixels; the fragment shader counts each pixel's winding by two
-//!   rays over the cell's bands, as glyphs and icons are drawn. There is no tessellation, no
-//!   MSAA and no zoom limit: a kilometre-wide shape seen at 10⁹ prepares a few cells whose
-//!   curves stay within 2¹¹ pixels of their origins.
+//!   cell covers the cell's own pixels, within a pixel of its outline's bounds; the fragment
+//!   shader counts each pixel's winding by two rays over the cell's bands, as glyphs and icons
+//!   are drawn. There is no tessellation, no MSAA and no zoom limit: a kilometre-wide shape seen
+//!   at 10⁹ prepares a few cells whose curves stay within 2¹¹ pixels of their origins.
+//! - **Kept from render to render:** cells are prepared once per outline and octave, around
+//!   the view, and their records live in one texture that receives only what was added. An edit
+//!   prepares the outlines it changed; a pan or a zoom within an octave prepares nothing but
+//!   what it reveals ([`CanvasStats`] counts it). A view whose program revision and camera did
+//!   not change records nothing: the interface shows its last image.
 //! - **Views** ([`View`]): a camera in f64 (the document point at the target's center and a
 //!   zoom), the target's size in physical pixels. Each view renders into its own `Rgba16Float`
 //!   target ([`ViewTarget`]) in linear light, premultiplied, which the interface shows as an
@@ -24,7 +29,9 @@ mod canvas;
 mod cells;
 mod frame;
 pub mod reference;
+mod store;
 mod view;
 
 pub use canvas::{Canvas, TARGET_FORMAT, ViewTarget};
+pub use store::CanvasStats;
 pub use view::View;
