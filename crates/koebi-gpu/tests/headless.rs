@@ -7,7 +7,7 @@
 use koebi_core::Extent;
 use koebi_gpu::{
     BufferDesc, BufferUsage, Error, LoadOp, MemoryLocation, TextureDesc, TextureFormat,
-    TextureUsage, vk,
+    TextureRegion, TextureUsage, vk,
 };
 use koebi_testkit::gpu_or_skip;
 
@@ -103,6 +103,47 @@ fn clear_pass_writes_the_exact_color() {
                     "{format:?} pixel ({x}, {y})"
                 );
             }
+        }
+    }
+    gpu.assert_no_validation_errors();
+}
+
+#[test]
+fn a_pass_in_an_area_clears_that_area_alone() {
+    let Some(gpu) = gpu_or_skip("a_pass_in_an_area_clears_that_area_alone") else {
+        return;
+    };
+    let image = gpu
+        .render_offscreen(
+            Extent::new(16, 8),
+            TextureFormat::Rgba8Unorm,
+            |encoder, target| {
+                drop(encoder.begin_render_pass(target, LoadOp::Clear([0.0, 0.0, 1.0, 1.0])));
+                let area = TextureRegion::new(4, 2, 8, 3);
+                drop(
+                    encoder
+                        .begin_render_pass_in(target, LoadOp::Clear([1.0, 0.0, 0.0, 1.0]), area)
+                        .unwrap(),
+                );
+                // An area outside the target is refused.
+                let outside = TextureRegion::new(12, 0, 8, 1);
+                assert!(
+                    encoder
+                        .begin_render_pass_in(target, LoadOp::Load, outside)
+                        .is_err()
+                );
+            },
+        )
+        .unwrap();
+    for y in 0..8 {
+        for x in 0..16 {
+            let inside = (4..12).contains(&x) && (2..5).contains(&y);
+            let want = if inside {
+                [255, 0, 0, 255]
+            } else {
+                [0, 0, 255, 255]
+            };
+            assert_eq!(image.pixel(x, y), want, "pixel ({x}, {y})");
         }
     }
     gpu.assert_no_validation_errors();

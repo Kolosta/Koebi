@@ -161,6 +161,8 @@ fn crate_bench(package: &str) -> Result<Vec<String>> {
             "--nocapture",
             "--test-threads=1",
         ])
+        // Validation layers would measure themselves: thousands of barriers a frame.
+        .env("KOEBI_VALIDATION", "0")
         .output()
         .map_err(|error| format!("cannot run the {package} benchmark: {error}"))?;
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();

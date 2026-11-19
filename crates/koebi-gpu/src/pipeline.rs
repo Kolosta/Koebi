@@ -77,6 +77,9 @@ pub enum BlendMode {
     Opaque,
     /// `src + dst * (1 - src.a)` with premultiplied colors: Koebi's default for UI.
     PremultipliedAlpha,
+    /// `dst * (1 - src.a)`, the source's color ignored: what the source covers is erased
+    /// (Porter-Duff destination-out).
+    DestinationOut,
 }
 
 /// One color attachment of a pipeline.
@@ -356,6 +359,14 @@ fn blend_state(mode: BlendMode) -> vk::PipelineColorBlendAttachmentState {
             .src_alpha_blend_factor(vk::BlendFactor::ONE)
             .dst_alpha_blend_factor(vk::BlendFactor::ONE_MINUS_SRC_ALPHA)
             .alpha_blend_op(vk::BlendOp::ADD),
+        BlendMode::DestinationOut => state
+            .blend_enable(true)
+            .src_color_blend_factor(vk::BlendFactor::ZERO)
+            .dst_color_blend_factor(vk::BlendFactor::ONE_MINUS_SRC_ALPHA)
+            .color_blend_op(vk::BlendOp::ADD)
+            .src_alpha_blend_factor(vk::BlendFactor::ZERO)
+            .dst_alpha_blend_factor(vk::BlendFactor::ONE_MINUS_SRC_ALPHA)
+            .alpha_blend_op(vk::BlendOp::ADD),
     }
 }
 
@@ -373,5 +384,12 @@ mod tests {
             vk::BlendFactor::ONE_MINUS_SRC_ALPHA
         );
         assert_eq!(blend_state(BlendMode::Opaque).blend_enable, vk::FALSE);
+        let erase = blend_state(BlendMode::DestinationOut);
+        assert_eq!(erase.src_color_blend_factor, vk::BlendFactor::ZERO);
+        assert_eq!(erase.src_alpha_blend_factor, vk::BlendFactor::ZERO);
+        assert_eq!(
+            erase.dst_alpha_blend_factor,
+            vk::BlendFactor::ONE_MINUS_SRC_ALPHA
+        );
     }
 }
