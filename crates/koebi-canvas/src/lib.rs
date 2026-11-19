@@ -23,7 +23,8 @@
 //!   screen stays within 14% of the one asked for at any zoom.
 //! - **Picking** ([`ViewTarget::pick`]) is exact, on the CPU: the topmost object a view drew
 //!   under a point, found through an index of the bounds of what it drew.
-//! - **Paints:** solid colors, in linear light.
+//! - **Paints:** solid colors, in linear light, and patterns: a motif prepared once in its own
+//!   space and drawn at every point of a lattice that shows, its cells moved there.
 //! - **Compositing:** the program's merges, blends and masks run as groups, each in a target of
 //!   its own pooled by the view and within the area it draws, composited onto the target below
 //!   by the W3C formulas (the sixteen modes) or as Erase. A blend reaches only what lies below

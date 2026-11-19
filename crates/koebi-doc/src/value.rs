@@ -155,6 +155,10 @@ pub enum EnumKind {
     StrokeJoin,
     /// [`StrokeUnits`].
     StrokeUnits,
+    /// [`PatternClip`].
+    PatternClip,
+    /// [`PatternAnchor`].
+    PatternAnchor,
 }
 
 /// What a socket's number means, for its units in the interface. It never changes the type.
@@ -315,6 +319,8 @@ impl Stored for StrokeAlign {}
 impl Stored for StrokeCap {}
 impl Stored for StrokeJoin {}
 impl Stored for StrokeUnits {}
+impl Stored for PatternClip {}
+impl Stored for PatternAnchor {}
 
 /// An enumeration a socket can hold.
 pub trait SocketEnum: Copy + Sized + 'static {
@@ -523,6 +529,53 @@ impl SocketEnum for StrokeUnits {
     }
 }
 enum_socket!(StrokeUnits, StrokeUnits);
+
+/// Where a pattern fill is cut.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum PatternClip {
+    /// At the shape's bounds: motifs whose place lies inside them are drawn whole.
+    #[default]
+    Bounds,
+    /// Exactly at the shape's outline.
+    Contour,
+    /// At the inner edge of the shape's widest stroke, which the pattern then meets.
+    StrokeInner,
+    /// At the outer edge of the shape's widest stroke.
+    StrokeOuter,
+}
+
+impl SocketEnum for PatternClip {
+    const KIND: EnumKind = EnumKind::PatternClip;
+    const ALL: &'static [Self] = &[
+        Self::Bounds,
+        Self::Contour,
+        Self::StrokeInner,
+        Self::StrokeOuter,
+    ];
+    fn index(self) -> u32 {
+        self as u32
+    }
+}
+enum_socket!(PatternClip, PatternClip);
+
+/// What a pattern fill's lattice is pinned to.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum PatternAnchor {
+    /// The object: the motifs follow it when it moves, turns or scales.
+    #[default]
+    Object,
+    /// The document: the lattice stays, and a moving shape slides over it.
+    Document,
+}
+
+impl SocketEnum for PatternAnchor {
+    const KIND: EnumKind = EnumKind::PatternAnchor;
+    const ALL: &'static [Self] = &[Self::Object, Self::Document];
+    fn index(self) -> u32 {
+        self as u32
+    }
+}
+enum_socket!(PatternAnchor, PatternAnchor);
 
 #[cfg(test)]
 mod tests {

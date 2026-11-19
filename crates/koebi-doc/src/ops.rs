@@ -18,7 +18,7 @@ use crate::graph::{KindRef, Link, LinkId, MergeEntry, NodeId, Settings, SocketRe
 use crate::kind::NodeKind;
 use crate::kinds::{
     document, ellipse, fill, group_object, instance_object, merge, page, path_data, path_object,
-    polygon, rectangle, stroke, transform_geometry,
+    pattern_fill, polygon, rectangle, stroke, transform_geometry,
 };
 use crate::transforms::{self, is_kind, placement};
 use crate::value::{BlendMode, SocketValue, Value};
@@ -295,6 +295,39 @@ pub fn add_stroke(doc: &mut Document, object: NodeId) -> Result<NodeId, OpError>
         stroke::PAINT.index(),
         "Add stroke",
     )
+}
+
+/// Adds a pattern fill to `object` whose motif is `motif`'s own layer, on top of its paints.
+/// Returns the fill.
+///
+/// # Errors
+///
+/// When either is not a path object, or an edit fails.
+pub fn add_pattern_fill(
+    doc: &mut Document,
+    object: NodeId,
+    motif: NodeId,
+) -> Result<NodeId, OpError> {
+    check_path_object(doc, object)?;
+    check_path_object(doc, motif)?;
+    transaction(doc, "Add pattern fill", |doc| {
+        let paint = add(doc, pattern_fill::KIND)?;
+        link(
+            doc,
+            SocketRef::new(motif, path_object::LOCAL_LAYER.index()),
+            SocketRef::new(paint, pattern_fill::MOTIF.index()),
+            None,
+            None,
+        )?;
+        link(
+            doc,
+            SocketRef::new(paint, pattern_fill::PAINT.index()),
+            SocketRef::new(object, path_object::PAINTS.index()),
+            None,
+            None,
+        )?;
+        Ok(paint)
+    })
 }
 
 fn add_paint(

@@ -41,11 +41,13 @@ use crate::document::Document;
 use crate::graph::{KindRef, LinkId, LinkStatus, MergeEntry, NodeId, Settings, SocketRef};
 use crate::kinds::{
     blend, coverage, document, ellipse, fill, group_object, instance_object, layer_coverage, mask,
-    merge, page, path_data, path_object, polygon, rectangle, stroke, transform, transform_geometry,
+    merge, page, path_data, path_object, pattern_fill, polygon, rectangle, stroke, transform,
+    transform_geometry,
 };
 use crate::transforms;
 use crate::value::{
-    BlendMode, SocketValue, StrokeAlign, StrokeCap, StrokeJoin, StrokeUnits, Value,
+    BlendMode, PatternAnchor, PatternClip, SocketValue, StrokeAlign, StrokeCap, StrokeJoin,
+    StrokeUnits, Value,
 };
 
 /// A filled outline in world coordinates, with its solid paint.
@@ -80,6 +82,51 @@ pub struct ViewStroke {
     pub opacity: f64,
 }
 
+/// Where a pattern's motifs go: the points `origin + i·a + j·b` for every whole `i` and `j`,
+/// each motif mapped by `motif` (its rotation and scale, and the world's when the lattice
+/// follows the object) and moved to its point.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Lattice {
+    /// The point of `i = j = 0`.
+    pub origin: Point,
+    /// The first axis: its direction and pitch.
+    pub a: Vector,
+    /// The second axis.
+    pub b: Vector,
+    /// What maps a motif from its own space, before it moves to its point.
+    pub motif: Affine,
+}
+
+impl Lattice {
+    /// This lattice mapped by `transform`: its points and axes, and its motifs with them.
+    #[must_use]
+    pub fn transformed(self, transform: Affine) -> Self {
+        let linear = Affine::translate(-transform.translation()) * transform;
+        Self {
+            origin: transform.apply(self.origin),
+            a: transform.apply_vector(self.a),
+            b: transform.apply_vector(self.b),
+            motif: linear * self.motif,
+        }
+    }
+}
+
+/// A motif repeated on a lattice over a region of the world: the fill of a pattern. Cut at an
+/// outline, it is the content of a mask whose coverage is that outline.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PatternValue {
+    /// The object it fills, which picking finds.
+    pub object: Option<NodeId>,
+    /// The motif, in its own space.
+    pub motif: Arc<LayerValue>,
+    /// Where the motifs go, in world coordinates.
+    pub lattice: Lattice,
+    /// What it is pinned to: the object's transform moves the lattice, or only the region.
+    pub anchor: PatternAnchor,
+    /// The region to fill: motifs whose point lies in it are drawn.
+    pub bounds: Rect,
+}
+
 /// Evaluated renderable content.
 #[derive(Clone, Debug, PartialEq)]
 pub enum LayerValue {
@@ -89,6 +136,8 @@ pub enum LayerValue {
     Draw(Draw),
     /// A stroke outlined for each view.
     ViewStroke(ViewStroke),
+    /// A motif repeated on a lattice.
+    Pattern(PatternValue),
     /// Layers composited in order, bottom first.
     Merge(Vec<(Arc<LayerValue>, MergeEntry)>),
     /// A source blended onto a backdrop.
@@ -143,6 +192,29 @@ pub enum PaintValue {
         /// How it blends onto the paints below.
         blend: BlendMode,
     },
+    /// A pattern: a motif on a lattice over the shape.
+    Pattern {
+        /// The motif, in its own space; `None` without one.
+        motif: Option<Arc<LayerValue>>,
+        /// The lattice's pitch along its two axes.
+        spacing: Vector,
+        /// Where its origin lies.
+        phase: Vector,
+        /// Its rotation.
+        rotation: f64,
+        /// Each motif's own rotation.
+        motif_rotation: f64,
+        /// Each motif's scale.
+        scale: f64,
+        /// Where it is cut.
+        clip: PatternClip,
+        /// What its lattice is pinned to.
+        anchor: PatternAnchor,
+        /// Its opacity.
+        opacity: f64,
+        /// How it blends onto the paints below.
+        blend: BlendMode,
+    },
     /// A stroke.
     Stroke {
         /// Its color.
@@ -194,6 +266,17 @@ pub enum Step {
     Draw(Draw),
     /// A stroke outlined for each view.
     ViewStroke(ViewStroke),
+    /// The step `motif` repeated on a lattice over `bounds`.
+    Pattern {
+        /// The object it fills.
+        object: Option<NodeId>,
+        /// The motif's step, in its own space.
+        motif: StepId,
+        /// Where the motifs go, in world coordinates.
+        lattice: Lattice,
+        /// The region to fill: motifs whose point lies in it are drawn.
+        bounds: Rect,
+    },
     /// Steps composited in order, bottom first.
     Merge(Vec<MergeInput>),
     /// A source blended onto a backdrop.
@@ -814,6 +897,30 @@ impl Evaluator {
                     .unwrap_or_default(),
             }));
         }
+        if id == pattern_fill::KIND.id {
+            let motif = match self.input(context, node, pattern_fill::MOTIF.index()) {
+                Out::Layer(layer) => Some(layer),
+                _ => None,
+            };
+            return Out::Paint(Arc::new(PaintValue::Pattern {
+                motif,
+                spacing: vector(self, pattern_fill::SPACING.index(), Vector::new(40.0, 40.0)),
+                phase: vector(self, pattern_fill::PHASE.index(), Vector::ZERO),
+                rotation: float(self, pattern_fill::ROTATION.index(), 0.0),
+                motif_rotation: float(self, pattern_fill::MOTIF_ROTATION.index(), 0.0),
+                scale: float(self, pattern_fill::SCALE.index(), 1.0),
+                clip: self
+                    .value(context, node, pattern_fill::CLIP.index())
+                    .unwrap_or_default(),
+                anchor: self
+                    .value(context, node, pattern_fill::ANCHOR.index())
+                    .unwrap_or_default(),
+                opacity: float(self, pattern_fill::OPACITY.index(), 1.0),
+                blend: self
+                    .value(context, node, pattern_fill::BLEND.index())
+                    .unwrap_or_default(),
+            }));
+        }
         if id == stroke::KIND.id {
             return Out::Paint(Arc::new(self.stroke(context, node)));
         }
@@ -1037,11 +1144,27 @@ impl Evaluator {
             return Arc::new(LayerValue::Empty);
         };
         let paints = self.inputs(context, node, path_object::PAINTS.index());
+        // The widest stroke in document units: where a pattern cut at a stroke's edge meets it.
+        let widest = paints
+            .iter()
+            .filter_map(|(_, paint)| match paint {
+                Out::Paint(paint) => match paint.as_ref() {
+                    PaintValue::Stroke {
+                        style,
+                        units: StrokeUnits::Document,
+                        ..
+                    } => Some(style.clone()),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .max_by(|a, b| a.width.abs().total_cmp(&b.width.abs()));
         let mut layers = Vec::with_capacity(paints.len());
         for (_, paint) in paints {
             let Out::Paint(paint) = paint else {
                 continue;
             };
+            let mut opacity_of_layer = 1.0;
             let (layer, blend) = match paint.as_ref() {
                 PaintValue::Fill {
                     color,
@@ -1091,14 +1214,99 @@ impl Evaluator {
                     }),
                     *blend,
                 ),
+                PaintValue::Pattern { motif: None, .. } => continue,
+                PaintValue::Pattern {
+                    motif: Some(motif),
+                    spacing,
+                    phase,
+                    rotation,
+                    motif_rotation,
+                    scale,
+                    clip,
+                    anchor,
+                    opacity,
+                    blend,
+                } => {
+                    opacity_of_layer = *opacity;
+                    let region = self.pattern_region(&geometry, *clip, widest.as_ref());
+                    let (sin, cos) = rotation.sin_cos();
+                    let pattern = PatternValue {
+                        object: Some(node),
+                        motif: Arc::clone(motif),
+                        lattice: Lattice {
+                            origin: Point::new(phase.x, phase.y),
+                            a: Vector::new(cos, sin) * spacing.x,
+                            b: Vector::new(-sin, cos) * spacing.y,
+                            motif: Affine::rotate(rotation + motif_rotation)
+                                * Affine::scale(*scale, *scale),
+                        },
+                        anchor: *anchor,
+                        bounds: region
+                            .as_ref()
+                            .map_or_else(|| geometry.bounds(), |region| region.bounds()),
+                    };
+                    // Cut at an outline: the content of a mask that outline covers.
+                    let layer = match region {
+                        Some(region) => LayerValue::Mask {
+                            content: Arc::new(LayerValue::Pattern(pattern)),
+                            coverage: Arc::new(CoverageValue::Outline {
+                                outline: region,
+                                rule: FillRule::NonZero,
+                            }),
+                            invert: false,
+                        },
+                        None => LayerValue::Pattern(pattern),
+                    };
+                    (layer, *blend)
+                }
             };
             let entry = MergeEntry {
                 blend,
+                opacity: opacity_of_layer,
                 ..MergeEntry::default()
             };
             layers.push((Arc::new(layer), entry));
         }
         Arc::new(LayerValue::Merge(layers))
+    }
+
+    /// Where a pattern on `geometry` is cut by `clip`: nowhere at its bounds, else its outline,
+    /// or that outline grown to the inner or outer edge of `widest`, the shape's widest stroke
+    /// (its outline without one).
+    fn pattern_region(
+        &self,
+        geometry: &Arc<Contours>,
+        clip: PatternClip,
+        widest: Option<&StrokeStyle>,
+    ) -> Option<Arc<Contours>> {
+        let inner = match clip {
+            PatternClip::Bounds => return None,
+            PatternClip::Contour => return Some(Arc::clone(geometry)),
+            PatternClip::StrokeInner => true,
+            PatternClip::StrokeOuter => false,
+        };
+        let Some(style) = widest else {
+            return Some(Arc::clone(geometry));
+        };
+        let width = style.width.abs();
+        // The band's middle, from the outline toward its outside.
+        let middle = match style.align {
+            koebi_geom::Align::Inside => -style.offset.resolve(width),
+            koebi_geom::Align::Outside => style.offset.resolve(width),
+            _ => 0.0,
+        };
+        let edge = if inner {
+            middle - width * 0.5
+        } else {
+            middle + width * 0.5
+        };
+        Some(Arc::new(koebi_geom::offset_region(
+            geometry,
+            FillRule::NonZero,
+            edge,
+            Join::Round,
+            self.tolerance,
+        )))
     }
 
     /// The outline of `geometry` stroked in `style`, from the cache when the same geometry was
@@ -1321,6 +1529,17 @@ fn transformed(
             geometry: placed.get(&stroke.geometry, transform),
             ..stroke.clone()
         }),
+        // The region moves; the lattice with it when pinned to the object, the motif never
+        // (the lattice maps it).
+        LayerValue::Pattern(pattern) => LayerValue::Pattern(PatternValue {
+            object: object.or(pattern.object),
+            lattice: match pattern.anchor {
+                PatternAnchor::Object => pattern.lattice.transformed(transform),
+                PatternAnchor::Document => pattern.lattice,
+            },
+            bounds: pattern.bounds.transformed(transform),
+            ..pattern.clone()
+        }),
         LayerValue::Merge(layers) => LayerValue::Merge(
             layers
                 .iter()
@@ -1379,6 +1598,14 @@ fn flatten(
         LayerValue::Empty => None,
         LayerValue::Draw(draw) => Some(Step::Draw(draw.clone())),
         LayerValue::ViewStroke(stroke) => Some(Step::ViewStroke(stroke.clone())),
+        LayerValue::Pattern(pattern) => {
+            flatten(&pattern.motif, steps, seen).map(|motif| Step::Pattern {
+                object: pattern.object,
+                motif,
+                lattice: pattern.lattice,
+                bounds: pattern.bounds,
+            })
+        }
         // One layer at full opacity, blended normally, is that layer: no step, nothing gathered.
         LayerValue::Merge(layers)
             if matches!(layers.as_slice(), [(_, entry)] if entry.visible
