@@ -260,6 +260,8 @@ pub enum PaintValue {
         style: StrokeStyle,
         /// What the style's lengths count.
         units: StrokeUnits,
+        /// Its repeats and marks (its dashes are in the style).
+        marks: Arc<crate::marks::StrokeSettings>,
         /// How it blends onto the paints below.
         blend: BlendMode,
     },
@@ -1170,10 +1172,12 @@ impl Evaluator {
             StrokeAlign::Left => koebi_geom::Align::Left,
             StrokeAlign::Right => koebi_geom::Align::Right,
         };
-        let dashes = match context.doc.graph().node(node).map(|n| &n.settings) {
-            Some(Settings::Stroke(dashes)) => dashes.clone(),
-            _ => koebi_geom::Dashes::default(),
+        let settings = match context.doc.graph().node(node).map(|n| &n.settings) {
+            Some(Settings::Stroke(settings)) => Arc::clone(settings),
+            _ => Arc::default(),
         };
+        // The marks that ask re-phase the dashes.
+        let dashes = settings.dashes();
         PaintValue::Stroke {
             color: self
                 .value(context, node, stroke::COLOR.index())
@@ -1190,6 +1194,7 @@ impl Evaluator {
             units: self
                 .value(context, node, stroke::UNITS.index())
                 .unwrap_or_default(),
+            marks: settings,
             blend: self
                 .value(context, node, stroke::BLEND.index())
                 .unwrap_or_default(),
@@ -1312,17 +1317,15 @@ impl Evaluator {
                     opacity,
                     style,
                     units: StrokeUnits::Document,
+                    marks,
                     blend,
-                } => (
-                    LayerValue::Draw(Draw {
-                        object: Some(node),
-                        outline: self.outline(&geometry, style),
-                        rule: FillRule::NonZero,
-                        color: *color,
-                        opacity: *opacity,
-                    }),
-                    *blend,
-                ),
+                } => {
+                    let outline = self.outline(&geometry, style);
+                    (
+                        self.decorated(node, &geometry, style, marks, outline, *color, *opacity),
+                        *blend,
+                    )
+                }
                 // Outlined by the canvas, at each view's zoom.
                 PaintValue::Stroke {
                     color,
@@ -1330,6 +1333,7 @@ impl Evaluator {
                     style,
                     units: StrokeUnits::Viewport,
                     blend,
+                    ..
                 } => (
                     LayerValue::ViewStroke(ViewStroke {
                         object: Some(node),
@@ -1427,6 +1431,75 @@ impl Evaluator {
             layers.push((Arc::new(layer), entry));
         }
         Arc::new(LayerValue::Merge(layers))
+    }
+
+    /// The layer of a stroke of `outline` on `geometry`, with its repeats and marks: the
+    /// stroke united with its fused objects, between its objects blended behind and in front,
+    /// then its cuts, which erase the stroke alone. A plain draw without any.
+    #[allow(clippy::too_many_arguments, reason = "the parts of one stroke")]
+    fn decorated(
+        &self,
+        node: NodeId,
+        geometry: &Contours,
+        style: &StrokeStyle,
+        marks: &crate::marks::StrokeSettings,
+        outline: Arc<Contours>,
+        color: LinearRgba,
+        opacity: f64,
+    ) -> LayerValue {
+        let draw = |outline: Arc<Contours>, color: LinearRgba, opacity: f64| {
+            Arc::new(LayerValue::Draw(Draw {
+                object: Some(node),
+                outline,
+                rule: FillRule::NonZero,
+                color,
+                opacity,
+            }))
+        };
+        if marks.repeats.is_empty() && marks.marks.is_empty() {
+            return LayerValue::Draw(Draw {
+                object: Some(node),
+                outline,
+                rule: FillRule::NonZero,
+                color,
+                opacity,
+            });
+        }
+        let made = crate::marks::decorate(geometry, style, marks, color, self.tolerance);
+        let outline = if made.fused.is_empty() {
+            outline
+        } else {
+            Arc::new(koebi_geom::boolean(
+                &outline,
+                FillRule::NonZero,
+                &made.fused,
+                FillRule::NonZero,
+                koebi_geom::BooleanOp::Union,
+            ))
+        };
+        let entry = |blend: BlendMode| MergeEntry {
+            blend,
+            ..MergeEntry::default()
+        };
+        let mut layers = Vec::new();
+        let objects = |front: bool, layers: &mut Vec<(Arc<LayerValue>, MergeEntry)>| {
+            for (shape, paint, alpha, blend, ahead) in &made.drawn {
+                if *ahead == front {
+                    layers.push((draw(Arc::new(shape.clone()), *paint, *alpha), entry(*blend)));
+                }
+            }
+        };
+        objects(false, &mut layers);
+        layers.push((draw(outline, color, opacity), entry(BlendMode::Normal)));
+        objects(true, &mut layers);
+        for (shape, strength) in &made.cut {
+            let eraser = LinearRgba::new(0.0, 0.0, 0.0, 1.0);
+            layers.push((
+                draw(Arc::new(shape.clone()), eraser, *strength),
+                entry(BlendMode::Erase),
+            ));
+        }
+        LayerValue::Merge(layers)
     }
 
     /// Where a pattern on `geometry` is cut by `clip`: nowhere at its bounds, else its outline,

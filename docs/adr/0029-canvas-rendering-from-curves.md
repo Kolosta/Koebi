@@ -137,6 +137,10 @@ glyphs, with the non-zero or even-odd rule.
     families of lines stroked across the region. Fused stamps are one outline under the
     non-zero rule, painted once where they overlap, without booleans; subtracted ones erase
     inside the fill's own group. It is cut at its region by a mask, as a pattern is.
+  - A stroke's repeats and marks are generated with its outline (`koebi_doc::marks`): fused
+    objects united with the stroke's outline, blended ones drawn behind or in front of it,
+    cut ones and gaps erasing the stroke alone within its own merge. Marks re-phase the dashes
+    through their anchors.
 
 ### Views
 
