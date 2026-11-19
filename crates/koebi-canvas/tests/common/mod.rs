@@ -36,6 +36,7 @@ pub(crate) fn program_of(
         .iter()
         .map(|(outline, rule, color)| {
             Step::Draw(Draw {
+                object: None,
                 outline: Arc::clone(outline),
                 rule: *rule,
                 color: *color,

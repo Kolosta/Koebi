@@ -183,6 +183,19 @@ impl ViewTarget {
     pub fn shown(&self) -> Option<(u64, View)> {
         self.shown
     }
+
+    /// The topmost object it shows at `pixel` (physical pixels of the target), exactly: inside
+    /// the outline drawn under its fill rule, or within `tolerance` pixels of its edges (8 at
+    /// most). `None` over nothing, or before the first render.
+    ///
+    /// The first pick after a render files what it drew by an index of their bounds over the
+    /// view; picks then test only the layers near the point, and allocate nothing once its
+    /// storage has grown.
+    pub fn pick(&mut self, pixel: [f64; 2], tolerance: f64) -> Option<koebi_doc::NodeId> {
+        // Only what a render drew whole: a failed one leaves nothing shown.
+        self.shown?;
+        self.frame.pick(pixel, tolerance)
+    }
 }
 
 /// Push constants of the canvas pipeline. Must match `Constants` in `shaders/canvas.vert`.

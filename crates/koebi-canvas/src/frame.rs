@@ -5,10 +5,12 @@
 
 use std::sync::Arc;
 
+use koebi_doc::NodeId;
 use koebi_doc::eval::{Draw, Program, Step, StepId, ViewStroke};
 use koebi_geom::{Contours, FillRule, Path, Point, Rect, StrokeStyle, Vector};
 use koebi_gpu::Pod;
 
+use crate::pick::{Drawn, PickIndex};
 use crate::store::{CellStore, Full};
 use crate::strokes::{Level, ViewStrokes};
 use crate::view::View;
@@ -48,6 +50,12 @@ pub(crate) struct Frame {
     page: Option<(Vector, Arc<Contours>)>,
     /// One instance per cell shown, in drawing order.
     pub(crate) instances: Vec<CellInstance>,
+    /// The view of the last build.
+    view: Option<View>,
+    /// The layers in sight that paint an object, as drawn: what picking tests.
+    drawn: Vec<Drawn>,
+    /// Their bounds over the view, filed at the first pick after a build.
+    index: PickIndex,
 }
 
 impl Frame {
@@ -69,6 +77,9 @@ impl Frame {
             self.revision = Some(program.revision());
         }
         self.instances.clear();
+        self.drawn.clear();
+        self.index.invalidate();
+        self.view = Some(*view);
         if !view.is_valid() {
             return Ok(());
         }
@@ -80,25 +91,37 @@ impl Frame {
         self.level = Some(level);
         for layer in &self.layers {
             let stroked;
-            let (outline, rule, color) = match layer {
+            let (outline, rule, color, object) = match layer {
                 Layer::Fill {
                     outline,
                     rule,
                     color,
-                } => (outline, *rule, color),
+                    object,
+                } => (outline, *rule, color, *object),
                 Layer::Stroke {
                     geometry,
                     style,
                     color,
+                    object,
                 } => {
                     let Some(outline) = strokes.outline(geometry, style, level, area) else {
                         continue;
                     };
                     stroked = outline;
-                    (&stroked, FillRule::NonZero, color)
+                    (&stroked, FillRule::NonZero, color, *object)
                 }
             };
             let (bounds, cells) = store.cells(outline, octave, area)?;
+            if let Some(object) = object
+                && !cells.is_empty()
+            {
+                self.drawn.push(Drawn {
+                    outline: Arc::clone(outline),
+                    rule,
+                    bounds,
+                    object,
+                });
+            }
             let reach = bounds.inflated(pixel).intersection(area);
             for cell in cells {
                 let square = Rect::new(cell.origin, cell.origin + Vector::new(size, size));
@@ -134,6 +157,13 @@ impl Frame {
         Ok(())
     }
 
+    /// The topmost object drawn at `pixel` of the last build's target, within `tolerance`
+    /// pixels of its edges ([`crate::pick`]).
+    pub(crate) fn pick(&mut self, pixel: [f64; 2], tolerance: f64) -> Option<NodeId> {
+        let view = self.view.filter(|view| view.is_valid())?;
+        self.index.pick(&self.drawn, &view, pixel, tolerance)
+    }
+
     /// Gathers the layers of `program`: its page's background, then its root's layers.
     fn gather(&mut self, program: &Program) {
         self.layers.clear();
@@ -158,6 +188,7 @@ impl Frame {
                 outline: page,
                 rule: FillRule::NonZero,
                 color: premultiplied(background, 1.0),
+                object: None,
             });
         }
         if let Some(root) = program.root() {
@@ -184,12 +215,14 @@ enum Layer {
         outline: Arc<Contours>,
         rule: FillRule,
         color: [f32; 4],
+        object: Option<NodeId>,
     },
     /// A geometry stroked in a style whose lengths count the view's pixels.
     Stroke {
         geometry: Arc<Contours>,
         style: Arc<StrokeStyle>,
         color: [f32; 4],
+        object: Option<NodeId>,
     },
 }
 
@@ -216,6 +249,7 @@ fn gather(program: &Program, id: StepId, opacity: f64, layers: &mut Vec<Layer>, 
     }
     match step {
         Step::Draw(Draw {
+            object,
             outline,
             rule,
             color,
@@ -225,9 +259,11 @@ fn gather(program: &Program, id: StepId, opacity: f64, layers: &mut Vec<Layer>, 
                 outline: Arc::clone(outline),
                 rule: *rule,
                 color: premultiplied(*color, opacity * own),
+                object: *object,
             });
         }
         Step::ViewStroke(ViewStroke {
+            object,
             geometry,
             style,
             color,
@@ -237,6 +273,7 @@ fn gather(program: &Program, id: StepId, opacity: f64, layers: &mut Vec<Layer>, 
                 geometry: Arc::clone(geometry),
                 style: Arc::clone(style),
                 color: premultiplied(*color, opacity * own),
+                object: *object,
             });
         }
         Step::Merge(inputs) => {
@@ -273,6 +310,7 @@ mod tests {
 
     fn draw(alpha: f32) -> Step {
         Step::Draw(Draw {
+            object: None,
             outline: Arc::new(Contours::default()),
             rule: FillRule::NonZero,
             color: LinearRgba::new(1.0, 0.5, 0.25, alpha),
@@ -305,7 +343,7 @@ mod tests {
             }]),
         ];
         let program = Program::new(
-            koebi_doc::NodeId(0),
+            NodeId(0),
             Vector::new(10.0, 10.0),
             LinearRgba::new(0.0, 0.0, 0.0, 0.0),
             steps,

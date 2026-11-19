@@ -552,3 +552,25 @@ fn a_stroke_in_pixels_is_left_to_the_canvas_with_its_world_geometry() {
             .any(|step| matches!(step, Step::ViewStroke(_)))
     );
 }
+
+#[test]
+fn draws_name_the_object_they_paint_an_instance_its_own() {
+    let mut doc = Document::new();
+    let (_, objects) = page_with(&mut doc, &[Shape::Rectangle(Vector::new(4.0, 4.0))]);
+    ops::add_stroke(&mut doc, objects[0]).unwrap();
+    let instance = ops::duplicate_linked(&mut doc, objects[0]).unwrap();
+    let program = first_program(&doc);
+    let sources: Vec<Option<NodeId>> = draws(&program).iter().map(|draw| draw.object).collect();
+    // The rectangle's fill and stroke, then the instance's, which show the same outlines.
+    assert_eq!(
+        sources,
+        [
+            Some(objects[0]),
+            Some(objects[0]),
+            Some(instance),
+            Some(instance)
+        ]
+    );
+    let all = draws(&program);
+    assert!(Arc::ptr_eq(&all[0].outline, &all[2].outline));
+}
