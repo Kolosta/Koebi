@@ -408,6 +408,26 @@ msgstr ""
 msgid "Zooms so that every frame of the scene shows."
 msgstr ""
 
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in the document's unit"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in metric units"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in inches"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in points"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in pixels"
+msgstr ""
+
 #: apps/koebi/src/editors/viewport.rs
 msgid "Fit document"
 msgstr ""

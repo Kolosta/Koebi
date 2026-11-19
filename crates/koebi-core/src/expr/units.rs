@@ -78,6 +78,44 @@ pub const MILLIMETER: Unit = Unit {
     size: Size::Fixed(0.001),
 };
 
+/// Centimeters.
+pub const CENTIMETER: Unit = Unit {
+    symbol: "cm",
+    names: &[
+        "cm",
+        "centimeter",
+        "centimeters",
+        "centimetre",
+        "centimetres",
+    ],
+    dimension: Dimension::Length,
+    size: Size::Fixed(0.01),
+};
+
+/// Meters.
+pub const METER: Unit = Unit {
+    symbol: "m",
+    names: &["m", "meter", "meters", "metre", "metres"],
+    dimension: Dimension::Length,
+    size: Size::Fixed(1.0),
+};
+
+/// Inches.
+pub const INCH: Unit = Unit {
+    symbol: "in",
+    names: &["in", "inch", "inches", "\""],
+    dimension: Dimension::Length,
+    size: Size::Fixed(0.0254),
+};
+
+/// Typographic points: 1/72 inch.
+pub const POINT: Unit = Unit {
+    symbol: "pt",
+    names: &["pt", "point", "points"],
+    dimension: Dimension::Length,
+    size: Size::Fixed(0.0254 / 72.0),
+};
+
 /// Degrees.
 pub const DEGREE: Unit = Unit {
     symbol: "\u{b0}",
@@ -113,37 +151,11 @@ pub const MILLISECOND: Unit = Unit {
 /// Every unit expressions know.
 pub const UNITS: &[Unit] = &[
     PIXEL,
-    Unit {
-        symbol: "pt",
-        names: &["pt", "point", "points"],
-        dimension: Dimension::Length,
-        size: Size::Fixed(0.0254 / 72.0),
-    },
+    POINT,
     MILLIMETER,
-    Unit {
-        symbol: "cm",
-        names: &[
-            "cm",
-            "centimeter",
-            "centimeters",
-            "centimetre",
-            "centimetres",
-        ],
-        dimension: Dimension::Length,
-        size: Size::Fixed(0.01),
-    },
-    Unit {
-        symbol: "m",
-        names: &["m", "meter", "meters", "metre", "metres"],
-        dimension: Dimension::Length,
-        size: Size::Fixed(1.0),
-    },
-    Unit {
-        symbol: "in",
-        names: &["in", "inch", "inches", "\""],
-        dimension: Dimension::Length,
-        size: Size::Fixed(0.0254),
-    },
+    CENTIMETER,
+    METER,
+    INCH,
     DEGREE,
     RADIAN,
     Unit {

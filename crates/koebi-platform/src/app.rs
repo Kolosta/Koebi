@@ -31,9 +31,11 @@ use sdl3_sys::stdinc::SDL_free;
 
 use crate::cursor::{Cursor, CursorId, CursorImage, Cursors};
 use crate::error::{PlatformError, sdl_error};
-use crate::event::{Event, modifiers_from_sdl, text_chunks, text_input, to_logical, translate};
+use crate::event::{
+    Event, finger_in_window, modifiers_from_sdl, text_chunks, text_input, to_logical, translate,
+};
 use crate::vulkan::VulkanSupport;
-use crate::window::{Window, WindowDesc, logical_per_window_coordinate};
+use crate::window::{Window, WindowDesc, logical_per_window_coordinate, window_coordinate_size};
 
 /// Process exit codes shared by every Koebi binary, its tests and CI scripts.
 pub mod exit_code {
@@ -619,19 +621,54 @@ unsafe extern "C" fn app_event<A: App>(
     // SAFETY: called on the main thread inside an SDL callback.
     let modifiers = modifiers_from_sdl(unsafe { SDL_GetModState() });
     // SAFETY: SDL passes a valid event for the duration of the callback.
-    let Some(event) = (unsafe { event.as_ref() }).and_then(|event| translate(event, modifiers))
-    else {
+    let Some(sdl_event) = (unsafe { event.as_ref() }) else {
         return SDL_APP_CONTINUE;
     };
-    // Pointer positions arrive in window coordinates; scenes are in logical pixels.
+    // Fingers on a touchpad move the pointer and scroll, as SDL reports them too: only a
+    // touch screen's fingers are touches.
+    if is_finger_off_screen(sdl_event) {
+        return SDL_APP_CONTINUE;
+    }
+    let Some(event) = translate(sdl_event, modifiers) else {
+        return SDL_APP_CONTINUE;
+    };
+    // Pointer positions arrive in window coordinates (fingers in shares of the window's
+    // size); scenes are in logical pixels.
     let event = match event.pointer_window() {
-        Some(window) => to_logical(event, logical_per_window_coordinate(window)),
+        Some(window) => to_logical(
+            finger_in_window(event, window_coordinate_size(window)),
+            logical_per_window_coordinate(window),
+        ),
         None => event,
     };
     guarded(|| match state.app.as_mut() {
         Some(app) => to_sdl_result(app.event(&mut state.context, &event)),
         None => SDL_APP_FAILURE,
     })
+}
+
+/// `true` for a finger event of a touch device that is not a screen: a touchpad.
+fn is_finger_off_screen(event: &SDL_Event) -> bool {
+    use sdl3_sys::events::{
+        SDL_EVENT_FINGER_CANCELED, SDL_EVENT_FINGER_DOWN, SDL_EVENT_FINGER_MOTION,
+        SDL_EVENT_FINGER_UP,
+    };
+    use sdl3_sys::touch::{SDL_GetTouchDeviceType, SDL_TOUCH_DEVICE_DIRECT};
+    // SAFETY: every event starts with its type.
+    let kind = unsafe { event.r#type };
+    let fingers = [
+        SDL_EVENT_FINGER_DOWN,
+        SDL_EVENT_FINGER_MOTION,
+        SDL_EVENT_FINGER_UP,
+        SDL_EVENT_FINGER_CANCELED,
+    ];
+    if !fingers.iter().any(|finger| u32::from(*finger) == kind) {
+        return false;
+    }
+    // SAFETY: finger events use the `tfinger` member; SDL is initialized and this is the
+    // main thread, inside an SDL callback.
+    let device = unsafe { SDL_GetTouchDeviceType(event.tfinger.touchID) };
+    device != SDL_TOUCH_DEVICE_DIRECT
 }
 
 unsafe extern "C" fn app_quit<A: App>(appstate: *mut c_void, result: SDL_AppResult) {

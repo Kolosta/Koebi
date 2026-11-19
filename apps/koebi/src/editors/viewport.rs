@@ -5,13 +5,14 @@
 //!   no limit but what f64 holds: screen and document map exactly at every zoom.
 //! - **Navigation**, each an action with its shortcuts: the wheel and a pinch zoom around the
 //!   pointer, by the `viewport.zoom-step` token a notch; Ctrl and Shift with the wheel, a
-//!   sideways wheel and Ctrl with the keypad's arrows pan; the middle button drags the canvas.
+//!   sideways wheel and Ctrl with the keypad's arrows pan; the middle button drags the canvas;
+//!   two fingers on a touch screen drag and spread it.
 //!   Fit Document, Frame Selected and Reset View move the camera in an eased motion of the
 //!   `viewport.frame.*` tokens.
 //! - **The canvas image:** each viewport asks its window for a view of the document
 //!   ([`CanvasViews`]); the window's GPU draws it into a target of the area's physical pixels,
 //!   which the area shows texel for pixel, cut at its rounded corners.
-//! - **Overlays**, from the menu of the top bar: the grid and each ruler.
+//! - **Overlays**, from the menu of the top bar: the grid and each ruler ([`rulers`]).
 
 use std::time::Duration;
 
@@ -28,11 +29,15 @@ use koebi_input::{
 use koebi_render::{DotGrid, ImagePrimitive, RectPrimitive};
 use koebi_tokens::component;
 use koebi_ui::{
-    Align, Amount, BarLayout, Button, MenuItem, MenuState, Placement, PointerButton, Ui, WidgetId,
+    Amount, BarLayout, Button, MenuItem, MenuState, Placement, PointerButton, Ui, WidgetId,
 };
 use koebi_workspace::EditorId;
 
 use crate::canvas::CanvasViews;
+
+mod rulers;
+
+use rulers::{RulerStyle, Units};
 
 /// The viewport's canvas: its keys apply where the pointer is over one.
 pub(crate) const VIEWPORT: Context = Context::new("viewport");
@@ -252,31 +257,15 @@ pub(crate) const ACTUAL: f64 = 96.0 / 25.4;
 /// keeps exact for a document a kilometre wide.
 const ZOOM_RANGE: (f64, f64) = (1e-9, 1e12);
 
-/// The sides a ruler may be on, in the order of [`View::rulers`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Side {
-    Top,
-    Left,
-    Bottom,
-    Right,
-}
-
-const SIDES: [Side; 4] = [Side::Top, Side::Left, Side::Bottom, Side::Right];
-
 /// Colors, metrics and motion of the viewport, from the `component.viewport.*` tokens.
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Style {
     canvas: Color,
     /// The dots of the canvas grid.
     dots: DotGrid,
-    /// The smallest space between grid steps on screen, which the rulers' ticks keep too.
-    grid_spacing: f32,
     page_border: Color,
     origin: Color,
-    ruler: f32,
-    ruler_background: Color,
-    ruler_tick: Color,
-    ruler_label: Color,
+    rulers: RulerStyle,
     zoom_step: f64,
     pan_step: f64,
     frame_duration: Duration,
@@ -303,13 +292,18 @@ impl Style {
                 size: design.get(component::VIEWPORT_GRID_DOT_SIZE).max(1.0),
                 color: design.get(component::VIEWPORT_GRID_COLOR),
             },
-            grid_spacing: design.get(component::VIEWPORT_GRID_SPACING).max(1.0),
             page_border: design.get(component::VIEWPORT_PAGE_BORDER),
             origin: design.get(component::VIEWPORT_ORIGIN_OUTLINE),
-            ruler: design.get(component::VIEWPORT_RULER_SIZE),
-            ruler_background: design.get(component::VIEWPORT_RULER_BACKGROUND),
-            ruler_tick: design.get(component::VIEWPORT_RULER_TICK),
-            ruler_label: design.get(component::VIEWPORT_RULER_LABEL),
+            rulers: RulerStyle {
+                size: design.get(component::VIEWPORT_RULER_SIZE),
+                background: design.get(component::VIEWPORT_RULER_BACKGROUND),
+                tick: design.get(component::VIEWPORT_RULER_TICK),
+                label: design.get(component::VIEWPORT_RULER_LABEL),
+                cursor: design.get(component::VIEWPORT_RULER_CURSOR),
+                minor: design.get(component::VIEWPORT_RULER_MINOR).clamp(0.0, 1.0),
+                // Major ticks three grid spaces apart.
+                spacing: 3.0 * design.get(component::VIEWPORT_GRID_SPACING).max(1.0),
+            },
             zoom_step: f64::from(design.get(component::VIEWPORT_ZOOM_STEP).max(1.01)),
             pan_step: f64::from(design.get(component::VIEWPORT_PAN_STEP).max(1.0)),
             frame_duration: design.get(component::VIEWPORT_FRAME_DURATION),
@@ -356,6 +350,8 @@ pub(crate) struct View {
     camera: Camera,
     /// Rulers on the top, left, bottom and right sides.
     rulers: [bool; 4],
+    /// What the rulers count in.
+    units: Units,
     /// The grid of dots.
     grid: bool,
     /// Fits the document on the first frame it is drawn.
@@ -378,6 +374,7 @@ impl Default for View {
                 zoom: ACTUAL,
             },
             rulers: [true, true, false, false],
+            units: Units::default(),
             grid: true,
             framed: false,
             grip: None,
@@ -521,75 +518,6 @@ impl View {
     }
 }
 
-/// The step between ruler ticks, in document units: 1, 2 or 5 times a power of ten, the
-/// smallest at least `spacing` logical pixels apart at `zoom`.
-fn step(zoom: f64, spacing: f64) -> f64 {
-    let wanted = spacing / zoom;
-    let mut step = 10.0_f64.powf(wanted.log10().floor());
-    for factor in [1.0, 2.0, 5.0, 10.0] {
-        if step * factor >= wanted {
-            step *= factor;
-            break;
-        }
-    }
-    step
-}
-
-/// `value` with `decimals` decimals (at most 12), written into `digits`.
-fn decimal(value: f64, decimals: u32, digits: &mut [u8; 32]) -> &str {
-    let decimals = decimals.min(12);
-    #[allow(
-        clippy::cast_possible_truncation,
-        reason = "ruler values times a power of ten stay far below i64's range"
-    )]
-    let scaled = (value * 10f64.powi(decimals.cast_signed())).round() as i64;
-    let mut rest = scaled.unsigned_abs();
-    let mut start = digits.len();
-    let mut place = 0;
-    loop {
-        if place == decimals && decimals > 0 {
-            start -= 1;
-            digits[start] = b'.';
-        }
-        start -= 1;
-        digits[start] = b"0123456789"[usize::try_from(rest % 10).unwrap_or(0)];
-        rest /= 10;
-        place += 1;
-        if rest == 0 && place > decimals {
-            break;
-        }
-    }
-    if scaled < 0 {
-        start -= 1;
-        digits[start] = b'-';
-    }
-    core::str::from_utf8(&digits[start..]).expect("decimal digits are ASCII")
-}
-
-/// The decimals a ruler with ticks `step` apart writes.
-fn decimals(step: f64) -> u32 {
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        reason = "a few decimals"
-    )]
-    let decimals = (-step.log10().floor()).max(0.0) as u32;
-    decimals
-}
-
-/// The multiples of `step` from `from` to `to`.
-fn multiples(from: f64, to: f64, step: f64) -> impl Iterator<Item = f64> {
-    let first = (from / step).ceil();
-    let count = ((to / step).floor() - first + 1.0).clamp(0.0, 4000.0);
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        reason = "clamped to a few thousand lines"
-    )]
-    let count = count as u32;
-    (0..count).map(move |index| (first + f64::from(index)) * step)
-}
-
 /// The overlays menu of a viewport's top bar, at its right end.
 pub(crate) fn top_bar(
     ui: &mut Ui<'_>,
@@ -638,6 +566,7 @@ pub(crate) struct Shown<'a> {
 /// Draws a viewport in `rect` and applies its input.
 pub(crate) fn show(
     ui: &mut Ui<'_>,
+    id: WidgetId,
     rect: Rect,
     design: &DesignSystem,
     view: &mut View,
@@ -646,7 +575,8 @@ pub(crate) fn show(
     let style = Style::resolve(design);
     // Side rulers are as wide as four digits and a sign.
     let digits = ui.text_width("-8888", &ui.styles().text.detail);
-    let area = view.canvas_area(rect, style.ruler, style.ruler.max(digits + 6.0));
+    let ruler = style.rulers.size;
+    let area = view.canvas_area(rect, ruler, ruler.max(digits + 6.0));
     view.area = area;
     if !view.framed
         && let Some(camera) = shown.page.and_then(|page| View::fitted(area, page))
@@ -660,7 +590,7 @@ pub(crate) fn show(
     ui.zone(rect, VIEWPORT, |ui| {
         handle_input(ui, rect, area, view, &style, shown.page);
         draw_canvas(ui, area, view, &style, &mut shown);
-        draw_rulers(ui, rect, area, view, &style);
+        rulers::draw(ui, id, rect, area, view, &style.rulers);
     });
 }
 
@@ -711,6 +641,18 @@ fn handle_input(
             }
             (true, None) => ui.hold_pointer(),
             (false, _) => view.grip = None,
+        }
+    }
+    // Two fingers or more on the canvas: it follows their middle and their spread.
+    if ui.input().touch_count() >= 2
+        && let Some(middle) = ui.touch_middle().filter(|middle| area.contains(*middle))
+    {
+        let moved = ui.touch_moved();
+        let spread = f64::from(ui.input().touch_spread());
+        if moved != Vec2::ZERO || (spread - 1.0).abs() > f64::EPSILON {
+            view.motion = None;
+            view.pan(-wide(moved));
+            view.zoom_at(area, middle, spread);
         }
     }
     // During another action, these gestures are not the canvas's.
@@ -825,98 +767,6 @@ fn draw_canvas(ui: &mut Ui<'_>, area: Rect, view: &View, style: &Style, shown: &
         .with_corner_radius(4.5)
         .with_border(1.5, style.origin),
     );
-}
-
-fn draw_rulers(ui: &mut Ui<'_>, rect: Rect, area: Rect, view: &View, style: &Style) {
-    let font = ui.styles().text.detail.clone();
-    let step = step(view.camera.zoom, f64::from(style.grid_spacing) * 3.0);
-    let decimals = decimals(step);
-    let (from, to) = (
-        view.to_document(area, area.min),
-        view.to_document(area, area.max),
-    );
-    #[allow(
-        clippy::cast_possible_truncation,
-        reason = "a step's length on screen, a few dozen pixels"
-    )]
-    let step_on_screen = (step * view.camera.zoom) as f32;
-    for (side, shown) in SIDES.into_iter().zip(view.rulers) {
-        if !shown {
-            continue;
-        }
-        let strip = match side {
-            Side::Top => Rect::from_min_max(
-                Vec2::new(area.min.x, rect.min.y),
-                Vec2::new(area.max.x, area.min.y),
-            ),
-            Side::Bottom => Rect::from_min_max(
-                Vec2::new(area.min.x, area.max.y),
-                Vec2::new(area.max.x, rect.max.y),
-            ),
-            Side::Left => Rect::from_min_max(
-                Vec2::new(rect.min.x, area.min.y),
-                Vec2::new(area.min.x, area.max.y),
-            ),
-            Side::Right => Rect::from_min_max(
-                Vec2::new(area.max.x, area.min.y),
-                Vec2::new(rect.max.x, area.max.y),
-            ),
-        };
-        ui.scene()
-            .push_rect(&RectPrimitive::new(strip, style.ruler_background));
-        let horizontal = matches!(side, Side::Top | Side::Bottom);
-        let (start, end) = if horizontal {
-            (from.x, to.x)
-        } else {
-            (from.y, to.y)
-        };
-        let mut digits = [0; 32];
-        for value in multiples(start, end, step) {
-            let text = decimal(value, decimals, &mut digits);
-            if horizontal {
-                let x = view.to_screen_f32(area, Point::new(value, 0.0)).x.round();
-                ui.scene().push_rect(&RectPrimitive::new(
-                    Rect::from_min_max(Vec2::new(x, strip.min.y), Vec2::new(x + 1.0, strip.max.y)),
-                    style.ruler_tick,
-                ));
-                let label = Rect::from_min_max(
-                    Vec2::new(x + 3.0, strip.min.y),
-                    Vec2::new(x + step_on_screen, strip.max.y),
-                );
-                ui.label(text, label, &font, style.ruler_label, Align::Start);
-            } else {
-                let y = view.to_screen_f32(area, Point::new(0.0, value)).y.round();
-                ui.scene().push_rect(&RectPrimitive::new(
-                    Rect::from_min_max(Vec2::new(strip.min.x, y), Vec2::new(strip.max.x, y + 1.0)),
-                    style.ruler_tick,
-                ));
-                let label = Rect::from_min_max(
-                    Vec2::new(strip.min.x + 2.0, y),
-                    Vec2::new(strip.max.x, y + style.ruler * 0.8),
-                );
-                ui.label(text, label, &font, style.ruler_label, Align::Start);
-            }
-        }
-    }
-    // The corner between two rulers.
-    for (vertical, horizontal) in [(1, 0), (1, 2), (3, 0), (3, 2)] {
-        if view.rulers[vertical] && view.rulers[horizontal] {
-            let x = if vertical == 1 {
-                (rect.min.x, area.min.x)
-            } else {
-                (area.max.x, rect.max.x)
-            };
-            let y = if horizontal == 0 {
-                (rect.min.y, area.min.y)
-            } else {
-                (area.max.y, rect.max.y)
-            };
-            ui.scene().push_rect(&RectPrimitive::new(
-                Rect::from_min_max(Vec2::new(x.0, y.0), Vec2::new(x.1, y.1)),
-                style.ruler_background,
-            ));
-        }
-    }
 }
 
 #[cfg(test)]

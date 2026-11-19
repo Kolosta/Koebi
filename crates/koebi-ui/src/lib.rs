@@ -94,6 +94,7 @@ mod screen_pick;
 mod space;
 mod style;
 mod text;
+mod touch;
 mod ui;
 mod widgets;
 mod workspace;

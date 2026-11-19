@@ -28,4 +28,6 @@ disallowed-methods = [
     { path = "koebi_ui::Input::pressed_at", reason = "read presses through `Ui::press_position`, in local units (ADR 0030)" },
     { path = "koebi_ui::Input::button_pressed_at", reason = "read presses through `Ui::button_press_position`, in local units (ADR 0030)" },
     { path = "koebi_ui::Input::motion", reason = "read motion through `Ui::pointer_delta`, in local units (ADR 0030)" },
+    { path = "koebi_ui::Input::touch_middle", reason = "read touches through `Ui::touch_middle`, in local units (ADR 0030)" },
+    { path = "koebi_ui::Input::touch_moved", reason = "read touches through `Ui::touch_moved`, in local units (ADR 0030)" },
 ]

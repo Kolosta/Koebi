@@ -24,7 +24,8 @@ mod tests;
 use core::fmt;
 
 pub use units::{
-    DEGREE, Dimension, MILLIMETER, MILLISECOND, PIXEL, RADIAN, SECOND, UNITS, Unit, unit,
+    CENTIMETER, DEGREE, Dimension, INCH, METER, MILLIMETER, MILLISECOND, PIXEL, POINT, RADIAN,
+    SECOND, UNITS, Unit, unit,
 };
 
 /// How to evaluate an expression: the unit of the field it is typed in, and how many pixels

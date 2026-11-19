@@ -19,6 +19,8 @@ use koebi_core::Vec2;
 use koebi_core::input::{Key, Modifiers, MouseButton};
 use koebi_input::ActionDef;
 
+use crate::touch::Touches;
+
 /// The keys pressed during a frame and the keys held, for what records a shortcut: a few at a
 /// time, as hands hold.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -248,10 +250,12 @@ impl fmt::Debug for Typed {
 /// releases, wheel turns and actions are reported to the next frame only. A press and its
 /// release may both happen between two frames (a quick click); components still see the
 /// click. Touch screens work through the mouse events the platform synthesizes from the first
-/// finger.
+/// finger; two or more fingers make a gesture of their own ([`Input::touched`]).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Input {
     pointer: Option<Vec2>,
+    /// The fingers on a touch screen.
+    touches: Touches,
     /// How far the pointer moved during the frame, locked or not.
     motion: Vec2,
     buttons: [ButtonState; 3],
@@ -403,6 +407,7 @@ impl Input {
                 ..self.keys
             },
             mouse: Buttons::default(),
+            touches: self.touches.settled(),
             ..*self
         };
         for state in &mut settled.buttons {
@@ -415,6 +420,49 @@ impl Input {
     /// Where the pointer is, if it is over the window.
     pub fn pointer(&self) -> Option<Vec2> {
         self.pointer
+    }
+
+    /// The finger `finger` touched the screen at `position`.
+    pub fn touched(&mut self, finger: u64, position: Vec2) {
+        self.touches.touched(finger, position);
+    }
+
+    /// The finger `finger` moved to `position`: with another finger down, their gesture pans
+    /// and spreads ([`Input::touch_moved`], [`Input::touch_spread`]).
+    pub fn finger_moved(&mut self, finger: u64, position: Vec2) {
+        self.touches.moved_to(finger, position);
+    }
+
+    /// The finger `finger` left the screen.
+    pub fn lifted(&mut self, finger: u64) {
+        self.touches.lifted(finger);
+    }
+
+    /// The system reported a pinch: while two or more fingers stay down, it zooms, and their
+    /// spread does not.
+    pub fn system_pinched(&mut self) {
+        self.touches.pinched();
+    }
+
+    /// How many fingers are on the screen.
+    pub fn touch_count(&self) -> usize {
+        self.touches.count()
+    }
+
+    /// The middle of the fingers on the screen, if any.
+    pub fn touch_middle(&self) -> Option<Vec2> {
+        self.touches.middle()
+    }
+
+    /// How far the middle of two or more fingers moved since the last frame.
+    pub fn touch_moved(&self) -> Vec2 {
+        self.touches.moved()
+    }
+
+    /// How much two or more fingers spread apart since the last frame: above 1 apart, 1
+    /// without a gesture or when the system reports the pinch.
+    pub fn touch_spread(&self) -> f32 {
+        self.touches.spread()
     }
 
     /// `true` while `button` is down.

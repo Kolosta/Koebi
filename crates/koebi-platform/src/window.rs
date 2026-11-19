@@ -675,6 +675,24 @@ pub(crate) fn logical_per_window_coordinate(id: WindowId) -> f32 {
     coordinate_scale(density, display_scale)
 }
 
+/// The size of the window `id` in window coordinates, as SDL reports finger positions in
+/// shares of it; zero for an unknown window.
+pub(crate) fn window_coordinate_size(id: WindowId) -> Vec2 {
+    // SAFETY: called on the main thread from an SDL callback; SDL returns null for an
+    // unknown identifier.
+    let raw = unsafe { SDL_GetWindowFromID(SDL_WindowID(id.0)) };
+    if raw.is_null() {
+        return Vec2::ZERO;
+    }
+    let (mut width, mut height) = (0, 0);
+    // SAFETY: `raw` is a live window, just looked up; the out-pointers reference locals.
+    unsafe {
+        SDL_GetWindowSize(raw, &raw mut width, &raw mut height);
+    }
+    #[allow(clippy::cast_precision_loss, reason = "a window's size in coordinates")]
+    Vec2::new(width as f32, height as f32)
+}
+
 /// The room windows have on the primary display, if SDL can tell.
 fn usable_room() -> Option<(i32, i32)> {
     use sdl3_sys::video::{SDL_GetDisplayUsableBounds, SDL_GetPrimaryDisplay};

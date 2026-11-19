@@ -13,7 +13,7 @@ use koebi_i18n::tr;
 use std::time::{Duration, Instant};
 
 use koebi_core::{Rect, Vec2};
-use koebi_platform::{AppContext, Event, Window, WindowEvent, WindowId};
+use koebi_platform::{AppContext, Event, GesturePhase, Window, WindowEvent, WindowId};
 use koebi_render::Scene;
 use koebi_ui::{Input, Ui, UiState, WorkspaceView};
 use koebi_workspace::Workspace;
@@ -327,6 +327,22 @@ impl AppWindow {
                 self.input.pointer_moved_by(delta);
                 self.input.set_modifiers(modifiers);
             }
+            Event::Finger {
+                finger,
+                phase,
+                position,
+                ..
+            } => {
+                match phase {
+                    GesturePhase::Begin => self.input.touched(finger, position),
+                    GesturePhase::Update => self.input.finger_moved(finger, position),
+                    GesturePhase::End => self.input.lifted(finger),
+                }
+                return true;
+            }
+            // A pinch the system reports itself zooms through the keymap: two fingers' spread
+            // does not zoom again.
+            Event::Pinch { .. } => self.input.system_pinched(),
             Event::TextInput { text, .. } => {
                 self.input.typed(text.as_str());
                 return true;
