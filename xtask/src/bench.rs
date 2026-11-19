@@ -107,10 +107,11 @@ pub(crate) fn run(save: bool) -> Result<()> {
     let _ = writeln!(
         report,
         "Views of `koebi-canvas` (11 runs after a warm-up), full HD, on the document above, all \
-         10 000 objects in sight; then 10 000 strokes one pixel wide. Times are the render and \
-         the GPU's work, waited for, unless a row says the CPU alone. Preparing outlines (an \
-         octave of zoom crossed, strokes in pixels at a new level) runs on the render thread \
-         for now. See issue #16.\n"
+         10 000 objects in sight; then 500 groups blended in every mode; then 10 000 strokes \
+         one pixel wide. Times are the render and the GPU's work, waited for, unless a row says \
+         the CPU alone; no validation layers. Preparing outlines (an octave of zoom crossed, \
+         strokes in pixels at a new level) runs on the render thread for now. See issues #16 \
+         and #19.\n"
     );
     for line in &canvas {
         let _ = writeln!(report, "{line}");
