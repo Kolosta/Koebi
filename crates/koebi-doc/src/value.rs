@@ -159,6 +159,10 @@ pub enum EnumKind {
     PatternClip,
     /// [`PatternAnchor`].
     PatternAnchor,
+    /// [`InstancedLayout`].
+    InstancedLayout,
+    /// [`ScatterMode`].
+    ScatterMode,
 }
 
 /// What a socket's number means, for its units in the interface. It never changes the type.
@@ -321,6 +325,8 @@ impl Stored for StrokeJoin {}
 impl Stored for StrokeUnits {}
 impl Stored for PatternClip {}
 impl Stored for PatternAnchor {}
+impl Stored for InstancedLayout {}
+impl Stored for ScatterMode {}
 
 /// An enumeration a socket can hold.
 pub trait SocketEnum: Copy + Sized + 'static {
@@ -576,6 +582,44 @@ impl SocketEnum for PatternAnchor {
     }
 }
 enum_socket!(PatternAnchor, PatternAnchor);
+
+/// Where an instanced fill's shapes go.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum InstancedLayout {
+    /// On a lattice.
+    #[default]
+    Grid,
+    /// Scattered evenly at random.
+    Scatter,
+}
+
+impl SocketEnum for InstancedLayout {
+    const KIND: EnumKind = EnumKind::InstancedLayout;
+    const ALL: &'static [Self] = &[Self::Grid, Self::Scatter];
+    fn index(self) -> u32 {
+        self as u32
+    }
+}
+enum_socket!(InstancedLayout, InstancedLayout);
+
+/// How a scatter's density is set.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum ScatterMode {
+    /// A distance band between neighbors, filling the whole region.
+    #[default]
+    Distance,
+    /// A number of shapes over the region.
+    Count,
+}
+
+impl SocketEnum for ScatterMode {
+    const KIND: EnumKind = EnumKind::ScatterMode;
+    const ALL: &'static [Self] = &[Self::Distance, Self::Count];
+    fn index(self) -> u32 {
+        self as u32
+    }
+}
+enum_socket!(ScatterMode, ScatterMode);
 
 #[cfg(test)]
 mod tests {
