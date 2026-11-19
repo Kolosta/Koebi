@@ -504,3 +504,52 @@ fn a_blended_program_allocates_nothing_once_its_targets_are_pooled() {
     );
     gpu.assert_no_validation_errors();
 }
+
+#[test]
+fn groups_drawn_but_never_composited_are_taken_again_safely() {
+    let Some(gpu) = gpu_or_skip("groups_drawn_but_never_composited_are_taken_again_safely") else {
+        return;
+    };
+    let mut session = Session::new(&gpu, Extent::new(64, 48));
+    // An Erase first in its merge erases nothing, and a mask whose coverage lies out of sight
+    // shows nothing: both groups draw, then go back to the pool unread. Groups taken after them,
+    // in this frame and the next, must find their writes done.
+    let (blue, red) = (color(0.1, 0.3, 0.9, 1.0), color(0.9, 0.2, 0.1, 0.8));
+    let mut steps = Steps::default();
+    let eraser = steps.draw(&square(10.0, 10.0, 30.0, 30.0), WHITE);
+    let shape = steps.draw(&square(20.0, 20.0, 50.0, 40.0), blue);
+    let erasing = steps.merge(&[
+        (eraser, BlendMode::Erase, 1.0),
+        (shape, BlendMode::Normal, 1.0),
+    ]);
+    let content = steps.draw(&square(5.0, 5.0, 60.0, 45.0), red);
+    let hidden = steps.push(Step::Mask {
+        content,
+        coverage: StepCoverage::Outline {
+            outline: square(1000.0, 1000.0, 1010.0, 1010.0),
+            rule: FillRule::NonZero,
+        },
+        invert: false,
+    });
+    let below = steps.draw(&square(30.0, 4.0, 60.0, 30.0), red);
+    let above = steps.draw(&square(40.0, 10.0, 62.0, 44.0), blue);
+    let blended = steps.merge(&[
+        (below, BlendMode::Normal, 1.0),
+        (above, BlendMode::Screen, 0.7),
+    ]);
+    let root = steps.merge(&[
+        (erasing, BlendMode::Normal, 1.0),
+        (hidden, BlendMode::Normal, 1.0),
+        (blended, BlendMode::Normal, 1.0),
+    ]);
+    let program = steps.program(root, CLEAR);
+    for x in [32.0, 33.0, 32.0] {
+        let view = View {
+            center: Point::new(x, 24.0),
+            ..view()
+        };
+        let pixels = session.render(&program, &view).expect("drawn");
+        assert_matches(&pixels, &reference::render(&program, &view), &view);
+    }
+    gpu.assert_no_validation_errors();
+}

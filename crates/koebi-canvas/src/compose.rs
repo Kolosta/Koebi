@@ -135,6 +135,43 @@ pub(crate) enum Slot {
     Group(u8),
 }
 
+/// What a target went through last: its state, and whether color or copy writes happened in it
+/// since its last barrier. Every barrier starts from there, so writes are always made available
+/// before the next use, whatever path the script took (a group drawn then given back unread
+/// included).
+#[derive(Clone, Copy, Debug)]
+struct Tracked {
+    state: TextureState,
+    written: bool,
+}
+
+impl Default for Tracked {
+    fn default() -> Self {
+        Self {
+            state: TextureState::Undefined,
+            written: false,
+        }
+    }
+}
+
+/// Moves `texture` to `to`, from where `tracked` says it is; nothing when it is there already
+/// with nothing written since.
+fn transition(
+    encoder: &mut CommandEncoder<'_>,
+    texture: &Texture,
+    tracked: &mut Tracked,
+    to: TextureState,
+) {
+    if tracked.state == to && !tracked.written {
+        return;
+    }
+    encoder.texture_barrier(texture, tracked.state, to);
+    *tracked = Tracked {
+        state: to,
+        written: false,
+    };
+}
+
 /// The group targets of one view, pooled (see the module), and the bind groups that read them.
 #[derive(Debug, Default)]
 pub(crate) struct Groups {
@@ -142,6 +179,8 @@ pub(crate) struct Groups {
     free: Vec<u8>,
     /// Whether each target was drawn since it was taken.
     started: Vec<bool>,
+    /// What each target went through last, from frame to frame.
+    tracked: Vec<Tracked>,
     /// The pixels each target's group may draw, set when it is taken.
     areas: Vec<TextureRegion>,
     /// Bind groups by the targets they read: source, backdrop, mask.
@@ -150,6 +189,8 @@ pub(crate) struct Groups {
     stack: Vec<Slot>,
     /// Whether the view's target was drawn this frame.
     view_started: bool,
+    /// What the view's target went through last this frame.
+    view_tracked: Tracked,
 }
 
 /// The most groups a view nests: more than any document's depth, against corrupt programs.
@@ -177,6 +218,7 @@ impl Groups {
                     | TextureUsage::TRANSFER_DST,
             })?);
             self.started.push(false);
+            self.tracked.push(Tracked::default());
             self.areas.push(area);
             u8::try_from(self.textures.len() - 1)
                 .map_err(|_| Error::InvalidArgument("too many groups".into()))?
@@ -252,9 +294,17 @@ pub(crate) struct Run<'a, 'e> {
 impl Run<'_, '_> {
     /// Runs `script`, then leaves the view's target in [`TextureState::ShaderRead`].
     pub(crate) fn script(mut self, script: &[Op]) -> Result<()> {
+        // Every target goes back to the pool, those a failed run left taken too.
+        self.groups.free.clear();
+        self.groups
+            .free
+            .extend((0..self.groups.textures.len()).filter_map(|group| u8::try_from(group).ok()));
         self.groups.stack.clear();
         self.groups.stack.push(Slot::View);
         self.groups.view_started = false;
+        // What the view showed is discarded: its next pass clears it. Interface frames still
+        // sampling it run at earlier stages than color output, which the barrier waits for.
+        self.groups.view_tracked = Tracked::default();
         let mut pending: Option<Range<u32>> = None;
         let mut pushed = 0;
         for &op in script {
@@ -298,19 +348,20 @@ impl Run<'_, '_> {
                 self.groups.give_back(slot);
             }
         }
+        let whole = TextureRegion::whole(self.view.extent());
         if !self.groups.view_started {
-            let whole = TextureRegion::whole(self.view.extent());
-            drop(begin(
-                self.encoder,
-                self.view,
-                &mut self.groups.view_started,
-                whole,
-                whole,
-            )?);
+            let mut view = Target {
+                texture: self.view,
+                started: &mut self.groups.view_started,
+                tracked: &mut self.groups.view_tracked,
+                own: whole,
+            };
+            drop(begin(self.encoder, &mut view, whole)?);
         }
-        self.encoder.texture_barrier(
+        transition(
+            self.encoder,
             self.view,
-            TextureState::ColorAttachment,
+            &mut self.groups.view_tracked,
             TextureState::ShaderRead,
         );
         Ok(())
@@ -330,10 +381,17 @@ impl Run<'_, '_> {
 
     /// Makes group `group`'s target readable by shaders.
     fn sampled(&mut self, group: u8) {
-        self.encoder.texture_barrier(
-            &self.groups.textures[usize::from(group)],
-            TextureState::ColorAttachment,
-            TextureState::ShaderRead,
+        self.to(group, TextureState::ShaderRead);
+    }
+
+    /// Moves group `group`'s target to `state`.
+    fn to(&mut self, group: u8, state: TextureState) {
+        let at = usize::from(group);
+        transition(
+            self.encoder,
+            &self.groups.textures[at],
+            &mut self.groups.tracked[at],
+            state,
         );
     }
 
@@ -351,8 +409,8 @@ impl Run<'_, '_> {
         let Some((buffer, offset)) = buffer else {
             return Ok(());
         };
-        let (texture, started) = target(self.view, self.groups, slot);
-        let Some(mut pass) = begin(self.encoder, texture, started, area, area)? else {
+        let mut target = target(self.view, self.groups, slot, area);
+        let Some(mut pass) = begin(self.encoder, &mut target, area)? else {
             return Ok(());
         };
         pass.set_pipeline(pipeline);
@@ -384,21 +442,33 @@ impl Run<'_, '_> {
         let Groups {
             textures,
             started,
+            tracked,
             bindings,
             view_started,
+            view_tracked,
             ..
         } = &mut *self.groups;
         let bind_group = bindings
             .get(&reads)
             .ok_or_else(|| Error::InvalidArgument("composite bind group missing".into()))?;
-        let (texture, started) = match slot {
-            Slot::View => (self.view, view_started),
-            Slot::Group(group) => (
-                &textures[usize::from(group)],
-                &mut started[usize::from(group)],
-            ),
+        let mut target = match slot {
+            Slot::View => Target {
+                texture: self.view,
+                started: view_started,
+                tracked: view_tracked,
+                own,
+            },
+            Slot::Group(group) => {
+                let at = usize::from(group);
+                Target {
+                    texture: &textures[at],
+                    started: &mut started[at],
+                    tracked: &mut tracked[at],
+                    own,
+                }
+            }
         };
-        let Some(mut pass) = begin(self.encoder, texture, started, own, area)? else {
+        let Some(mut pass) = begin(self.encoder, &mut target, area)? else {
             return Ok(());
         };
         pass.set_pipeline(pipeline);
@@ -467,26 +537,20 @@ impl Run<'_, '_> {
         }
         let extent = self.view.extent();
         let copy = self.groups.take(self.device, extent, area)?;
-        let (from, to) = (
+        self.to(backdrop, TextureState::TransferSrc);
+        self.to(copy, TextureState::TransferDst);
+        let copied = self.encoder.copy_texture_to_texture(
             &self.groups.textures[usize::from(backdrop)],
             &self.groups.textures[usize::from(copy)],
+            area,
         );
-        self.encoder.texture_barrier(
-            from,
-            TextureState::ColorAttachment,
-            TextureState::TransferSrc,
-        );
-        self.encoder
-            .texture_barrier(to, TextureState::Undefined, TextureState::TransferDst);
-        let copied = self.encoder.copy_texture_to_texture(from, to, area);
+        self.groups.tracked[usize::from(copy)].written = true;
         // Both go on to their next use, whatever the copy did.
-        self.encoder
-            .texture_barrier(to, TextureState::TransferDst, TextureState::ShaderRead);
-        self.encoder.texture_barrier(
-            from,
-            TextureState::TransferSrc,
-            TextureState::ColorAttachment,
-        );
+        self.sampled(copy);
+        self.to(backdrop, TextureState::ColorAttachment);
+        if copied.is_err() {
+            self.groups.give_back(Slot::Group(copy));
+        }
         copied?;
         let blended = self.composite(
             Slot::Group(backdrop),
@@ -549,45 +613,67 @@ impl Run<'_, '_> {
     }
 }
 
-/// The texture of `slot` and whether it was drawn this frame.
+/// A target a pass draws into: its texture, whether it was drawn this frame, what it went
+/// through last, and the pixels it may hold.
+struct Target<'a> {
+    texture: &'a Texture,
+    started: &'a mut bool,
+    tracked: &'a mut Tracked,
+    own: TextureRegion,
+}
+
+/// The target of `slot`, which may hold `own`.
 fn target<'a>(
     view: &'a Texture,
     groups: &'a mut Groups,
     slot: Slot,
-) -> (&'a Texture, &'a mut bool) {
+    own: TextureRegion,
+) -> Target<'a> {
     match slot {
-        Slot::View => (view, &mut groups.view_started),
-        Slot::Group(group) => (
-            &groups.textures[usize::from(group)],
-            &mut groups.started[usize::from(group)],
-        ),
+        Slot::View => Target {
+            texture: view,
+            started: &mut groups.view_started,
+            tracked: &mut groups.view_tracked,
+            own,
+        },
+        Slot::Group(group) => {
+            let at = usize::from(group);
+            Target {
+                texture: &groups.textures[at],
+                started: &mut groups.started[at],
+                tracked: &mut groups.tracked[at],
+                own,
+            }
+        }
     }
 }
 
-/// Begins a pass on `texture` rendering its target's area `own`, drawing within `area` of it:
-/// `own` cleared the first time this frame (`started` false), kept after. `None` when there is
-/// nothing to draw.
+/// Begins a pass on `target` drawing within `area` of it. The first pass of the frame clears
+/// all the target may hold and draws within `area`; later ones load and store `area` alone,
+/// which tiled GPUs pay for by the pixel. `None` when there is nothing to draw.
 fn begin<'e>(
     encoder: &'e mut CommandEncoder<'_>,
-    texture: &Texture,
-    started: &mut bool,
-    own: TextureRegion,
+    target: &mut Target<'_>,
     area: TextureRegion,
 ) -> Result<Option<RenderPass<'e>>> {
-    let area = intersection(own, area);
+    let area = intersection(target.own, area);
     if area.is_empty() {
         return Ok(None);
     }
-    // A target taken anew is cleared: discarded. Its last use (sampled, copied, or the
-    // interface's image) runs at earlier stages than color output, which the barrier waits for.
-    let (from, load) = if *started {
-        (TextureState::ColorAttachment, LoadOp::Load)
+    let (load, rendered) = if *target.started {
+        (LoadOp::Load, area)
     } else {
-        (TextureState::Undefined, LoadOp::Clear([0.0; 4]))
+        (LoadOp::Clear([0.0; 4]), target.own)
     };
-    encoder.texture_barrier(texture, from, TextureState::ColorAttachment);
-    *started = true;
-    let mut pass = encoder.begin_render_pass_in(texture.render_target()?, load, own)?;
+    transition(
+        encoder,
+        target.texture,
+        target.tracked,
+        TextureState::ColorAttachment,
+    );
+    *target.started = true;
+    target.tracked.written = true;
+    let mut pass = encoder.begin_render_pass_in(target.texture.render_target()?, load, rendered)?;
     #[allow(
         clippy::cast_possible_wrap,
         reason = "an offset inside a target, far below 2^31"
