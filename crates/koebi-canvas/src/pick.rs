@@ -4,8 +4,8 @@
 //!
 //! A pick tests the layers under the point, topmost first: the outline drawn (a stroke in pixels
 //! at the view's zoom level), by its fill rule, or within a tolerance of its edges. It returns the
-//! object of the first layer hit. Compositing does not count yet: a masked layer is picked where
-//! its outline is, as it is drawn until #19.
+//! object of the first layer hit. Compositing does not count: a masked or erased layer is picked
+//! where its outline is.
 
 use std::sync::Arc;
 

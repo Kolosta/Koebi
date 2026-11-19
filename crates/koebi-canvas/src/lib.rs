@@ -24,14 +24,17 @@
 //! - **Picking** ([`ViewTarget::pick`]) is exact, on the CPU: the topmost object a view drew
 //!   under a point, found through an index of the bounds of what it drew.
 //! - **Paints:** solid colors, in linear light.
-//! - **The CPU reference** ([`reference`](mod@reference)) computes the shader's coverage in the
-//!   same arithmetic, for the tests.
-//!
-//! Compositing (blend modes, Erase, masks) comes with the next part of the renderer: until then,
-//! every layer of a program draws over what lies below it, at its opacity.
+//! - **Compositing:** the program's merges, blends and masks run as groups, each in a target of
+//!   its own pooled by the view and within the area it draws, composited onto the target below
+//!   by the W3C formulas (the sixteen modes) or as Erase. A blend reaches only what lies below
+//!   it in its own merge, and an Erase at the page's root reveals the page.
+//! - **The CPU reference** ([`reference`](mod@reference)) computes the shader's coverage and
+//!   the compositing in the same arithmetic, for the tests.
 
+mod blend;
 mod canvas;
 mod cells;
+mod compose;
 mod frame;
 mod pick;
 pub mod reference;

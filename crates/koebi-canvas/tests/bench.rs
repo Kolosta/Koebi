@@ -1,6 +1,7 @@
 //! The canvas part of the performance baseline (`cargo xtask bench`): how long views of 10 000
 //! paths take to draw, from nothing, still, panned and zoomed, after one edit, how long a pick
-//! takes, and the same for 10 000 strokes in pixels, on the machine that runs it.
+//! takes, the same for 10 000 strokes in pixels, and 500 groups blended in every mode, on the
+//! machine that runs it.
 //!
 //! An ignored test: `cargo xtask bench` runs it in release and gathers the table it prints
 //! between `BENCH-BEGIN` and `BENCH-END`. Times are wall times of the render and the GPU's
@@ -16,11 +17,11 @@ use std::time::{Duration, Instant};
 
 use koebi_canvas::{Canvas, View, ViewTarget};
 use koebi_core::{Extent, LinearRgba};
-use koebi_doc::eval::{Evaluator, MergeInput, Program, Step, StepId, ViewStroke};
+use koebi_doc::eval::{Draw, Evaluator, MergeInput, Program, Step, StepId, ViewStroke};
 use koebi_doc::kinds::{fill, path_object};
 use koebi_doc::ops::{self, Shape};
 use koebi_doc::{BlendMode, Document, Edit, NodeId, SocketRef, Value};
-use koebi_geom::{Contour, Contours, Point, Segment, StrokeStyle, Vector};
+use koebi_geom::{Contour, Contours, FillRule, Path, Point, Rect, Segment, StrokeStyle, Vector};
 use koebi_testkit::HeadlessGpu;
 
 /// Runs of each measure, after one to warm up.
@@ -146,6 +147,81 @@ fn hairlines() -> Program {
         LinearRgba::new(1.0, 1.0, 1.0, 1.0),
         steps,
         root,
+    )
+}
+
+/// 500 groups, 25 to a row 12 units apart, each a square and a smaller one blended over it in
+/// one of the sixteen modes other than Normal, at 80%, every group at 90% over the page.
+fn blended_groups() -> Program {
+    const MODES: [BlendMode; 16] = [
+        BlendMode::Multiply,
+        BlendMode::Screen,
+        BlendMode::Overlay,
+        BlendMode::Darken,
+        BlendMode::Lighten,
+        BlendMode::ColorDodge,
+        BlendMode::ColorBurn,
+        BlendMode::HardLight,
+        BlendMode::SoftLight,
+        BlendMode::Difference,
+        BlendMode::Exclusion,
+        BlendMode::Hue,
+        BlendMode::Saturation,
+        BlendMode::Color,
+        BlendMode::Luminosity,
+        BlendMode::Erase,
+    ];
+    let mut steps = Vec::new();
+    let mut push = |step: Step| {
+        steps.push(step);
+        StepId(steps.len() - 1)
+    };
+    let square = |x: f64, y: f64, side: f64| {
+        Arc::new(
+            Path::rectangle(Rect::new(Point::new(x, y), Point::new(x + side, side + y))).contours(),
+        )
+    };
+    let draw = |outline: Arc<Contours>, color: LinearRgba| {
+        Step::Draw(Draw {
+            object: None,
+            outline,
+            rule: FillRule::NonZero,
+            color,
+            opacity: 1.0,
+        })
+    };
+    let input = |step: StepId, blend: BlendMode, opacity: f64| MergeInput {
+        step,
+        blend,
+        opacity,
+    };
+    let mut groups = Vec::new();
+    for i in 0..500_u32 {
+        let (x, y) = (f64::from(i % 25) * 12.0, f64::from(i / 25) * 12.0);
+        #[allow(clippy::cast_precision_loss, reason = "a small index")]
+        let shade = (i % 9) as f32 / 9.0;
+        let below = push(draw(
+            square(x, y, 10.0),
+            LinearRgba::new(shade, 0.4, 0.8, 1.0),
+        ));
+        let above = push(draw(
+            square(x + 3.0, y + 3.0, 6.0),
+            LinearRgba::new(0.9, shade, 0.2, 0.9),
+        ));
+        let mode = MODES[i as usize % MODES.len()];
+        let group = push(Step::Merge(vec![
+            input(below, BlendMode::Normal, 1.0),
+            input(above, mode, 0.8),
+        ]));
+        groups.push(input(group, BlendMode::Normal, 0.9));
+    }
+    let root = push(Step::Merge(groups));
+    Program::new(
+        NodeId(0),
+        Vector::new(300.0, 240.0),
+        LinearRgba::new(1.0, 1.0, 1.0, 1.0),
+        steps,
+        Some(root),
     )
 }
 
@@ -320,6 +396,53 @@ fn baseline() {
         "pick under the pointer, 2 px of tolerance (CPU)",
         stats(picks),
         &format!("{hits} hits in 1 000"),
+    );
+
+    // Groups blended in every mode: each in a target of its own, within its area.
+    let groups = blended_groups();
+    let name = "500 blended groups";
+    let framed = view(Point::new(150.0, 120.0), 4.0);
+    let cold = measure(|| {
+        let mut canvas = Canvas::new(&gpu.device).expect("a canvas");
+        let mut target = ViewTarget::new(&gpu.device, framed.extent).expect("a target");
+        render(&gpu, &mut canvas, &mut target, &groups, &framed);
+    });
+    row(
+        name,
+        "first render, targets made",
+        cold,
+        "1 000 groups, 500 blended in a mode",
+    );
+    let mut canvas = Canvas::new(&gpu.device).expect("a canvas");
+    let mut target = ViewTarget::new(&gpu.device, framed.extent).expect("a target");
+    render(&gpu, &mut canvas, &mut target, &groups, &framed);
+    let mut pan = 0.0;
+    let panned = measure(|| {
+        pan = 7.0 / framed.zoom - pan;
+        let view = view(Point::new(150.0 + pan, 120.0), framed.zoom);
+        render(&gpu, &mut canvas, &mut target, &groups, &view);
+    });
+    row(name, "pan by 7 px, targets pooled", panned, "");
+    let recording: Vec<Duration> = (0..=RUNS)
+        .map(|_| {
+            pan = 7.0 / framed.zoom - pan;
+            let view = view(Point::new(150.0 + pan, 120.0), framed.zoom);
+            gpu.device
+                .submit_and_wait(|encoder| {
+                    let start = Instant::now();
+                    let drawn = canvas.render(encoder, &mut target, &groups, &view);
+                    assert!(drawn.expect("rendered"));
+                    start.elapsed()
+                })
+                .expect("submitted")
+        })
+        .skip(1)
+        .collect();
+    row(
+        name,
+        "pan by 7 px, recording alone (CPU)",
+        stats(recording),
+        "",
     );
 
     // Strokes in pixels: outlined by the canvas, at the view's zoom level.

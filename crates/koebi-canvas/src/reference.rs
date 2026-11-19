@@ -148,27 +148,49 @@ pub fn coverage(data: &[[f32; 4]], cell: CellView, pixel: [f32; 2], rule: FillRu
     mixed.max(across.min(down)).clamp(0.0, 1.0)
 }
 
-/// What [`crate::Canvas::render`] draws for `program` seen by `view`, computed on the CPU from
-/// cells prepared anew: the view's pixels, row by row from the top left, in linear light,
-/// premultiplied. Every pixel takes, layer after layer, the instances whose rectangle holds its
-/// center (as the GPU rasterizes them), each covering it by [`coverage`] and drawn over what
-/// lies below. A view showing more than a canvas holds draws what fits.
-pub fn render(program: &koebi_doc::eval::Program, view: &crate::View) -> Vec<[f32; 4]> {
-    let mut store = crate::store::CellStore::default();
-    store.begin();
-    let mut strokes = crate::strokes::ViewStrokes::default();
-    strokes.begin();
-    let mut frame = crate::frame::Frame::default();
-    // What fits is drawn: the canvas fails instead, which tests see.
-    let _ = frame.build(program, view, &mut store, &mut strokes);
-    let data = store.data();
-    let (width, height) = (view.extent.width, view.extent.height);
-    let mut pixels = vec![[0.0_f32; 4]; (width as usize) * (height as usize)];
-    for (index, pixel) in pixels.iter_mut().enumerate() {
+/// `value` rounded to the nearest half-precision float, ties to even, as a store into an
+/// `Rgba16Float` target rounds it.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    reason = "bit fields of an f32"
+)]
+fn half(value: f32) -> f32 {
+    if !value.is_finite() || value == 0.0 {
+        return value;
+    }
+    let bits = value.to_bits();
+    let exponent = ((bits >> 23) & 0xff) as i32 - 127;
+    // Halves keep 10 bits of mantissa from 2^-14 up, and fewer below, down to 2^-24.
+    let kept = if exponent >= -14 {
+        10
+    } else {
+        10 - (-14 - exponent)
+    };
+    if kept < 0 {
+        return 0.0_f32.copysign(value);
+    }
+    let step = f64::from(exponent - kept).exp2();
+    let scaled = f64::from(value) / step;
+    let rounded = scaled.round_ties_even() * step;
+    (rounded as f32).clamp(-65504.0, 65504.0)
+}
+
+/// Draws `instances` of a frame over `image`, its pixels row by row from the top left: every
+/// pixel takes, instance after instance, those whose rectangle holds its center (as the GPU
+/// rasterizes them), each covering it by [`coverage`] and drawn over what lies below.
+fn draw(
+    image: &mut [[f32; 4]],
+    width: u32,
+    instances: &[crate::frame::CellInstance],
+    data: &[[f32; 4]],
+) {
+    for (index, pixel) in image.iter_mut().enumerate() {
         let index = u32::try_from(index).unwrap_or(u32::MAX);
         #[allow(clippy::cast_precision_loss, reason = "pixel coordinates of a view")]
         let center = [(index % width) as f32 + 0.5, (index / width) as f32 + 0.5];
-        for instance in &frame.instances {
+        for instance in instances {
             let [x0, y0, x1, y1] = instance.rect;
             if center[0] < x0 || center[0] >= x1 || center[1] < y0 || center[1] >= y1 {
                 continue;
@@ -193,11 +215,88 @@ pub fn render(program: &koebi_doc::eval::Program, view: &crate::View) -> Vec<[f3
             };
             let cover = coverage(data, cell, center, rule);
             let source = instance.color.map(|channel| channel * cover);
-            let keep = 1.0 - source[3];
-            for (destination, value) in pixel.iter_mut().zip(source) {
-                *destination = value + *destination * keep;
+            *pixel =
+                crate::blend::composite(koebi_doc::BlendMode::Normal, *pixel, source).map(half);
+        }
+    }
+}
+
+/// What [`crate::Canvas::render`] draws for `program` seen by `view`, computed on the CPU from
+/// cells prepared anew: the view's pixels, row by row from the top left, in linear light,
+/// premultiplied, each store rounded to half precision as the GPU's targets are. The frame's
+/// script runs on a stack of images: layers drawn over the top one, each pixel covered by
+/// [`coverage`], groups composited onto the one below by the W3C formulas the shader uses
+/// (`blend.rs`). A view showing more than a canvas holds
+/// draws what fits.
+pub fn render(program: &koebi_doc::eval::Program, view: &crate::View) -> Vec<[f32; 4]> {
+    use crate::frame::Op;
+    let mut store = crate::store::CellStore::default();
+    store.begin();
+    let mut strokes = crate::strokes::ViewStrokes::default();
+    strokes.begin();
+    let mut frame = crate::frame::Frame::default();
+    // What fits is drawn: the canvas fails instead, which tests see.
+    let _ = frame.build(program, view, &mut store, &mut strokes);
+    let data = store.data();
+    let (width, height) = (view.extent.width, view.extent.height);
+    let pixels = (width as usize) * (height as usize);
+    let mut stack = vec![vec![[0.0_f32; 4]; pixels]];
+    for &op in &frame.script {
+        match op {
+            Op::Draw(layer) => {
+                let range = frame.ranges.get(layer).cloned().unwrap_or(0..0);
+                let instances = &frame.instances[range.start as usize..range.end as usize];
+                if let Some(image) = stack.last_mut() {
+                    draw(image, width, instances, data);
+                }
+            }
+            Op::Push => stack.push(vec![[0.0; 4]; pixels]),
+            Op::Pop { mode, opacity } => {
+                let (Some(source), Some(below)) = (stack.pop(), stack.last_mut()) else {
+                    break;
+                };
+                for (backdrop, source) in below.iter_mut().zip(source) {
+                    let source = source.map(|channel| channel * opacity);
+                    *backdrop = crate::blend::composite(mode, *backdrop, source).map(half);
+                }
+            }
+            Op::PopMask { invert } => {
+                let (Some(mask), Some(content)) = (stack.pop(), stack.pop()) else {
+                    break;
+                };
+                let Some(below) = stack.last_mut() else {
+                    break;
+                };
+                for ((backdrop, content), mask) in below.iter_mut().zip(content).zip(mask) {
+                    let shown = if invert { 1.0 - mask[3] } else { mask[3] };
+                    let source = content.map(|channel| channel * shown);
+                    *backdrop =
+                        crate::blend::composite(koebi_doc::BlendMode::Normal, *backdrop, source)
+                            .map(half);
+                }
             }
         }
     }
-    pixels
+    stack.swap_remove(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stores_round_to_half_precision() {
+        assert_eq!(half(1.0), 1.0);
+        // 1 + 2^-11 lies halfway between two halves: to the even one.
+        assert_eq!(half(1.0 + 2.0_f32.powi(-11)), 1.0);
+        assert_eq!(
+            half(1.0 + 3.0 * 2.0_f32.powi(-11)),
+            1.0 + 2.0 * 2.0_f32.powi(-10)
+        );
+        assert!((half(0.1) - 0.099_975_586).abs() < 1e-9);
+        // Below 2^-14 the steps stay 2^-24; far below, zero.
+        assert_eq!(half(3.0 * 2.0_f32.powi(-24)), 3.0 * 2.0_f32.powi(-24));
+        assert_eq!(half(2.0_f32.powi(-30)), 0.0);
+        assert_eq!(half(1.0e6), 65504.0);
+    }
 }

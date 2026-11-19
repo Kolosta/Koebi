@@ -118,6 +118,15 @@ glyphs, with the non-zero or even-odd rule.
 - **Page:** content is composited onto the page's background. The background is a step of the
   page, not of its stack, so an Erase at the page's root reveals the background, not the
   view's color.
+- *Refined in #19:*
+  - Group targets have the view's size and are pooled by the view. Each group renders, clears
+    and composites only its *area*, the bounds of what its layers and groups draw.
+  - The modes other than Normal and Erase copy the backdrop's pixels under the group aside,
+    then write the result over them.
+  - Coverages are drawn into the same `Rgba16Float` targets, their alpha read, so that one
+    pipeline draws every layer.
+  - A merge that blends one of its layers in another mode than Normal is itself a group, and a
+    single draw at an opacity takes the opacity in its color.
 
 ### Views
 

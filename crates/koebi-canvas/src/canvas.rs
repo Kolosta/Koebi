@@ -16,13 +16,14 @@ use koebi_doc::eval::Program;
 use koebi_gpu::{
     AddressMode, BindGroup, BindGroupDesc, BindGroupLayout, BindGroupLayoutDesc, BindingResource,
     BindingType, BlendMode, Buffer, BufferDesc, BufferTexels, BufferUsage, ColorTargetDesc,
-    CommandEncoder, Device, Error, FilterMode, LoadOp, MemoryLocation, Pod, PrimitiveTopology,
+    CommandEncoder, Device, Error, FilterMode, MemoryLocation, Pod, PrimitiveTopology,
     RenderPipeline, RenderPipelineDesc, Result, Sampler, SamplerDesc, ShaderStage, Texture,
     TextureDesc, TextureFormat, TextureRegion, TextureState, TextureUsage, VertexAttribute,
     VertexBufferLayout, VertexFormat, VertexStepMode,
 };
 
 use crate::cells::DATA_WIDTH;
+use crate::compose::{Compositor, Groups, LayerConstants, Layers, Run};
 use crate::frame::{CellInstance, Frame};
 use crate::store::{CanvasStats, CellStore};
 use crate::strokes::ViewStrokes;
@@ -145,6 +146,8 @@ pub struct ViewTarget {
     instances: Stream,
     /// The program revision and the view it shows.
     shown: Option<(u64, View)>,
+    /// Its group targets, pooled.
+    groups: Groups,
 }
 
 impl ViewTarget {
@@ -166,6 +169,7 @@ impl ViewTarget {
             frame: Frame::default(),
             instances: Stream::new("canvas instances", BufferUsage::VERTEX),
             shown: None,
+            groups: Groups::default(),
         })
     }
 
@@ -198,17 +202,6 @@ impl ViewTarget {
     }
 }
 
-/// Push constants of the canvas pipeline. Must match `Constants` in `shaders/canvas.vert`.
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-struct Constants {
-    target_px: [f32; 2],
-    padding: [f32; 2],
-}
-
-// SAFETY: `repr(C)` with four `f32`: 16 bytes, no padding, any bit pattern is valid.
-unsafe impl Pod for Constants {}
-
 /// Draws programs into views' targets ([`Canvas::render`]). Keep one per device for every view;
 /// reuse it every frame: its cells and storage stay.
 pub struct Canvas {
@@ -220,6 +213,8 @@ pub struct Canvas {
     store: CellStore,
     /// The outlines of the strokes views showed in pixels.
     strokes: ViewStrokes,
+    /// What composites groups.
+    compositor: Compositor,
     /// The texture of records, and its bind group.
     data: Option<(Texture, BindGroup)>,
     /// Whether the texture was ever written: its first copy comes from `Undefined`.
@@ -295,6 +290,7 @@ impl Canvas {
             sampler,
             store: CellStore::default(),
             strokes: ViewStrokes::default(),
+            compositor: Compositor::new(device)?,
             data: None,
             written: false,
             staging: Stream::new("canvas staging", BufferUsage::TRANSFER_SRC),
@@ -329,9 +325,6 @@ impl Canvas {
     /// The encoder must be submitted: the canvas counts what it recorded as done, and one whose
     /// commands were dropped (a failed submission) must be made anew with its targets, as after
     /// a device loss.
-    ///
-    /// Until compositing comes, layers blended in another mode, masked or isolated draw as
-    /// layers over the ones below, at their opacity.
     ///
     /// # Errors
     ///
@@ -384,40 +377,39 @@ impl Canvas {
                 &[target.frame.instances.as_slice()],
             )?)
         };
-        // What it showed is cleared: discarded. The barrier waits for color output, so for the
-        // stages before it too: interface frames still sampling the target finish first.
-        encoder.texture_barrier(
-            &target.texture,
-            TextureState::Undefined,
-            TextureState::ColorAttachment,
-        );
-        {
-            let mut pass =
-                encoder.begin_render_pass(target.texture.render_target()?, LoadOp::Clear([0.0; 4]));
-            if let (Some((_, bind_group)), Some((buffer, offset))) = (&self.data, instances) {
-                let extent = view.extent;
-                pass.set_scissor(0, 0, extent.width, extent.height);
-                pass.set_pipeline(&self.pipeline);
-                pass.set_bind_group(&self.pipeline, 0, bind_group)?;
-                #[allow(clippy::cast_precision_loss, reason = "a target's size")]
-                pass.set_push_constants(
-                    &self.pipeline,
-                    &Constants {
-                        target_px: [extent.width as f32, extent.height as f32],
-                        padding: [0.0; 2],
-                    },
-                )?;
-                pass.set_vertex_buffer(0, buffer, offset);
-                let count = u32::try_from(target.frame.instances.len())
-                    .map_err(|_| Error::InvalidArgument("too many cells".into()))?;
-                pass.draw(0..4, 0..count);
-            }
+        let Some((_, records)) = &self.data else {
+            return Err(Error::InvalidArgument(
+                "the records were not uploaded".into(),
+            ));
+        };
+        let extent = view.extent;
+        #[allow(clippy::cast_precision_loss, reason = "a target's size")]
+        let constants = LayerConstants {
+            target_px: [extent.width as f32, extent.height as f32],
+            padding: [0.0; 2],
+        };
+        let ViewTarget {
+            texture,
+            frame,
+            groups,
+            ..
+        } = target;
+        Run {
+            device: &self.device,
+            encoder,
+            compositor: &self.compositor,
+            groups,
+            view: texture,
+            layers: Layers {
+                pipeline: &self.pipeline,
+                records,
+                constants,
+                instances,
+                ranges: &frame.ranges,
+                areas: &frame.areas,
+            },
         }
-        encoder.texture_barrier(
-            &target.texture,
-            TextureState::ColorAttachment,
-            TextureState::ShaderRead,
-        );
+        .script(&frame.script)?;
         target.shown = Some((program.revision(), *view));
         self.store.stats.rendered += 1;
         Ok(true)

@@ -499,6 +499,38 @@ impl<'a> CommandEncoder<'a> {
     /// Begins a dynamic rendering pass on `target`. The pass ends when the returned value is
     /// dropped. Viewport and scissor are preset to the whole target.
     pub fn begin_render_pass(&mut self, target: RenderTarget, load: LoadOp) -> RenderPass<'_> {
+        let whole = TextureRegion::whole(target.extent);
+        self.begin_rendering(target, load, whole)
+    }
+
+    /// Begins a dynamic rendering pass on `target` that renders `area` only: a clear clears it
+    /// alone, and draws outside it are discarded. The viewport stays the whole target, so
+    /// coordinates do not change; the scissor is preset to `area`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidArgument`] if `area` is empty or does not lie inside the target.
+    pub fn begin_render_pass_in(
+        &mut self,
+        target: RenderTarget,
+        load: LoadOp,
+        area: TextureRegion,
+    ) -> Result<RenderPass<'_>> {
+        if area.is_empty() || !area.fits_in(target.extent) {
+            return Err(Error::InvalidArgument(format!(
+                "render area {area:?} outside a target of {:?}",
+                target.extent
+            )));
+        }
+        Ok(self.begin_rendering(target, load, area))
+    }
+
+    fn begin_rendering(
+        &mut self,
+        target: RenderTarget,
+        load: LoadOp,
+        area: TextureRegion,
+    ) -> RenderPass<'_> {
         let (load_op, clear) = match load {
             LoadOp::Clear(color) => (vk::AttachmentLoadOp::CLEAR, color),
             LoadOp::Load => (vk::AttachmentLoadOp::LOAD, [0.0; 4]),
@@ -512,19 +544,26 @@ impl<'a> CommandEncoder<'a> {
             .clear_value(vk::ClearValue {
                 color: vk::ClearColorValue { float32: clear },
             })];
-        let area = vk::Rect2D {
-            offset: vk::Offset2D::default(),
+        #[allow(
+            clippy::cast_possible_wrap,
+            reason = "an offset inside a target, far below 2^31"
+        )]
+        let render_area = vk::Rect2D {
+            offset: vk::Offset2D {
+                x: area.x as i32,
+                y: area.y as i32,
+            },
             extent: vk::Extent2D {
-                width: target.extent.width,
-                height: target.extent.height,
+                width: area.width,
+                height: area.height,
             },
         };
         let info = vk::RenderingInfo::default()
-            .render_area(area)
+            .render_area(render_area)
             .layer_count(1)
             .color_attachments(&attachments);
         // SAFETY: recording command buffer; the target view belongs to this device and is in
-        // COLOR_ATTACHMENT_OPTIMAL layout (caller's barrier).
+        // COLOR_ATTACHMENT_OPTIMAL layout (caller's barrier); the area lies inside it.
         unsafe { self.device.cmd_begin_rendering(self.raw, &info) };
         let mut pass = RenderPass {
             device: self.device,
@@ -537,7 +576,11 @@ impl<'a> CommandEncoder<'a> {
             target.extent.width as f32,
             target.extent.height as f32,
         );
-        pass.set_scissor(0, 0, target.extent.width, target.extent.height);
+        #[allow(
+            clippy::cast_possible_wrap,
+            reason = "an offset inside a target, far below 2^31"
+        )]
+        pass.set_scissor(area.x as i32, area.y as i32, area.width, area.height);
         pass
     }
 }
