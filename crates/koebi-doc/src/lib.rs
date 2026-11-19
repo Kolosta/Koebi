@@ -46,6 +46,7 @@ mod graph;
 pub mod instanced;
 pub mod kind;
 pub mod kinds;
+pub mod marks;
 pub mod ops;
 pub mod transforms;
 pub mod value;

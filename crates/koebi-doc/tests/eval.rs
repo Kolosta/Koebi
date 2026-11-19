@@ -862,3 +862,59 @@ fn an_instanced_fill_generates_its_stamps_and_lines() {
         "{before:?} {after:?}"
     );
 }
+
+#[test]
+fn a_stroke_carries_its_repeats_and_marks() {
+    use koebi_doc::Settings;
+    use koebi_doc::instanced::StampMode;
+    use koebi_doc::marks::{MarkObject, MarkShape, StrokeMark, StrokeRepeat, StrokeSettings};
+
+    let mut doc = Document::new();
+    let (_, objects) = page_with(&mut doc, &[Shape::Rectangle(Vector::new(40.0, 20.0))]);
+    let stroked = ops::add_stroke(&mut doc, objects[0]).unwrap();
+    set(&mut doc, stroked, stroke::WIDTH.index(), Value::Float(2.0));
+    let plain = draws(&first_program(&doc))[1].outline.bounds();
+    let settings = |doc: &mut Document, settings: StrokeSettings| {
+        doc.apply(Edit::SetSettings {
+            node: stroked,
+            settings: Box::new(Settings::Stroke(Arc::new(settings))),
+        })
+        .unwrap();
+    };
+    // Fused fence ticks twice the stroke's width across: one draw, its outline reaching out.
+    settings(
+        &mut doc,
+        StrokeSettings {
+            repeats: vec![StrokeRepeat::default()],
+            ..StrokeSettings::default()
+        },
+    );
+    let program = first_program(&doc);
+    let all = draws(&program);
+    assert_eq!(all.len(), 2);
+    let ticked = all[1].outline.bounds();
+    assert!(ticked.width() > plain.width() + 1.0, "{ticked:?} {plain:?}");
+    // A gap cuts the stroke alone: an erasing input in the stroke's own merge.
+    settings(
+        &mut doc,
+        StrokeSettings {
+            marks: vec![StrokeMark {
+                at: 0.1,
+                objects: vec![MarkObject {
+                    shape: MarkShape::Gap,
+                    size: 6.0,
+                    percent: false,
+                    mode: StampMode::Subtract,
+                    ..MarkObject::default()
+                }],
+                ..StrokeMark::default()
+            }],
+            ..StrokeSettings::default()
+        },
+    );
+    let program = first_program(&doc);
+    let cut = program.steps().iter().any(|step| {
+        matches!(step, Step::Merge(inputs) if inputs.iter().any(|input| input.blend == BlendMode::Erase))
+    });
+    assert!(cut);
+}

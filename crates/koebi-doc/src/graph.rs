@@ -9,7 +9,7 @@ use core::marker::PhantomData;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use koebi_geom::{Affine, Dashes, Path, Point};
+use koebi_geom::{Affine, Path, Point};
 
 use crate::kind::{In, Kind, NodeKind, Out};
 use crate::value::{
@@ -184,8 +184,8 @@ pub enum Settings {
     None,
     /// Path data: the path.
     Path(Arc<Path>),
-    /// A stroke: its dashes.
-    Stroke(Dashes),
+    /// A stroke: its dashes, repeats and marks.
+    Stroke(Arc<crate::marks::StrokeSettings>),
     /// An instanced fill: what it stamps and draws.
     Instanced(Arc<crate::instanced::InstancedSettings>),
     /// A Merge: each entry's compositing, by link.
@@ -892,7 +892,7 @@ fn settings_of(kind: &NodeKind) -> Settings {
     if is(kinds::path_data::KIND) {
         Settings::Path(Arc::new(Path::default()))
     } else if is(kinds::stroke::KIND) {
-        Settings::Stroke(Dashes::default())
+        Settings::Stroke(Arc::default())
     } else if is(kinds::instanced_fill::KIND) {
         Settings::Instanced(Arc::default())
     } else if is(kinds::merge::KIND) {

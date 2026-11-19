@@ -83,6 +83,41 @@ impl Contour {
         None
     }
 
+    /// The stretch of the contour from arc length `from` to `to`, both clamped to it: an open
+    /// contour of the pieces of its segments in between. Empty when `to` does not lie past
+    /// `from`.
+    #[must_use]
+    pub fn between(&self, from: f64, to: f64) -> Self {
+        let total = self.length();
+        let (from, to) = (from.clamp(0.0, total), to.clamp(0.0, total));
+        let mut segments = Vec::new();
+        if to > from {
+            let mut start = 0.0;
+            for segment in &self.segments {
+                let own = segment.arc_length();
+                let end = start + own;
+                if end > from && start < to && own > 0.0 {
+                    let accuracy = own.max(1.0) * 1e-12;
+                    let t0 = if from > start {
+                        segment.param_at_length(from - start, accuracy)
+                    } else {
+                        0.0
+                    };
+                    let t1 = if to < end {
+                        segment.param_at_length(to - start, accuracy)
+                    } else {
+                        1.0
+                    };
+                    if t1 > t0 {
+                        segments.push(segment.subsegment(t0, t1));
+                    }
+                }
+                start = end;
+            }
+        }
+        Self::new(segments, false)
+    }
+
     /// The winding of the ray from `point` toward +x, the contour closed by a line if it is
     /// open (as fills treat open subpaths).
     pub(crate) fn winding(&self, point: Point) -> i32 {
@@ -280,5 +315,27 @@ mod tests {
         assert!(point.distance(Point::new(-2.0, 0.0)) < 1e-8, "{point:?}");
         assert!((tangent.length() - 1.0).abs() < 1e-12);
         assert!(Rect::EMPTY.is_empty());
+    }
+
+    #[test]
+    fn a_stretch_between_two_lengths_follows_the_contour() {
+        // An L: 10 along x, then 10 down.
+        let contour = Contour::new(
+            vec![
+                Segment::line(Point::new(0.0, 0.0), Point::new(10.0, 0.0)),
+                Segment::line(Point::new(10.0, 0.0), Point::new(10.0, 10.0)),
+            ],
+            false,
+        );
+        let stretch = contour.between(5.0, 13.0);
+        assert!(!stretch.is_closed());
+        assert!((stretch.length() - 8.0).abs() < 1e-9);
+        let start = stretch.segments()[0].start();
+        let end = stretch.segments()[stretch.segments().len() - 1].end();
+        assert!((start - Point::new(5.0, 0.0)).length() < 1e-9);
+        assert!((end - Point::new(10.0, 3.0)).length() < 1e-9);
+        // Clamped, and empty when backwards.
+        assert!((contour.between(-4.0, 40.0).length() - 20.0).abs() < 1e-9);
+        assert_eq!(contour.between(7.0, 3.0).segments().len(), 0);
     }
 }
