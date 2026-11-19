@@ -19,6 +19,7 @@ use koebi_ui::{Input, Ui, UiState, WorkspaceView};
 use koebi_workspace::Workspace;
 
 use crate::actions;
+use crate::canvas::CanvasViews;
 use crate::chrome::{AppChrome, AppCommand, WindowView};
 use crate::editors::{EditorKind, Editors, Host};
 use crate::frame_times::FrameTimes;
@@ -114,6 +115,8 @@ pub(crate) struct AppWindow {
     typing: Option<Rect>,
     /// What the status bar shows.
     status: StatusShortcuts,
+    /// The views of the document its viewports ask for, which its GPU draws.
+    pub(crate) views: CanvasViews,
     // Field order is drop order: GPU objects (surface included) before the native window.
     pub(crate) gpu: WindowGpu,
     pub(crate) window: Window,
@@ -146,6 +149,7 @@ impl AppWindow {
             locked_at: None,
             typing: None,
             status: StatusShortcuts::default(),
+            views: CanvasViews::default(),
             gpu,
             window,
         }
@@ -217,6 +221,7 @@ impl AppWindow {
             command,
             settings_in_place,
             status,
+            views,
             ..
         } = self;
         let Interface {
@@ -231,6 +236,7 @@ impl AppWindow {
             ..
         } = interface;
         scene.clear();
+        views.begin_frame();
         let styles = {
             koebi_core::profile_scope!("ui.styles");
             styles.update(design, state.scale_factor())
@@ -271,6 +277,7 @@ impl AppWindow {
                     let mut host = Host {
                         editors,
                         content: shown,
+                        views,
                         design,
                         window: area,
                         titles: EditorKind::titles(),
@@ -378,7 +385,8 @@ impl AppWindow {
             Instant::now(),
         );
         for triggered in triggers.iter() {
-            self.input.trigger(triggered.action);
+            self.input
+                .trigger_by(triggered.action, actions::amount(triggered.gesture.kind));
         }
         true
     }
@@ -528,6 +536,7 @@ mod tests {
         let (mut workspace, mut editors) = crate::editors::default_workspace();
         let mut view = WorkspaceView::new();
         let mut content = Content::new();
+        let mut views = CanvasViews::default();
         let mut chrome = AppChrome::default();
         let mut status = StatusShortcuts::default();
         let mut state = UiState::new();
@@ -540,6 +549,7 @@ mod tests {
             time += 16;
             input.set_time(Duration::from_millis(time));
             scene.clear();
+            views.begin_frame();
             let styles = styles.update(&design, state.scale_factor());
             let entries = status.refresh(&state, input.pointer(), &keymap);
             state.set_window(area);
@@ -557,6 +567,7 @@ mod tests {
                 let mut host = Host {
                     editors: &mut editors,
                     content: &mut content,
+                    views: &mut views,
                     design: &mut design,
                     window: area,
                     titles: EditorKind::titles(),

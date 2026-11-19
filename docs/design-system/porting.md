@@ -452,12 +452,15 @@ New component tokens for the viewport and timeline templates (#76) (18):
 
 - `component.viewport.grid.color` → `semantic.border.color.tree-line.default`
 - `component.viewport.grid.spacing` = 24 px
-- `component.viewport.page.background` → `semantic.static.text.color.white`
+- `component.viewport.page.background`: none; the page's background is the document's own (its page node).
 - `component.viewport.ruler.size` = 20 px
 - `component.viewport.ruler.background` → `semantic.background.raised.default`
 - `component.viewport.ruler.tick` → `semantic.border.color.default`
 - `component.viewport.ruler.label` → `semantic.text.color.secondary.default`
-- `component.viewport.zoom-step` = 1.25
+- `component.viewport.zoom-step` = 1.15, Blender's step
+- `component.viewport.pan-step` = 48 px, a wheel notch's pan
+- `component.viewport.frame.duration` → `semantic.animation.duration.page`
+- `component.viewport.frame.easing` → `semantic.animation.easing.move`
 - `component.timeline.ruler.height` → `semantic.size.control-height`
 - `component.timeline.ruler.background` → `semantic.background.raised.default`
 - `component.timeline.ruler.tick` → `semantic.border.color.default`

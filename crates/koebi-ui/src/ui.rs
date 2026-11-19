@@ -577,6 +577,13 @@ impl<'a> Ui<'a> {
         self.input.triggered(action) && !self.state.consumed.iter().any(|used| used.id == action.id)
     }
 
+    /// How much each trigger of `action` this frame asked ([`Input::amounts`]): none when it
+    /// was not triggered, or was used ([`Ui::consume`]).
+    pub fn amounts(&self, action: &'static ActionDef) -> impl Iterator<Item = crate::Amount> + '_ {
+        let used = self.state.consumed.iter().any(|used| used.id == action.id);
+        self.input.amounts(action).filter(move |_| !used)
+    }
+
     /// Marks `action` used this frame: components that ask after this one see it as not
     /// triggered (the menu open in a popup closes on Escape, not the popup).
     pub fn consume(&mut self, action: &'static ActionDef) {

@@ -226,12 +226,12 @@ mod tests {
         let (workspace, editors) = default_workspace();
         preferences.save(&workspace, &editors, &keymap);
         assert!(!dir.join("shortcuts.txt").exists());
-        let text = format!("{}\nviewport.view-all =\n", koebi_input::HEADER);
+        let text = format!("{}\nviewport.fit-document =\n", koebi_input::HEADER);
         keymap.load_overrides(&text);
         preferences.save(&workspace, &editors, &keymap);
         let mut restored = Keymap::new(&crate::actions::GROUPS).unwrap();
         Preferences::new(&dir, true).load_shortcuts(&mut restored);
-        assert!(restored.is_modified("viewport.view-all"));
+        assert!(restored.is_modified("viewport.fit-document"));
         fs::remove_dir_all(&dir).ok();
     }
 
@@ -245,12 +245,12 @@ mod tests {
         // Nothing to write while nothing changed.
         preferences.save_shortcuts_if_changed(&keymap);
         assert!(!dir.join("shortcuts.txt").exists());
-        keymap.set_shortcuts("viewport.view-all", &[]).unwrap();
+        keymap.set_shortcuts("viewport.fit-document", &[]).unwrap();
         assert!(preferences.shortcuts_changed(&keymap));
         preferences.save_shortcuts_if_changed(&keymap);
         assert!(!preferences.shortcuts_changed(&keymap));
         let saved = fs::read_to_string(dir.join("shortcuts.txt")).unwrap();
-        assert!(saved.contains("viewport.view-all ="), "{saved}");
+        assert!(saved.contains("viewport.fit-document ="), "{saved}");
         fs::remove_dir_all(&dir).ok();
     }
 
@@ -272,7 +272,10 @@ mod tests {
             .unwrap();
         assert!(!own.is_dirty(&changed, &editors));
         let mut keymap = Keymap::new(&crate::actions::GROUPS).unwrap();
-        keymap.load_overrides(&format!("{}\nviewport.view-all =\n", koebi_input::HEADER));
+        keymap.load_overrides(&format!(
+            "{}\nviewport.fit-document =\n",
+            koebi_input::HEADER
+        ));
         own.save(&changed, &editors, &keymap);
         assert_eq!(
             fs::read_to_string(dir.join("workspace.txt")).unwrap(),

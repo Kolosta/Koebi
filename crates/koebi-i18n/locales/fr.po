@@ -405,7 +405,6 @@ msgid "Narrows the frames, around the current one."
 msgstr "Rétrécit les images, autour de l'image courante."
 
 #: apps/koebi/src/editors/timeline.rs
-#: apps/koebi/src/editors/viewport.rs
 msgid "Frame all"
 msgstr "Tout cadrer"
 
@@ -414,24 +413,90 @@ msgid "Zooms so that every frame of the scene shows."
 msgstr "Zoome pour afficher toutes les images de la scène."
 
 #: apps/koebi/src/editors/viewport.rs
-msgid "Zooms and pans so that the whole page shows."
-msgstr "Zoome et déplace la vue pour afficher toute la page."
+msgid "Fit document"
+msgstr "Cadrer le document"
 
 #: apps/koebi/src/editors/viewport.rs
-msgid "Zooms in by one step on the middle of the view."
-msgstr "Zoome d'un cran sur le centre de la vue."
+msgid "Zooms and pans so that the whole document shows."
+msgstr "Zoome et déplace la vue pour afficher tout le document."
 
 #: apps/koebi/src/editors/viewport.rs
-msgid "Zooms out by one step from the middle of the view."
-msgstr "Dézoome d'un cran depuis le centre de la vue."
+msgid "Frame selected"
+msgstr "Cadrer la sélection"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zooms and pans so that the selection shows, or the document without one."
+msgstr ""
+"Zoome et déplace la vue pour afficher la sélection, ou le document "
+"sans sélection."
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Reset view"
+msgstr "Réinitialiser la vue"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Shows the page at its real size, centered."
+msgstr "Affiche la page à sa taille réelle, centrée."
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zooms in by one step, around the pointer from the wheel or a pinch."
+msgstr "Zoome d'un cran, autour du pointeur depuis la molette ou un pincement."
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zooms out by one step, around the pointer from the wheel or a pinch."
+msgstr ""
+"Dézoome d'un cran, autour du pointeur depuis la molette ou un "
+"pincement."
 
 #: apps/koebi/src/editors/viewport.rs
 msgid "Actual size"
 msgstr "Taille réelle"
 
 #: apps/koebi/src/editors/viewport.rs
-msgid "Zooms to 100 %: one canvas unit per logical pixel."
-msgstr "Zoome à 100 % : une unité du canevas par pixel logique."
+msgid "Zooms to 100 %: a millimetre of the document is one on the screen."
+msgstr "Zoome à 100 % : un millimètre du document en fait un à l'écran."
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan"
+msgstr "Déplacer la vue"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Drags the canvas with the pointer while the button stays down."
+msgstr ""
+"Fait glisser le canevas avec le pointeur tant que le bouton "
+"reste enfoncé."
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan left"
+msgstr "Déplacer la vue à gauche"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Moves the view to the left."
+msgstr "Déplace la vue vers la gauche."
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan right"
+msgstr "Déplacer la vue à droite"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Moves the view to the right."
+msgstr "Déplace la vue vers la droite."
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan up"
+msgstr "Déplacer la vue vers le haut"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Moves the view up."
+msgstr "Déplace la vue vers le haut."
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan down"
+msgstr "Déplacer la vue vers le bas"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Moves the view down."
+msgstr "Déplace la vue vers le bas."
 
 #: apps/koebi/src/editors/viewport.rs
 msgid "Toggle rulers"
@@ -440,6 +505,47 @@ msgstr "Afficher les règles"
 #: apps/koebi/src/editors/viewport.rs
 msgid "Hides every ruler, or shows the top and left ones."
 msgstr "Masque toutes les règles, ou affiche celles du haut et de gauche."
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Toggle grid"
+msgstr "Afficher la grille"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Shows or hides the grid of dots behind the document."
+msgstr "Affiche ou masque la grille de points derrière le document."
+
+#: apps/koebi/src/editors/viewport.rs
+#: apps/koebi/src/gallery/buttons.rs
+msgid "Overlays"
+msgstr "Superpositions"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Grid"
+msgstr "Grille"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Rulers"
+msgstr "Règles"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Top"
+msgstr "Haut"
+
+#: apps/koebi/src/editors/viewport.rs
+#: apps/koebi/src/settings/keymaps/rules.rs
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Left"
+msgstr "Gauche"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Bottom"
+msgstr "Bas"
+
+#: apps/koebi/src/editors/viewport.rs
+#: apps/koebi/src/settings/keymaps/rules.rs
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Right"
+msgstr "Droite"
 
 #: apps/koebi/src/gallery/buttons.rs
 msgid "Default"
@@ -553,10 +659,6 @@ msgstr "Aimanter à la grille"
 #: apps/koebi/src/gallery/buttons.rs
 msgid "Moves items by whole cells"
 msgstr "Déplace les éléments par cellules entières"
-
-#: apps/koebi/src/gallery/buttons.rs
-msgid "Overlays"
-msgstr "Superpositions"
 
 #: apps/koebi/src/gallery/buttons.rs
 msgid "Some guides are shown"
@@ -2192,11 +2294,6 @@ msgid "Up right"
 msgstr "Haut droite"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
-#: crates/koebi-ui/src/widgets/text_field/actions.rs
-msgid "Right"
-msgstr "Droite"
-
-#: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Down right"
 msgstr "Bas droite"
 
@@ -2207,11 +2304,6 @@ msgstr "Bas"
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Down left"
 msgstr "Bas gauche"
-
-#: apps/koebi/src/settings/keymaps/rules.rs
-#: crates/koebi-ui/src/widgets/text_field/actions.rs
-msgid "Left"
-msgstr "Gauche"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Up left"
@@ -3203,6 +3295,18 @@ msgstr "Division verticale"
 #: crates/koebi-ui/src/workspace/mod.rs
 msgid "Horizontal split"
 msgstr "Division horizontale"
+
+#~ msgid "Zooms and pans so that the whole page shows."
+#~ msgstr "Zoome et déplace la vue pour afficher toute la page."
+
+#~ msgid "Zooms in by one step on the middle of the view."
+#~ msgstr "Zoome d'un cran sur le centre de la vue."
+
+#~ msgid "Zooms out by one step from the middle of the view."
+#~ msgstr "Dézoome d'un cran depuis le centre de la vue."
+
+#~ msgid "Zooms to 100 %: one canvas unit per logical pixel."
+#~ msgstr "Zoome à 100 % : une unité du canevas par pixel logique."
 
 #~ msgid "Windows, panels, menus, tooltips, the status bar and what they hold."
 #~ msgstr ""

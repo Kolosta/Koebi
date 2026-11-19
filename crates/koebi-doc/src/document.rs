@@ -252,6 +252,14 @@ impl Document {
         }
     }
 
+    /// Makes what the document holds its start, as a new or opened document's: nothing to undo
+    /// or redo, nothing changed. A transaction still open stays so.
+    pub fn reset_history(&mut self) {
+        self.undo.clear();
+        self.redo.clear();
+        self.changed = false;
+    }
+
     /// Whether the document changed since it was made, opened or saved.
     pub const fn is_changed(&self) -> bool {
         self.changed

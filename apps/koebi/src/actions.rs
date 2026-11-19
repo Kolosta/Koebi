@@ -4,11 +4,11 @@ use koebi_core::Vec2;
 use koebi_core::input::Key;
 use koebi_i18n::n_;
 use koebi_input::{
-    ActionDef, ActionGroup, ActionKind, Context, ContextInfo, Hint, InputEvent, Shortcut, Within,
-    Zones,
+    ActionDef, ActionGroup, ActionKind, Context, ContextInfo, GestureKind, Hint, InputEvent,
+    Shortcut, Within, Zones,
 };
 use koebi_platform::{Event, GesturePhase, MouseButton, WindowEvent};
-use koebi_ui::PointerButton;
+use koebi_ui::{Amount, PointerButton};
 
 /// The whole window: actions available wherever the pointer is.
 pub(crate) const APP: Context = Context::new("app");
@@ -234,6 +234,18 @@ pub(crate) fn input_event(
         } => (InputEvent::FocusLost, None),
         _ => return None,
     })
+}
+
+/// How much `gesture` asks of the action it triggers: the wheel's notches, the pinch's scale,
+/// once for anything else.
+pub(crate) fn amount(gesture: GestureKind) -> Amount {
+    match gesture {
+        GestureKind::Wheel { amount, .. } => Amount::Notches(amount),
+        GestureKind::Pinch { scale, .. } => Amount::Scale(scale),
+        GestureKind::Key { .. } | GestureKind::Button { .. } | GestureKind::PointerMove => {
+            Amount::Once
+        }
+    }
 }
 
 #[cfg(test)]

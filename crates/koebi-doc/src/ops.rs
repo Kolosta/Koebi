@@ -152,6 +152,19 @@ fn output(doc: &mut Document) -> Result<NodeId, OpError> {
     }
 }
 
+/// A new document: one page, A4 landscape on white at the origin, with its stack; nothing to
+/// undo, nothing changed.
+///
+/// # Errors
+///
+/// When an edit fails (never on an empty document).
+pub fn new_document() -> Result<(Document, NewPage), OpError> {
+    let mut doc = Document::new();
+    let page = add_page(&mut doc)?;
+    doc.reset_history();
+    Ok((doc, page))
+}
+
 /// Adds a page (A4 landscape on white) after the others, with its stack.
 ///
 /// # Errors

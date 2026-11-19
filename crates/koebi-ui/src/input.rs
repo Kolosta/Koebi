@@ -106,21 +106,70 @@ struct ButtonState {
 /// trigger that many.
 pub(crate) const MAX_ACTIONS: usize = 16;
 
+/// How much an input asked of an action: once for a key or a button, by the notches a wheel
+/// turned (fractions for a touchpad), by the scale two fingers pinched to.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Amount {
+    /// A key or a button: one step.
+    Once,
+    /// A wheel or a two-finger scroll, in notches: always positive, its direction is the
+    /// shortcut's.
+    Notches(f32),
+    /// A pinch: the scale it made, above 1 apart and below 1 together.
+    Scale(f32),
+}
+
+impl Amount {
+    /// The same input repeated: notches add up and scales multiply; `None` for other kinds.
+    fn merged(self, next: Self) -> Option<Self> {
+        match (self, next) {
+            (Self::Notches(a), Self::Notches(b)) => Some(Self::Notches(a + b)),
+            (Self::Scale(a), Self::Scale(b)) => Some(Self::Scale(a * b)),
+            _ => None,
+        }
+    }
+}
+
 /// Actions triggered during a frame, in order, each with how much text had been typed when it
-/// came: keys and typed text interleave in the order they happened.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+/// came and how much its input asked: keys and typed text interleave in the order they
+/// happened.
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct Actions {
     items: [Option<&'static ActionDef>; MAX_ACTIONS],
     typed_at: [u16; MAX_ACTIONS],
+    amounts: [Amount; MAX_ACTIONS],
     len: usize,
 }
 
+impl Default for Actions {
+    fn default() -> Self {
+        Self {
+            items: [None; MAX_ACTIONS],
+            typed_at: [0; MAX_ACTIONS],
+            amounts: [Amount::Once; MAX_ACTIONS],
+            len: 0,
+        }
+    }
+}
+
 impl Actions {
-    fn push(&mut self, action: &'static ActionDef, typed_at: usize) {
+    fn push(&mut self, action: &'static ActionDef, typed_at: usize, amount: Amount) {
+        // Typed text holds at most `Typed::CAPACITY` bytes.
+        let typed_at = u16::try_from(typed_at).unwrap_or(u16::MAX);
+        // A touchpad scrolls in many small events: the same action again, with nothing typed
+        // between, adds to the last one.
+        if let Some(last) = self.len.checked_sub(1)
+            && self.items[last].is_some_and(|known| known.id == action.id)
+            && self.typed_at[last] == typed_at
+            && let Some(merged) = self.amounts[last].merged(amount)
+        {
+            self.amounts[last] = merged;
+            return;
+        }
         if let Some(slot) = self.items.get_mut(self.len) {
             *slot = Some(action);
-            // Typed text holds at most `Typed::CAPACITY` bytes.
-            self.typed_at[self.len] = u16::try_from(typed_at).unwrap_or(u16::MAX);
+            self.typed_at[self.len] = typed_at;
+            self.amounts[self.len] = amount;
             self.len += 1;
         } else {
             koebi_core::debug!("action {} dropped: too many in one frame", action.id);
@@ -136,6 +185,14 @@ impl Actions {
             .iter()
             .zip(self.typed_at)
             .filter_map(|(action, at)| Some(((*action)?, usize::from(at))))
+    }
+
+    fn amounts(&self, id: &'static str) -> impl Iterator<Item = Amount> + '_ {
+        self.items[..self.len]
+            .iter()
+            .zip(self.amounts)
+            .filter(move |(action, _)| action.is_some_and(|action| action.id == id))
+            .map(|(_, amount)| amount)
     }
 }
 
@@ -301,9 +358,14 @@ impl Input {
         self.keys.held.iter().flatten().copied()
     }
 
-    /// The keymap triggered `action`.
+    /// The keymap triggered `action`, by a key or a button.
     pub fn trigger(&mut self, action: &'static ActionDef) {
-        self.actions.push(action, self.typed.len);
+        self.trigger_by(action, Amount::Once);
+    }
+
+    /// The keymap triggered `action` with `amount`: the wheel's notches or the pinch's scale.
+    pub fn trigger_by(&mut self, action: &'static ActionDef, amount: Amount) {
+        self.actions.push(action, self.typed.len, amount);
     }
 
     /// Sets the time of the frame about to be drawn, measured from a fixed moment (the
@@ -442,6 +504,12 @@ impl Input {
     pub fn actions_in_text(&self) -> impl Iterator<Item = (&'static ActionDef, usize)> + '_ {
         self.actions.iter_typed()
     }
+
+    /// How much each trigger of `action` since the last frame asked, in order: none when it
+    /// was not triggered.
+    pub fn amounts(&self, action: &'static ActionDef) -> impl Iterator<Item = Amount> + '_ {
+        self.actions.amounts(action.id)
+    }
 }
 
 #[cfg(test)]
@@ -463,6 +531,37 @@ mod tests {
         when: None,
         hint: None,
     };
+
+    static OPEN: ActionDef = ActionDef {
+        id: "test.open",
+        label: "Open",
+        description: "Opens.",
+        context: Context::new("test"),
+        defaults: &[Shortcut::key(Key::O)],
+        repeats: false,
+        when: None,
+        hint: None,
+    };
+
+    #[test]
+    fn repeated_wheel_turns_and_pinches_add_up_into_one_trigger() {
+        let mut input = Input::new();
+        input.trigger_by(&CLOSE, Amount::Notches(0.25));
+        input.trigger_by(&CLOSE, Amount::Notches(0.5));
+        input.trigger(&OPEN);
+        input.trigger_by(&CLOSE, Amount::Scale(1.5));
+        input.trigger_by(&CLOSE, Amount::Scale(2.0));
+        input.trigger(&CLOSE);
+        let amounts: Vec<Amount> = input.amounts(&CLOSE).collect();
+        assert_eq!(
+            amounts,
+            [Amount::Notches(0.75), Amount::Scale(3.0), Amount::Once]
+        );
+        assert_eq!(input.amounts(&OPEN).collect::<Vec<_>>(), [Amount::Once]);
+        assert_eq!(input.actions().count(), 4);
+        input.end_frame();
+        assert_eq!(input.amounts(&CLOSE).count(), 0);
+    }
 
     #[test]
     fn keys_pressed_last_one_frame_and_keys_held_until_released() {

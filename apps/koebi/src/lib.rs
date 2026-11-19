@@ -20,9 +20,11 @@ mod app;
 mod app_icon;
 #[cfg(test)]
 mod bench;
+mod canvas;
 mod chrome;
 mod cursors;
 mod design_options;
+mod document;
 mod editors;
 mod frame_times;
 mod gallery;

@@ -1,6 +1,7 @@
 //! Operations and their history: each one undone and redone gives the same document, random
 //! sequences of them unwind to the start, parenting and applying keep world placements.
 
+use koebi_doc::eval::Evaluator;
 use koebi_doc::kinds::{group_object as g, path_object as o};
 use koebi_doc::ops::{self, Apply, ClearParent, Shape};
 use koebi_doc::transforms::{self, close};
@@ -373,4 +374,26 @@ fn a_gesture_is_one_step_and_the_history_is_bounded() {
     assert!(doc.is_changed());
     doc.mark_saved();
     assert!(!doc.is_changed());
+}
+
+#[test]
+fn a_new_document_holds_one_a4_landscape_page_and_no_history() {
+    let (mut doc, page) = ops::new_document().expect("a document");
+    assert!(!doc.is_changed());
+    assert_eq!(doc.undo_labels().count(), 0);
+    assert!(!doc.undo());
+    let programs = Evaluator::new().programs(&doc).to_vec();
+    assert_eq!(programs.len(), 1);
+    assert_eq!(programs[0].page(), page.page);
+    assert_eq!(programs[0].size(), Vector::new(297.0, 210.0));
+    // Its first edit is the first step to undo.
+    ops::add_shape(
+        &mut doc,
+        page.stack,
+        Shape::Rectangle(Vector::new(10.0, 10.0)),
+    )
+    .expect("a shape");
+    assert!(doc.is_changed());
+    assert!(doc.undo());
+    assert!(!doc.undo());
 }
