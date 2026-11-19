@@ -412,6 +412,26 @@ msgstr "Tout cadrer"
 msgid "Zooms so that every frame of the scene shows."
 msgstr "Zoome pour afficher toutes les images de la scène."
 
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in the document's unit"
+msgstr "Règles dans l'unité du document"
+
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in metric units"
+msgstr "Règles en unités métriques"
+
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in inches"
+msgstr "Règles en pouces"
+
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in points"
+msgstr "Règles en points"
+
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in pixels"
+msgstr "Règles en pixels"
+
 #: apps/koebi/src/editors/viewport.rs
 msgid "Fit document"
 msgstr "Cadrer le document"

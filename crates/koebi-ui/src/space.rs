@@ -114,6 +114,20 @@ impl Ui<'_> {
             .map(|point| space.unmap_point(point))
     }
 
+    /// The middle of the fingers on a touch screen, in local units, if any.
+    pub fn touch_middle(&self) -> Option<Vec2> {
+        let space = self.window_space();
+        self.input()
+            .touch_middle()
+            .filter(|_| space.is_valid())
+            .map(|point| space.unmap_point(point))
+    }
+
+    /// How far the middle of two or more fingers moved since the last frame, in local units.
+    pub fn touch_moved(&self) -> Vec2 {
+        self.window_space().unmap_vector(self.input().touch_moved())
+    }
+
     /// How far the pointer moved since the last frame, in local units: its relative motion
     /// while it is locked ([`Ui::lock_pointer`]).
     pub fn pointer_delta(&self) -> Vec2 {

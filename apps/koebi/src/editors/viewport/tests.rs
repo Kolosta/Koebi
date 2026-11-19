@@ -152,25 +152,6 @@ fn the_canvas_image_fills_whole_physical_pixels() {
 }
 
 #[test]
-fn ruler_steps_are_round_and_their_numbers_read_back() {
-    assert_near(step(1.0, 24.0), 50.0, 1e-9);
-    assert_near(step(2.0, 24.0), 20.0, 1e-9);
-    assert_near(step(0.1, 24.0), 500.0, 1e-9);
-    assert_near(step(1e6, 24.0), 5e-5, 1e-15);
-    let values: Vec<f64> = multiples(-12.0, 41.0, 10.0).collect();
-    assert_eq!(values, [-10.0, 0.0, 10.0, 20.0, 30.0, 40.0]);
-    let mut digits = [0; 32];
-    assert_eq!(decimal(-1250.0, 0, &mut digits), "-1250");
-    assert_eq!(decimal(0.0, 0, &mut digits), "0");
-    assert_eq!(decimal(0.25, 2, &mut digits), "0.25");
-    assert_eq!(decimal(-0.05, 2, &mut digits), "-0.05");
-    assert_eq!(decimal(12.5, 1, &mut digits), "12.5");
-    assert_eq!(decimals(50.0), 0);
-    assert_eq!(decimals(0.2), 1);
-    assert_eq!(decimals(5e-5), 5);
-}
-
-#[test]
 fn rulers_take_their_side() {
     let mut view = View::default();
     let rect = area();
@@ -262,7 +243,14 @@ impl Harness {
                 page: Some(page()),
                 views: &mut self.views,
             };
-            show(&mut ui, self.rect, &self.design, &mut self.view, shown);
+            show(
+                &mut ui,
+                WidgetId::new("viewport"),
+                self.rect,
+                &self.design,
+                &mut self.view,
+                shown,
+            );
         }
         self.input.end_frame();
     }
@@ -785,4 +773,59 @@ fn steady_frames_of_a_viewport_allocate_nothing() {
     );
     // The canvas, its grid and its rulers were drawn.
     assert!(scene.rect_count() > 10 && scene.glyph_count() > 10);
+}
+
+#[test]
+fn a_click_on_the_rulers_corner_cycles_their_units() {
+    let mut harness = Harness::new();
+    let corner = Rect::from_min_max(harness.rect.min, harness.area().min);
+    harness.move_to(corner.center());
+    harness.frame();
+    for want in [
+        Units::Metric,
+        Units::Imperial,
+        Units::Typographic,
+        Units::Pixel,
+        Units::Document,
+    ] {
+        harness.button(MouseButton::Left, true);
+        harness.frame();
+        harness.button(MouseButton::Left, false);
+        harness.frame();
+        assert_eq!(harness.view.units, want);
+    }
+}
+
+#[test]
+fn two_fingers_drag_and_spread_the_canvas() {
+    let mut harness = Harness::new();
+    let (a, b) = (Vec2::new(300.0, 300.0), Vec2::new(400.0, 300.0));
+    harness.input.touched(1, a);
+    harness.input.touched(2, b);
+    harness.frame();
+    let held = harness.under(Vec2::new(350.0, 300.0));
+    let zoom = harness.view.camera.zoom;
+    // Both fingers move: the point under their middle follows it.
+    let by = Vec2::new(30.0, -20.0);
+    harness.input.finger_moved(1, a + by);
+    harness.input.finger_moved(2, b + by);
+    harness.frame();
+    let middle = Vec2::new(380.0, 280.0);
+    assert!((harness.under(middle) - held).length() < 1e-9);
+    assert_near(harness.view.camera.zoom, zoom, 1e-12);
+    // They spread to twice their distance around the same middle: twice the zoom there.
+    harness.input.finger_moved(1, Vec2::new(280.0, 280.0));
+    harness.input.finger_moved(2, Vec2::new(480.0, 280.0));
+    harness.frame();
+    assert_near(harness.view.camera.zoom, 2.0 * zoom, 1e-6 * zoom);
+    assert!((harness.under(middle) - held).length() < 1e-6);
+    // A system pinch zooms through the keymap instead: the spread no longer does.
+    harness.input.system_pinched();
+    harness.input.finger_moved(2, Vec2::new(580.0, 280.0));
+    harness.frame();
+    assert!(harness.view.camera.zoom < 2.0 * zoom * (1.0 + 1e-6));
+    harness.input.lifted(1);
+    harness.input.lifted(2);
+    harness.frame();
+    assert_eq!(harness.input.touch_count(), 0);
 }

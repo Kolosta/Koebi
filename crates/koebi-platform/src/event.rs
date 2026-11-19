@@ -10,7 +10,8 @@ use core::fmt;
 use koebi_core::input::{Key, Modifiers, MouseButton};
 use koebi_core::{Extent, Vec2};
 use sdl3_sys::events::{
-    SDL_EVENT_DID_ENTER_BACKGROUND, SDL_EVENT_DID_ENTER_FOREGROUND, SDL_EVENT_KEY_DOWN,
+    SDL_EVENT_DID_ENTER_BACKGROUND, SDL_EVENT_DID_ENTER_FOREGROUND, SDL_EVENT_FINGER_CANCELED,
+    SDL_EVENT_FINGER_DOWN, SDL_EVENT_FINGER_MOTION, SDL_EVENT_FINGER_UP, SDL_EVENT_KEY_DOWN,
     SDL_EVENT_KEY_UP, SDL_EVENT_LOW_MEMORY, SDL_EVENT_MOUSE_BUTTON_DOWN, SDL_EVENT_MOUSE_BUTTON_UP,
     SDL_EVENT_MOUSE_MOTION, SDL_EVENT_MOUSE_WHEEL, SDL_EVENT_PINCH_BEGIN, SDL_EVENT_PINCH_END,
     SDL_EVENT_PINCH_UPDATE, SDL_EVENT_QUIT, SDL_EVENT_TERMINATING, SDL_EVENT_TEXT_INPUT,
@@ -130,6 +131,19 @@ pub enum Event {
         window: WindowId,
         /// The text.
         text: TextChunk,
+    },
+    /// A finger touched a touch screen, moved on it or left it. Fingers on a touchpad are no
+    /// touches: they move the pointer and scroll.
+    Finger {
+        /// Window touched.
+        window: WindowId,
+        /// Which finger: the same number from its touch to its lift.
+        finger: u64,
+        /// Its touch ([`GesturePhase::Begin`]), its moves, its lift or cancellation
+        /// ([`GesturePhase::End`]).
+        phase: GesturePhase,
+        /// Where it is, in logical pixels.
+        position: Vec2,
     },
     /// A two-finger pinch on a touchpad or touch screen.
     Pinch {
@@ -435,9 +449,30 @@ impl Event {
         match *self {
             Self::MouseMotion { window, .. }
             | Self::MouseButton { window, .. }
-            | Self::MouseWheel { window, .. } => Some(window),
+            | Self::MouseWheel { window, .. }
+            | Self::Finger { window, .. } => Some(window),
             _ => None,
         }
+    }
+}
+
+/// Turns the position of a finger from shares of its window's size, as SDL reports it, into
+/// window coordinates in a window `size` coordinates large. Other events are returned
+/// unchanged.
+pub(crate) fn finger_in_window(event: Event, size: Vec2) -> Event {
+    match event {
+        Event::Finger {
+            window,
+            finger,
+            phase,
+            position,
+        } => Event::Finger {
+            window,
+            finger,
+            phase,
+            position: Vec2::new(position.x * size.x, position.y * size.y),
+        },
+        other => other,
     }
 }
 
@@ -482,6 +517,17 @@ pub(crate) fn to_logical(event: Event, scale: f32) -> Event {
             delta,
             position: position * scale,
             modifiers,
+        },
+        Event::Finger {
+            window,
+            finger,
+            phase,
+            position,
+        } => Event::Finger {
+            window,
+            finger,
+            phase,
+            position: position * scale,
         },
         other => other,
     }
@@ -556,6 +602,24 @@ pub(crate) fn translate(event: &SDL_Event, modifiers: Modifiers) -> Option<Event
             delta: Vec2::new(wheel.x, wheel.y) * sign,
             position: Vec2::new(wheel.mouse_x, wheel.mouse_y),
             modifiers,
+        });
+    }
+    let fingers = [
+        (SDL_EVENT_FINGER_DOWN, GesturePhase::Begin),
+        (SDL_EVENT_FINGER_MOTION, GesturePhase::Update),
+        (SDL_EVENT_FINGER_UP, GesturePhase::End),
+        (SDL_EVENT_FINGER_CANCELED, GesturePhase::End),
+    ];
+    if let Some((_, phase)) = fingers.iter().find(|(sdl, _)| *sdl == kind) {
+        // SAFETY: finger events use the `tfinger` member.
+        let finger = unsafe { event.tfinger };
+        // A share of the window's size each way; the event callback makes them window
+        // coordinates ([`finger_in_window`]).
+        return Some(Event::Finger {
+            window: WindowId(finger.windowID.0),
+            finger: finger.fingerID.0,
+            phase: *phase,
+            position: Vec2::new(finger.x, finger.y),
         });
     }
     let pinch = [
@@ -779,6 +843,43 @@ mod tests {
                 modifiers: Modifiers::NONE,
             })
         );
+    }
+
+    #[test]
+    fn fingers_report_their_phase_and_land_in_logical_pixels() {
+        let mut event = blank();
+        event.tfinger.r#type = SDL_EVENT_FINGER_DOWN;
+        event.tfinger.windowID = sdl3_sys::video::SDL_WindowID(2);
+        event.tfinger.fingerID = sdl3_sys::touch::SDL_FingerID(7);
+        event.tfinger.x = 0.25;
+        event.tfinger.y = 0.5;
+        let down = translate(&event, Modifiers::NONE).expect("a finger");
+        assert_eq!(
+            down,
+            Event::Finger {
+                window: WindowId(2),
+                finger: 7,
+                phase: GesturePhase::Begin,
+                position: Vec2::new(0.25, 0.5),
+            }
+        );
+        // Window coordinates of an 800 × 600 window, then logical pixels at 2 a coordinate.
+        let placed = to_logical(finger_in_window(down, Vec2::new(800.0, 600.0)), 2.0);
+        assert!(matches!(
+            placed,
+            Event::Finger { position, .. } if position == Vec2::new(400.0, 600.0)
+        ));
+        for (sdl, phase) in [
+            (SDL_EVENT_FINGER_MOTION, GesturePhase::Update),
+            (SDL_EVENT_FINGER_UP, GesturePhase::End),
+            (SDL_EVENT_FINGER_CANCELED, GesturePhase::End),
+        ] {
+            event.tfinger.r#type = sdl;
+            assert!(matches!(
+                translate(&event, Modifiers::NONE),
+                Some(Event::Finger { phase: got, .. }) if got == phase
+            ));
+        }
     }
 
     #[test]

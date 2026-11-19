@@ -360,7 +360,7 @@ impl EditorHost for Host<'_> {
                     page: content.document.page(),
                     views: self.views,
                 };
-                viewport::show(ui, rect, self.design, &mut entry.viewport, shown);
+                viewport::show(ui, id, rect, self.design, &mut entry.viewport, shown);
             }
             EditorKind::Properties => properties::show(
                 ui,

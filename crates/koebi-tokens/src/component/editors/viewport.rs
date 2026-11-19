@@ -56,6 +56,10 @@ koebi_design::tokens! {
     VIEWPORT_RULER_TICK = "viewport.ruler.tick": Color -> semantic::BORDER_COLOR_DEFAULT;
     /// Viewport: numbers of the rulers.
     VIEWPORT_RULER_LABEL = "viewport.ruler.label": Color -> semantic::TEXT_COLOR_SECONDARY_DEFAULT;
+    /// Viewport: the marks of the pointer's position on the rulers.
+    VIEWPORT_RULER_CURSOR = "viewport.ruler.cursor": Color -> semantic::BACKGROUND_ACCENT_DEFAULT;
+    /// Viewport: length of the rulers' minor ticks, a share of a ruler's thickness.
+    VIEWPORT_RULER_MINOR = "viewport.ruler.minor": Number = 0.3, range(0.0, 1.0);
     /// Viewport: zoom factor of one wheel notch or zoom step.
     VIEWPORT_ZOOM_STEP = "viewport.zoom-step": Number = 1.15, range(1.01, 4.0);
     /// Viewport: how far one wheel notch pans the canvas, in logical pixels.

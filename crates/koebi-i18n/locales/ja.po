@@ -408,6 +408,26 @@ msgstr "全体を表示"
 msgid "Zooms so that every frame of the scene shows."
 msgstr "シーンのすべてのフレームが見えるようにズームします。"
 
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in the document's unit"
+msgstr "ドキュメントの単位のルーラー"
+
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in metric units"
+msgstr "メートル法のルーラー"
+
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in inches"
+msgstr "インチのルーラー"
+
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in points"
+msgstr "ポイントのルーラー"
+
+#: apps/koebi/src/editors/viewport/rulers.rs
+msgid "Rulers in pixels"
+msgstr "ピクセルのルーラー"
+
 #: apps/koebi/src/editors/viewport.rs
 msgid "Fit document"
 msgstr "ドキュメント全体を表示"
