@@ -24,7 +24,7 @@ use crate::chrome::AppCommand;
 use crate::cursors::AppCursors;
 use crate::editors::{Editors, Entry, default_floating};
 use crate::frame_times::FrameTimes;
-use crate::gpu::Gpu;
+use crate::gpu::{Gpu, Rendered};
 use crate::interface::Interface;
 use crate::options::{Options, StartWindow};
 use crate::settings::SettingsView;
@@ -411,22 +411,38 @@ impl KoebiApp {
         }
         shown.chrome.update_regions(&shown.state, &mut shown.window);
         let built = started.elapsed();
+        // The document the window's viewports show, evaluated again only where it changed.
+        let program = interface.content.document.program();
         let rendered = {
             koebi_core::profile_scope!("frame.render");
-            shown.gpu.render(gpu, &shown.scene, scale_factor)
+            shown.gpu.render(
+                gpu,
+                &shown.scene,
+                scale_factor,
+                &mut shown.views,
+                program.as_deref(),
+            )
         };
         match rendered {
-            Ok((RenderOutcome::Presented, recording)) => {
+            Ok(Rendered {
+                outcome: RenderOutcome::Presented,
+                recording,
+                redraw,
+            }) => {
                 if shown.is_main() {
                     let gpu_time = shown.gpu.gpu_frame_time();
                     frame_times.record(built + recording, gpu_time, Instant::now());
                     *frames_presented += 1;
                     koebi_core::profile::end_frame();
                 }
-                shown.needs_redraw = false;
+                // A view of the document that got its image shows it in the next frame.
+                shown.needs_redraw = redraw;
             }
             // Minimized or swapchain recreated: keep `needs_redraw` and try again.
-            Ok((RenderOutcome::Skipped, _)) => {}
+            Ok(Rendered {
+                outcome: RenderOutcome::Skipped,
+                ..
+            }) => {}
             Err(koebi_gpu::Error::SurfaceLost) => {
                 koebi_core::warn!("window surface lost, recreating it");
                 shown.gpu.detach();

@@ -1,68 +1,204 @@
-//! The Viewport template: a canvas that pans and zooms freely, a page on it, a grid of dots
-//! that keeps its spacing on screen (a finer level fading in as it zooms), and optional rulers
-//! on each side.
+//! The Viewport: the document on an unbounded canvas, drawn by `koebi-canvas`, over a grid of
+//! dots that keeps its spacing on screen, with optional rulers on each side.
 //!
-//! The middle button drags the canvas, the wheel zooms around the pointer; the top bar's
-//! toggles show or hide each ruler.
+//! - **Camera:** the document point at the middle of the canvas area and a zoom, in f64, with
+//!   no limit but what f64 holds: screen and document map exactly at every zoom.
+//! - **Navigation**, each an action with its shortcuts: the wheel and a pinch zoom around the
+//!   pointer, by the `viewport.zoom-step` token a notch; Ctrl and Shift with the wheel, a
+//!   sideways wheel and Ctrl with the keypad's arrows pan; the middle button drags the canvas.
+//!   Fit Document, Frame Selected and Reset View move the camera in an eased motion of the
+//!   `viewport.frame.*` tokens.
+//! - **The canvas image:** each viewport asks its window for a view of the document
+//!   ([`CanvasViews`]); the window's GPU draws it into a target of the area's physical pixels,
+//!   which the area shows texel for pixel, cut at its rounded corners.
+//! - **Overlays**, from the menu of the top bar: the grid and each ruler.
 
-use koebi_core::input::Key;
-use koebi_core::{Color, Rect, Vec2};
+use std::time::Duration;
+
+use koebi_core::input::{Key, ModifierKey, MouseButton};
+use koebi_core::{Color, Extent, Rect, Vec2};
 use koebi_design::DesignSystem;
-use koebi_i18n::n_;
-use koebi_input::{ActionDef, ActionGroup, ActionKind, Context, Hint, Shortcut};
-use koebi_render::{DotGrid, RectPrimitive};
+use koebi_design::value::CubicBezier;
+use koebi_geom::{Point, Vector};
+use koebi_i18n::{n_, tr};
+use koebi_input::{
+    ActionDef, ActionGroup, ActionKind, ButtonTrigger, Context, Hint, PinchDirection, Shortcut,
+    Trigger, WheelDirection,
+};
+use koebi_render::{DotGrid, ImagePrimitive, RectPrimitive};
 use koebi_tokens::component;
-use koebi_ui::{Align, BarLayout, Button, PointerButton, Ui, WidgetId};
+use koebi_ui::{
+    Align, Amount, BarLayout, Button, MenuItem, MenuState, Placement, PointerButton, Ui, WidgetId,
+};
+use koebi_workspace::EditorId;
+
+use crate::canvas::CanvasViews;
 
 /// The viewport's canvas: its keys apply where the pointer is over one.
 pub(crate) const VIEWPORT: Context = Context::new("viewport");
 
-/// Frames the page.
-pub(crate) static VIEW_ALL: ActionDef = ActionDef {
-    id: "viewport.view-all",
-    label: n_!("Frame all"),
-    description: n_!("Zooms and pans so that the whole page shows."),
+/// The wheel turned `direction`, without a modifier.
+const fn wheel(direction: WheelDirection) -> Shortcut {
+    Shortcut::new(Trigger::Wheel(direction))
+}
+
+/// Frames the whole document.
+pub(crate) static FIT_DOCUMENT: ActionDef = ActionDef {
+    id: "viewport.fit-document",
+    label: n_!("Fit document"),
+    description: n_!("Zooms and pans so that the whole document shows."),
     context: VIEWPORT,
-    defaults: &[Shortcut::key(Key::Home)],
+    defaults: &[
+        Shortcut::key(Key::C).with(ModifierKey::Shift),
+        Shortcut::key(Key::Home),
+    ],
     repeats: false,
     when: None,
     hint: Some(Hint::new(ActionKind::View, 7)),
 };
 
-/// Zooms in on the middle of the view.
+/// Frames the selection.
+pub(crate) static FRAME_SELECTED: ActionDef = ActionDef {
+    id: "viewport.frame-selected",
+    label: n_!("Frame selected"),
+    description: n_!("Zooms and pans so that the selection shows, or the document without one."),
+    context: VIEWPORT,
+    defaults: &[Shortcut::key(Key::KeypadPeriod)],
+    repeats: false,
+    when: None,
+    hint: Some(Hint::new(ActionKind::View, 6)),
+};
+
+/// Shows the page at its real size, centered.
+pub(crate) static RESET_VIEW: ActionDef = ActionDef {
+    id: "viewport.reset-view",
+    label: n_!("Reset view"),
+    description: n_!("Shows the page at its real size, centered."),
+    context: VIEWPORT,
+    defaults: &[Shortcut::key(Key::Keypad0).primary()],
+    repeats: false,
+    when: None,
+    hint: Some(Hint::new(ActionKind::View, 5)),
+};
+
+/// Zooms in: on the middle of the view from a key, around the pointer from the wheel or a
+/// pinch.
 pub(crate) static ZOOM_IN: ActionDef = ActionDef {
     id: "viewport.zoom-in",
     label: n_!("Zoom in"),
-    description: n_!("Zooms in by one step on the middle of the view."),
+    description: n_!("Zooms in by one step, around the pointer from the wheel or a pinch."),
     context: VIEWPORT,
-    defaults: &[Shortcut::key(Key::KeypadPlus)],
+    defaults: &[
+        Shortcut::key(Key::KeypadPlus),
+        wheel(WheelDirection::Up),
+        Shortcut::new(Trigger::Pinch(PinchDirection::In)),
+    ],
     repeats: true,
     when: None,
     hint: Some(Hint::new(ActionKind::View, 6)),
 };
 
-/// Zooms out from the middle of the view.
+/// Zooms out: from the middle of the view from a key, around the pointer from the wheel or a
+/// pinch.
 pub(crate) static ZOOM_OUT: ActionDef = ActionDef {
     id: "viewport.zoom-out",
     label: n_!("Zoom out"),
-    description: n_!("Zooms out by one step from the middle of the view."),
+    description: n_!("Zooms out by one step, around the pointer from the wheel or a pinch."),
     context: VIEWPORT,
-    defaults: &[Shortcut::key(Key::KeypadMinus)],
+    defaults: &[
+        Shortcut::key(Key::KeypadMinus),
+        wheel(WheelDirection::Down),
+        Shortcut::new(Trigger::Pinch(PinchDirection::Out)),
+    ],
     repeats: true,
     when: None,
     hint: Some(Hint::new(ActionKind::View, 6)),
 };
 
-/// Shows the canvas at its real size.
+/// Shows the document at its real size.
 pub(crate) static ACTUAL_SIZE: ActionDef = ActionDef {
     id: "viewport.actual-size",
     label: n_!("Actual size"),
-    description: n_!("Zooms to 100 %: one canvas unit per logical pixel."),
+    description: n_!("Zooms to 100 %: a millimetre of the document is one on the screen."),
     context: VIEWPORT,
     defaults: &[Shortcut::key(Key::Keypad1)],
     repeats: false,
     when: None,
     hint: Some(Hint::new(ActionKind::View, 4)),
+};
+
+/// Drags the canvas while the button or key that started it stays down.
+pub(crate) static PAN: ActionDef = ActionDef {
+    id: "viewport.pan",
+    label: n_!("Pan"),
+    description: n_!("Drags the canvas with the pointer while the button stays down."),
+    context: VIEWPORT,
+    defaults: &[Shortcut::button(MouseButton::Middle, ButtonTrigger::Press)],
+    repeats: false,
+    when: None,
+    hint: Some(Hint::new(ActionKind::View, 7)),
+};
+
+/// Moves the view left.
+pub(crate) static PAN_LEFT: ActionDef = ActionDef {
+    id: "viewport.pan-left",
+    label: n_!("Pan left"),
+    description: n_!("Moves the view to the left."),
+    context: VIEWPORT,
+    defaults: &[
+        wheel(WheelDirection::Left),
+        wheel(WheelDirection::Up).with(ModifierKey::Ctrl),
+        Shortcut::key(Key::Keypad4).with(ModifierKey::Ctrl),
+    ],
+    repeats: true,
+    when: None,
+    hint: Some(Hint::new(ActionKind::View, 3)),
+};
+
+/// Moves the view right.
+pub(crate) static PAN_RIGHT: ActionDef = ActionDef {
+    id: "viewport.pan-right",
+    label: n_!("Pan right"),
+    description: n_!("Moves the view to the right."),
+    context: VIEWPORT,
+    defaults: &[
+        wheel(WheelDirection::Right),
+        wheel(WheelDirection::Down).with(ModifierKey::Ctrl),
+        Shortcut::key(Key::Keypad6).with(ModifierKey::Ctrl),
+    ],
+    repeats: true,
+    when: None,
+    hint: Some(Hint::new(ActionKind::View, 3)),
+};
+
+/// Moves the view up.
+pub(crate) static PAN_UP: ActionDef = ActionDef {
+    id: "viewport.pan-up",
+    label: n_!("Pan up"),
+    description: n_!("Moves the view up."),
+    context: VIEWPORT,
+    defaults: &[
+        wheel(WheelDirection::Up).with(ModifierKey::Shift),
+        Shortcut::key(Key::Keypad8).with(ModifierKey::Ctrl),
+    ],
+    repeats: true,
+    when: None,
+    hint: Some(Hint::new(ActionKind::View, 3)),
+};
+
+/// Moves the view down.
+pub(crate) static PAN_DOWN: ActionDef = ActionDef {
+    id: "viewport.pan-down",
+    label: n_!("Pan down"),
+    description: n_!("Moves the view down."),
+    context: VIEWPORT,
+    defaults: &[
+        wheel(WheelDirection::Down).with(ModifierKey::Shift),
+        Shortcut::key(Key::Keypad2).with(ModifierKey::Ctrl),
+    ],
+    repeats: true,
+    when: None,
+    hint: Some(Hint::new(ActionKind::View, 3)),
 };
 
 /// Shows or hides the rulers.
@@ -77,17 +213,44 @@ pub(crate) static TOGGLE_RULERS: ActionDef = ActionDef {
     hint: Some(Hint::new(ActionKind::View, 3)),
 };
 
+/// Shows or hides the grid.
+pub(crate) static TOGGLE_GRID: ActionDef = ActionDef {
+    id: "viewport.toggle-grid",
+    label: n_!("Toggle grid"),
+    description: n_!("Shows or hides the grid of dots behind the document."),
+    context: VIEWPORT,
+    defaults: &[],
+    repeats: false,
+    when: None,
+    hint: Some(Hint::new(ActionKind::View, 2)),
+};
+
 /// The viewport's actions, for the keymap.
 pub(crate) static ACTIONS: ActionGroup = ActionGroup {
     name: n_!("Viewport"),
-    actions: &[&VIEW_ALL, &ZOOM_IN, &ZOOM_OUT, &ACTUAL_SIZE, &TOGGLE_RULERS],
+    actions: &[
+        &FIT_DOCUMENT,
+        &FRAME_SELECTED,
+        &RESET_VIEW,
+        &ZOOM_IN,
+        &ZOOM_OUT,
+        &ACTUAL_SIZE,
+        &PAN,
+        &PAN_LEFT,
+        &PAN_RIGHT,
+        &PAN_UP,
+        &PAN_DOWN,
+        &TOGGLE_RULERS,
+        &TOGGLE_GRID,
+    ],
 };
 
-/// The template page, in canvas units.
-const PAGE: Rect = Rect::from_min_max(Vec2::new(0.0, 0.0), Vec2::new(800.0, 600.0));
+/// Logical pixels per document unit (a millimetre) at 100 %: a logical pixel is 1/96 inch.
+pub(crate) const ACTUAL: f64 = 96.0 / 25.4;
 
-/// Zoom limits.
-const ZOOM_RANGE: (f32, f32) = (0.02, 64.0);
+/// Zoom limits, in logical pixels per document unit: far beyond any use, within what f64
+/// keeps exact for a document a kilometre wide.
+const ZOOM_RANGE: (f64, f64) = (1e-9, 1e12);
 
 /// The sides a ruler may be on, in the order of [`View::rulers`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -100,7 +263,7 @@ enum Side {
 
 const SIDES: [Side; 4] = [Side::Top, Side::Left, Side::Bottom, Side::Right];
 
-/// Colors and metrics of the viewport, from the `component.viewport.*` tokens.
+/// Colors, metrics and motion of the viewport, from the `component.viewport.*` tokens.
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Style {
     canvas: Color,
@@ -108,14 +271,16 @@ struct Style {
     dots: DotGrid,
     /// The smallest space between grid steps on screen, which the rulers' ticks keep too.
     grid_spacing: f32,
-    page: Color,
     page_border: Color,
     origin: Color,
     ruler: f32,
     ruler_background: Color,
     ruler_tick: Color,
     ruler_label: Color,
-    zoom_step: f32,
+    zoom_step: f64,
+    pan_step: f64,
+    frame_duration: Duration,
+    frame_easing: CubicBezier,
 }
 
 impl Style {
@@ -139,70 +304,172 @@ impl Style {
                 color: design.get(component::VIEWPORT_GRID_COLOR),
             },
             grid_spacing: design.get(component::VIEWPORT_GRID_SPACING).max(1.0),
-            page: design.get(component::VIEWPORT_PAGE_BACKGROUND),
             page_border: design.get(component::VIEWPORT_PAGE_BORDER),
             origin: design.get(component::VIEWPORT_ORIGIN_OUTLINE),
             ruler: design.get(component::VIEWPORT_RULER_SIZE),
             ruler_background: design.get(component::VIEWPORT_RULER_BACKGROUND),
             ruler_tick: design.get(component::VIEWPORT_RULER_TICK),
             ruler_label: design.get(component::VIEWPORT_RULER_LABEL),
-            zoom_step: design.get(component::VIEWPORT_ZOOM_STEP).max(1.01),
+            zoom_step: f64::from(design.get(component::VIEWPORT_ZOOM_STEP).max(1.01)),
+            pan_step: f64::from(design.get(component::VIEWPORT_PAN_STEP).max(1.0)),
+            frame_duration: design.get(component::VIEWPORT_FRAME_DURATION),
+            frame_easing: design.get(component::VIEWPORT_FRAME_EASING),
         }
     }
 }
 
-/// What a viewport shows: where its canvas is, how big, which rulers.
+/// A camera: the document point at the middle of the canvas area, and logical pixels per
+/// document unit.
 #[derive(Clone, Copy, Debug, PartialEq)]
+struct Camera {
+    center: Point,
+    zoom: f64,
+}
+
+/// A camera moving to another, eased.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Motion {
+    from: Camera,
+    to: Camera,
+    /// When it started, on the interface's clock.
+    start: Duration,
+}
+
+/// What holds the canvas while it is dragged: the buttons down and the key held when the drag
+/// started, and where the pointer was in the last frame.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Grip {
+    at: Vec2,
+    buttons: [bool; 3],
+    key: Option<Key>,
+}
+
+const BUTTONS: [PointerButton; 3] = [
+    PointerButton::Primary,
+    PointerButton::Secondary,
+    PointerButton::Middle,
+];
+
+/// What a viewport shows: its camera, its overlays, and what moves or holds it.
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct View {
-    /// The canvas point in the middle of the canvas area.
-    center: Vec2,
-    /// Logical pixels per canvas unit.
-    zoom: f32,
+    camera: Camera,
     /// Rulers on the top, left, bottom and right sides.
     rulers: [bool; 4],
-    /// Frames the page on the first frame it is drawn.
+    /// The grid of dots.
+    grid: bool,
+    /// Fits the document on the first frame it is drawn.
     framed: bool,
-    /// Where the pointer held the canvas in the last frame, while the middle button drags it.
-    held: Option<Vec2>,
+    /// The drag in progress.
+    grip: Option<Grip>,
+    /// An eased move of the camera in progress.
+    motion: Option<Motion>,
+    /// The overlays menu of the top bar.
+    overlays: MenuState,
+    /// The canvas area of the last frame: the area without its rulers.
+    area: Rect,
 }
 
 impl Default for View {
     fn default() -> Self {
         Self {
-            center: PAGE.center(),
-            zoom: 1.0,
+            camera: Camera {
+                center: Point::ORIGIN,
+                zoom: ACTUAL,
+            },
             rulers: [true, true, false, false],
+            grid: true,
             framed: false,
-            held: None,
+            grip: None,
+            motion: None,
+            overlays: MenuState::new(),
+            area: Rect::ZERO,
         }
     }
 }
 
+/// `point` in f64.
+fn wide(point: Vec2) -> Vector {
+    Vector::new(f64::from(point.x), f64::from(point.y))
+}
+
 impl View {
-    /// The screen point of canvas point `point`, in a canvas area `area`.
-    fn to_screen(self, area: Rect, point: Vec2) -> Vec2 {
-        area.center() + (point - self.center) * self.zoom
+    /// The screen point (logical pixels, f64) of document point `point` in a canvas area
+    /// `area`.
+    fn to_screen(&self, area: Rect, point: Point) -> [f64; 2] {
+        let at = wide(area.center()) + (point - self.camera.center) * self.camera.zoom;
+        [at.x, at.y]
     }
 
-    /// The canvas point under screen point `point`.
-    fn to_canvas(self, area: Rect, point: Vec2) -> Vec2 {
-        self.center + (point - area.center()) * (1.0 / self.zoom)
+    /// The same, in f32, held to a few million pixels around the area: drawing clips it.
+    fn to_screen_f32(&self, area: Rect, point: Point) -> Vec2 {
+        let [x, y] = self.to_screen(area, point);
+        #[allow(
+            clippy::cast_possible_truncation,
+            reason = "clamped to what f32 holds exactly enough for a clipped edge"
+        )]
+        Vec2::new(x.clamp(-1e7, 1e7) as f32, y.clamp(-1e7, 1e7) as f32)
     }
 
-    /// Zooms by `factor`, keeping the canvas point under `anchor` (a screen point) in place.
-    fn zoom_at(&mut self, area: Rect, anchor: Vec2, factor: f32) {
-        let held = self.to_canvas(area, anchor);
-        self.zoom = (self.zoom * factor).clamp(ZOOM_RANGE.0, ZOOM_RANGE.1);
-        self.center = held - (anchor - area.center()) * (1.0 / self.zoom);
+    /// The document point under screen point `point`.
+    fn to_document(&self, area: Rect, point: Vec2) -> Point {
+        self.camera.center + (wide(point) - wide(area.center())) * (1.0 / self.camera.zoom)
     }
 
-    /// Fits `rect` (canvas units) in `area` with a margin.
-    fn frame(&mut self, area: Rect, rect: Rect) {
-        let fit = (area.width() / rect.width()).min(area.height() / rect.height()) * 0.9;
-        if fit.is_finite() && fit > 0.0 {
-            self.zoom = fit.clamp(ZOOM_RANGE.0, ZOOM_RANGE.1);
+    /// Zooms by `factor`, keeping the document point under `anchor` (a screen point) in place.
+    fn zoom_at(&mut self, area: Rect, anchor: Vec2, factor: f64) {
+        if !(factor.is_finite() && factor > 0.0) {
+            return;
         }
-        self.center = rect.center();
+        let held = self.to_document(area, anchor);
+        self.camera.zoom = (self.camera.zoom * factor).clamp(ZOOM_RANGE.0, ZOOM_RANGE.1);
+        self.camera.center = held - (wide(anchor) - wide(area.center())) * (1.0 / self.camera.zoom);
+    }
+
+    /// Moves the view by `delta` logical pixels on screen: the canvas moves the other way.
+    fn pan(&mut self, delta: Vector) {
+        self.camera.center += delta * (1.0 / self.camera.zoom);
+    }
+
+    /// The camera fitting `bounds` (document units) in `area` with a margin.
+    fn fitted(area: Rect, bounds: koebi_geom::Rect) -> Option<Camera> {
+        let fit = (f64::from(area.width()) / bounds.width())
+            .min(f64::from(area.height()) / bounds.height())
+            * 0.9;
+        (fit.is_finite() && fit > 0.0).then(|| Camera {
+            center: bounds.center(),
+            zoom: fit.clamp(ZOOM_RANGE.0, ZOOM_RANGE.1),
+        })
+    }
+
+    /// Starts an eased move to `to` at `now`.
+    fn move_to(&mut self, to: Camera, now: Duration) {
+        self.motion = Some(Motion {
+            from: self.camera,
+            to,
+            start: now,
+        });
+    }
+
+    /// Advances the move in progress to `now`; whether it goes on.
+    fn advance(&mut self, now: Duration, duration: Duration, easing: &CubicBezier) -> bool {
+        let Some(motion) = self.motion else {
+            return false;
+        };
+        let elapsed = now.saturating_sub(motion.start);
+        if duration.is_zero() || elapsed >= duration {
+            self.camera = motion.to;
+            self.motion = None;
+            return false;
+        }
+        #[allow(clippy::cast_possible_truncation, reason = "a share from 0 to 1")]
+        let t = (elapsed.as_secs_f64() / duration.as_secs_f64()) as f32;
+        let eased = f64::from(easing.ease(t));
+        // The zoom moves evenly in its logarithm: each step looks the same.
+        let (from, to) = (motion.from.zoom.ln(), motion.to.zoom.ln());
+        self.camera.zoom = (from + (to - from) * eased).exp();
+        self.camera.center = motion.from.center + (motion.to.center - motion.from.center) * eased;
+        true
     }
 
     /// The canvas area of `rect`: without the rulers shown, `ruler` thick on the top and
@@ -219,13 +486,46 @@ impl View {
             ),
         )
     }
+
+    /// The canvas's view of `area` at `scale` physical pixels per logical one, and the area
+    /// snapped to whole physical pixels, which its image fills texel for pixel.
+    fn canvas(&self, area: Rect, scale: f32) -> Option<(koebi_canvas::View, Rect)> {
+        let snap = |value: f32| (value * scale).round();
+        let (x0, y0, x1, y1) = (
+            snap(area.min.x),
+            snap(area.min.y),
+            snap(area.max.x),
+            snap(area.max.y),
+        );
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "a whole number of physical pixels of a window"
+        )]
+        let extent = Extent::new((x1 - x0).max(0.0) as u32, (y1 - y0).max(0.0) as u32);
+        let snapped = Rect::from_min_max(
+            Vec2::new(x0 / scale, y0 / scale),
+            Vec2::new(x1 / scale, y1 / scale),
+        );
+        // The middle of the whole pixels, in f64: the image's texels lie exactly on them.
+        let middle = Vector::new(
+            f64::midpoint(f64::from(x0), f64::from(x1)),
+            f64::midpoint(f64::from(y0), f64::from(y1)),
+        ) * (1.0 / f64::from(scale));
+        let view = koebi_canvas::View {
+            center: self.camera.center + (middle - wide(area.center())) * (1.0 / self.camera.zoom),
+            zoom: self.camera.zoom * f64::from(scale),
+            extent,
+        };
+        view.is_valid().then_some((view, snapped))
+    }
 }
 
-/// The step between ruler ticks, in canvas units: 1, 2 or 5 times a power of
-/// ten, the smallest at least `spacing` logical pixels apart at `zoom`.
-fn step(zoom: f32, spacing: f32) -> f32 {
+/// The step between ruler ticks, in document units: 1, 2 or 5 times a power of ten, the
+/// smallest at least `spacing` logical pixels apart at `zoom`.
+fn step(zoom: f64, spacing: f64) -> f64 {
     let wanted = spacing / zoom;
-    let mut step = 10.0_f32.powf(wanted.log10().floor());
+    let mut step = 10.0_f64.powf(wanted.log10().floor());
     for factor in [1.0, 2.0, 5.0, 10.0] {
         if step * factor >= wanted {
             step *= factor;
@@ -235,27 +535,50 @@ fn step(zoom: f32, spacing: f32) -> f32 {
     step
 }
 
-/// `value` in decimal, written into `digits`.
-fn integer(value: i64, digits: &mut [u8; 21]) -> &str {
-    let mut rest = value.unsigned_abs();
+/// `value` with `decimals` decimals (at most 12), written into `digits`.
+fn decimal(value: f64, decimals: u32, digits: &mut [u8; 32]) -> &str {
+    let decimals = decimals.min(12);
+    #[allow(
+        clippy::cast_possible_truncation,
+        reason = "ruler values times a power of ten stay far below i64's range"
+    )]
+    let scaled = (value * 10f64.powi(decimals.cast_signed())).round() as i64;
+    let mut rest = scaled.unsigned_abs();
     let mut start = digits.len();
+    let mut place = 0;
     loop {
+        if place == decimals && decimals > 0 {
+            start -= 1;
+            digits[start] = b'.';
+        }
         start -= 1;
         digits[start] = b"0123456789"[usize::try_from(rest % 10).unwrap_or(0)];
         rest /= 10;
-        if rest == 0 {
+        place += 1;
+        if rest == 0 && place > decimals {
             break;
         }
     }
-    if value < 0 {
+    if scaled < 0 {
         start -= 1;
         digits[start] = b'-';
     }
     core::str::from_utf8(&digits[start..]).expect("decimal digits are ASCII")
 }
 
-/// The multiples of `step` from `from` to `to`, as whole numbers of steps.
-fn multiples(from: f32, to: f32, step: f32) -> impl Iterator<Item = f32> {
+/// The decimals a ruler with ticks `step` apart writes.
+fn decimals(step: f64) -> u32 {
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a few decimals"
+    )]
+    let decimals = (-step.log10().floor()).max(0.0) as u32;
+    decimals
+}
+
+/// The multiples of `step` from `from` to `to`.
+fn multiples(from: f64, to: f64, step: f64) -> impl Iterator<Item = f64> {
     let first = (from / step).ceil();
     let count = ((to / step).floor() - first + 1.0).clamp(0.0, 4000.0);
     #[allow(
@@ -264,112 +587,236 @@ fn multiples(from: f32, to: f32, step: f32) -> impl Iterator<Item = f32> {
         reason = "clamped to a few thousand lines"
     )]
     let count = count as u32;
-    (0..count).map(move |index| (first + index as f32) * step)
+    (0..count).map(move |index| (first + f64::from(index)) * step)
 }
 
-/// The ruler toggles of a viewport's top bar, from the right.
-pub(crate) fn top_bar(ui: &mut Ui<'_>, id: WidgetId, view: &mut View, bar: &mut BarLayout) {
-    let icons = [
-        koebi_icons::interface::CHEVRON_UP,
-        koebi_icons::interface::CHEVRON_LEFT,
-        koebi_icons::interface::CHEVRON_DOWN,
-        koebi_icons::interface::CHEVRON_RIGHT,
-    ];
+/// The overlays menu of a viewport's top bar, at its right end.
+pub(crate) fn top_bar(
+    ui: &mut Ui<'_>,
+    id: WidgetId,
+    view: &mut View,
+    bar: &mut BarLayout,
+    window: Rect,
+) {
     let side = bar.rect().height();
-    for (index, icon) in icons.into_iter().enumerate().rev() {
-        let rect = bar.right(side);
-        Button::new(id.with(100 + index as u64))
-            .icon(icon)
-            .toggle(&mut view.rulers[index])
-            .show(ui, rect);
+    let rect = bar.right(side);
+    Button::new(id.with(100))
+        .icon(koebi_icons::view::BACKGROUND_DOT_SMALL)
+        .menu(&mut view.overlays, Placement::BELOW)
+        .show(ui, rect);
+    ui.tooltip(id.with(100), tr("Overlays"), rect);
+    let items = [
+        MenuItem::Title(tr("Overlays")),
+        MenuItem::action(tr("Grid")).checked(view.grid),
+        MenuItem::Separator,
+        MenuItem::Title(tr("Rulers")),
+        MenuItem::action(tr("Top")).checked(view.rulers[0]),
+        MenuItem::action(tr("Left")).checked(view.rulers[1]),
+        MenuItem::action(tr("Bottom")).checked(view.rulers[2]),
+        MenuItem::action(tr("Right")).checked(view.rulers[3]),
+    ];
+    match ui
+        .menu(id.with(101), &mut view.overlays, &items, window)
+        .map(|choice| choice.index())
+    {
+        Some(1) => view.grid = !view.grid,
+        Some(index @ 4..=7) => view.rulers[index - 4] = !view.rulers[index - 4],
+        _ => {}
     }
 }
 
+/// What a viewport shows besides its own state: the document's page, and the window's views.
+pub(crate) struct Shown<'a> {
+    /// The viewport.
+    pub(crate) editor: EditorId,
+    /// The document's first page, in document units, if it has one.
+    pub(crate) page: Option<koebi_geom::Rect>,
+    /// The window's views of the document.
+    pub(crate) views: &'a mut CanvasViews,
+}
+
 /// Draws a viewport in `rect` and applies its input.
-pub(crate) fn show(ui: &mut Ui<'_>, rect: Rect, design: &DesignSystem, view: &mut View) {
+pub(crate) fn show(
+    ui: &mut Ui<'_>,
+    rect: Rect,
+    design: &DesignSystem,
+    view: &mut View,
+    mut shown: Shown<'_>,
+) {
     let style = Style::resolve(design);
     // Side rulers are as wide as four digits and a sign.
     let digits = ui.text_width("-8888", &ui.styles().text.detail);
     let area = view.canvas_area(rect, style.ruler, style.ruler.max(digits + 6.0));
-    if !view.framed {
-        view.frame(area, PAGE);
+    view.area = area;
+    if !view.framed
+        && let Some(camera) = shown.page.and_then(|page| View::fitted(area, page))
+    {
+        view.camera = camera;
         view.framed = true;
     }
+    if view.advance(ui.input().time(), style.frame_duration, &style.frame_easing) {
+        ui.request_redraw_at(ui.input().time());
+    }
     ui.zone(rect, VIEWPORT, |ui| {
-        handle_input(ui, rect, area, view, &style);
-        draw_canvas(ui, area, view, &style);
+        handle_input(ui, rect, area, view, &style, shown.page);
+        draw_canvas(ui, area, view, &style, &mut shown);
         draw_rulers(ui, rect, area, view, &style);
     });
 }
 
-fn handle_input(ui: &mut Ui<'_>, rect: Rect, area: Rect, view: &mut View, style: &Style) {
+/// The zoom factor of one trigger of Zoom In (`inward`) or Zoom Out.
+fn zoom_factor(amount: Amount, step: f64, inward: bool) -> f64 {
+    let notches = match amount {
+        // A pinch zooms by its own scale, whichever way.
+        Amount::Scale(scale) => return f64::from(scale),
+        Amount::Once => 1.0,
+        Amount::Notches(notches) => f64::from(notches),
+    };
+    step.powf(if inward { notches } else { -notches })
+}
+
+/// The logical pixels one trigger of a pan moves.
+fn pan_length(amount: Amount, step: f64) -> f64 {
+    match amount {
+        Amount::Notches(notches) => f64::from(notches) * step,
+        Amount::Once | Amount::Scale(_) => step,
+    }
+}
+
+fn handle_input(
+    ui: &mut Ui<'_>,
+    rect: Rect,
+    area: Rect,
+    view: &mut View,
+    style: &Style,
+    page: Option<koebi_geom::Rect>,
+) {
     let input = ui.input();
     let pointer = ui.pointer();
-    // During another action, this press and this wheel are not the canvas's.
-    let free = ui.pointer_is_free();
-    let over = free && pointer.is_some_and(|point| area.contains(point));
-    // The middle button holds the canvas from a press on it until its release.
-    if free
-        && ui
-            .button_press_position(PointerButton::Middle)
-            .is_some_and(|point| area.contains(point))
-    {
-        view.held = pointer;
-    }
-    if !input.is_button_down(PointerButton::Middle) {
-        view.held = None;
-    }
-    if let (Some(held), Some(point)) = (view.held, pointer) {
-        view.center -= (point - held) * (1.0 / view.zoom);
-        view.held = Some(point);
-    }
-    if view.held.is_some() {
-        ui.hold_pointer();
-    }
-    if over && let Some(point) = pointer {
-        let notches = input.wheel().y;
-        if notches != 0.0 {
-            view.zoom_at(area, point, style.zoom_step.powf(notches));
+    let now = input.time();
+    // A drag holds the canvas while a button or the key that started it stays down.
+    if let Some(grip) = view.grip {
+        let held = BUTTONS
+            .iter()
+            .zip(grip.buttons)
+            .any(|(button, down)| down && input.is_button_down(*button))
+            || grip
+                .key
+                .is_some_and(|key| input.keys_held().any(|held| held == key));
+        match (held, pointer) {
+            (true, Some(point)) => {
+                view.pan(wide(grip.at) - wide(point));
+                view.grip = Some(Grip { at: point, ..grip });
+                ui.hold_pointer();
+            }
+            (true, None) => ui.hold_pointer(),
+            (false, _) => view.grip = None,
         }
     }
-    if !pointer.is_some_and(|point| rect.contains(point)) {
+    // During another action, these gestures are not the canvas's.
+    let Some(point) = pointer.filter(|point| ui.pointer_is_free() && area.contains(*point)) else {
+        return;
+    };
+    if view.grip.is_none() && ui.triggered(&PAN) {
+        view.motion = None;
+        let buttons = BUTTONS.map(|button| input.is_button_down(button));
+        view.grip = Some(Grip {
+            at: point,
+            buttons,
+            // A key starts the drag only when no button is down.
+            key: if buttons.contains(&true) {
+                None
+            } else {
+                input.keys_held().last()
+            },
+        });
+        ui.hold_pointer();
+    }
+    for (action, inward) in [(&ZOOM_IN, true), (&ZOOM_OUT, false)] {
+        for amount in ui.amounts(action) {
+            view.motion = None;
+            // From a key, on the middle of the view; from the wheel or a pinch, the pointer.
+            let anchor = if amount == Amount::Once {
+                area.center()
+            } else {
+                point
+            };
+            view.zoom_at(area, anchor, zoom_factor(amount, style.zoom_step, inward));
+        }
+    }
+    for (action, direction) in [
+        (&PAN_LEFT, Vector::new(-1.0, 0.0)),
+        (&PAN_RIGHT, Vector::new(1.0, 0.0)),
+        (&PAN_UP, Vector::new(0.0, -1.0)),
+        (&PAN_DOWN, Vector::new(0.0, 1.0)),
+    ] {
+        for amount in ui.amounts(action) {
+            view.motion = None;
+            view.pan(direction * pan_length(amount, style.pan_step));
+        }
+    }
+    if !rect.contains(point) {
         return;
     }
-    if ui.triggered(&VIEW_ALL) {
-        view.frame(area, PAGE);
+    if (ui.triggered(&FIT_DOCUMENT) || ui.triggered(&FRAME_SELECTED))
+        // Without a selection yet, Frame Selected frames the document.
+        && let Some(camera) = page.and_then(|page| View::fitted(area, page))
+    {
+        view.move_to(camera, now);
     }
-    if ui.triggered(&ZOOM_IN) {
-        view.zoom_at(area, area.center(), style.zoom_step);
-    }
-    if ui.triggered(&ZOOM_OUT) {
-        view.zoom_at(area, area.center(), 1.0 / style.zoom_step);
+    if ui.triggered(&RESET_VIEW)
+        && let Some(page) = page
+    {
+        let camera = Camera {
+            center: page.center(),
+            zoom: ACTUAL,
+        };
+        view.move_to(camera, now);
     }
     if ui.triggered(&ACTUAL_SIZE) {
-        view.zoom_at(area, area.center(), 1.0 / view.zoom);
+        view.motion = None;
+        view.zoom_at(area, area.center(), ACTUAL / view.camera.zoom);
     }
     if ui.triggered(&TOGGLE_RULERS) {
         let shown = view.rulers.iter().any(|on| *on);
         view.rulers = [!shown, !shown, false, false];
     }
+    if ui.triggered(&TOGGLE_GRID) {
+        view.grid = !view.grid;
+    }
 }
 
-fn draw_canvas(ui: &mut Ui<'_>, area: Rect, view: &View, style: &Style) {
+fn draw_canvas(ui: &mut Ui<'_>, area: Rect, view: &View, style: &Style, shown: &mut Shown<'_>) {
+    let scale = ui.scale_factor();
     let scene = ui.scene();
     scene.push_rect(&RectPrimitive::new(area, style.canvas));
     // The grid: dots every power of its subdivisions, the finer level fading in as it nears
     // the smallest space (ADR 0029).
-    let origin = view.to_screen(area, Vec2::ZERO);
-    let origin = [f64::from(origin.x), f64::from(origin.y)];
-    if let Some(dots) = style.dots.fill(area, origin, f64::from(view.zoom)) {
+    if view.grid
+        && let Some(dots) =
+            style
+                .dots
+                .fill(area, view.to_screen(area, Point::ORIGIN), view.camera.zoom)
+    {
         scene.push_fill(&dots);
     }
-    // The page, and a mark at the origin.
-    let page = Rect::from_min_max(
-        view.to_screen(area, PAGE.min),
-        view.to_screen(area, PAGE.max),
-    );
-    scene.push_rect(&RectPrimitive::new(page, style.page).with_border(1.0, style.page_border));
-    let origin = view.to_screen(area, Vec2::ZERO);
+    // The document, drawn by the window's GPU into an image of the area's pixels.
+    if let Some((camera, snapped)) = view.canvas(area, scale)
+        && let Some(image) = shown.views.show(shown.editor, camera)
+    {
+        scene.push_image(&ImagePrimitive::new(image, snapped));
+    }
+    // The page's edge, and a mark at the origin.
+    if let Some(page) = shown.page {
+        let page = Rect::from_min_max(
+            view.to_screen_f32(area, page.min),
+            view.to_screen_f32(area, page.max),
+        );
+        scene.push_rect(
+            &RectPrimitive::new(page, Color::TRANSPARENT).with_border(1.0, style.page_border),
+        );
+    }
+    let origin = view.to_screen_f32(area, Point::ORIGIN);
     scene.push_rect(
         &RectPrimitive::new(
             Rect::from_center_size(origin, Vec2::splat(9.0)),
@@ -382,11 +829,17 @@ fn draw_canvas(ui: &mut Ui<'_>, area: Rect, view: &View, style: &Style) {
 
 fn draw_rulers(ui: &mut Ui<'_>, rect: Rect, area: Rect, view: &View, style: &Style) {
     let font = ui.styles().text.detail.clone();
-    let step = step(view.zoom, style.grid_spacing * 3.0);
+    let step = step(view.camera.zoom, f64::from(style.grid_spacing) * 3.0);
+    let decimals = decimals(step);
     let (from, to) = (
-        view.to_canvas(area, area.min),
-        view.to_canvas(area, area.max),
+        view.to_document(area, area.min),
+        view.to_document(area, area.max),
     );
+    #[allow(
+        clippy::cast_possible_truncation,
+        reason = "a step's length on screen, a few dozen pixels"
+    )]
+    let step_on_screen = (step * view.camera.zoom) as f32;
     for (side, shown) in SIDES.into_iter().zip(view.rulers) {
         if !shown {
             continue;
@@ -417,27 +870,22 @@ fn draw_rulers(ui: &mut Ui<'_>, rect: Rect, area: Rect, view: &View, style: &Sty
         } else {
             (from.y, to.y)
         };
-        let mut digits = [0; 21];
+        let mut digits = [0; 32];
         for value in multiples(start, end, step) {
-            #[allow(
-                clippy::cast_possible_truncation,
-                reason = "ruler values are whole multiples of steps far below i64's range"
-            )]
-            let number = value.round() as i64;
-            let text = integer(number, &mut digits);
+            let text = decimal(value, decimals, &mut digits);
             if horizontal {
-                let x = view.to_screen(area, Vec2::new(value, 0.0)).x.round();
+                let x = view.to_screen_f32(area, Point::new(value, 0.0)).x.round();
                 ui.scene().push_rect(&RectPrimitive::new(
                     Rect::from_min_max(Vec2::new(x, strip.min.y), Vec2::new(x + 1.0, strip.max.y)),
                     style.ruler_tick,
                 ));
                 let label = Rect::from_min_max(
                     Vec2::new(x + 3.0, strip.min.y),
-                    Vec2::new(x + step * view.zoom, strip.max.y),
+                    Vec2::new(x + step_on_screen, strip.max.y),
                 );
                 ui.label(text, label, &font, style.ruler_label, Align::Start);
             } else {
-                let y = view.to_screen(area, Vec2::new(0.0, value)).y.round();
+                let y = view.to_screen_f32(area, Point::new(0.0, value)).y.round();
                 ui.scene().push_rect(&RectPrimitive::new(
                     Rect::from_min_max(Vec2::new(strip.min.x, y), Vec2::new(strip.max.x, y + 1.0)),
                     style.ruler_tick,
@@ -472,65 +920,4 @@ fn draw_rulers(ui: &mut Ui<'_>, rect: Rect, area: Rect, view: &View, style: &Sty
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn area() -> Rect {
-        Rect::from_origin_size(Vec2::new(100.0, 50.0), Vec2::new(400.0, 300.0))
-    }
-
-    #[test]
-    fn zooming_keeps_the_point_under_the_pointer() {
-        let mut view = View::default();
-        let anchor = Vec2::new(150.0, 80.0);
-        let before = view.to_canvas(area(), anchor);
-        view.zoom_at(area(), anchor, 2.0);
-        assert_eq!(view.zoom, 2.0);
-        let after = view.to_canvas(area(), anchor);
-        assert!((after - before).length() < 1e-3);
-        // Zoom stays within its limits.
-        view.zoom_at(area(), anchor, 1e9);
-        assert_eq!(view.zoom, ZOOM_RANGE.1);
-    }
-
-    #[test]
-    fn framing_fits_the_page_in_the_area() {
-        let mut view = View::default();
-        view.frame(area(), PAGE);
-        assert_eq!(view.center, PAGE.center());
-        let page = Rect::from_min_max(
-            view.to_screen(area(), PAGE.min),
-            view.to_screen(area(), PAGE.max),
-        );
-        assert!((page.width() - 360.0).abs() < 1e-3);
-        assert!(page.height() <= area().height());
-    }
-
-    #[test]
-    fn ruler_steps_are_round_and_far_enough_apart() {
-        assert_eq!(step(1.0, 24.0), 50.0);
-        assert_eq!(step(2.0, 24.0), 20.0);
-        assert_eq!(step(0.1, 24.0), 500.0);
-        assert_eq!(step(10.0, 24.0), 5.0);
-        let values: Vec<f32> = multiples(-12.0, 41.0, 10.0).collect();
-        assert_eq!(values, [-10.0, 0.0, 10.0, 20.0, 30.0, 40.0]);
-    }
-
-    #[test]
-    fn rulers_take_their_side_and_numbers_read_back() {
-        let mut view = View::default();
-        let rect = area();
-        assert_eq!(
-            view.canvas_area(rect, 20.0, 30.0).min,
-            rect.min + Vec2::new(30.0, 20.0)
-        );
-        view.rulers = [false, false, true, true];
-        assert_eq!(
-            view.canvas_area(rect, 20.0, 30.0).max,
-            rect.max - Vec2::new(30.0, 20.0)
-        );
-        let mut digits = [0; 21];
-        assert_eq!(integer(-1250, &mut digits), "-1250");
-        assert_eq!(integer(0, &mut digits), "0");
-    }
-}
+mod tests;

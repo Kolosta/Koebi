@@ -47,9 +47,6 @@ koebi_design::tokens! {
     /// Viewport: how many steps of the grid's finer level one step of its coarse level holds:
     /// 10 keeps the dots on powers of ten, among the rulers' ticks.
     VIEWPORT_GRID_SUBDIVISIONS = "viewport.grid.subdivisions": Number = 10.0, range(2.0, 10.0);
-    /// Viewport: background of the page.
-    VIEWPORT_PAGE_BACKGROUND = "viewport.page.background": Color ->
-        semantic::STATIC_TEXT_COLOR_WHITE;
     /// Viewport: thickness of a ruler.
     VIEWPORT_RULER_SIZE = "viewport.ruler.size": Dimension = px(20.0), range(8.0, 64.0);
     /// Viewport: background of the rulers.
@@ -60,5 +57,12 @@ koebi_design::tokens! {
     /// Viewport: numbers of the rulers.
     VIEWPORT_RULER_LABEL = "viewport.ruler.label": Color -> semantic::TEXT_COLOR_SECONDARY_DEFAULT;
     /// Viewport: zoom factor of one wheel notch or zoom step.
-    VIEWPORT_ZOOM_STEP = "viewport.zoom-step": Number = 1.25, range(1.01, 4.0);
+    VIEWPORT_ZOOM_STEP = "viewport.zoom-step": Number = 1.15, range(1.01, 4.0);
+    /// Viewport: how far one wheel notch pans the canvas, in logical pixels.
+    VIEWPORT_PAN_STEP = "viewport.pan-step": Number = 48.0, range(4.0, 400.0);
+    /// Viewport: how long framing the document or resetting the view takes.
+    VIEWPORT_FRAME_DURATION = "viewport.frame.duration": Duration ->
+        semantic::ANIMATION_DURATION_PAGE;
+    /// Viewport: how framing the document or resetting the view eases.
+    VIEWPORT_FRAME_EASING = "viewport.frame.easing": CubicBezier -> semantic::ANIMATION_EASING_MOVE;
 }

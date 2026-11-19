@@ -401,7 +401,6 @@ msgid "Narrows the frames, around the current one."
 msgstr ""
 
 #: apps/koebi/src/editors/timeline.rs
-#: apps/koebi/src/editors/viewport.rs
 msgid "Frame all"
 msgstr ""
 
@@ -410,15 +409,35 @@ msgid "Zooms so that every frame of the scene shows."
 msgstr ""
 
 #: apps/koebi/src/editors/viewport.rs
-msgid "Zooms and pans so that the whole page shows."
+msgid "Fit document"
 msgstr ""
 
 #: apps/koebi/src/editors/viewport.rs
-msgid "Zooms in by one step on the middle of the view."
+msgid "Zooms and pans so that the whole document shows."
 msgstr ""
 
 #: apps/koebi/src/editors/viewport.rs
-msgid "Zooms out by one step from the middle of the view."
+msgid "Frame selected"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zooms and pans so that the selection shows, or the document without one."
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Reset view"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Shows the page at its real size, centered."
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zooms in by one step, around the pointer from the wheel or a pinch."
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zooms out by one step, around the pointer from the wheel or a pinch."
 msgstr ""
 
 #: apps/koebi/src/editors/viewport.rs
@@ -426,7 +445,47 @@ msgid "Actual size"
 msgstr ""
 
 #: apps/koebi/src/editors/viewport.rs
-msgid "Zooms to 100 %: one canvas unit per logical pixel."
+msgid "Zooms to 100 %: a millimetre of the document is one on the screen."
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Drags the canvas with the pointer while the button stays down."
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan left"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Moves the view to the left."
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan right"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Moves the view to the right."
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan up"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Moves the view up."
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan down"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Moves the view down."
 msgstr ""
 
 #: apps/koebi/src/editors/viewport.rs
@@ -435,6 +494,47 @@ msgstr ""
 
 #: apps/koebi/src/editors/viewport.rs
 msgid "Hides every ruler, or shows the top and left ones."
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Toggle grid"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Shows or hides the grid of dots behind the document."
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+#: apps/koebi/src/gallery/buttons.rs
+msgid "Overlays"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Grid"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Rulers"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Top"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+#: apps/koebi/src/settings/keymaps/rules.rs
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Left"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Bottom"
+msgstr ""
+
+#: apps/koebi/src/editors/viewport.rs
+#: apps/koebi/src/settings/keymaps/rules.rs
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Right"
 msgstr ""
 
 #: apps/koebi/src/gallery/buttons.rs
@@ -548,10 +648,6 @@ msgstr ""
 
 #: apps/koebi/src/gallery/buttons.rs
 msgid "Moves items by whole cells"
-msgstr ""
-
-#: apps/koebi/src/gallery/buttons.rs
-msgid "Overlays"
 msgstr ""
 
 #: apps/koebi/src/gallery/buttons.rs
@@ -2087,11 +2183,6 @@ msgid "Up right"
 msgstr ""
 
 #: apps/koebi/src/settings/keymaps/rules.rs
-#: crates/koebi-ui/src/widgets/text_field/actions.rs
-msgid "Right"
-msgstr ""
-
-#: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Down right"
 msgstr ""
 
@@ -2101,11 +2192,6 @@ msgstr ""
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Down left"
-msgstr ""
-
-#: apps/koebi/src/settings/keymaps/rules.rs
-#: crates/koebi-ui/src/widgets/text_field/actions.rs
-msgid "Left"
 msgstr ""
 
 #: apps/koebi/src/settings/keymaps/rules.rs

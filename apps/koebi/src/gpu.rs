@@ -1,10 +1,13 @@
-//! Everything Vulkan: one instance and one device for the application, and what each window
-//! needs of its own to show frames (a presenter and a renderer, whose streaming buffers follow
-//! the frames of that presenter).
+//! Everything Vulkan: one instance, one device and one document canvas for the application,
+//! and what each window needs of its own to show frames (a presenter and a renderer, whose
+//! streaming buffers follow the frames of that presenter, and the targets its viewports'
+//! views are drawn into).
 
 use std::time::{Duration, Instant};
 
+use koebi_canvas::Canvas;
 use koebi_core::Extent;
+use koebi_doc::eval::Program;
 use koebi_gpu::{
     AdapterPreference, Device, Instance, InstanceDesc, PresentMode, Presenter, PresenterDesc,
     RenderOutcome, Surface, Validation,
@@ -12,6 +15,8 @@ use koebi_gpu::{
 use koebi_platform::{AppError, VulkanSupport, Window, exit_code};
 use koebi_render::{Renderer2D, Scene};
 use koebi_text::Fonts;
+
+use crate::canvas::{CanvasTargets, CanvasViews};
 
 /// What every window shares. Declared after the windows in
 /// [`KoebiApp`](crate::app::KoebiApp), so that it drops last.
@@ -21,6 +26,8 @@ pub(crate) struct Gpu {
     pub(crate) timestamps: bool,
     /// What glyphs are rasterized from: the interface's fonts.
     fonts: Fonts,
+    /// What draws the document for every window, made when a viewport first shows it.
+    canvas: Option<Canvas>,
     pub(crate) device: Device,
     pub(crate) instance: Instance,
 }
@@ -58,6 +65,7 @@ impl Gpu {
             present_mode,
             timestamps: adapter.supports_timestamps(),
             fonts,
+            canvas: None,
             device,
             instance,
         };
@@ -90,6 +98,20 @@ pub(crate) struct WindowGpu {
     /// The pixels read back last, their vector going round between the presenter and the
     /// interface so that reading back never allocates once it has grown.
     pixels: koebi_gpu::FramePixels,
+    /// The targets of its viewports' views, shown as images of its renderer: dropped after
+    /// it.
+    targets: CanvasTargets,
+}
+
+/// What rendering a window's frame did.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Rendered {
+    /// Whether the frame was shown.
+    pub(crate) outcome: RenderOutcome,
+    /// The CPU time spent recording its commands, without the waits for the display.
+    pub(crate) recording: Duration,
+    /// Whether a view of the document got its first image: the next frame shows it.
+    pub(crate) redraw: bool,
 }
 
 impl WindowGpu {
@@ -110,6 +132,7 @@ impl WindowGpu {
                 extent: Extent::new(0, 0),
                 pixels: Vec::new(),
             },
+            targets: CanvasTargets::new(),
         }
     }
 
@@ -145,24 +168,42 @@ impl WindowGpu {
         }
     }
 
-    /// Renders `scene`. Returns the outcome and the CPU time spent recording the frame's
-    /// commands, without the waits for the display.
+    /// Draws the document's `program` into the views `views` asks for, then renders `scene`,
+    /// which shows them.
     pub(crate) fn render(
         &mut self,
-        gpu: &Gpu,
+        gpu: &mut Gpu,
         scene: &Scene,
         scale_factor: f32,
-    ) -> koebi_gpu::Result<(RenderOutcome, Duration)> {
+        views: &mut CanvasViews,
+        program: Option<&Program>,
+    ) -> koebi_gpu::Result<Rendered> {
         let Self {
             renderer,
             presenter,
+            targets,
             ..
         } = self;
         let Some(presenter) = presenter.as_mut() else {
-            return Ok((RenderOutcome::Skipped, Duration::ZERO));
+            return Ok(Rendered {
+                outcome: RenderOutcome::Skipped,
+                recording: Duration::ZERO,
+                redraw: false,
+            });
         };
+        let Gpu {
+            fonts,
+            canvas,
+            device,
+            ..
+        } = gpu;
+        // The canvas, the first time a viewport shows the document.
+        if canvas.is_none() && program.is_some() && views.any_wanted() {
+            *canvas = Some(Canvas::new(device)?);
+        }
         let mut recorded = Ok(());
         let mut recording = Duration::ZERO;
+        let mut redraw = false;
         let outcome = presenter.render(|encoder, frame| {
             let started = Instant::now();
             let target = frame.render_target();
@@ -170,14 +211,16 @@ impl WindowGpu {
                 .as_ref()
                 .is_none_or(|r| r.target_format() != target.format())
             {
-                match Renderer2D::new(&gpu.device, target.format()) {
+                match Renderer2D::new(device, target.format()) {
                     Ok(mut created) => {
-                        created.set_fonts(gpu.fonts.clone());
+                        created.set_fonts(fonts.clone());
                         // The build script's set is always valid.
                         if let Err(error) = created.set_icons(koebi_icons::packed()) {
                             koebi_core::warn!("icons are not drawn: {error}");
                         }
                         *renderer = Some(created);
+                        // The images of the old renderer went with it.
+                        targets.reset(views);
                     }
                     Err(error) => {
                         recorded = Err(error);
@@ -186,12 +229,26 @@ impl WindowGpu {
                 }
             }
             if let Some(renderer) = renderer.as_mut() {
+                if let Some(canvas) = canvas.as_mut() {
+                    koebi_core::profile_scope!("render.canvas");
+                    match targets.render(device, encoder, canvas, renderer, views, program) {
+                        Ok(appeared) => redraw = appeared,
+                        Err(error) => {
+                            recorded = Err(error);
+                            return;
+                        }
+                    }
+                }
                 recorded =
                     renderer.render(encoder, target, scene, frame.frame_index(), scale_factor);
             }
             recording = started.elapsed();
         })?;
-        recorded.map(|()| (outcome, recording))
+        recorded.map(|()| Rendered {
+            outcome,
+            recording,
+            redraw,
+        })
     }
 
     /// Asks the next frame to copy the square of `side` physical pixels around `center` (an

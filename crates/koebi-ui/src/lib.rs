@@ -101,7 +101,7 @@ mod workspace;
 pub use bar::BarLayout;
 pub use icon::{IconInk, IconPaint, Mark, draw_mark, icon_bounds, paint_icon};
 pub use id::WidgetId;
-pub use input::{Input, PointerButton};
+pub use input::{Amount, Input, PointerButton};
 pub use koebi_icons::IconId;
 pub use operation::{
     OPERATION, OPERATION_ACTIONS, OPERATION_CANCEL, OPERATION_CONFIRM, OperationEnd,

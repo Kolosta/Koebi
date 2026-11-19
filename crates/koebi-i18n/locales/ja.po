@@ -401,7 +401,6 @@ msgid "Narrows the frames, around the current one."
 msgstr "現在のフレームを中心に、フレームの幅を狭めます。"
 
 #: apps/koebi/src/editors/timeline.rs
-#: apps/koebi/src/editors/viewport.rs
 msgid "Frame all"
 msgstr "全体を表示"
 
@@ -410,24 +409,84 @@ msgid "Zooms so that every frame of the scene shows."
 msgstr "シーンのすべてのフレームが見えるようにズームします。"
 
 #: apps/koebi/src/editors/viewport.rs
-msgid "Zooms and pans so that the whole page shows."
-msgstr "ページ全体が見えるようにズームと移動をします。"
+msgid "Fit document"
+msgstr "ドキュメント全体を表示"
 
 #: apps/koebi/src/editors/viewport.rs
-msgid "Zooms in by one step on the middle of the view."
-msgstr "ビューの中央を1段階ズームインします。"
+msgid "Zooms and pans so that the whole document shows."
+msgstr "ドキュメント全体が見えるようにズームと移動をします。"
 
 #: apps/koebi/src/editors/viewport.rs
-msgid "Zooms out by one step from the middle of the view."
-msgstr "ビューの中央から1段階ズームアウトします。"
+msgid "Frame selected"
+msgstr "選択範囲を表示"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zooms and pans so that the selection shows, or the document without one."
+msgstr "選択範囲が見えるようにズームと移動をします。選択がなければドキュメント全体です。"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Reset view"
+msgstr "ビューをリセット"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Shows the page at its real size, centered."
+msgstr "ページを実寸で中央に表示します。"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zooms in by one step, around the pointer from the wheel or a pinch."
+msgstr "1 段階ズームインします。ホイールやピンチではポインターを中心にします。"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Zooms out by one step, around the pointer from the wheel or a pinch."
+msgstr "1 段階ズームアウトします。ホイールやピンチではポインターを中心にします。"
 
 #: apps/koebi/src/editors/viewport.rs
 msgid "Actual size"
 msgstr "実寸"
 
 #: apps/koebi/src/editors/viewport.rs
-msgid "Zooms to 100 %: one canvas unit per logical pixel."
-msgstr "100%にズームします。キャンバスの1単位が論理ピクセル1つになります。"
+msgid "Zooms to 100 %: a millimetre of the document is one on the screen."
+msgstr "100 % にズームします。ドキュメントの 1 mm が画面上でも 1 mm になります。"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan"
+msgstr "パン"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Drags the canvas with the pointer while the button stays down."
+msgstr "ボタンを押している間、ポインターでキャンバスをドラッグします。"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan left"
+msgstr "左へパン"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Moves the view to the left."
+msgstr "ビューを左へ移動します。"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan right"
+msgstr "右へパン"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Moves the view to the right."
+msgstr "ビューを右へ移動します。"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan up"
+msgstr "上へパン"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Moves the view up."
+msgstr "ビューを上へ移動します。"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Pan down"
+msgstr "下へパン"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Moves the view down."
+msgstr "ビューを下へ移動します。"
 
 #: apps/koebi/src/editors/viewport.rs
 msgid "Toggle rulers"
@@ -436,6 +495,47 @@ msgstr "ルーラーの切り替え"
 #: apps/koebi/src/editors/viewport.rs
 msgid "Hides every ruler, or shows the top and left ones."
 msgstr "すべてのルーラーを隠すか、上と左のルーラーを表示します。"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Toggle grid"
+msgstr "グリッドの切り替え"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Shows or hides the grid of dots behind the document."
+msgstr "ドキュメントの背後にあるドットのグリッドを表示または非表示にします。"
+
+#: apps/koebi/src/editors/viewport.rs
+#: apps/koebi/src/gallery/buttons.rs
+msgid "Overlays"
+msgstr "オーバーレイ"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Grid"
+msgstr "グリッド"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Rulers"
+msgstr "ルーラー"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Top"
+msgstr "上"
+
+#: apps/koebi/src/editors/viewport.rs
+#: apps/koebi/src/settings/keymaps/rules.rs
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Left"
+msgstr "左"
+
+#: apps/koebi/src/editors/viewport.rs
+msgid "Bottom"
+msgstr "下"
+
+#: apps/koebi/src/editors/viewport.rs
+#: apps/koebi/src/settings/keymaps/rules.rs
+#: crates/koebi-ui/src/widgets/text_field/actions.rs
+msgid "Right"
+msgstr "右"
 
 #: apps/koebi/src/gallery/buttons.rs
 msgid "Default"
@@ -549,10 +649,6 @@ msgstr "グリッドにスナップ"
 #: apps/koebi/src/gallery/buttons.rs
 msgid "Moves items by whole cells"
 msgstr "項目をセル単位で移動します"
-
-#: apps/koebi/src/gallery/buttons.rs
-msgid "Overlays"
-msgstr "オーバーレイ"
 
 #: apps/koebi/src/gallery/buttons.rs
 msgid "Some guides are shown"
@@ -2098,11 +2194,6 @@ msgid "Up right"
 msgstr "右上"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
-#: crates/koebi-ui/src/widgets/text_field/actions.rs
-msgid "Right"
-msgstr "右"
-
-#: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Down right"
 msgstr "右下"
 
@@ -2113,11 +2204,6 @@ msgstr "下"
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Down left"
 msgstr "左下"
-
-#: apps/koebi/src/settings/keymaps/rules.rs
-#: crates/koebi-ui/src/widgets/text_field/actions.rs
-msgid "Left"
-msgstr "左"
 
 #: apps/koebi/src/settings/keymaps/rules.rs
 msgid "Up left"
@@ -3088,6 +3174,18 @@ msgstr "垂直に分割"
 #: crates/koebi-ui/src/workspace/mod.rs
 msgid "Horizontal split"
 msgstr "水平に分割"
+
+#~ msgid "Zooms and pans so that the whole page shows."
+#~ msgstr "ページ全体が見えるようにズームと移動をします。"
+
+#~ msgid "Zooms in by one step on the middle of the view."
+#~ msgstr "ビューの中央を1段階ズームインします。"
+
+#~ msgid "Zooms out by one step from the middle of the view."
+#~ msgstr "ビューの中央から1段階ズームアウトします。"
+
+#~ msgid "Zooms to 100 %: one canvas unit per logical pixel."
+#~ msgstr "100%にズームします。キャンバスの1単位が論理ピクセル1つになります。"
 
 #~ msgid "Windows, panels, menus, tooltips, the status bar and what they hold."
 #~ msgstr "ウィンドウ、パネル、メニュー、ツールチップ、ステータスバーとその中身。"

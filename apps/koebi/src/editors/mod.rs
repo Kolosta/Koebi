@@ -1,10 +1,10 @@
 //! The application's editors: what each area of the workspace shows.
 //!
 //! Each editor keeps a state for every kind it has shown: switching its type and back finds
-//! it as it was. The gallery shows the component sheet; the other kinds are templates:
-//! [`viewport`] (a canvas that pans and zooms, rulers), [`outliner`] and [`info`] (on the list
-//! and tree view), [`timeline`] (scrolling both ways) and [`properties`] (the components in
-//! real use, editing the document's object).
+//! it as it was. The gallery shows the component sheet; the [`viewport`] shows the document,
+//! drawn by the canvas, on a camera that pans and zooms without limit; the other kinds are
+//! templates: [`outliner`] and [`info`] (on the list and tree view), [`timeline`] (scrolling
+//! both ways) and [`properties`] (the components in real use, editing the document's object).
 
 pub(crate) mod info;
 pub(crate) mod outliner;
@@ -20,6 +20,8 @@ use koebi_icons::IconId;
 use koebi_ui::{BarLayout, EditorHost, ListItem, ListState, Ui, WidgetId};
 use koebi_workspace::{EditorId, GRID, Orientation, Workspace};
 
+use crate::canvas::CanvasViews;
+use crate::document::DocumentState;
 use crate::gallery::Gallery;
 use crate::messages::Messages;
 use outliner::Tree;
@@ -248,6 +250,8 @@ pub(crate) fn default_floating() -> (Workspace, Editors) {
 /// What the editors show, and what they reuse from frame to frame.
 #[derive(Debug)]
 pub(crate) struct Content {
+    /// The document the viewports show.
+    pub(crate) document: DocumentState,
     pub(crate) gallery: Gallery,
     /// The document the outliners show.
     pub(crate) tree: Tree,
@@ -264,6 +268,7 @@ pub(crate) struct Content {
 impl Content {
     pub(crate) fn new() -> Self {
         Self {
+            document: DocumentState::new(),
             gallery: Gallery::new(),
             tree: Tree::template(),
             messages: Messages::new(),
@@ -278,6 +283,8 @@ impl Content {
 pub(crate) struct Host<'a> {
     pub(crate) editors: &'a mut Editors,
     pub(crate) content: &'a mut Content,
+    /// The views of the document the window's viewports ask for.
+    pub(crate) views: &'a mut CanvasViews,
     pub(crate) design: &'a mut DesignSystem,
     /// The window, where the editors' menus may open.
     pub(crate) window: Rect,
@@ -347,7 +354,14 @@ impl EditorHost for Host<'_> {
                 &mut entry.info,
                 &mut content.items,
             ),
-            EditorKind::Viewport => viewport::show(ui, rect, self.design, &mut entry.viewport),
+            EditorKind::Viewport => {
+                let shown = viewport::Shown {
+                    editor,
+                    page: content.document.page(),
+                    views: self.views,
+                };
+                viewport::show(ui, rect, self.design, &mut entry.viewport, shown);
+            }
             EditorKind::Properties => properties::show(
                 ui,
                 id,
@@ -372,7 +386,7 @@ impl EditorHost for Host<'_> {
         let id = WidgetId::new("editor").with(u64::from(editor.get()));
         let entry = self.editors.entry(editor);
         if entry.kind == EditorKind::Viewport {
-            viewport::top_bar(ui, id, &mut entry.viewport, &mut bar);
+            viewport::top_bar(ui, id, &mut entry.viewport, &mut bar, self.window);
         }
     }
 
@@ -433,10 +447,12 @@ mod tests {
         let (a, b) = (EditorId::from_saved(1), EditorId::from_saved(2));
         editors.set(a, EditorKind::Outliner);
         let mut content = Content::new();
+        let mut views = CanvasViews::default();
         let mut design = DesignSystem::new(&koebi_tokens::KOEBI).expect("Koebi's schema is valid");
         let mut host = Host {
             editors: &mut editors,
             content: &mut content,
+            views: &mut views,
             design: &mut design,
             window: Rect::ZERO,
             titles: EditorKind::titles(),

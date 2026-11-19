@@ -22,8 +22,11 @@ name = "koebi"
 path = "src/main.rs"
 
 [dependencies]
+koebi-canvas.workspace = true
 koebi-core.workspace = true
 koebi-design.workspace = true
+koebi-doc.workspace = true
+koebi-geom.workspace = true
 koebi-gpu.workspace = true
 koebi-i18n.workspace = true
 koebi-icons.workspace = true

@@ -443,7 +443,7 @@ fn the_workspace_and_shortcuts_survive_a_restart() {
     .expect("write the workspace");
     std::fs::write(
         dir.join("shortcuts.txt"),
-        format!("{}\nviewport.view-all = F\n", koebi_input::HEADER),
+        format!("{}\nviewport.fit-document = F\n", koebi_input::HEADER),
     )
     .expect("write the shortcuts");
     let second = run_koebi(

@@ -81,7 +81,13 @@ apply, innermost first. Text fields, once they exist, take the keyboard while ed
 - For each input event, the keymap receives the chain of `UiState::chain_at`: the contexts
   that grab the keyboard, then the zones under the pointer. Triggered actions reach the next
   frame through `Input::trigger`.
-- Components read them with `Ui::triggered(&ACTION)`. A component that must keep the keyboard
+- Components read them with `Ui::triggered(&ACTION)`. An action bound to the wheel or to a
+  pinch also carries how much its input asked: `Ui::amounts(&ACTION)` gives, for each trigger
+  of the frame, `Amount::Once` (a key, a button), `Amount::Notches(n)` (the wheel, fractions
+  for a touchpad, the many small turns of one frame added up) or `Amount::Scale(s)` (a pinch,
+  scales multiplied). The Viewport zooms, pans and frames this way, every gesture an action
+  the keymap can change.
+- A component that must keep the keyboard
   whatever the pointer is over (an open menu, an operation in progress) calls
   `Ui::grab(CONTEXT)` every frame it lasts.
 - **Actions keep inputs to themselves**: while an action is in progress (a widget holds the
