@@ -538,6 +538,11 @@ impl Run<'_, '_> {
         let extent = self.view.extent();
         let copy = self.groups.take(self.device, extent, area)?;
         self.to(backdrop, TextureState::TransferSrc);
+        // The copy is rewritten where it is read: what it held is discarded, as a clear does.
+        let tracked = &mut self.groups.tracked[usize::from(copy)];
+        if !tracked.written {
+            tracked.state = TextureState::Undefined;
+        }
         self.to(copy, TextureState::TransferDst);
         let copied = self.encoder.copy_texture_to_texture(
             &self.groups.textures[usize::from(backdrop)],
@@ -663,6 +668,12 @@ fn begin<'e>(
     let (load, rendered) = if *target.started {
         (LoadOp::Load, area)
     } else {
+        // Cleared: what it held is discarded. Writes not yet made available need a barrier
+        // from where they are; else the target leaves `Undefined`, which waits for the stages
+        // before color output, its last reads included, and costs drivers no layout change.
+        if !target.tracked.written {
+            target.tracked.state = TextureState::Undefined;
+        }
         (LoadOp::Clear([0.0; 4]), target.own)
     };
     transition(
