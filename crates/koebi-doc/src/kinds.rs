@@ -11,8 +11,8 @@
 
 use crate::kind::{Family, In, Initial, Kind, NodeKind, Out};
 use crate::value::{
-    Anything, BlendMode, Coverage, EnumKind, Geometry, Layer, Paint, Quantity, StrokeAlign,
-    StrokeCap, StrokeJoin, StrokeUnits,
+    Anything, BlendMode, Coverage, EnumKind, Geometry, Layer, Paint, PatternAnchor, PatternClip,
+    Quantity, StrokeAlign, StrokeCap, StrokeJoin, StrokeUnits,
 };
 use koebi_core::LinearRgba;
 use koebi_geom::{Affine, FillRule, Vector};
@@ -30,6 +30,7 @@ pub const ALL: &[&NodeKind] = &[
     polygon::KIND,
     transform_geometry::KIND,
     fill::KIND,
+    pattern_fill::KIND,
     stroke::KIND,
     merge::KIND,
     blend::KIND,
@@ -410,6 +411,75 @@ pub mod fill {
                 .pass_through(),
             RULE.decl("Fill rule")
                 .initial(Initial::Enum(EnumKind::FillRule, 0)),
+            BLEND
+                .decl("Blend mode")
+                .initial(Initial::Enum(EnumKind::BlendMode, 0)),
+        ],
+        outputs: &[PAINT.decl("Paint")],
+    };
+}
+
+/// A fill of a motif repeated on a lattice: the layer linked to Motif (an object's own layer)
+/// drawn at every point of the lattice over the shape, cut at its bounds, its outline or its
+/// widest stroke's edges.
+pub mod pattern_fill {
+    use super::*;
+    kind!(PatternFill);
+    /// The motif: a layer in its own space, an object's own layer by link.
+    pub const MOTIF: In<PatternFill, Layer> = In::new(0);
+    /// The lattice's pitch along its two axes.
+    pub const SPACING: In<PatternFill, Vector> = In::new(1);
+    /// Where the lattice's origin lies.
+    pub const PHASE: In<PatternFill, Vector> = In::new(2);
+    /// The lattice's rotation.
+    pub const ROTATION: In<PatternFill, f64> = In::new(3);
+    /// Each motif's own rotation, on top of the lattice's.
+    pub const MOTIF_ROTATION: In<PatternFill, f64> = In::new(4);
+    /// Each motif's scale.
+    pub const SCALE: In<PatternFill, f64> = In::new(5);
+    /// Where the pattern is cut.
+    pub const CLIP: In<PatternFill, PatternClip> = In::new(6);
+    /// What the lattice is pinned to.
+    pub const ANCHOR: In<PatternFill, PatternAnchor> = In::new(7);
+    /// Its opacity.
+    pub const OPACITY: In<PatternFill, f64> = In::new(8);
+    /// How it blends onto the paints below it.
+    pub const BLEND: In<PatternFill, BlendMode> = In::new(9);
+    /// The paint.
+    pub const PAINT: Out<PatternFill, Paint> = Out::new(0);
+    /// Its definition.
+    pub const KIND: &NodeKind = &NodeKind {
+        id: "koebi.paint.pattern_fill",
+        name: "Pattern Fill",
+        family: Family::Paint,
+        inputs: &[
+            MOTIF.decl("Motif"),
+            SPACING
+                .decl("Spacing")
+                .quantity(Quantity::Length)
+                .initial(Initial::Vector(40.0, 40.0)),
+            PHASE
+                .decl("Phase")
+                .quantity(Quantity::Length)
+                .initial(Initial::Vector(0.0, 0.0)),
+            ROTATION
+                .decl("Rotation")
+                .quantity(Quantity::Angle)
+                .initial(Initial::Float(0.0)),
+            MOTIF_ROTATION
+                .decl("Motif rotation")
+                .quantity(Quantity::Angle)
+                .initial(Initial::Float(0.0)),
+            SCALE.decl("Scale").initial(Initial::Float(1.0)),
+            CLIP.decl("Clip")
+                .initial(Initial::Enum(EnumKind::PatternClip, 0)),
+            ANCHOR
+                .decl("Anchor")
+                .initial(Initial::Enum(EnumKind::PatternAnchor, 0)),
+            OPACITY
+                .decl("Opacity")
+                .quantity(Quantity::Percent)
+                .initial(Initial::Float(1.0)),
             BLEND
                 .decl("Blend mode")
                 .initial(Initial::Enum(EnumKind::BlendMode, 0)),

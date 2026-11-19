@@ -127,6 +127,11 @@ glyphs, with the non-zero or even-odd rule.
     pipeline draws every layer.
   - A merge that blends one of its layers in another mode than Normal is itself a group, and a
     single draw at an opacity takes the opacity in its color.
+  - A pattern's motif is prepared once in its own space, mapped by the lattice's rotation and
+    scale; its cells are moved to every point of the lattice that shows. Points are walked in
+    the lattice's coordinates over the region and the view, 2¹⁸ motifs at most per view. A
+    motif's own groups and blend modes draw as plain layers over each other; the pattern as a
+    whole is cut at its region by a mask, and blends as any paint.
 
 ### Views
 

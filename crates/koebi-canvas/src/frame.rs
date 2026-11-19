@@ -17,13 +17,13 @@ use std::sync::Arc;
 use std::ops::Range;
 
 use koebi_core::Extent;
-use koebi_doc::eval::{Draw, Program, Step, StepCoverage, StepId, ViewStroke};
+use koebi_doc::eval::{Draw, Lattice, Program, Step, StepCoverage, StepId, ViewStroke};
 use koebi_doc::{BlendMode, NodeId};
 use koebi_geom::{Contours, FillRule, Path, Point, Rect, StrokeStyle, Vector};
 use koebi_gpu::{Pod, TextureRegion};
 
 use crate::pick::{Drawn, PickIndex};
-use crate::store::{CellStore, Full};
+use crate::store::{CellStore, Full, PreparedCell};
 use crate::strokes::{Level, ViewStrokes};
 use crate::view::View;
 
@@ -56,6 +56,12 @@ pub(crate) struct Frame {
     revision: Option<u64>,
     /// The layers, in the order the script draws them.
     layers: Vec<Layer>,
+    /// The layers of the patterns' motifs, mapped by their lattices' motif transforms.
+    motifs: Vec<MotifLayer>,
+    /// The cells of one pattern's motif layers while its instances are made: kept.
+    motif_cells: Vec<PreparedCell>,
+    /// Each motif layer's cells in `motif_cells`, bounds, paint and rule: kept.
+    motif_spans: Vec<(Range<usize>, Rect, [f32; 4], FillRule)>,
     /// What the view draws: layers and groups, in order.
     pub(crate) script: Vec<Op>,
     /// The instances of each layer: those of layer `i` are `instances[ranges[i]]`.
@@ -107,15 +113,50 @@ impl Frame {
             return Ok(());
         }
         let octave = view.octave();
-        let size = octave.cell_size();
         let area = view.area();
-        let pixel = 1.0 / view.zoom;
         let level = Level::follow(self.level, view.zoom);
         self.level = Some(level);
         let count =
             |instances: &Vec<CellInstance>| u32::try_from(instances.len()).unwrap_or(u32::MAX);
         for layer in &self.layers {
             let start = count(&self.instances);
+            if let Layer::Pattern {
+                motifs,
+                lattice,
+                bounds,
+                object,
+                pick,
+            } = layer
+            {
+                let drew = pattern(
+                    Pattern {
+                        motifs: &self.motifs[motifs.clone()],
+                        lattice: *lattice,
+                        bounds: *bounds,
+                    },
+                    view,
+                    level,
+                    store,
+                    strokes,
+                    Kept {
+                        cells: &mut self.motif_cells,
+                        spans: &mut self.motif_spans,
+                        instances: &mut self.instances,
+                    },
+                )?;
+                if let Some(object) = object
+                    && drew
+                {
+                    self.drawn.push(Drawn {
+                        outline: Arc::clone(pick),
+                        rule: FillRule::NonZero,
+                        bounds: *bounds,
+                        object: *object,
+                    });
+                }
+                self.ranges.push(start..count(&self.instances));
+                continue;
+            }
             let stroked;
             let (outline, rule, color, object) = match layer {
                 Layer::Fill {
@@ -137,6 +178,7 @@ impl Frame {
                     stroked = outline;
                     (&stroked, FillRule::NonZero, color, *object)
                 }
+                Layer::Pattern { .. } => continue,
             };
             let (bounds, cells) = store.cells(outline, octave, area)?;
             if let Some(object) = object
@@ -149,37 +191,17 @@ impl Frame {
                     object,
                 });
             }
-            let reach = bounds.inflated(pixel).intersection(area);
-            for cell in cells {
-                let square = Rect::new(cell.origin, cell.origin + Vector::new(size, size));
-                let shown = square.intersection(reach);
-                if shown.width() <= 0.0 || shown.height() <= 0.0 {
-                    continue;
-                }
-                let (low, high) = (view.to_target(shown.min), view.to_target(shown.max));
-                let origin = view.to_target(cell.origin);
-                #[allow(
-                    clippy::cast_possible_truncation,
-                    clippy::cast_precision_loss,
-                    reason = "positions near the target in pixels, and a record below 2^24"
-                )]
-                self.instances.push(CellInstance {
-                    rect: [low[0] as f32, low[1] as f32, high[0] as f32, high[1] as f32],
-                    map: [
-                        origin[0] as f32,
-                        origin[1] as f32,
-                        (view.zoom * size) as f32,
-                        cell.record as f32,
-                    ],
+            emit(
+                &mut self.instances,
+                view,
+                cells,
+                Placed {
+                    bounds,
+                    offset: Vector::ZERO,
                     color: *color,
-                    params: [
-                        f32::from(u8::from(rule == FillRule::EvenOdd)),
-                        crate::cells::MARGIN,
-                        (1.0 / (view.zoom * size)) as f32,
-                        0.0,
-                    ],
-                });
-            }
+                    rule,
+                },
+            );
             self.ranges.push(start..count(&self.instances));
         }
         self.find_areas(view.extent);
@@ -259,6 +281,7 @@ impl Frame {
     /// its root.
     fn gather(&mut self, program: &Program) {
         self.layers.clear();
+        self.motifs.clear();
         self.script.clear();
         let background = program.background();
         if background.a > 0.0 {
@@ -289,6 +312,7 @@ impl Frame {
             Walk {
                 program,
                 layers: &mut self.layers,
+                motifs: &mut self.motifs,
                 script: &mut self.script,
             }
             .step(root, 0, false);
@@ -311,6 +335,212 @@ pub(crate) enum Op {
     /// content is composited over the target below both where the coverage's alpha is (or is
     /// not, when inverted).
     PopMask { invert: bool },
+}
+
+/// The most motifs one pattern draws in a view: past them, the rest of the lattice is left out.
+const MAX_MOTIFS: usize = 1 << 18;
+
+/// Where an outline's cells go: their outline's bounds, moved by `offset` (a motif's point),
+/// its paint and its rule.
+#[derive(Clone, Copy, Debug)]
+struct Placed {
+    bounds: Rect,
+    offset: Vector,
+    color: [f32; 4],
+    rule: FillRule,
+}
+
+/// Appends to `instances` one instance per cell of `cells` placed by `placed` that `view`
+/// shows, covering its square within a pixel of the outline's bounds and within the view.
+fn emit(instances: &mut Vec<CellInstance>, view: &View, cells: &[PreparedCell], placed: Placed) {
+    let size = view.octave().cell_size();
+    let area = view.area();
+    let pixel = 1.0 / view.zoom;
+    let reach = Rect::new(
+        placed.bounds.min + placed.offset,
+        placed.bounds.max + placed.offset,
+    )
+    .inflated(pixel)
+    .intersection(area);
+    if reach.is_empty() {
+        return;
+    }
+    for cell in cells {
+        let corner = cell.origin + placed.offset;
+        let square = Rect::new(corner, corner + Vector::new(size, size));
+        let shown = square.intersection(reach);
+        if shown.width() <= 0.0 || shown.height() <= 0.0 {
+            continue;
+        }
+        let (low, high) = (view.to_target(shown.min), view.to_target(shown.max));
+        let origin = view.to_target(corner);
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_precision_loss,
+            reason = "positions near the target in pixels, and a record below 2^24"
+        )]
+        instances.push(CellInstance {
+            rect: [low[0] as f32, low[1] as f32, high[0] as f32, high[1] as f32],
+            map: [
+                origin[0] as f32,
+                origin[1] as f32,
+                (view.zoom * size) as f32,
+                cell.record as f32,
+            ],
+            color: placed.color,
+            params: [
+                f32::from(u8::from(placed.rule == FillRule::EvenOdd)),
+                crate::cells::MARGIN,
+                (1.0 / (view.zoom * size)) as f32,
+                0.0,
+            ],
+        });
+    }
+}
+
+/// A pattern to draw: its motif's layers, its lattice and the region its points lie in.
+#[derive(Clone, Copy, Debug)]
+struct Pattern<'a> {
+    motifs: &'a [MotifLayer],
+    lattice: Lattice,
+    bounds: Rect,
+}
+
+/// The storage a pattern's instances are made with, kept from build to build.
+struct Kept<'a> {
+    cells: &'a mut Vec<PreparedCell>,
+    spans: &'a mut Vec<(Range<usize>, Rect, [f32; 4], FillRule)>,
+    instances: &'a mut Vec<CellInstance>,
+}
+
+/// Appends the instances of `pattern` seen by `view`: its motif drawn whole at every point of
+/// its lattice that lies in its region and whose motif reaches the view, point after point.
+/// Each motif layer is prepared once, in its own space; its cells are moved to each point.
+/// Returns whether it drew anything.
+fn pattern(
+    pattern: Pattern<'_>,
+    view: &View,
+    level: Level,
+    store: &mut CellStore,
+    strokes: &mut ViewStrokes,
+    kept: Kept<'_>,
+) -> Result<bool, Full> {
+    let Kept {
+        cells,
+        spans,
+        instances,
+    } = kept;
+    cells.clear();
+    spans.clear();
+    let octave = view.octave();
+    let everywhere = Rect::new(
+        Point::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
+        Point::new(f64::INFINITY, f64::INFINITY),
+    );
+    let mut reach = Rect::EMPTY;
+    for motif in pattern.motifs {
+        let stroked;
+        let (outline, rule, color) = match motif {
+            MotifLayer::Fill {
+                outline,
+                rule,
+                color,
+            } => (outline, *rule, *color),
+            MotifLayer::Stroke {
+                geometry,
+                style,
+                color,
+            } => {
+                let Some(outline) = strokes.outline(geometry, style, level, everywhere) else {
+                    continue;
+                };
+                stroked = outline;
+                (&stroked, FillRule::NonZero, *color)
+            }
+        };
+        // Prepared whole, in the motif's own space: the view only says which points show.
+        let whole = outline.bounds();
+        let (bounds, prepared) = store.cells(outline, octave, whole)?;
+        let start = cells.len();
+        cells.extend_from_slice(prepared);
+        spans.push((start..cells.len(), bounds, color, rule));
+        reach = reach.union(bounds);
+    }
+    if spans.is_empty() || reach.is_empty() {
+        return Ok(false);
+    }
+    // The points in the region whose motif, spanning `reach` about them, meets the view.
+    let area = view.area();
+    let wanted = pattern.bounds.intersection(Rect::new(
+        area.min - (reach.max - Point::ORIGIN),
+        area.max - (reach.min - Point::ORIGIN),
+    ));
+    let Lattice { origin, a, b, .. } = pattern.lattice;
+    let determinant = a.x * b.y - a.y * b.x;
+    if wanted.is_empty() || determinant.abs() < f64::MIN_POSITIVE || !determinant.is_finite() {
+        return Ok(false);
+    }
+    // The lattice coordinates of the region's corners give the steps to walk.
+    let steps = |point: Point| {
+        let d = point - origin;
+        (
+            (d.x * b.y - d.y * b.x) / determinant,
+            (a.x * d.y - a.y * d.x) / determinant,
+        )
+    };
+    let corners = [
+        wanted.min,
+        Point::new(wanted.max.x, wanted.min.y),
+        wanted.max,
+        Point::new(wanted.min.x, wanted.max.y),
+    ]
+    .map(steps);
+    let (mut i0, mut i1, mut j0, mut j1) = (
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+    );
+    for (i, j) in corners {
+        i0 = i0.min(i);
+        i1 = i1.max(i);
+        j0 = j0.min(j);
+        j1 = j1.max(j);
+    }
+    let (i0, i1, j0, j1) = (i0.floor(), i1.ceil(), j0.floor(), j1.ceil());
+    if !(i0.is_finite() && i1.is_finite() && j0.is_finite() && j1.is_finite())
+        || (i1 - i0 + 1.0) * (j1 - j0 + 1.0) > 4.0 * MAX_MOTIFS as f64
+    {
+        return Ok(false);
+    }
+    let mut drawn = 0;
+    let mut j = j0;
+    while j <= j1 {
+        let mut i = i0;
+        while i <= i1 {
+            let point = origin + a * i + b * j;
+            if wanted.contains(point) && drawn < MAX_MOTIFS {
+                drawn += 1;
+                let offset = point - Point::ORIGIN;
+                for (range, bounds, color, rule) in spans.iter() {
+                    emit(
+                        instances,
+                        view,
+                        &cells[range.clone()],
+                        Placed {
+                            bounds: *bounds,
+                            offset,
+                            color: *color,
+                            rule: *rule,
+                        },
+                    );
+                }
+            }
+            i += 1.0;
+        }
+        j += 1.0;
+    }
+    Ok(drawn > 0)
 }
 
 /// No pixel.
@@ -396,6 +626,32 @@ enum Layer {
         color: [f32; 4],
         object: Option<NodeId>,
     },
+    /// Motif layers `motifs` of the frame drawn at every point of a lattice over `bounds`.
+    Pattern {
+        motifs: Range<usize>,
+        lattice: Lattice,
+        bounds: Rect,
+        object: Option<NodeId>,
+        /// The outline picking tests for the object: the region's bounds.
+        pick: Arc<Contours>,
+    },
+}
+
+/// One layer of a pattern's motif, mapped by its lattice's motif transform, its paint linear
+/// and premultiplied. A motif's own groups and blend modes draw as plain layers over each
+/// other.
+#[derive(Clone, Debug)]
+enum MotifLayer {
+    Fill {
+        outline: Arc<Contours>,
+        rule: FillRule,
+        color: [f32; 4],
+    },
+    Stroke {
+        geometry: Arc<Contours>,
+        style: Arc<StrokeStyle>,
+        color: [f32; 4],
+    },
 }
 
 impl Layer {
@@ -404,6 +660,7 @@ impl Layer {
     fn color(&self) -> [f32; 4] {
         match self {
             Self::Fill { color, .. } | Self::Stroke { color, .. } => *color,
+            Self::Pattern { .. } => [0.0; 4],
         }
     }
 }
@@ -415,6 +672,7 @@ const MAX_DEPTH: usize = 256;
 struct Walk<'a> {
     program: &'a Program,
     layers: &'a mut Vec<Layer>,
+    motifs: &'a mut Vec<MotifLayer>,
     script: &'a mut Vec<Op>,
 }
 
@@ -430,6 +688,26 @@ impl Walk<'_> {
         }
         match step {
             Step::Draw(_) | Step::ViewStroke(_) => self.draw(step, 1.0),
+            Step::Pattern {
+                object,
+                motif,
+                lattice,
+                bounds,
+            } => {
+                let start = self.motifs.len();
+                self.motif(*motif, 1.0, lattice.motif, depth + 1);
+                if self.motifs.len() > start {
+                    let pick = Arc::new(Path::rectangle(*bounds).contours());
+                    self.layers.push(Layer::Pattern {
+                        motifs: start..self.motifs.len(),
+                        lattice: *lattice,
+                        bounds: *bounds,
+                        object: *object,
+                        pick,
+                    });
+                    self.script.push(Op::Draw(self.layers.len() - 1));
+                }
+            }
             Step::Merge(inputs) => {
                 // A blend reaches only what lies below it in its own merge.
                 let isolated =
@@ -518,6 +796,58 @@ impl Walk<'_> {
             self.script.pop();
         } else {
             self.script.push(Op::Pop { mode, opacity });
+        }
+    }
+
+    /// Gathers the draws of motif step `id`, at `opacity`, mapped by `transform`: its groups
+    /// flattened, its blend modes drawn as Normal, its masks showing their content.
+    fn motif(&mut self, id: StepId, opacity: f64, transform: koebi_geom::Affine, depth: usize) {
+        let Some(step) = self.program.steps().get(id.0) else {
+            return;
+        };
+        if depth > MAX_DEPTH || opacity <= 0.0 {
+            return;
+        }
+        match step {
+            Step::Draw(Draw {
+                outline,
+                rule,
+                color,
+                opacity: own,
+                ..
+            }) => self.motifs.push(MotifLayer::Fill {
+                outline: Arc::new(outline.transformed(transform)),
+                rule: *rule,
+                color: premultiplied(*color, opacity * own),
+            }),
+            Step::ViewStroke(ViewStroke {
+                geometry,
+                style,
+                color,
+                opacity: own,
+                ..
+            }) => self.motifs.push(MotifLayer::Stroke {
+                geometry: Arc::new(geometry.transformed(transform)),
+                style: Arc::clone(style),
+                color: premultiplied(*color, opacity * own),
+            }),
+            Step::Merge(inputs) => {
+                for input in inputs {
+                    self.motif(input.step, opacity * input.opacity, transform, depth + 1);
+                }
+            }
+            Step::Blend {
+                backdrop,
+                source,
+                opacity: own,
+                ..
+            } => {
+                self.motif(*backdrop, opacity, transform, depth + 1);
+                self.motif(*source, opacity * own, transform, depth + 1);
+            }
+            Step::Mask { content, .. } => self.motif(*content, opacity, transform, depth + 1),
+            // A pattern within a motif is left out.
+            Step::Pattern { .. } => {}
         }
     }
 

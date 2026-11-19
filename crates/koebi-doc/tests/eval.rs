@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use koebi_core::LinearRgba;
-use koebi_doc::eval::{Draw, Evaluator, Program, Step, StepCoverage, ViewStroke};
+use koebi_doc::eval::{Draw, Evaluator, Program, Step, StepCoverage, StepId, ViewStroke};
 use koebi_doc::kinds::{
     blend, coverage, fill, float, group_object, mask, merge, path_object, stroke,
     transform_geometry,
@@ -573,4 +573,133 @@ fn draws_name_the_object_they_paint_an_instance_its_own() {
     );
     let all = draws(&program);
     assert!(Arc::ptr_eq(&all[0].outline, &all[2].outline));
+}
+
+#[test]
+fn a_pattern_fill_repeats_its_motif_on_a_lattice_cut_at_its_clip() {
+    use koebi_doc::eval::Lattice;
+    use koebi_doc::kinds::pattern_fill;
+    use koebi_doc::{PatternAnchor, PatternClip};
+
+    let mut doc = Document::new();
+    let (_, objects) = page_with(
+        &mut doc,
+        &[
+            Shape::Rectangle(Vector::new(60.0, 40.0)),
+            Shape::Ellipse(Vector::new(3.0, 3.0)),
+        ],
+    );
+    let (host, motif) = (objects[0], objects[1]);
+    set(
+        &mut doc,
+        host,
+        path_object::LOCATION.index(),
+        Value::Vector(Vector::new(100.0, 50.0)),
+    );
+    set(
+        &mut doc,
+        motif,
+        path_object::LOCATION.index(),
+        Value::Vector(Vector::new(500.0, 500.0)),
+    );
+    let pattern = ops::add_pattern_fill(&mut doc, host, motif).unwrap();
+    set(
+        &mut doc,
+        pattern,
+        pattern_fill::SPACING.index(),
+        Value::Vector(Vector::new(10.0, 8.0)),
+    );
+    let pattern_of = |doc: &Document| {
+        let program = first_program(doc);
+        let steps = program.steps();
+        let found = steps.iter().find_map(|step| match step {
+            Step::Pattern {
+                object,
+                motif,
+                lattice,
+                bounds,
+            } => Some((*object, *motif, *lattice, *bounds)),
+            _ => None,
+        });
+        let masked = steps.iter().any(|step| {
+            matches!(step, Step::Mask { content, .. }
+                if matches!(steps[content.0], Step::Pattern { .. }))
+        });
+        (found.expect("a pattern step"), masked, Arc::clone(&program))
+    };
+    // At its bounds by default: no mask; the lattice follows the object from its origin.
+    let ((object, motif_step, lattice, bounds), masked, program) = pattern_of(&doc);
+    assert_eq!(object, Some(host));
+    assert!(!masked);
+    assert_eq!(
+        lattice,
+        Lattice {
+            origin: koebi_geom::Point::new(100.0, 50.0),
+            a: Vector::new(10.0, 0.0),
+            b: Vector::new(0.0, 8.0),
+            motif: Affine::IDENTITY,
+        }
+    );
+    assert!((bounds.min.x - 70.0).abs() < 1e-9 && (bounds.max.y - 70.0).abs() < 1e-9);
+    // The motif is drawn in its own space: centered on its origin, not where it lies.
+    let first_draw = |id: StepId| match &program.steps()[id.0] {
+        Step::Draw(draw) => Some(draw.outline.bounds().center()),
+        Step::Merge(inputs) => match &program.steps()[inputs[0].step.0] {
+            Step::Draw(draw) => Some(draw.outline.bounds().center()),
+            _ => None,
+        },
+        _ => None,
+    };
+    let center = first_draw(motif_step).expect("the motif's fill");
+    assert!(center.x.abs() < 1e-9 && center.y.abs() < 1e-9, "{center:?}");
+    // Cut at the outline: the pattern is a mask's content.
+    set(
+        &mut doc,
+        pattern,
+        pattern_fill::CLIP.index(),
+        PatternClip::Contour.into_value(),
+    );
+    let ((_, _, _, bounds), masked, _) = pattern_of(&doc);
+    assert!(masked && (bounds.width() - 60.0).abs() < 1e-9);
+    // Cut at the outer edge of a stroke 4 wide: the outline grown by 2; at its inner edge,
+    // shrunk by 2.
+    let stroked = ops::add_stroke(&mut doc, host).unwrap();
+    set(&mut doc, stroked, stroke::WIDTH.index(), Value::Float(4.0));
+    set(
+        &mut doc,
+        pattern,
+        pattern_fill::CLIP.index(),
+        PatternClip::StrokeOuter.into_value(),
+    );
+    let ((_, _, _, bounds), masked, _) = pattern_of(&doc);
+    assert!(masked && (bounds.width() - 64.0).abs() < 1e-6, "{bounds:?}");
+    set(
+        &mut doc,
+        pattern,
+        pattern_fill::CLIP.index(),
+        PatternClip::StrokeInner.into_value(),
+    );
+    let ((_, _, _, bounds), _, _) = pattern_of(&doc);
+    assert!((bounds.width() - 56.0).abs() < 1e-6, "{bounds:?}");
+    // Turned with the object, the lattice and its motifs turn; pinned to the document, the
+    // lattice stays.
+    set(
+        &mut doc,
+        host,
+        path_object::ROTATION.index(),
+        Value::Float(0.5),
+    );
+    let ((_, _, lattice, _), _, _) = pattern_of(&doc);
+    assert!((lattice.a.y - 10.0 * 0.5_f64.sin()).abs() < 1e-9);
+    let turned = lattice.motif.apply_vector(Vector::new(1.0, 0.0));
+    assert!((turned.y - 0.5_f64.sin()).abs() < 1e-9);
+    set(
+        &mut doc,
+        pattern,
+        pattern_fill::ANCHOR.index(),
+        PatternAnchor::Document.into_value(),
+    );
+    let ((_, _, lattice, _), _, _) = pattern_of(&doc);
+    assert_eq!(lattice.origin, koebi_geom::Point::new(0.0, 0.0));
+    assert_eq!(lattice.a, Vector::new(10.0, 0.0));
 }
