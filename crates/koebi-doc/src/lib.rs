@@ -43,6 +43,7 @@ mod document;
 mod edit;
 pub mod eval;
 mod graph;
+pub mod instanced;
 pub mod kind;
 pub mod kinds;
 pub mod ops;
@@ -58,7 +59,7 @@ pub use graph::{
 };
 pub use kind::{Family, In, Initial, InputDecl, Kind, NodeKind, Out, OutputDecl, Registry};
 pub use value::{
-    BlendMode, Conversion, EnumKind, Geometry, PatternAnchor, PatternClip, Quantity, Socket,
-    SocketEnum, SocketType, SocketValue, Stored, StrokeAlign, StrokeCap, StrokeJoin, StrokeUnits,
-    Text, Value,
+    BlendMode, Conversion, EnumKind, Geometry, InstancedLayout, PatternAnchor, PatternClip,
+    Quantity, ScatterMode, Socket, SocketEnum, SocketType, SocketValue, Stored, StrokeAlign,
+    StrokeCap, StrokeJoin, StrokeUnits, Text, Value,
 };

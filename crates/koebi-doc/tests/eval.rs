@@ -34,6 +34,16 @@ fn draws(program: &Program) -> Vec<&Draw> {
         .collect()
 }
 
+/// The bounds of one contour: its segments'.
+fn contour_bounds(contour: &koebi_geom::Contour) -> koebi_geom::Rect {
+    contour
+        .segments()
+        .iter()
+        .fold(koebi_geom::Rect::EMPTY, |bounds, segment| {
+            bounds.union(segment.bounds())
+        })
+}
+
 /// The program of the first page of `doc`, from a new evaluator.
 fn first_program(doc: &Document) -> Arc<Program> {
     Arc::clone(&Evaluator::new().programs(doc)[0])
@@ -702,4 +712,153 @@ fn a_pattern_fill_repeats_its_motif_on_a_lattice_cut_at_its_clip() {
     let ((_, _, lattice, _), _, _) = pattern_of(&doc);
     assert_eq!(lattice.origin, koebi_geom::Point::new(0.0, 0.0));
     assert_eq!(lattice.a, Vector::new(10.0, 0.0));
+}
+
+#[test]
+fn an_instanced_fill_generates_its_stamps_and_lines() {
+    use koebi_doc::instanced::{InstancedElement, InstancedSettings, LineSet, StampMode};
+    use koebi_doc::kinds::instanced_fill;
+    use koebi_doc::{InstancedLayout, PatternAnchor, Settings};
+
+    let mut doc = Document::new();
+    let (_, objects) = page_with(&mut doc, &[Shape::Rectangle(Vector::new(60.0, 40.0))]);
+    let host = objects[0];
+    set(
+        &mut doc,
+        host,
+        path_object::LOCATION.index(),
+        Value::Vector(Vector::new(100.0, 50.0)),
+    );
+    let fill = ops::add_instanced_fill(&mut doc, host).unwrap();
+    set(
+        &mut doc,
+        fill,
+        instanced_fill::SPACING.index(),
+        Value::Vector(Vector::new(10.0, 10.0)),
+    );
+    let settings = |doc: &mut Document, settings: InstancedSettings| {
+        doc.apply(Edit::SetSettings {
+            node: fill,
+            settings: Box::new(Settings::Instanced(Arc::new(settings))),
+        })
+        .unwrap();
+    };
+    // The draws the fill generated, after the host's own fill: those naming the host, past the
+    // first.
+    let stamps = |doc: &Document| -> Vec<Draw> {
+        let program = first_program(doc);
+        draws(&program)
+            .into_iter()
+            .filter(|draw| draw.object == Some(host))
+            .skip(1)
+            .cloned()
+            .collect()
+    };
+    // By default: circles of radius 2 fused into one outline, a stamp at every lattice point in
+    // the shape, in the fill's color.
+    let fused = stamps(&doc);
+    assert_eq!(fused.len(), 1);
+    let circles = fused[0].outline.contours().len();
+    assert!((15..=35).contains(&circles), "{circles}");
+    let stamp = contour_bounds(&fused[0].outline.contours()[0]);
+    assert!((stamp.width() - 4.0).abs() < 1e-9);
+    // Stamps centered on the lattice from the shape's origin, placed with the shape.
+    let center = stamp.center();
+    let on_lattice = |value: f64, origin: f64| {
+        ((value - origin) / 10.0 - ((value - origin) / 10.0).round()).abs() < 1e-9
+    };
+    assert!(
+        on_lattice(center.x, 100.0) && on_lattice(center.y, 50.0),
+        "{center:?}"
+    );
+    // Blended: one draw a stamp; subtracted: one erasing draw.
+    let element = |mode: StampMode| InstancedElement {
+        mode,
+        ..InstancedElement::default()
+    };
+    settings(
+        &mut doc,
+        InstancedSettings {
+            elements: vec![element(StampMode::Blend)],
+            lines: Vec::new(),
+        },
+    );
+    assert_eq!(stamps(&doc).len(), circles);
+    settings(
+        &mut doc,
+        InstancedSettings {
+            elements: vec![element(StampMode::Fusion), element(StampMode::Subtract)],
+            lines: Vec::new(),
+        },
+    );
+    let program = first_program(&doc);
+    let erases = program.steps().iter().any(|step| {
+        matches!(step, Step::Merge(inputs) if inputs.iter().any(|input| input.blend == BlendMode::Erase))
+    });
+    assert!(erases);
+    // A family of lines, fused: one outline across the shape.
+    settings(
+        &mut doc,
+        InstancedSettings {
+            elements: Vec::new(),
+            lines: vec![LineSet {
+                spacing: 8.0,
+                width: 2.0,
+                ..LineSet::default()
+            }],
+        },
+    );
+    let lined = stamps(&doc);
+    assert_eq!(lined.len(), 1);
+    assert!(lined[0].outline.contours().len() >= 5);
+    // Scattered from a seed: the same seed, the same stamps; another, others.
+    settings(&mut doc, InstancedSettings::default());
+    set(
+        &mut doc,
+        fill,
+        instanced_fill::LAYOUT.index(),
+        InstancedLayout::Scatter.into_value(),
+    );
+    let first = stamps(&doc);
+    assert_eq!(first, stamps(&doc));
+    assert_eq!(
+        first[0],
+        Evaluator::new().programs(&doc)[0]
+            .steps()
+            .iter()
+            .find_map(|step| match step {
+                Step::Draw(draw)
+                    if draw.object == Some(host) && draw.outline.contours().len() > 1 =>
+                    Some(draw.clone()),
+                _ => None,
+            })
+            .unwrap()
+    );
+    set(&mut doc, fill, instanced_fill::SEED.index(), Value::Int(9));
+    assert_ne!(first, stamps(&doc));
+    // Pinned to the document, the layout stays when the shape moves.
+    set(
+        &mut doc,
+        fill,
+        instanced_fill::LAYOUT.index(),
+        InstancedLayout::Grid.into_value(),
+    );
+    set(
+        &mut doc,
+        fill,
+        instanced_fill::ANCHOR.index(),
+        PatternAnchor::Document.into_value(),
+    );
+    let before = contour_bounds(&stamps(&doc)[0].outline.contours()[0]).center();
+    set(
+        &mut doc,
+        host,
+        path_object::LOCATION.index(),
+        Value::Vector(Vector::new(103.0, 50.0)),
+    );
+    let after = contour_bounds(&stamps(&doc)[0].outline.contours()[0]).center();
+    assert!(
+        on_lattice(before.x, 0.0) && on_lattice(after.x, 0.0),
+        "{before:?} {after:?}"
+    );
 }

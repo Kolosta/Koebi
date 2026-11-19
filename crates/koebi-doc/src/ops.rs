@@ -17,8 +17,8 @@ use crate::edit::{Edit, EditError, PlacedLink};
 use crate::graph::{KindRef, Link, LinkId, MergeEntry, NodeId, Settings, SocketRef};
 use crate::kind::NodeKind;
 use crate::kinds::{
-    document, ellipse, fill, group_object, instance_object, merge, page, path_data, path_object,
-    pattern_fill, polygon, rectangle, stroke, transform_geometry,
+    document, ellipse, fill, group_object, instance_object, instanced_fill, merge, page, path_data,
+    path_object, pattern_fill, polygon, rectangle, stroke, transform_geometry,
 };
 use crate::transforms::{self, is_kind, placement};
 use crate::value::{BlendMode, SocketValue, Value};
@@ -328,6 +328,22 @@ pub fn add_pattern_fill(
         )?;
         Ok(paint)
     })
+}
+
+/// Adds an instanced fill to `object`, on top of its paints: circles of radius 2 on a lattice
+/// of 24, cut at its outline. Returns the fill.
+///
+/// # Errors
+///
+/// When `object` is not a path object, or an edit fails.
+pub fn add_instanced_fill(doc: &mut Document, object: NodeId) -> Result<NodeId, OpError> {
+    add_paint(
+        doc,
+        object,
+        instanced_fill::KIND,
+        instanced_fill::PAINT.index(),
+        "Add instanced fill",
+    )
 }
 
 fn add_paint(

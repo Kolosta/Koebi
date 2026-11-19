@@ -11,8 +11,9 @@
 
 use crate::kind::{Family, In, Initial, Kind, NodeKind, Out};
 use crate::value::{
-    Anything, BlendMode, Coverage, EnumKind, Geometry, Layer, Paint, PatternAnchor, PatternClip,
-    Quantity, StrokeAlign, StrokeCap, StrokeJoin, StrokeUnits,
+    Anything, BlendMode, Coverage, EnumKind, Geometry, InstancedLayout, Layer, Paint,
+    PatternAnchor, PatternClip, Quantity, ScatterMode, StrokeAlign, StrokeCap, StrokeJoin,
+    StrokeUnits,
 };
 use koebi_core::LinearRgba;
 use koebi_geom::{Affine, FillRule, Vector};
@@ -31,6 +32,7 @@ pub const ALL: &[&NodeKind] = &[
     transform_geometry::KIND,
     fill::KIND,
     pattern_fill::KIND,
+    instanced_fill::KIND,
     stroke::KIND,
     merge::KIND,
     blend::KIND,
@@ -473,6 +475,113 @@ pub mod pattern_fill {
             SCALE.decl("Scale").initial(Initial::Float(1.0)),
             CLIP.decl("Clip")
                 .initial(Initial::Enum(EnumKind::PatternClip, 0)),
+            ANCHOR
+                .decl("Anchor")
+                .initial(Initial::Enum(EnumKind::PatternAnchor, 0)),
+            OPACITY
+                .decl("Opacity")
+                .quantity(Quantity::Percent)
+                .initial(Initial::Float(1.0)),
+            BLEND
+                .decl("Blend mode")
+                .initial(Initial::Enum(EnumKind::BlendMode, 0)),
+        ],
+        outputs: &[PAINT.decl("Paint")],
+    };
+}
+
+/// A fill of generated shapes and families of lines, on a lattice or scattered from a seed;
+/// what it stamps and draws are the node's settings (`crate::instanced`).
+pub mod instanced_fill {
+    use super::*;
+    kind!(InstancedFill);
+    /// The color of the elements and lines that take the fill's.
+    pub const COLOR: In<InstancedFill, LinearRgba> = In::new(0);
+    /// Where the shapes go.
+    pub const LAYOUT: In<InstancedFill, InstancedLayout> = In::new(1);
+    /// A lattice of three axes (triangular) rather than two.
+    pub const TRIANGULAR: In<InstancedFill, bool> = In::new(2);
+    /// The lattice's pitches along its two axes.
+    pub const SPACING: In<InstancedFill, Vector> = In::new(3);
+    /// The lattice's two axes' angles.
+    pub const ANGLES: In<InstancedFill, Vector> = In::new(4);
+    /// How a scatter's density is set.
+    pub const SCATTER: In<InstancedFill, ScatterMode> = In::new(5);
+    /// The number of shapes a scatter by count spreads.
+    pub const COUNT: In<InstancedFill, i64> = In::new(6);
+    /// The least distance between scattered shapes.
+    pub const MIN_DISTANCE: In<InstancedFill, f64> = In::new(7);
+    /// The most distance between a scattered shape and the one it grew from.
+    pub const MAX_DISTANCE: In<InstancedFill, f64> = In::new(8);
+    /// Whether scattered shapes are kept from overlapping.
+    pub const AVOID_COLLISIONS: In<InstancedFill, bool> = In::new(9);
+    /// The most a lattice's shape moves from its point.
+    pub const POSITION_JITTER: In<InstancedFill, f64> = In::new(10);
+    /// The most each shape turns, either way.
+    pub const ROTATION_JITTER: In<InstancedFill, f64> = In::new(11);
+    /// The seed of its randomness.
+    pub const SEED: In<InstancedFill, i64> = In::new(12);
+    /// The whole layout's rotation.
+    pub const ROTATION: In<InstancedFill, f64> = In::new(13);
+    /// Where it is cut.
+    pub const CLIP: In<InstancedFill, PatternClip> = In::new(14);
+    /// What its layout is pinned to.
+    pub const ANCHOR: In<InstancedFill, PatternAnchor> = In::new(15);
+    /// Its opacity.
+    pub const OPACITY: In<InstancedFill, f64> = In::new(16);
+    /// How it blends onto the paints below it.
+    pub const BLEND: In<InstancedFill, BlendMode> = In::new(17);
+    /// The paint.
+    pub const PAINT: Out<InstancedFill, Paint> = Out::new(0);
+    /// Its definition.
+    pub const KIND: &NodeKind = &NodeKind {
+        id: "koebi.paint.instanced_fill",
+        name: "Instanced Fill",
+        family: Family::Paint,
+        inputs: &[
+            COLOR.decl("Color").initial(BLACK).pass_through(),
+            LAYOUT
+                .decl("Layout")
+                .initial(Initial::Enum(EnumKind::InstancedLayout, 0)),
+            TRIANGULAR.decl("Triangular").initial(Initial::Bool(false)),
+            SPACING
+                .decl("Spacing")
+                .quantity(Quantity::Length)
+                .initial(Initial::Vector(24.0, 24.0)),
+            ANGLES
+                .decl("Axis angles")
+                .quantity(Quantity::Angle)
+                .initial(Initial::Vector(0.0, core::f64::consts::FRAC_PI_2)),
+            SCATTER
+                .decl("Scatter")
+                .initial(Initial::Enum(EnumKind::ScatterMode, 0)),
+            COUNT.decl("Count").initial(Initial::Int(200)),
+            MIN_DISTANCE
+                .decl("Least distance")
+                .quantity(Quantity::Length)
+                .initial(Initial::Float(8.0)),
+            MAX_DISTANCE
+                .decl("Most distance")
+                .quantity(Quantity::Length)
+                .initial(Initial::Float(24.0)),
+            AVOID_COLLISIONS
+                .decl("Avoid collisions")
+                .initial(Initial::Bool(true)),
+            POSITION_JITTER
+                .decl("Position jitter")
+                .quantity(Quantity::Length)
+                .initial(Initial::Float(0.0)),
+            ROTATION_JITTER
+                .decl("Rotation jitter")
+                .quantity(Quantity::Angle)
+                .initial(Initial::Float(0.0)),
+            SEED.decl("Seed").initial(Initial::Int(1)),
+            ROTATION
+                .decl("Rotation")
+                .quantity(Quantity::Angle)
+                .initial(Initial::Float(0.0)),
+            CLIP.decl("Clip")
+                .initial(Initial::Enum(EnumKind::PatternClip, 1)),
             ANCHOR
                 .decl("Anchor")
                 .initial(Initial::Enum(EnumKind::PatternAnchor, 0)),

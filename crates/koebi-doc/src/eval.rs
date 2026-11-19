@@ -39,15 +39,16 @@ use koebi_geom::{
 
 use crate::document::Document;
 use crate::graph::{KindRef, LinkId, LinkStatus, MergeEntry, NodeId, Settings, SocketRef};
+use crate::instanced::{InstancedRecipe, InstancedSettings, Layout};
 use crate::kinds::{
-    blend, coverage, document, ellipse, fill, group_object, instance_object, layer_coverage, mask,
-    merge, page, path_data, path_object, pattern_fill, polygon, rectangle, stroke, transform,
-    transform_geometry,
+    blend, coverage, document, ellipse, fill, group_object, instance_object, instanced_fill,
+    layer_coverage, mask, merge, page, path_data, path_object, pattern_fill, polygon, rectangle,
+    stroke, transform, transform_geometry,
 };
 use crate::transforms;
 use crate::value::{
-    BlendMode, PatternAnchor, PatternClip, SocketValue, StrokeAlign, StrokeCap, StrokeJoin,
-    StrokeUnits, Value,
+    BlendMode, InstancedLayout, PatternAnchor, PatternClip, ScatterMode, SocketValue, StrokeAlign,
+    StrokeCap, StrokeJoin, StrokeUnits, Value,
 };
 
 /// A filled outline in world coordinates, with its solid paint.
@@ -127,6 +128,25 @@ pub struct PatternValue {
     pub bounds: Rect,
 }
 
+/// An instanced fill placed in the world: its recipe, generated over `bounds` (and `region`)
+/// in the space `frame` maps to the world. Pinned to the object, that space is the object's;
+/// pinned to the document, the world itself, the region moved there.
+#[derive(Clone, Debug, PartialEq)]
+pub struct InstancedValue {
+    /// The object it fills, which picking finds.
+    pub object: Option<NodeId>,
+    /// What it generates.
+    pub recipe: Arc<InstancedRecipe>,
+    /// What maps the space it is generated in to the world.
+    pub frame: Affine,
+    /// What its layout is pinned to.
+    pub anchor: PatternAnchor,
+    /// The region generated over, in that space.
+    pub bounds: Rect,
+    /// The outline poses must lie in, in that space; the bounds alone without one.
+    pub region: Option<Arc<Contours>>,
+}
+
 /// Evaluated renderable content.
 #[derive(Clone, Debug, PartialEq)]
 pub enum LayerValue {
@@ -138,6 +158,8 @@ pub enum LayerValue {
     ViewStroke(ViewStroke),
     /// A motif repeated on a lattice.
     Pattern(PatternValue),
+    /// Generated shapes and lines: flattened as what they generate.
+    Instanced(InstancedValue),
     /// Layers composited in order, bottom first.
     Merge(Vec<(Arc<LayerValue>, MergeEntry)>),
     /// A source blended onto a backdrop.
@@ -209,6 +231,19 @@ pub enum PaintValue {
         /// Where it is cut.
         clip: PatternClip,
         /// What its lattice is pinned to.
+        anchor: PatternAnchor,
+        /// Its opacity.
+        opacity: f64,
+        /// How it blends onto the paints below.
+        blend: BlendMode,
+    },
+    /// An instanced fill: shapes and lines generated over the shape.
+    Instanced {
+        /// What it generates.
+        recipe: Arc<InstancedRecipe>,
+        /// Where it is cut.
+        clip: PatternClip,
+        /// What its layout is pinned to.
         anchor: PatternAnchor,
         /// Its opacity.
         opacity: f64,
@@ -454,6 +489,8 @@ pub struct Evaluator {
     outlines: Kept<(usize, u64), (Arc<Contours>, Arc<Contours>)>,
     /// Outlines placed in the world, by the outline placed: it, the transform and the result.
     placed: PlacedOutlines,
+    /// What instanced fills generated.
+    generated: Generated,
     /// The links' statuses, and the graph structure they were computed for.
     statuses: Option<(u64, std::collections::BTreeMap<LinkId, LinkStatus>)>,
     /// What the last programs were evaluated from: the graph's clock and structure, and the
@@ -484,6 +521,7 @@ impl Default for Evaluator {
             registered: IdMap::default(),
             outlines: Kept::default(),
             placed: PlacedOutlines::default(),
+            generated: Generated::default(),
             statuses: None,
             stamp: None,
             programs: Vec::new(),
@@ -583,6 +621,9 @@ impl Evaluator {
         self.placed
             .outlines
             .forget(|(outline, _, _)| Arc::strong_count(outline) == 1);
+        self.generated
+            .layers
+            .forget(|(layer, _)| Arc::strong_count(layer) == 1);
         let programs = &self.programs;
         self.pages
             .retain(|page, _| programs.iter().any(|program| program.page == *page));
@@ -636,12 +677,13 @@ impl Evaluator {
         {
             return Arc::clone(&last.program);
         }
+        self.generated.tolerance = self.tolerance;
         let mut steps = Vec::with_capacity(self.steps_hint);
         let mut seen = IdMap::default();
         seen.reserve(self.steps_hint * 2);
         let root = layer
             .as_ref()
-            .and_then(|layer| flatten(layer, &mut steps, &mut seen));
+            .and_then(|layer| flatten(layer, &mut steps, &mut seen, &mut self.generated));
         self.steps_hint = steps.len();
         let program = Arc::new(Program::new(node, size, background, steps, root));
         self.pages.insert(
@@ -897,6 +939,9 @@ impl Evaluator {
                     .unwrap_or_default(),
             }));
         }
+        if id == instanced_fill::KIND.id {
+            return Out::Paint(Arc::new(self.instanced(context, node)));
+        }
         if id == pattern_fill::KIND.id {
             let motif = match self.input(context, node, pattern_fill::MOTIF.index()) {
                 Out::Layer(layer) => Some(layer),
@@ -1004,6 +1049,87 @@ impl Evaluator {
             return self.object(context, node, output);
         }
         Out::None
+    }
+
+    /// An instanced fill node's paint: its recipe from its inputs and settings.
+    fn instanced(&mut self, context: &Context<'_>, node: NodeId) -> PaintValue {
+        use instanced_fill as fill;
+        let float = |this: &mut Self, index: usize, default: f64| {
+            this.value::<f64>(context, node, index).unwrap_or(default)
+        };
+        let vector = |this: &mut Self, index: usize, default: Vector| {
+            this.value::<Vector>(context, node, index)
+                .unwrap_or(default)
+        };
+        let layout = match self
+            .value::<InstancedLayout>(context, node, fill::LAYOUT.index())
+            .unwrap_or_default()
+        {
+            InstancedLayout::Grid => Layout::Grid {
+                spacing: vector(self, fill::SPACING.index(), Vector::new(24.0, 24.0)),
+                angles: vector(
+                    self,
+                    fill::ANGLES.index(),
+                    Vector::new(0.0, core::f64::consts::FRAC_PI_2),
+                ),
+                triangular: self
+                    .value(context, node, fill::TRIANGULAR.index())
+                    .unwrap_or(false),
+                jitter: float(self, fill::POSITION_JITTER.index(), 0.0),
+            },
+            InstancedLayout::Scatter => Layout::Scatter {
+                spacing: match self
+                    .value::<ScatterMode>(context, node, fill::SCATTER.index())
+                    .unwrap_or_default()
+                {
+                    ScatterMode::Distance => koebi_geom::Spacing::Distance {
+                        min: float(self, fill::MIN_DISTANCE.index(), 8.0),
+                        max: float(self, fill::MAX_DISTANCE.index(), 24.0),
+                    },
+                    ScatterMode::Count => koebi_geom::Spacing::Count(
+                        usize::try_from(
+                            self.value::<i64>(context, node, fill::COUNT.index())
+                                .unwrap_or(200)
+                                .max(0),
+                        )
+                        .unwrap_or(0),
+                    ),
+                },
+                avoid_collisions: self
+                    .value(context, node, fill::AVOID_COLLISIONS.index())
+                    .unwrap_or(true),
+            },
+        };
+        let settings = match context.doc.graph().node(node).map(|n| &n.settings) {
+            Some(Settings::Instanced(settings)) => Arc::clone(settings),
+            _ => Arc::new(InstancedSettings::default()),
+        };
+        #[allow(clippy::cast_sign_loss, reason = "a seed's bits")]
+        let seed = self
+            .value::<i64>(context, node, fill::SEED.index())
+            .unwrap_or(1) as u64;
+        PaintValue::Instanced {
+            recipe: Arc::new(InstancedRecipe {
+                layout,
+                rotation_jitter: float(self, fill::ROTATION_JITTER.index(), 0.0),
+                seed,
+                rotation: float(self, fill::ROTATION.index(), 0.0),
+                settings,
+                color: self
+                    .value(context, node, fill::COLOR.index())
+                    .unwrap_or(LinearRgba::new(0.0, 0.0, 0.0, 1.0)),
+            }),
+            clip: self
+                .value(context, node, fill::CLIP.index())
+                .unwrap_or(PatternClip::Contour),
+            anchor: self
+                .value(context, node, fill::ANCHOR.index())
+                .unwrap_or_default(),
+            opacity: float(self, fill::OPACITY.index(), 1.0),
+            blend: self
+                .value(context, node, fill::BLEND.index())
+                .unwrap_or_default(),
+        }
     }
 
     fn stroke(&mut self, context: &Context<'_>, node: NodeId) -> PaintValue {
@@ -1215,6 +1341,39 @@ impl Evaluator {
                     *blend,
                 ),
                 PaintValue::Pattern { motif: None, .. } => continue,
+                PaintValue::Instanced {
+                    recipe,
+                    clip,
+                    anchor,
+                    opacity,
+                    blend,
+                } => {
+                    opacity_of_layer = *opacity;
+                    let region = self.pattern_region(&geometry, *clip, widest.as_ref());
+                    let instanced = InstancedValue {
+                        object: Some(node),
+                        recipe: Arc::clone(recipe),
+                        frame: Affine::IDENTITY,
+                        anchor: *anchor,
+                        bounds: region
+                            .as_ref()
+                            .map_or_else(|| geometry.bounds(), |region| region.bounds()),
+                        region: region.clone(),
+                    };
+                    // Cut at an outline, as a pattern is.
+                    let layer = match region {
+                        Some(region) => LayerValue::Mask {
+                            content: Arc::new(LayerValue::Instanced(instanced)),
+                            coverage: Arc::new(CoverageValue::Outline {
+                                outline: region,
+                                rule: FillRule::NonZero,
+                            }),
+                            invert: false,
+                        },
+                        None => LayerValue::Instanced(instanced),
+                    };
+                    (layer, *blend)
+                }
                 PaintValue::Pattern {
                     motif: Some(motif),
                     spacing,
@@ -1493,6 +1652,42 @@ impl PlacedOutlines {
     }
 }
 
+/// What instanced fills generated, by the layer that placed them (kept, so that its address
+/// names it): a fill whose placement did not change generates nothing again.
+#[derive(Clone, Debug, Default)]
+struct Generated {
+    layers: Kept<usize, (Arc<LayerValue>, Arc<LayerValue>)>,
+    /// The tolerance of the lines' outlines, in document units.
+    tolerance: f64,
+}
+
+impl Generated {
+    /// What the instanced fill `layer` generates.
+    fn get(&mut self, layer: &Arc<LayerValue>) -> Arc<LayerValue> {
+        let key = Arc::as_ptr(layer) as usize;
+        if let Some((kept, made)) = self.layers.entries.get(&key)
+            && Arc::ptr_eq(kept, layer)
+        {
+            return Arc::clone(made);
+        }
+        let made = Arc::new(match layer.as_ref() {
+            LayerValue::Instanced(instanced) => crate::instanced::generate(
+                &instanced.recipe,
+                instanced.frame,
+                instanced.bounds,
+                instanced.region.as_deref(),
+                instanced.object,
+                self.tolerance,
+            ),
+            _ => LayerValue::Empty,
+        });
+        self.layers
+            .entries
+            .insert(key, (Arc::clone(layer), Arc::clone(&made)));
+        made
+    }
+}
+
 /// A page's last program and what it was made from.
 #[derive(Clone, Debug)]
 struct PageProgram {
@@ -1531,6 +1726,24 @@ fn transformed(
         }),
         // The region moves; the lattice with it when pinned to the object, the motif never
         // (the lattice maps it).
+        // Pinned to the object, it is generated in the object's space, mapped by the frame;
+        // pinned to the document, in the world, its region moved there.
+        LayerValue::Instanced(instanced) => LayerValue::Instanced(match instanced.anchor {
+            PatternAnchor::Object => InstancedValue {
+                object: object.or(instanced.object),
+                frame: transform * instanced.frame,
+                ..instanced.clone()
+            },
+            PatternAnchor::Document => InstancedValue {
+                object: object.or(instanced.object),
+                bounds: instanced.bounds.transformed(transform),
+                region: instanced
+                    .region
+                    .as_ref()
+                    .map(|region| placed.get(region, transform)),
+                ..instanced.clone()
+            },
+        }),
         LayerValue::Pattern(pattern) => LayerValue::Pattern(PatternValue {
             object: object.or(pattern.object),
             lattice: match pattern.anchor {
@@ -1589,6 +1802,7 @@ fn flatten(
     layer: &Arc<LayerValue>,
     steps: &mut Vec<Step>,
     seen: &mut IdMap<*const LayerValue, Option<StepId>>,
+    generated: &mut Generated,
 ) -> Option<StepId> {
     let key = Arc::as_ptr(layer);
     if let Some(step) = seen.get(&key) {
@@ -1598,8 +1812,14 @@ fn flatten(
         LayerValue::Empty => None,
         LayerValue::Draw(draw) => Some(Step::Draw(draw.clone())),
         LayerValue::ViewStroke(stroke) => Some(Step::ViewStroke(stroke.clone())),
+        LayerValue::Instanced(_) => {
+            let made = generated.get(layer);
+            let step = flatten(&made, steps, seen, generated);
+            seen.insert(key, step);
+            return step;
+        }
         LayerValue::Pattern(pattern) => {
-            flatten(&pattern.motif, steps, seen).map(|motif| Step::Pattern {
+            flatten(&pattern.motif, steps, seen, generated).map(|motif| Step::Pattern {
                 object: pattern.object,
                 motif,
                 lattice: pattern.lattice,
@@ -1612,7 +1832,7 @@ fn flatten(
                 && entry.blend == BlendMode::Normal
                 && (entry.opacity - 1.0).abs() < f64::EPSILON) =>
         {
-            let single = flatten(&layers[0].0, steps, seen);
+            let single = flatten(&layers[0].0, steps, seen, generated);
             seen.insert(key, single);
             return single;
         }
@@ -1621,7 +1841,7 @@ fn flatten(
                 .iter()
                 .filter(|(_, entry)| entry.visible)
                 .filter_map(|(layer, entry)| {
-                    flatten(layer, steps, seen).map(|step| MergeInput {
+                    flatten(layer, steps, seen, generated).map(|step| MergeInput {
                         step,
                         blend: entry.blend,
                         opacity: entry.opacity,
@@ -1648,8 +1868,8 @@ fn flatten(
             opacity,
             isolate,
         } => {
-            let backdrop = flatten(backdrop, steps, seen);
-            let source = flatten(source, steps, seen);
+            let backdrop = flatten(backdrop, steps, seen, generated);
+            let source = flatten(source, steps, seen, generated);
             match (backdrop, source) {
                 (Some(backdrop), Some(source)) => Some(Step::Blend {
                     backdrop,
@@ -1673,7 +1893,7 @@ fn flatten(
             content,
             coverage,
             invert,
-        } => match flatten(content, steps, seen) {
+        } => match flatten(content, steps, seen, generated) {
             None => None,
             Some(content) => {
                 let coverage = match coverage.as_ref() {
@@ -1681,7 +1901,7 @@ fn flatten(
                         outline: outline.clone(),
                         rule: *rule,
                     },
-                    CoverageValue::Layer(layer) => match flatten(layer, steps, seen) {
+                    CoverageValue::Layer(layer) => match flatten(layer, steps, seen, generated) {
                         Some(step) => StepCoverage::Layer(step),
                         // An empty coverage: nothing shows, or all of it when inverted.
                         None if *invert => {

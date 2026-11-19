@@ -17,6 +17,8 @@
 //! - [`boolean`] ([`BooleanOp`]), [`simplify`], [`offset_region`]: union, intersection,
 //!   difference and exclusive or of filled outlines under their fill rules, a region made of
 //!   loops that neither overlap nor cross, a region grown or shrunk; as curves.
+//! - [`lattice`], [`scatter`] ([`Rng`], [`Spacing`]): where a fill stamps its instances, on a
+//!   lattice or scattered evenly from a seed.
 //! - [`prepare`] ([`Octave`], [`Cell`]): an outline made quadratic and monotone within a
 //!   sixteenth of a pixel, cut into cells with f64 origins, for the canvas at any zoom.
 //!
@@ -48,6 +50,7 @@ mod affine;
 mod boolean;
 mod cells;
 mod contour;
+mod layout;
 mod nurbs;
 mod path;
 mod point;
@@ -61,6 +64,7 @@ pub use affine::{Affine, Decomposed, Transform};
 pub use boolean::{BooleanOp, boolean, offset_region, simplify};
 pub use cells::{Edge, FillCell, fill_cells};
 pub use contour::{Contour, Contours, FillRule, Nearest};
+pub use layout::{Rng, Spacing, lattice, scatter};
 pub use nurbs::NurbsKnots;
 pub use path::{Anchor, HandleKind, Path, Spline, Subpath};
 pub use point::{Point, Vector};

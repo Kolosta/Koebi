@@ -186,6 +186,8 @@ pub enum Settings {
     Path(Arc<Path>),
     /// A stroke: its dashes.
     Stroke(Dashes),
+    /// An instanced fill: what it stamps and draws.
+    Instanced(Arc<crate::instanced::InstancedSettings>),
     /// A Merge: each entry's compositing, by link.
     Merge(BTreeMap<LinkId, MergeEntry>),
     /// An object: the inverse of its parent's world transform when it was parented.
@@ -891,6 +893,8 @@ fn settings_of(kind: &NodeKind) -> Settings {
         Settings::Path(Arc::new(Path::default()))
     } else if is(kinds::stroke::KIND) {
         Settings::Stroke(Dashes::default())
+    } else if is(kinds::instanced_fill::KIND) {
+        Settings::Instanced(Arc::default())
     } else if is(kinds::merge::KIND) {
         Settings::Merge(BTreeMap::new())
     } else if is(kinds::path_object::KIND)
